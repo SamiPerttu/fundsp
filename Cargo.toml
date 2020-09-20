@@ -1,0 +1,21 @@
+[package]
+name = "adsp"
+version = "0.1.0"
+authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+num-traits = "0.2.12"
+num-complex = "0.3.0"
+utd = { path = "../utd" }
+
+[features]
+default = []
+double_precision = []
+forty_eight_khz = []
+eighty_eight_point_two_khz = []
+ninety_six_khz = []
+one_hundred_seventy_six_point_four_khz = []
+one_hundred_ninety_two_khz = []
