@@ -46,7 +46,6 @@ pub fn afloat<F: AudioFloat>(x: F32) -> F { F::new_f64(x) }
 pub mod audiocomponent;
 pub mod audiounit;
 pub mod filter;
-pub mod frame;
 pub mod lti;
 pub mod noise;
 pub mod sample;

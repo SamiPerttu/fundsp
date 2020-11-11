@@ -1,7 +1,8 @@
 use super::*;
 use super::audiocomponent::*;
-use super::frame::*;
-use typenum::*;
+use numeric_array::*;
+use numeric_array::typenum::*;
+use generic_array::sequence::*;
 
 /// AudioUnit processes audio data block by block at a synchronous rate.
 /// Once constructed, it has a fixed number of inputs and outputs that can be queried.
@@ -33,9 +34,10 @@ pub trait AudioUnit {
     fn latency(&self) -> f64 { 0.0 }
 }
 
-pub struct Acu<A: AudioComponent>(A);
+/// Adapts an AudioComponent into an AudioUnit.
+pub struct AsUnit<A: AudioComponent>(pub A);
 
-impl<A: AudioComponent> AudioUnit for Acu<A> {
+impl<A: AudioComponent> AudioUnit for AsUnit<A> {
     fn reset(&mut self, sample_rate: Option<f64>) { self.0.reset(sample_rate); }
     fn process(&mut self, input: &[&[F32]], output: &mut [&mut[F32]])
     {
@@ -45,13 +47,13 @@ impl<A: AudioComponent> AudioUnit for Acu<A> {
         assert!(input.iter().all(|x| x.len() == buffer_size));
         assert!(output.iter().all(|x| x.len() == buffer_size));
         for i in 0 .. buffer_size {
-            let result = self.0.tick(A::Input::from_fn(|j| afloat(input[j][i])));
-            for (j, x) in result.channels().enumerate() {
+            let result = self.0.tick(&NumericArray::generate( |j| afloat(input[j][i]) ));
+            for (j, &x) in result.iter().enumerate() {
                 output[j][i] = cast(x);
             }
         }
     }
-    fn inputs(&self) -> usize { <A::Input as Frame>::Channels::USIZE }
-    fn outputs(&self) -> usize { <A::Output as Frame>::Channels::USIZE }
+    fn inputs(&self) -> usize { A::Inputs::USIZE }
+    fn outputs(&self) -> usize { A::Outputs::USIZE }
     fn latency(&self) -> f64 { self.0.latency() }
 }

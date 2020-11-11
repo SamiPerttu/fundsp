@@ -7,7 +7,12 @@ edition = "2018"
 [dependencies]
 num-complex = "0.3"
 utd = { path = "../utd" }
-typenum = "1.12"
+generic-array = "0.14.4"
+numeric-array = "0.5"
+
+[dev-dependencies]
+cpal = "0.13"
+anyhow = "1.0"
 
 [features]
 default = []
@@ -17,3 +22,7 @@ eighty_eight_point_two_khz = []
 ninety_six_khz = []
 one_hundred_seventy_six_point_four_khz = []
 one_hundred_ninety_two_khz = []
+
+[[example]]
+name = "beep"
+path = "examples/beep.rs"

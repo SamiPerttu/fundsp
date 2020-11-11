@@ -1,5 +1,6 @@
 use super::*;
 use super::audiocomponent::*;
+use numeric_array::*;
 
 /// Maximum length sequences (MLS) are pseudorandom,
 /// spectrally flat, binary white noise sequences with interesting properties.
@@ -101,18 +102,20 @@ impl MlsNoise {
 
 impl AudioComponent for MlsNoise {
     type Sample = F32;
-    type Input = [F32; 0];
-    type Output = [F32; 1];
+    type Inputs = typenum::U0;
+    type Outputs = typenum::U1;
 
     fn reset(&mut self, _sample_rate: Option<f64>)
     {
         self.mls = Mls::new(self.mls.n);
     }
 
-    fn tick(&mut self, _input : [F32; 0]) -> [F32; 1]
+    fn tick(&mut self, _input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs>
     {
         let value = self.mls.value() as F32;
         self.mls = self.mls.next();
-        [value * 2.0 - 1.0]
+        [value * 2.0 - 1.0].into()
     }
 }
+
+pub fn mls() -> Ac<MlsNoise> { Ac(MlsNoise::new_default()) }

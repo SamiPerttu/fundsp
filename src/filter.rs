@@ -3,8 +3,7 @@ use num_complex::Complex64;
 use super::*;
 use super::audiocomponent::*;
 use super::lti::*;
-
-// NEXT: add enum here for filter parameters and modify below accordingly.
+use numeric_array::*;
 
 #[derive(Copy, Clone)]
 pub struct BiquadCoefs<F: AudioFloat = f64> {
@@ -84,8 +83,8 @@ impl<F: AudioFloat> Lti for Biquad<F> {
 impl<F: AudioFloat> AudioComponent for Biquad<F> {
 
     type Sample = F32;
-    type Input = [F32; 1];
-    type Output = [F32; 1];
+    type Inputs = typenum::U1;
+    type Outputs = typenum::U1;
 
     fn reset(&mut self, _sample_rate : Option<f64>)
     {
@@ -95,7 +94,7 @@ impl<F: AudioFloat> AudioComponent for Biquad<F> {
         self.y2 = F::zero();
     }
 
-    fn tick(&mut self, input : [F32; 1]) -> [F32; 1]
+    fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs>
     {
         let x0 = afloat(input[0]);
         let y0 = self.b0 * x0 + self.b1 * self.x1 + self.b2 * self.x2 - self.a1 * self.y1 - self.a2 * self.y2;
@@ -103,7 +102,7 @@ impl<F: AudioFloat> AudioComponent for Biquad<F> {
         self.x1 = x0;
         self.y2 = self.y1;
         self.y1 = y0;
-        [cast(y0)]
+        [cast(y0)].into()
 
         // Transposed Direct Form II would be:
         //   y0 = b0 * x0 + s1
@@ -129,27 +128,25 @@ impl<F: AudioFloat> ButterLowpass<F> {
     }
 }
 
-pub fn lowpass() -> Ac<ButterLowpass<F32>> { acomp(ButterLowpass::new(cast(DEFAULT_SR))) }
-
 impl<F: AudioFloat> AudioComponent for ButterLowpass<F> {
 
     type Sample = F32;
-    type Input = [F32; 2];
-    type Output = [F32; 1];
+    type Inputs = typenum::U2;
+    type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>)
     {
         self.biquad.reset(sample_rate);
     }
 
-    fn tick(&mut self, input : [F32; 2]) -> [F32; 1]
+    fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs>
     {
         let cutoff: F = afloat(input[1]);
         if cutoff != self.cutoff {
             self.biquad.set_coefs(BiquadCoefs::<F>::butter_lowpass(self.sample_rate, cutoff));
             self.cutoff = cutoff;
         }
-        self.biquad.tick([input[0]])
+        self.biquad.tick(&[input[0]].into())
     }
 }
 
@@ -176,15 +173,15 @@ impl<F: AudioFloat> Resonator<F> {
 impl<F: AudioFloat> AudioComponent for Resonator<F> {
 
     type Sample = F32;
-    type Input = [F32; 3];
-    type Output = [F32; 1];
+    type Inputs = typenum::U3;
+    type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>)
     {
         self.biquad.reset(sample_rate);
     }
 
-    fn tick(&mut self, input : [F32; 3]) -> [F32; 1]
+    fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs>
     {
         let center: F = afloat(input[1]);
         let bandwidth: F = afloat(input[2]);
@@ -193,7 +190,15 @@ impl<F: AudioFloat> AudioComponent for Resonator<F> {
             self.center = center;
             self.bandwidth = bandwidth;
         }
-        self.biquad.tick([input[0]])
+        self.biquad.tick(&[input[0]].into())
     }
 }
 
+/// Makes a Butterworth lowpass filter.
+pub fn lowpass() -> Ac<ButterLowpass<f64>> { Ac(ButterLowpass::new(cast(DEFAULT_SR))) }
+
+/// Makes a Butterworth lowpass filter with a fixed cutoff frequency.
+pub fn lowpass_hz(cutoff: F32) -> Ac<impl AudioComponent> { (pass() | constant(cutoff)) >> lowpass() }
+
+/// Makes a bandpass resonator.
+pub fn resonator() -> Ac<Resonator<f64>> { Ac(Resonator::new(cast(DEFAULT_SR))) }
