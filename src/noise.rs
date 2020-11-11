@@ -1,9 +1,9 @@
-use crate::prelude::*;
-use crate::audiocomponent::AudioComponent;
+use super::*;
+use super::audiocomponent::*;
 
 /// Maximum length sequences (MLS) are pseudorandom,
 /// spectrally flat, binary white noise sequences with interesting properties.
-/// We support pre-baked sequences with state space sizes from 1 to 31 bits.
+/// We have pre-baked sequences with state space sizes from 1 to 31 bits.
 #[derive(Copy, Clone)]
 pub struct Mls {
     /// State space size in bits.
@@ -70,7 +70,7 @@ impl Mls {
         Mls { n, s: 1 + seed % ((1 << n) - 1) }
     }
 
-    /// Sequence length. The sequence repeats after 2^n - 1 steps.
+    /// Sequence length. The sequence repeats after 2**n - 1 steps.
     pub fn length(self) -> u32 {
         (1 << self.n) - 1
     }
@@ -89,7 +89,7 @@ impl Mls {
 }
 
 /// MLS noise component.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct MlsNoise {
     mls : Mls,
 }
@@ -99,9 +99,12 @@ impl MlsNoise {
     pub fn new_default() -> MlsNoise { MlsNoise::new(Mls::new_default()) }
 }
 
-impl AudioComponent<0, 1> for MlsNoise {
+impl AudioComponent for MlsNoise {
+    type Sample = F32;
+    type Input = [F32; 0];
+    type Output = [F32; 1];
 
-    fn reset(&mut self, sample_rate: Option<f64>)
+    fn reset(&mut self, _sample_rate: Option<f64>)
     {
         self.mls = Mls::new(self.mls.n);
     }

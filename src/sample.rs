@@ -1,7 +1,9 @@
-use num_traits::Float;
+use utd::math::*;
+
+// TODO: Are we going to use this for anything?
 
 /// Sample depicts a storage format for sample values based on interchange with floating point type F.
-pub trait Sample<F : Float> : Copy {
+pub trait Sample<F: Real> : Copy {
     /// Converts from sample into Float.
     fn get(self) -> F;
     /// Converts from Float into sample. The range of supported F values should cover at least the canonical range [-1, 1].

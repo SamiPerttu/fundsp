@@ -1,110 +1,165 @@
-use crate::prelude::*;
+use utd::math::*;
+use super::*;
+use super::frame::*;
 
 /// AudioComponent processes audio data sample by sample.
-/// It has a fixed number of inputs (M) and outputs (N).
-/// The sample rate is the system default prelude::DEFAULT_SR, if not set otherwise.
-pub trait AudioComponent<const M: usize, const N: usize> {
+/// It has a static number of inputs and outputs known at compile time.
+/// If not set otherwise, the sample rate is the system default DEFAULT_SR.
+pub trait AudioComponent {
+    type Sample: AudioFloat;
+    type Input: Frame<Sample = Self::Sample>;
+    type Output: Frame<Sample = Self::Sample>;
 
-    /// Resets the input state of the component to an initial state where it has not computed any data. 
-    fn reset(&mut self, sample_rate: Option<f64>) {}
+    /// Resets the input state of the component to an initial state where it has not processed any samples.
+    fn reset(&mut self, _sample_rate: Option<f64>) {}
 
     /// Processes one sample.
-    fn tick(&mut self, input: [F32; M]) -> [F32; N];
+    fn tick(&mut self, input: Self::Input) -> Self::Output;
 
     /// Causal latency from input to output, in (fractional) samples.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
     /// This applies only to components that have both inputs and outputs.
     fn latency(&self) -> f64 { 0.0 }
+
+    /// Processes one sample from an all-zeros input.
+    fn next(&mut self) -> Self::Output { self.tick(Self::Input::from_fn(|_| Self::Sample::zero())) }
 }
 
-#[derive(Copy, Clone)]
-pub struct ConstantComponent<const N: usize> {
-    output: [F32; N],
+/// Component that outputs a constant value.
+#[derive(Clone)]
+pub struct ConstantComponent<F: Frame> {
+    output: F,
 }
 
-impl<const N: usize> ConstantComponent<N> {
-    pub fn new(output: [F32; N]) -> Self { ConstantComponent::<N> { output } }
+impl<F: Frame> ConstantComponent<F> {
+    pub fn new(output: F) -> Self { ConstantComponent { output } }
 }
 
-impl<const N: usize> AudioComponent<0, N> for ConstantComponent<N> {
-    fn tick(&mut self, input: [F32; 0]) -> [F32; N] {
-        self.output
-    }
+impl<F: Frame> AudioComponent for ConstantComponent<F> where F::Sample: AudioFloat {
+    type Sample = F::Sample;
+    type Input = [F::Sample; 0];
+    type Output = F;
+
+    fn tick(&mut self, _input: Self::Input) -> Self::Output { self.output }
 }
 
-// Note. Const generics type arithmetic is on hold at the time of writing.
-// I do not know how to express binop AudioComponent bounds generically where both
-// subcomponents have inputs, something like AudioComponent<{M1+M2},N>.
-// It is possible to just specify the input arity of the result, but inelegant,
-// as users would have to type it out.
-
-#[derive(Copy, Clone)]
-pub struct BinopComponent<X: AudioComponent<M, N>, Y: AudioComponent<0, N>, B: Copy + Fn(F32, F32) -> F32, const M: usize, const N: usize> {
+/// BinopComponent combines outputs of two components, channel-wise, with a binary operation.
+/// The components must have the same number of inputs and outputs.
+/// The same input is sent to both components.
+#[derive(Clone)]
+pub struct BinopComponent<X, Y, B> where
+    X: AudioComponent<Sample = F32>,
+    Y: AudioComponent<Input = X::Input, Output = X::Output, Sample = F32>,
+    B: Fn(F32, F32) -> F32,
+{
     x: X,
     y: Y,
     binop: B,
 }
 
-// TODO. We can use function pointer 
-// fn(f32, f32) -> f32 above to avoid being generic over B.
+impl<X, Y, B> BinopComponent<X, Y, B> where
+    X: AudioComponent<Sample = F32>,
+    Y: AudioComponent<Input = X::Input, Output = X::Output, Sample = F32>,
+    B: Fn(F32, F32) -> F32,
+{
+    pub fn new(x: X, y: Y, binop: B) -> Self { BinopComponent { x, y, binop } }
+}
 
-impl<X: AudioComponent<M, N>, Y: AudioComponent<0, N>, B: Copy + Fn(F32, F32) -> F32, const M: usize, const N: usize> AudioComponent<M, N> for BinopComponent<X, Y, B, M, N> {
+impl<X, Y, B> AudioComponent for BinopComponent<X, Y, B> where
+    X: AudioComponent<Sample = F32>,
+    Y: AudioComponent<Input = X::Input, Output = X::Output, Sample = F32>,
+    B: Fn(F32, F32) -> F32,
+{
+    type Sample = F32;
+    type Input = X::Input;
+    type Output = X::Output;
+
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.reset(sample_rate);
         self.y.reset(sample_rate);
     }
-    fn tick(&mut self, input: [F32; M]) -> [F32; N] {
+    fn tick(&mut self, input: Self::Input) -> Self::Output {
         let x = self.x.tick(input);
-        let y = self.y.tick([]);
-
-        let mut output: [F32; N] = [0.0; N];
-
-        x.iter()
-        .zip(y.iter())
-        .enumerate()
-        .for_each(|(i, (&x, &y))| output[i] = (self.binop)(x, y) );
-        
-        output
+        let y = self.y.tick(input);
+        Self::Output::from_fn(|i| (self.binop)(x.channel(i), y.channel(i)))
     }
+    fn latency(&self) -> f64 { self.x.latency().min(self.y.latency()) }
 }
 
-#[derive(Copy, Clone)]
-pub struct FixedBinopComponent<X: AudioComponent<M, N>, Y: AudioComponent<0, N>, const M: usize, const N: usize> {
+
+#[derive(Clone)]
+pub enum Binop { Add, Mul }
+
+/// FixedBinopComponent combines outputs of two components, channel-wise, with a binary operation.
+/// The components must have the same number of inputs and outputs.
+/// The same input is sent to both components.
+#[derive(Clone)]
+pub struct FixedBinopComponent<X, Y> where
+    X: AudioComponent,
+    Y: AudioComponent<Sample = X::Sample, Input = X::Input, Output = X::Output>,
+{
     x: X,
     y: Y,
+    b: Binop,
 }
 
-impl<X: AudioComponent<M, N>, Y: AudioComponent<0, N>, const M: usize, const N: usize> AudioComponent<M, N> for FixedBinopComponent<X, Y, M, N> {
+impl<X, Y> FixedBinopComponent<X, Y> where
+    X: AudioComponent,
+    Y: AudioComponent<Sample = X::Sample, Input = X::Input, Output = X::Output>,
+{
+    pub fn new(x: X, y: Y, b: Binop) -> Self { FixedBinopComponent { x, y, b } }
+}
+
+impl<X, Y> AudioComponent for FixedBinopComponent<X, Y> where
+    X: AudioComponent,
+    Y: AudioComponent<Sample = X::Sample, Input = X::Input, Output = X::Output>,
+{
+    type Sample = X::Sample;
+    type Input = X::Input;
+    type Output = X::Output;
+
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.reset(sample_rate);
         self.y.reset(sample_rate);
     }
-    fn tick(&mut self, input: [F32; M]) -> [F32; N] {
+    fn tick(&mut self, input: Self::Input) -> Self::Output {
         let x = self.x.tick(input);
-        let y = self.y.tick([]);
+        let y = self.y.tick(input);
+        match self.b {
+            Binop::Add => Self::Output::from_fn(|i| x.channel(i) + y.channel(i)),
+            Binop::Mul => Self::Output::from_fn(|i| x.channel(i) * y.channel(i)),
+        }
+    }
+    fn latency(&self) -> f64 { self.x.latency().min(self.y.latency()) }
+}
 
-        let mut output: [F32; N] = [0.0; N];
+/// AudioComponent wrapper.
+pub struct Ac<X: AudioComponent>(X);
+pub fn acomp<X: AudioComponent>(x: X) -> Ac<X> { Ac(x) }
 
-        x.iter()
-        .zip(y.iter())
-        .enumerate()
-        .for_each(|(i, (&x, &y))| output[i] = x + y );
-        
-        output
+impl<X: AudioComponent> core::ops::Deref for Ac<X> {
+    type Target = X;
+    #[inline] fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl<X: AudioComponent> core::ops::DerefMut for Ac<X> {
+    #[inline] fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+}
+
+impl<X, Y> std::ops::Add<Ac<Y>> for Ac<X> where
+    X: AudioComponent,
+    Y: AudioComponent<Sample = X::Sample, Input = X::Input, Output = X::Output>,
+{
+    type Output = Ac<FixedBinopComponent<X, Y>>;
+    #[inline] fn add(self, y: Ac<Y>) -> Self::Output { Ac(FixedBinopComponent::new(self.0, y.0, Binop::Add)) }
+}
+
+impl<X: AudioComponent> Iterator for Ac<X> {
+    type Item = X::Output;
+    /// Processes one sample from an all-zeros input.
+    fn next(&mut self) -> Option<Self::Item> { 
+        Some(self.tick(X::Input::from_fn(|_| X::Sample::zero())))
     }
 }
 
-impl<Y: AudioComponent<0, N>, const N: usize> std::ops::Add<Y> for ConstantComponent<N> {
-    type Output = FixedBinopComponent<Self, Y, 0, N>;
-    fn add(self, y: Y) -> Self::Output {
-        FixedBinopComponent::<Self, Y, 0, N> { x: self, y }
-    }
-}
-
-//impl<Y: AudioComponent<M, 1>, const M: usize> std::ops::Shr<Y> for ConstantComponent<M> {
-//}
-
-// We would like a simple combinatory style for creating audio processing graphs.
-// Below, envelope implies subsampling with linear interpolation, a so-called
-// control rate signal, or control signal.
-// envelope(|t| exp(-t * 10.0)) * (constant(440.0) >> sine())
+pub fn constant(x: F32) -> Ac<ConstantComponent<[F32; 1]>> { Ac(ConstantComponent::new([x])) }

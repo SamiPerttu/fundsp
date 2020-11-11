@@ -4,12 +4,10 @@ version = "0.1.0"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-num-traits = "0.2.12"
-num-complex = "0.3.0"
+num-complex = "0.3"
 utd = { path = "../utd" }
+typenum = "1.12"
 
 [features]
 default = []

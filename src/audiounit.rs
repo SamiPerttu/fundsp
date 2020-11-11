@@ -1,15 +1,22 @@
+use super::*;
+use super::audiocomponent::*;
+use super::frame::*;
+use typenum::*;
+
 /// AudioUnit processes audio data block by block at a synchronous rate.
-/// It has a fixed number of inputs and outputs that can be queried.
+/// Once constructed, it has a fixed number of inputs and outputs that can be queried.
+/// If not set otherwise, the sample rate is the system default DEFAULT_SR.
 pub trait AudioUnit {
 
-    /// Resets the unit to an initial state where it has not computed any data. 
-    fn reset(&mut self) {}
+    /// Resets the input state of the unit to an initial state where it has not processed any data. 
+    fn reset(&mut self, _sample_rate: Option<f64>) {}
 
     /// Computes a block of data, reading from input buffers and writing to output buffers.
-    /// Buffers are supplied as slices. All buffers must have the same, non-zero size.
+    /// Buffers are supplied as slices. All buffers must have the same size.
     /// The caller decides the length of the block.
+    /// Using the same length for many consecutive calls is presumed to be efficient.
     /// The number of input and output buffers must correspond to inputs() and outputs(), respectively.
-    fn process(&mut self, input : &[&[f32]], output : &[&mut[f32]]);
+    fn process(&mut self, input: &[&[F32]], output: &mut [&mut[F32]]);
 
     /// Number of inputs to this unit. Size of the input arg in compute().
     /// This should be fixed after construction.
@@ -21,7 +28,30 @@ pub trait AudioUnit {
 
     /// Causal latency from input to output, in (fractional) samples.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
-    /// This applies only to components that have both inputs and outputs.
+    /// This applies only to components that have both inputs and outputs; others should return 0.0.
     /// The latency can depend on the sample rate and is allowed to change after a reset.
     fn latency(&self) -> f64 { 0.0 }
+}
+
+pub struct Acu<A: AudioComponent>(A);
+
+impl<A: AudioComponent> AudioUnit for Acu<A> {
+    fn reset(&mut self, sample_rate: Option<f64>) { self.0.reset(sample_rate); }
+    fn process(&mut self, input: &[&[F32]], output: &mut [&mut[F32]])
+    {
+        assert!(input.len() == self.inputs());
+        assert!(output.len() == self.outputs());
+        let buffer_size = if input.len() > 0 { input[0].len() } else { output[0].len() };
+        assert!(input.iter().all(|x| x.len() == buffer_size));
+        assert!(output.iter().all(|x| x.len() == buffer_size));
+        for i in 0 .. buffer_size {
+            let result = self.0.tick(A::Input::from_fn(|j| afloat(input[j][i])));
+            for (j, x) in result.channels().enumerate() {
+                output[j][i] = cast(x);
+            }
+        }
+    }
+    fn inputs(&self) -> usize { <A::Input as Frame>::Channels::USIZE }
+    fn outputs(&self) -> usize { <A::Output as Frame>::Channels::USIZE }
+    fn latency(&self) -> f64 { self.0.latency() }
 }
