@@ -1,7 +1,7 @@
 use super::*;
+use super::prelude::*;
 use super::audiocomponent::*;
 use numeric_array::*;
-use numeric_array::typenum::*;
 use generic_array::sequence::*;
 
 /// AudioUnit processes audio data block by block at a synchronous rate.
@@ -49,11 +49,11 @@ impl<A: AudioComponent> AudioUnit for AsUnit<A> {
         for i in 0 .. buffer_size {
             let result = self.0.tick(&NumericArray::generate( |j| afloat(input[j][i]) ));
             for (j, &x) in result.iter().enumerate() {
-                output[j][i] = cast(x);
+                output[j][i] = x.as_();
             }
         }
     }
-    fn inputs(&self) -> usize { A::Inputs::USIZE }
-    fn outputs(&self) -> usize { A::Outputs::USIZE }
+    fn inputs(&self) -> usize { self.0.inputs() }
+    fn outputs(&self) -> usize { self.0.outputs() }
     fn latency(&self) -> f64 { self.0.latency() }
 }

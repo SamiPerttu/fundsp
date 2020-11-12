@@ -1,14 +1,17 @@
 [package]
 name = "adsp"
+description = "Audio DSP library featuring a combinator environment for audio processing."
+keywords = ["dsp", "audio"]
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
+homepage = "https://github.com/SamiPerttu/adsp"
 edition = "2018"
 
 [dependencies]
-num-complex = "0.3"
-utd = { path = "../utd" }
 generic-array = "0.14.4"
 numeric-array = "0.5"
+num-complex = "0.3"
 
 [dev-dependencies]
 cpal = "0.13"

@@ -1,4 +1,5 @@
 use super::*;
+use super::prelude::*;
 use numeric_array::*;
 use generic_array::sequence::*;
 use numeric_array::typenum::*;
@@ -24,7 +25,26 @@ pub trait AudioComponent
     /// This applies only to components that have both inputs and outputs; others should return 0.0.
     /// The latency can depend on the sample rate and is allowed to change after a reset.
     fn latency(&self) -> f64 { 0.0 }
+
+    /// Number of inputs.
+    #[inline] fn inputs(&self) -> usize { Self::Inputs::USIZE }
+
+    /// Number of outputs.
+    #[inline] fn outputs(&self) -> usize { Self::Outputs::USIZE }
+
+    /// Retrieves the next mono sample from an all-zero input. Convenience method.
+    fn get_mono(&mut self) -> Self::Sample {
+        self.tick(&NumericArray::default())[0]
+    }
+
+    /// Retrieves the next stereo sample pair (left, right) from an all-zero input. Convenience method.
+    fn get_stereo(&mut self) -> (Self::Sample, Self::Sample) {
+        let output = self.tick(&NumericArray::default());
+        (output[0], output[1])
+    }
 }
+
+pub struct MonoIter<A: AudioComponent>(pub A);
 
 /// PassComponent passes through its inputs unchanged.
 #[derive(Clone)]
@@ -379,13 +399,15 @@ impl<X: AudioComponent> Iterator for Ac<X>
     }
 }
 
-/// Makes a constant component.
+/// Makes a constant component. Synonymous with dc.
 pub fn constant<X: ConstantFrame>(x: X) -> Ac<ConstantComponent<F32, X::Length>> { Ac(ConstantComponent::new(x.convert())) }
+
+/// Makes a constant component. Synonymous with constant.
+/// DC stands for "direct current", which is an electrical engineering term used with signals.
+pub fn dc<X: ConstantFrame>(x: X) -> Ac<ConstantComponent<F32, X::Length>> { Ac(ConstantComponent::new(x.convert())) }
 
 /// Makes a mono pass-through component.
 pub fn pass() -> Ac<PassComponent<F32, typenum::U1>> { Ac(PassComponent::new()) }
-
-pub fn branch() -> Ac<impl AudioComponent> { pass() & pass() }
 
 /*
 Operator precedences:

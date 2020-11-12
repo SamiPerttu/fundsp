@@ -59,7 +59,7 @@ where
     let mut c = (mls() | constant(500.0)) >> lowpass();
     c.reset(Some(sample_rate));
 
-    let mut next_value = move || { c.next().unwrap()[0] };
+    let mut next_value = move || { c.get_mono() };
     
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 

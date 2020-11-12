@@ -1,9 +1,13 @@
 use num_complex::Complex64;
 
 use super::*;
+use super::prelude::*;
 use super::audiocomponent::*;
 use super::lti::*;
 use numeric_array::*;
+
+/// Returns a Complex64 with real component x and imaginary component zero.
+pub fn re<T: Into<f64>>(x: T) -> Complex64 { Complex64::new(x.into(), 0.0) }
 
 #[derive(Copy, Clone)]
 pub struct BiquadCoefs<F: AudioFloat = f64> {
@@ -102,7 +106,7 @@ impl<F: AudioFloat> AudioComponent for Biquad<F> {
         self.x1 = x0;
         self.y2 = self.y1;
         self.y1 = y0;
-        [cast(y0)].into()
+        [y0.as_()].into()
 
         // Transposed Direct Form II would be:
         //   y0 = b0 * x0 + s1
@@ -195,10 +199,10 @@ impl<F: AudioFloat> AudioComponent for Resonator<F> {
 }
 
 /// Makes a Butterworth lowpass filter.
-pub fn lowpass() -> Ac<ButterLowpass<f64>> { Ac(ButterLowpass::new(cast(DEFAULT_SR))) }
+pub fn lowpass() -> Ac<ButterLowpass<f64>> { Ac(ButterLowpass::new(DEFAULT_SR.as_())) }
 
 /// Makes a Butterworth lowpass filter with a fixed cutoff frequency.
 pub fn lowpass_hz(cutoff: F32) -> Ac<impl AudioComponent> { (pass() | constant(cutoff)) >> lowpass() }
 
-/// Makes a bandpass resonator.
-pub fn resonator() -> Ac<Resonator<f64>> { Ac(Resonator::new(cast(DEFAULT_SR))) }
+/// Makes a constant-gain resonator.
+pub fn resonator() -> Ac<Resonator<f64>> { Ac(Resonator::new(DEFAULT_SR.as_())) }
