@@ -101,7 +101,6 @@ impl MlsNoise {
 }
 
 impl AudioComponent for MlsNoise {
-    type Sample = f48;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
 
@@ -110,7 +109,7 @@ impl AudioComponent for MlsNoise {
         self.mls = Mls::new(self.mls.n);
     }
 
-    fn tick(&mut self, _input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs>
+    #[inline] fn tick(&mut self, _input: &Frame<Self::Inputs>) -> Frame<Self::Outputs>
     {
         let value = self.mls.value() as f48;
         self.mls = self.mls.next();

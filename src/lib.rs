@@ -1,15 +1,20 @@
+#![feature(trait_alias)]
+
 use std::ops::{Add, Sub, Mul, Div, Neg};
 use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 use std::cmp::PartialEq;
 
 /// Single precision floating point is used in audio buffers.
 #[cfg(not(feature = "double_precision"))]
+#[allow(non_camel_case_types)]
 pub type f48 = f32;
 /// Double precision floating point is used in audio buffers.
 #[cfg(feature = "double_precision")]
+#[allow(non_camel_case_types)]
 pub type f48 = f64;
 
-pub type Frame<Length> = numeric_array::NumericArray<f48, Length>;
+pub type Frame<Size> = numeric_array::NumericArray<f48, Size>;
+pub trait Size = numeric_array::ArrayLength<f48>;
 
 /// Default sample rate is 44.1 khz.
 #[cfg(not(any(feature = "forty_eight_khz", feature = "eighty_eight_point_two_khz", feature = "ninety_six_khz", feature = "one_hundred_seventy_six_point_four_khz", feature = "one_hundred_ninety_two_khz" )))]
@@ -239,18 +244,21 @@ pub trait AudioFloat: Real + Num + Default + AsPrimitive<f48> + Into<f64> {}
 impl AudioFloat for f32 {}
 impl AudioFloat for f64 {}
 
-/// Converts an f48 into an AudioFloat.
+/// Converts from an f48.
 #[cfg(not(feature = "double_precision"))]
-pub fn afloat<F: AudioFloat>(x: f48) -> F { F::from_f32(x) }
-/// Converts an f48 into an AudioFloat.
+pub fn from_f48<F: Num>(x: f48) -> F { F::from_f32(x) }
+/// Converts from an f48.
 #[cfg(feature = "double_precision")]
-pub fn afloat<F: AudioFloat>(x: f48) -> F { F::from_f64(x) }
+pub fn from_f48<F: Num>(x: f48) -> F { F::from_f64(x) }
+/// Converts into an f48.
+pub fn into_f48<F: AsPrimitive<f48>>(x: F) -> f48 { x.as_() }
 
 pub mod audiocomponent;
 pub mod audiounit;
 pub mod envelope;
 pub mod filter;
 pub mod lti;
+pub mod math;
 pub mod noise;
 pub mod prelude;
 pub mod sample;

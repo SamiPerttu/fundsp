@@ -12,7 +12,7 @@ However, some breakage can be expected as we continue to experiment with best pr
 
 Most filters are expected to be generic over their inner processing type.
 
-The glue type `f48` that connects audio components and populates audio buffers is chosen statically,
+The ubiquitous glue type `f48` that connects audio components and populates audio buffers is chosen statically,
 as a configuration option. It defaults to `f32`. The other choice is `f64` (feature `double_precision`).
 
 There are two parallel component systems. Both operate on audio signals synchronously as an infinite stream.
@@ -65,7 +65,7 @@ How to read the branch operator: for instance, `A >> (B & C & D)` sends output o
 
 The expression `A >> (B & C & D)` defines a signal processing graph. It has whatever inputs `A` has, and outputs everything from `B` and `C` and `D` in parallel. The whole structure is packed, monomorphized and inlined with the constituent components consumed.
 
-If you want to reuse components, define them as functions or use `clone()`.
+If you want to reuse components, define them as functions or use `clone()`. See the prelude for examples of the former.
 
 Mismatched connectivity will result in a compilation error complaining about mismatched
 [`typenum`](https://crates.io/crates/typenum) [types](https://docs.rs/typenum/1.12.0/typenum/uint/struct.UInt.html).
@@ -101,12 +101,14 @@ assert!(b.inputs() == 0 && b.outputs() == 1);
 let c = (pass() | dc((400.0, 200.0))) >> resonator();
 assert!(c.inputs() == 1 && c.outputs() == 1);
 
-// It is easy to define new components and combinators with the following return type.
+// New components and combinators can be defined with the following return type.
+// Declaring the full arity enables use of the component in further combinations.
 // Here we define a simple mono-to-quad splitter.
 // Use & operator for branching.
 // Same input is sent to both components (read A & B as "send input to A AND B").
-pub fn split_quad() -> Ac<impl AudioComponent> { pass() & pass() & pass() & pass() }
-assert!(split_quad().inputs() == 1 && split_quad().outputs() == 4);
+pub fn split_quad() -> Ac<impl AudioComponent<Inputs = typenum::U1, Outputs = typenum::U4>> {
+  pass() & pass() & pass() & pass()
+}
 
 // Constants can be defined by supplying a scalar or tuple to dc() or constant().
 // The two forms are synonymous. DC is a shorthand for direct current, an electrical engineering term.

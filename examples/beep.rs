@@ -7,6 +7,7 @@ use adsp::prelude::*;
 use adsp::audiocomponent::*;
 use adsp::filter::*;
 use adsp::noise::*;
+#[allow(unused_imports)]
 use adsp::envelope::*;
 use adsp::lti::*;
 
@@ -59,30 +60,25 @@ where
     let channels = config.channels as usize;
 
     let f0: f32 = 400.0;
-    let bw: f32 = 100.0;
-    println!("{:?}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(100.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(200.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(300.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(400.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(500.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(600.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(700.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(800.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(900.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(1000.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(1100.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(1200.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(1300.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(1400.0 / 44100.0));
-    println!("{}", BiquadCoefs::<f32>::resonator(44100.0, f0, bw).magnitude(1500.0 / 44100.0));
+    let bw: f32 = 50.0;
+    println!("{:?}", BiquadCoefs::resonator(44100.0, f0, bw));
+    println!("{}", BiquadCoefs::resonator(44100.0, f0, bw).gain(100.0 / 44100.0));
+    println!("{}", BiquadCoefs::resonator(44100.0, f0, bw).gain(200.0 / 44100.0));
+    println!("{}", BiquadCoefs::resonator(44100.0, f0, bw).gain(300.0 / 44100.0));
+    println!("{}", BiquadCoefs::resonator(44100.0, f0, bw).gain(400.0 / 44100.0));
+    println!("{}", BiquadCoefs::resonator(44100.0, f0, bw).gain(500.0 / 44100.0));
+    println!("{}", BiquadCoefs::resonator(44100.0, f0, bw).gain(600.0 / 44100.0));
+    println!("{}", BiquadCoefs::resonator(44100.0, f0, bw).gain(700.0 / 44100.0));
+    println!("{}", BiquadCoefs::resonator(44100.0, f0, bw).gain(800.0 / 44100.0));
+    println!("{}", BiquadCoefs::resonator(44100.0, f0, bw).gain(900.0 / 44100.0));
+    println!("{}", BiquadCoefs::resonator(44100.0, f0, bw).gain(1000.0 / 44100.0));
 
     //let mut c = mls();
     //let mut c = mls() >> lowpass_hz(400.0);
     //let mut c = (mls() | dc(500.0)) >> lowpass();
     //let mut c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
-    //let mut c = (((mls() | dc(400.0) | dc(50.0)) >> resonator()) | dc(400.0) | dc(50.0)) >> resonator() * dc(0.1);
-    let mut c = mls() * envelope(|t| exp(-t) * sin_bpm(128.0, t));
+    let mut c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator() * dc(0.1);
+    //let mut c = mls() * envelope(|t| exp(-t) * sin_bpm(128.0, t));
     c.reset(Some(sample_rate));
 
     let mut next_value = move || { let v = c.get_mono(); assert!(v.is_nan() == false && abs(v) < 1.0e6); v };

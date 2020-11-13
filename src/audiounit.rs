@@ -1,4 +1,4 @@
-use super::prelude::*;
+use super::*;
 use super::audiocomponent::*;
 use numeric_array::*;
 use generic_array::sequence::*;
@@ -48,9 +48,9 @@ impl<A: AudioComponent> AudioUnit for AcUnit<A> {
         assert!(input.iter().all(|x| x.len() == buffer_size));
         assert!(output.iter().all(|x| x.len() == buffer_size));
         for i in 0 .. buffer_size {
-            let result = self.0.tick(&NumericArray::generate( |j| afloat(input[j][i]) ));
+            let result = self.0.tick(&NumericArray::generate( |j| from_f48(input[j][i]) ));
             for (j, &x) in result.iter().enumerate() {
-                output[j][i] = x.as_();
+                output[j][i] = into_f48(x);
             }
         }
     }
