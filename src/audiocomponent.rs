@@ -1,5 +1,4 @@
 use super::*;
-use super::prelude::*;
 use numeric_array::*;
 use generic_array::sequence::*;
 use numeric_array::typenum::*;
@@ -7,7 +6,7 @@ use std::marker::PhantomData;
 
 /// AudioComponent processes audio data sample by sample.
 /// It has a static number of inputs and outputs known at compile time.
-/// If not set otherwise, the sample rate is the system default DEFAULT_SR.
+/// If not set otherwise, the sample rate is presumed the system default DEFAULT_SR.
 pub trait AudioComponent
 {
     type Sample: AudioFloat;
@@ -15,6 +14,7 @@ pub trait AudioComponent
     type Outputs: ArrayLength<Self::Sample>;
 
     /// Resets the input state of the component to an initial state where it has not processed any samples.
+    /// In other words, resets time to zero.
     fn reset(&mut self, _sample_rate: Option<f64>) {}
 
     /// Processes one sample.
@@ -32,15 +32,20 @@ pub trait AudioComponent
     /// Number of outputs.
     #[inline] fn outputs(&self) -> usize { Self::Outputs::USIZE }
 
-    /// Retrieves the next mono sample from an all-zero input. Convenience method.
-    fn get_mono(&mut self) -> Self::Sample {
-        self.tick(&NumericArray::default())[0]
+    /// Retrieves the next mono sample from an all-zero input.
+    /// If there are many outputs, chooses the first. Convenience method.
+    #[inline] fn get_mono(&mut self) -> Self::Sample {
+        assert!(self.outputs() >= 1);
+        let output = self.tick(&NumericArray::default());
+        output[0]
     }
 
-    /// Retrieves the next stereo sample pair (left, right) from an all-zero input. Convenience method.
-    fn get_stereo(&mut self) -> (Self::Sample, Self::Sample) {
+    /// Retrieves the next stereo sample pair (left, right) from an all-zero input.
+    /// If there are more outputs, chooses the first two. If there is just one output, duplicates it. Convenience method.
+    #[inline] fn get_stereo(&mut self) -> (Self::Sample, Self::Sample) {
+        assert!(self.outputs() >= 1);
         let output = self.tick(&NumericArray::default());
-        (output[0], output[1])
+        (output[0], output[ if self.outputs() > 1 { 1 } else { 0 } ])
     }
 }
 
@@ -65,7 +70,9 @@ impl<S: AudioFloat, N: ArrayLength<S>> AudioComponent for PassComponent<S, N>
     type Inputs = N;
     type Outputs = N;
 
-    fn tick(&mut self, input: &NumericArray<S, Self::Inputs>) -> NumericArray<S, Self::Outputs> { input.clone() }
+    #[inline] fn tick(&mut self, input: &NumericArray<S, Self::Inputs>) -> NumericArray<S, Self::Outputs> {
+        input.clone()
+    }
 }
 
 /// ConstantComponent outputs a constant value.
@@ -86,7 +93,9 @@ impl<S: AudioFloat, N: ArrayLength<S>> AudioComponent for ConstantComponent<S, N
     type Inputs = typenum::U0;
     type Outputs = N;
 
-    fn tick(&mut self, _input: &NumericArray<S, Self::Inputs>) -> NumericArray<S, Self::Outputs> { self.output.clone() }
+    #[inline] fn tick(&mut self, _input: &NumericArray<S, Self::Inputs>) -> NumericArray<S, Self::Outputs> {
+        self.output.clone()
+    }
 }
 
 #[derive(Clone)]
@@ -132,7 +141,7 @@ impl<X, Y> AudioComponent for BinaryComponent<X, Y> where
         self.x.reset(sample_rate);
         self.y.reset(sample_rate);
     }
-    fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs> {
+    #[inline] fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs> {
         let input_x = &input[0 .. X::Inputs::USIZE];
         let input_y = &input[Self::Inputs::USIZE - Y::Inputs::USIZE .. Self::Inputs::USIZE];
         let x = self.x.tick(input_x.into());
@@ -178,13 +187,13 @@ impl<X, Y> AudioComponent for SerialComponent<X, Y> where
         self.x.reset(sample_rate);
         self.y.reset(sample_rate);
     }
-    fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs> {
+    #[inline] fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs> {
         self.y.tick(&self.x.tick(input))
     }
     fn latency(&self) -> f64 { self.x.latency() + self.y.latency() }
 }
 
-//// ParallelComponent combines X and Y in parallel.
+//// ParallelComponent stacks X and Y in parallel.
 #[derive(Clone)]
 pub struct ParallelComponent<X, Y> where
     X: AudioComponent,
@@ -233,7 +242,7 @@ impl<X, Y> AudioComponent for ParallelComponent<X, Y> where
         self.x.reset(sample_rate);
         self.y.reset(sample_rate);
     }
-    fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs> {
+    #[inline] fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs> {
         let input_x = &input[0 .. X::Inputs::USIZE];
         let input_y = &input[Self::Inputs::USIZE - Y::Inputs::USIZE .. Self::Inputs::USIZE];
         let output_x = self.x.tick(input_x.into());
@@ -281,7 +290,7 @@ impl<X, Y> AudioComponent for BranchComponent<X, Y> where
         self.x.reset(sample_rate);
         self.y.reset(sample_rate);
     }
-    fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs> {
+    #[inline] fn tick(&mut self, input: &NumericArray<Self::Sample, Self::Inputs>) -> NumericArray<Self::Sample, Self::Outputs> {
         let output_x = self.x.tick(input);
         let output_y = self.y.tick(input);
         NumericArray::generate(|i| if i < X::Outputs::USIZE { output_x[i] } else { output_y[i - X::Outputs::USIZE] })
@@ -289,27 +298,38 @@ impl<X, Y> AudioComponent for BranchComponent<X, Y> where
     fn latency(&self) -> f64 { self.x.latency().min(self.y.latency()) }
 }
 
+/// Trait for multi-channel constants.
 pub trait ConstantFrame {
-    type Length: ArrayLength<F32>;
-    fn convert(self) -> NumericArray<F32, Self::Length>;
+    type Length: ArrayLength<f48>;
+    fn convert(self) -> NumericArray<f48, Self::Length>;
 }
 
-impl ConstantFrame for F32 {
+impl ConstantFrame for f48 {
     type Length = typenum::U1;
-    fn convert(self) -> NumericArray<F32, Self::Length> { [self].into() }
+    fn convert(self) -> NumericArray<f48, Self::Length> { [self].into() }
 }
 
-impl ConstantFrame for (F32, F32) {
+impl ConstantFrame for (f48, f48) {
     type Length = typenum::U2;
-    fn convert(self) -> NumericArray<F32, Self::Length> { [self.0, self.1].into() }
+    fn convert(self) -> NumericArray<f48, Self::Length> { [self.0, self.1].into() }
 }
 
-impl ConstantFrame for (F32, F32, F32) {
+impl ConstantFrame for (f48, f48, f48) {
     type Length = typenum::U3;
-    fn convert(self) -> NumericArray<F32, Self::Length> { [self.0, self.1, self.2].into() }
+    fn convert(self) -> NumericArray<f48, Self::Length> { [self.0, self.1, self.2].into() }
 }
 
-/// AudioComponent wrapper.
+impl ConstantFrame for (f48, f48, f48, f48) {
+    type Length = typenum::U4;
+    fn convert(self) -> NumericArray<f48, Self::Length> { [self.0, self.1, self.2, self.3].into() }
+}
+
+impl ConstantFrame for (f48, f48, f48, f48, f48) {
+    type Length = typenum::U5;
+    fn convert(self) -> NumericArray<f48, Self::Length> { [self.0, self.1, self.2, self.3, self.4].into() }
+}
+
+/// AudioComponent wrapper that implements operators and traits.
 pub struct Ac<X: AudioComponent>(pub X);
 
 impl<X: AudioComponent> core::ops::Deref for Ac<X>
@@ -323,6 +343,7 @@ impl<X: AudioComponent> core::ops::DerefMut for Ac<X>
     #[inline] fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
 
+/// X + Y: sum signal.
 impl<X, Y> std::ops::Add<Ac<Y>> for Ac<X> where
     X: AudioComponent,
     Y: AudioComponent<Sample = X::Sample, Outputs = X::Outputs>,
@@ -334,6 +355,7 @@ impl<X, Y> std::ops::Add<Ac<Y>> for Ac<X> where
     #[inline] fn add(self, y: Ac<Y>) -> Self::Output { Ac(BinaryComponent::new(self.0, y.0, Binop::Add)) }
 }
 
+/// X - Y: difference signal.
 impl<X, Y> std::ops::Sub<Ac<Y>> for Ac<X> where
     X: AudioComponent,
     Y: AudioComponent<Sample = X::Sample, Outputs = X::Outputs>,
@@ -345,6 +367,7 @@ impl<X, Y> std::ops::Sub<Ac<Y>> for Ac<X> where
     #[inline] fn sub(self, y: Ac<Y>) -> Self::Output { Ac(BinaryComponent::new(self.0, y.0, Binop::Sub)) }
 }
 
+/// X * Y: product signal.
 impl<X, Y> std::ops::Mul<Ac<Y>> for Ac<X> where
     X: AudioComponent,
     Y: AudioComponent<Sample = X::Sample, Outputs = X::Outputs>,
@@ -356,6 +379,7 @@ impl<X, Y> std::ops::Mul<Ac<Y>> for Ac<X> where
     #[inline] fn mul(self, y: Ac<Y>) -> Self::Output { Ac(BinaryComponent::new(self.0, y.0, Binop::Mul)) }
 }
 
+/// X >> Y: serial pipe.
 impl<X, Y> std::ops::Shr<Ac<Y>> for Ac<X> where
     X: AudioComponent,
     Y: AudioComponent<Sample = X::Sample, Inputs = X::Outputs>,
@@ -365,6 +389,7 @@ impl<X, Y> std::ops::Shr<Ac<Y>> for Ac<X> where
     #[inline] fn shr(self, y: Ac<Y>) -> Self::Output { Ac(SerialComponent::new(self.0, y.0)) }
 }
 
+/// X | Y: parallel stack.
 impl<X, Y> std::ops::BitOr<Ac<Y>> for Ac<X> where
     X: AudioComponent,
     Y: AudioComponent<Sample = X::Sample>,
@@ -379,6 +404,7 @@ impl<X, Y> std::ops::BitOr<Ac<Y>> for Ac<X> where
     #[inline] fn bitor(self, y: Ac<Y>) -> Self::Output { Ac(ParallelComponent::new(self.0, y.0)) }
 }
 
+/// X & Y: parallel branch.
 impl<X, Y> std::ops::BitAnd<Ac<Y>> for Ac<X> where
     X: AudioComponent,
     Y: AudioComponent<Sample = X::Sample, Inputs = X::Inputs>,
@@ -390,31 +416,24 @@ impl<X, Y> std::ops::BitAnd<Ac<Y>> for Ac<X> where
     #[inline] fn bitand(self, y: Ac<Y>) -> Self::Output { Ac(BranchComponent::new(self.0, y.0)) }
 }
 
+// TODO: Add UnaryComponent and use it to implement std::ops::Neg.
+
+/// The iterator returns output frames, which are of type NumericArray.
 impl<X: AudioComponent> Iterator for Ac<X>
 {
     type Item = NumericArray<X::Sample, X::Outputs>;
     /// Processes a sample from an all-zeros input.
-    fn next(&mut self) -> Option<Self::Item> { 
+    #[inline] fn next(&mut self) -> Option<Self::Item> { 
         Some(self.tick(&NumericArray::default()))
     }
 }
 
 /// Makes a constant component. Synonymous with dc.
-pub fn constant<X: ConstantFrame>(x: X) -> Ac<ConstantComponent<F32, X::Length>> { Ac(ConstantComponent::new(x.convert())) }
+pub fn constant<X: ConstantFrame>(x: X) -> Ac<ConstantComponent<f48, X::Length>> { Ac(ConstantComponent::new(x.convert())) }
 
 /// Makes a constant component. Synonymous with constant.
 /// DC stands for "direct current", which is an electrical engineering term used with signals.
-pub fn dc<X: ConstantFrame>(x: X) -> Ac<ConstantComponent<F32, X::Length>> { Ac(ConstantComponent::new(x.convert())) }
+pub fn dc<X: ConstantFrame>(x: X) -> Ac<ConstantComponent<f48, X::Length>> { Ac(ConstantComponent::new(x.convert())) }
 
 /// Makes a mono pass-through component.
-pub fn pass() -> Ac<PassComponent<F32, typenum::U1>> { Ac(PassComponent::new()) }
-
-/*
-Operator precedences:
-*
-+, -
->>
-&
-|
-These precedences work well except for >>, which should be lowest.
-*/
+pub fn pass() -> Ac<PassComponent<f48, typenum::U1>> { Ac(PassComponent::new()) }

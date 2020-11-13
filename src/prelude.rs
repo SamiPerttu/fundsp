@@ -1,4 +1,6 @@
-use super::*;
+pub use super::*;
+
+// Function combinator environment. We like to define all kinds of useful functions here.
 
 /// sqrt(2)
 pub const SQRT_2: f64 = std::f64::consts::SQRT_2;
@@ -18,6 +20,7 @@ pub const TAU: f64 = std::f64::consts::TAU;
 /// Clamps x between -1 and 1.
 #[inline] pub fn clamp11<T: Num>(x: T) -> T { x.max(T::new(-1)).min(T::one()) }
 
+/// Generic linear interpolation trait.
 pub trait Lerp<T> {
     fn lerp(self, other: Self, t: T) -> Self;
 }
@@ -28,18 +31,22 @@ impl<U, T> Lerp<T> for U where U: Add<Output = U> + Mul<T, Output = U>, T: Num {
     }
 }
 
+/// Linear interpolation.
 #[inline] pub fn lerp<U: Lerp<T>, T>(a: U, b: U, t: T) -> U {
     a.lerp(b, t)
 }
 
+/// Linear de-interpolation. Recovers t from interpolated x.
 #[inline] pub fn delerp<T: Num>(a: T, b: T, x: T) -> T {
     (x - a) / (b - a)
 }
 
+/// Exponential interpolation. a, b > 0.
 #[inline] pub fn xerp<U: Lerp<T> + Real, T>(a: U, b: U, t: T) -> U {
     exp(lerp(log(a), log(b), t))
 }
 
+/// Exponential de-interpolation. a, b, x > 0. Recovers t from interpolated x.
 #[inline] pub fn dexerp<T: Num + Real>(a: T, b: T, x: T) -> T {
     log(x / a) / log(b / a)
 }
@@ -121,7 +128,7 @@ impl<U, T> Lerp<T> for U where U: Add<Output = U> + Mul<T, Output = U>, T: Num {
 /// Monotonic cubic interpolation via Steffen's method. The result never overshoots.
 /// It is first order continuous. Interpolates between y1 (at x = 0) and y2 (at x = 1)
 /// while using the previous (y0) and next (y3) values to influence slopes.
-pub fn spline_mono<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
+pub fn cerp<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
   let d0 = y1 - y0;
   let d1 = y2 - y1;
   let d2 = y3 - y2;
@@ -154,18 +161,19 @@ pub fn spline_mono<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
 #[inline] pub fn softmix<T: Num>(amount: T, x: T, y: T) -> T {
     let xw = exq(x * amount);
     let yw = exq(y * amount);
-    (x * xw + y * yw) / (xw + yw + T::new_f32(1.0e-10))
+    let epsilon = T::from_f32(1.0e-10);
+    (x * xw + y * yw) / (xw + yw + epsilon)
 }
 
 /// Linear congruential generator proposed by Donald Knuth. Cycles through all u64 values.
 #[inline] pub fn lcg64(x: u64) -> u64 { x * 6364136223846793005 + 1442695040888963407 }
 
-/// Sum of an arithmetic series with n terms: sum over i in [0, n[ of a0 + step * i.
+/// Sum of an arithmetic series with n terms: sum over i in [0, n[ of (a0 + step * i).
 #[inline] pub fn arithmetic_sum<T: Num>(n: T, a0: T, step: T) -> T {
     n * (T::new(2) * a0 + step * (n - T::one())) / T::new(2)
 }
 
-/// Sum of a geometric series with n terms: sum over i in [0, n[ of a0 * ratio ** i.
+/// Sum of a geometric series with n terms: sum over i in [0, n[ of (a0 * ratio ** i).
 #[inline] pub fn geometric_sum<T: Num + PartialOrd>(n: T, a0: T, ratio: T) -> T {
     let denom = T::one() - ratio;
     if denom != T::zero() {
@@ -175,15 +183,17 @@ pub fn spline_mono<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
     }
 }
 
-/// AudioFloat trait for audio processing.
-pub trait AudioFloat: Real + Num + Default + AsPrimitive<F32> + Into<f64> {}
+/// Sine that oscillates at the specified beats per minute. Time is input in seconds.
+#[inline] pub fn sin_bpm<T: Num + Real>(bpm: T, t: T) -> T { sin(t * bpm * T::from_f64(TAU / 60.0)) }
 
-impl AudioFloat for f32 {}
-impl AudioFloat for f64 {}
+/// Cosine that oscillates at the specified beats per minute. Time is input in seconds.
+#[inline] pub fn cos_bpm<T: Num + Real>(bpm: T, t: T) -> T { cos(t * bpm * T::from_f64(TAU / 60.0)) }
 
-/// Converts an AudioFloat into F32.
-#[cfg(not(feature = "double_precision"))]
-pub fn afloat<F: AudioFloat>(x: F32) -> F { F::new_f32(x) }
-/// Converts an AudioFloat into F32.
-#[cfg(feature = "double_precision")]
-pub fn afloat<F: AudioFloat>(x: F32) -> F { F::new_f64(x) }
+/// Sine that oscillates at the specified frequency (Hz). Time is input in seconds.
+#[inline] pub fn sin_hz<T: Num + Real>(hz: T, t: T) -> T { sin(t * hz * T::from_f64(TAU)) }
+
+/// Cosine that oscillates at the specified frequency (Hz). Time is input in seconds.
+#[inline] pub fn cos_hz<T: Num + Real>(hz: T, t: T) -> T { cos(t * hz * T::from_f64(TAU)) }
+
+/// Returns a gain factor from a decibel argument.
+#[inline] pub fn db_gain<T: Num + Real>(db: T) -> T { exp(log(T::new(10)) * db / T::new(20)) }

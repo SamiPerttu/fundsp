@@ -4,10 +4,12 @@ use std::cmp::PartialEq;
 
 /// Single precision floating point is used in audio buffers.
 #[cfg(not(feature = "double_precision"))]
-pub type F32 = f32;
+pub type f48 = f32;
 /// Double precision floating point is used in audio buffers.
 #[cfg(feature = "double_precision")]
-pub type F32 = f64;
+pub type f48 = f64;
+
+pub type Frame<Length> = numeric_array::NumericArray<f48, Length>;
 
 /// Default sample rate is 44.1 khz.
 #[cfg(not(any(feature = "forty_eight_khz", feature = "eighty_eight_point_two_khz", feature = "ninety_six_khz", feature = "one_hundred_seventy_six_point_four_khz", feature = "one_hundred_ninety_two_khz" )))]
@@ -37,11 +39,13 @@ pub trait Num: Copy
     fn zero() -> Self;
     fn one() -> Self;
     fn new(x: i64) -> Self;
-    fn new_u64(x: u64) -> Self;
-    fn new_f64(x: f64) -> Self;
-    fn new_f32(x: f32) -> Self;
+    fn from_u64(x: u64) -> Self;
+    fn from_f64(x: f64) -> Self;
+    fn from_f32(x: f32) -> Self;
     fn abs(self) -> Self;
     fn signum(self) -> Self;
+    // Note that in numerical code we do not want to define min() and max() in terms of comparisons.
+    // It is inadvisable in general to link traits like this; Min and Max traits would be preferable.
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
     fn pow(self, other: Self) -> Self;
@@ -65,9 +69,9 @@ macro_rules! impl_signed_num {
         #[inline] fn zero() -> Self { 0 }
         #[inline] fn one() -> Self { 1 }
         #[inline] fn new(x: i64) -> Self { x as Self }
-        #[inline] fn new_u64(x: u64) -> Self { x as Self }
-        #[inline] fn new_f64(x: f64) -> Self { x as Self }
-        #[inline] fn new_f32(x: f32) -> Self { x as Self }
+        #[inline] fn from_u64(x: u64) -> Self { x as Self }
+        #[inline] fn from_f64(x: f64) -> Self { x as Self }
+        #[inline] fn from_f32(x: f32) -> Self { x as Self }
         #[inline] fn abs(self) -> Self { <$t>::abs(self) }
         #[inline] fn signum(self) -> Self { <$t>::signum(self) }
         #[inline] fn min(self, other: Self) -> Self { std::cmp::min(self, other) }
@@ -87,9 +91,9 @@ macro_rules! impl_unsigned_num {
         #[inline] fn zero() -> Self { 0 }
         #[inline] fn one() -> Self { 1 }
         #[inline] fn new(x: i64) -> Self { x as Self }
-        #[inline] fn new_u64(x: u64) -> Self { x as Self }
-        #[inline] fn new_f64(x: f64) -> Self { x as Self }
-        #[inline] fn new_f32(x: f32) -> Self { x as Self }
+        #[inline] fn from_u64(x: u64) -> Self { x as Self }
+        #[inline] fn from_f64(x: f64) -> Self { x as Self }
+        #[inline] fn from_f32(x: f32) -> Self { x as Self }
         #[inline] fn abs(self) -> Self { self }
         #[inline] fn signum(self) -> Self { 1 }
         #[inline] fn min(self, other: Self) -> Self { std::cmp::min(self, other) }
@@ -109,9 +113,9 @@ macro_rules! impl_float_num {
         #[inline] fn zero() -> Self { 0.0 }
         #[inline] fn one() -> Self { 1.0 }
         #[inline] fn new(x: i64) -> Self { x as Self }
-        #[inline] fn new_u64(x: u64) -> Self { x as Self }
-        #[inline] fn new_f64(x: f64) -> Self { x as Self }
-        #[inline] fn new_f32(x: f32) -> Self { x as Self }
+        #[inline] fn from_u64(x: u64) -> Self { x as Self }
+        #[inline] fn from_f64(x: f64) -> Self { x as Self }
+        #[inline] fn from_f32(x: f32) -> Self { x as Self }
         #[inline] fn abs(self) -> Self { <$t>::abs(self) }
         #[inline] fn signum(self) -> Self { <$t>::signum(self) }
         #[inline] fn min(self, other: Self) -> Self { <$t>::min(self, other) }
@@ -229,11 +233,24 @@ impl_as_primitive!(f64 => { f32, f64 });
 impl_as_primitive!(char => { char });
 impl_as_primitive!(bool => {});
 
-pub mod prelude;
+/// AudioFloat trait for audio processing.
+pub trait AudioFloat: Real + Num + Default + AsPrimitive<f48> + Into<f64> {}
+
+impl AudioFloat for f32 {}
+impl AudioFloat for f64 {}
+
+/// Converts an f48 into an AudioFloat.
+#[cfg(not(feature = "double_precision"))]
+pub fn afloat<F: AudioFloat>(x: f48) -> F { F::from_f32(x) }
+/// Converts an f48 into an AudioFloat.
+#[cfg(feature = "double_precision")]
+pub fn afloat<F: AudioFloat>(x: f48) -> F { F::from_f64(x) }
+
 pub mod audiocomponent;
 pub mod audiounit;
 pub mod envelope;
 pub mod filter;
 pub mod lti;
 pub mod noise;
+pub mod prelude;
 pub mod sample;
