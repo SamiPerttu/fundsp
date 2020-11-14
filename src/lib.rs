@@ -1,5 +1,3 @@
-#![feature(trait_alias)]
-
 use std::ops::{Add, Sub, Mul, Div, Neg};
 use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 use std::cmp::PartialEq;
@@ -13,27 +11,29 @@ pub type f48 = f32;
 #[allow(non_camel_case_types)]
 pub type f48 = f64;
 
+pub trait Size: numeric_array::ArrayLength<f48> {}
+impl<T: numeric_array::ArrayLength<f48>> Size for T {}
+
 pub type Frame<Size> = numeric_array::NumericArray<f48, Size>;
-pub trait Size = numeric_array::ArrayLength<f48>;
 
 /// Default sample rate is 44.1 khz.
 #[cfg(not(any(feature = "forty_eight_khz", feature = "eighty_eight_point_two_khz", feature = "ninety_six_khz", feature = "one_hundred_seventy_six_point_four_khz", feature = "one_hundred_ninety_two_khz" )))]
-pub const DEFAULT_SR: f64 = 44100.0;
+pub const DEFAULT_SR: f64 = 44_100.0;
 /// Default sample rate is 48 khz.
 #[cfg(feature = "forty_eight_khz")]
-pub const DEFAULT_SR: f64 = 48000.0;
+pub const DEFAULT_SR: f64 = 48_000.0;
 /// Default sample rate is 88.2 khz.
 #[cfg(feature = "eighty_eight_point_two_khz")]
-pub const DEFAULT_SR: f64 = 88200.0;
+pub const DEFAULT_SR: f64 = 88_200.0;
 /// Default sample rate is 96 khz.
 #[cfg(feature = "ninety_six_khz")]
-pub const DEFAULT_SR: f64 = 96000.0;
+pub const DEFAULT_SR: f64 = 96_000.0;
 /// Default sample rate is 176.4 khz.
 #[cfg(feature = "one_hundred_seventy_six_point_four_khz")]
-pub const DEFAULT_SR: f64 = 176400.0;
+pub const DEFAULT_SR: f64 = 176_400.0;
 /// Default sample rate is 192 khz.
 #[cfg(feature = "one_hundred_ninety_two_khz")]
-pub const DEFAULT_SR: f64 = 19200.0;
+pub const DEFAULT_SR: f64 = 192_000.0;
 
 pub trait Num: Copy
     + Add<Output = Self>

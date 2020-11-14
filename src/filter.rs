@@ -202,18 +202,3 @@ impl<F: AudioFloat> AudioComponent for Resonator<F> {
         self.biquad.tick(&[input[0]].into())
     }
 }
-
-/// Makes a Butterworth lowpass filter. Inputs are signal and cutoff frequency (Hz). (2 IN 1 OUT)
-pub fn lowpass() -> Ac<ButterLowpass<f64>> {
-    Ac(ButterLowpass::new(DEFAULT_SR))
-}
-
-/// Makes a Butterworth lowpass filter with a fixed cutoff frequency. (1 IN 1 OUT)
-pub fn lowpass_hz(cutoff: f48) -> Ac<impl AudioComponent<Inputs = typenum::U1, Outputs = typenum::U1>> {
-    (pass() | constant(cutoff)) >> lowpass()
-}
-
-/// Makes a constant-gain resonator. Inputs are signal, cutoff frequency (Hz) and bandwidth (Hz). (3 IN 1 OUT)
-pub fn resonator() -> Ac<Resonator<f64>> {
-    Ac(Resonator::new(DEFAULT_SR))
-}

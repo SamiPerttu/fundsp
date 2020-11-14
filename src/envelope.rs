@@ -54,21 +54,3 @@ impl<F: Fn(f48) -> f48> AudioComponent for EnvelopeComponent<F>
         [value].into()
     }
 }
-
-/// Makes a control envelope from a time-varying function.
-/// The output is linearly interpolated from samples at 2 ms intervals.
-/// Synonymous with lfo.
-pub fn envelope(f: impl Fn(f48) -> f48) -> Ac<impl AudioComponent<Inputs = typenum::U0, Outputs = typenum::U1>> {
-    // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
-    // Therefore, sampling at 500 Hz means these signals are fairly well represented.
-    // While we represent time in double precision internally, it is often okay to use single precision
-    // in envelopes, as local component time typically does not get far from origin.
-    Ac(EnvelopeComponent::new(0.002, DEFAULT_SR, f))
-}
-
-/// Makes a control signal from a time-varying function.
-/// The output is linearly interpolated from samples at 2 ms intervals.
-/// Synonymous with envelope.
-pub fn lfo(f: impl Fn(f48) -> f48) -> Ac<impl AudioComponent<Inputs = typenum::U0, Outputs = typenum::U1>> {
-    Ac(EnvelopeComponent::new(0.002, DEFAULT_SR, f))
-}

@@ -3,12 +3,17 @@ extern crate cpal;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
+#[allow(unused_imports)]
 use adsp::prelude::*;
+#[allow(unused_imports)]
 use adsp::audiocomponent::*;
+#[allow(unused_imports)]
 use adsp::filter::*;
+#[allow(unused_imports)]
 use adsp::noise::*;
 #[allow(unused_imports)]
 use adsp::envelope::*;
+#[allow(unused_imports)]
 use adsp::lti::*;
 
 #[cfg_attr(target_os = "android", ndk_glue::main(backtrace = "full"))]
@@ -77,11 +82,13 @@ where
     //let mut c = mls() >> lowpass_hz(400.0);
     //let mut c = (mls() | dc(500.0)) >> lowpass();
     //let mut c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
-    let mut c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator() * dc(0.1);
+    //let mut c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator() * 0.1;
+    let mut c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator() >> mul(0.1);
     //let mut c = mls() * envelope(|t| exp(-t) * sin_bpm(128.0, t));
     c.reset(Some(sample_rate));
 
-    let mut next_value = move || { let v = c.get_mono(); assert!(v.is_nan() == false && abs(v) < 1.0e6); v };
+    //let mut next_value = move || { let v = c.get_mono(); assert!(v.is_nan() == false && abs(v) < 1.0e6); v };
+    let mut next_value = c.as_mono_fn();
     
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
