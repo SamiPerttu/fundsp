@@ -53,13 +53,17 @@ where
     let sample_rate = config.sample_rate.0 as f64;
     let channels = config.channels as usize;
 
-    //let mut c = mls();
-    //let mut c = mls() >> lowpass_hz(400.0);
-    //let mut c = (mls() | dc(500.0)) >> lowpass();
-    //let mut c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
-    //let mut c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator() * 0.1;
-    let mut c = (((mls() | dc(400.0) | dc(50.0)) >> resonator()) | dc(400.0) | dc(50.0)) >> resonator() >> mul(0.05);
-    //let mut c = mls() * envelope(|t| exp(-t * 0.5) * 0.5 * sin_bpm(128.0, t));
+    //let c = mls();
+    //let c = mls() >> lowpole_hz(400.0) >> lowpole_hz(400.0);
+    //let c = (mls() | dc(500.0)) >> lowpass();
+    //let c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
+    //let c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator() * 0.1;
+    //let c = (((mls() | dc(400.0) | dc(50.0)) >> resonator()) | dc(400.0) | dc(50.0)) >> resonator() >> mul(0.1);
+    //let c = white() * envelope(|t| exp(-t * 0.5) * sin_bpm(128.0, t));
+    let f = 220.0;
+    let m = 1.0;
+    let c = sine_hz(f) * f * m + f >> sine();
+    let mut c = c * 0.2;
     c.reset(Some(sample_rate));
 
     //let mut next_value = move || { let v = c.get_mono(); assert!(v.is_nan() == false && abs(v) < 1.0e6); v };

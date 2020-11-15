@@ -10,7 +10,7 @@ edition = "2018"
 
 [dependencies]
 generic-array = "0.14.4"
-numeric-array = "0.5"
+numeric-array = "0.5.2"
 num-complex = "0.3"
 
 [dev-dependencies]

@@ -139,7 +139,7 @@ impl AudioComponent for NoiseComponent {
 
     #[inline] fn tick(&mut self, _input: &Frame<Self::Inputs>) -> Frame<Self::Outputs>
     {
-        self.x = self.x * 6364136223846793005 + 1442695040888963407;
+        self.x = self.x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
         // Pick some number of most significant bits from the linear congruential generator.
         let use_bits = 16;
         let value = (self.x >> (64 - use_bits)) as f48 / pow(2.0, (use_bits - 1) as f48) - 1.0;
