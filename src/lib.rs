@@ -59,15 +59,6 @@ pub trait Num: Copy
     fn round(self) -> Self;
 }
 
-#[inline] pub fn abs<T: Num>(x: T) -> T { x.abs() }
-#[inline] pub fn signum<T: Num>(x: T) -> T { x.signum() }
-#[inline] pub fn min<T: Num>(x: T, y: T) -> T { x.min(y) }
-#[inline] pub fn max<T: Num>(x: T, y: T) -> T { x.max(y) }
-#[inline] pub fn pow<T: Num>(x: T, y: T) -> T { x.pow(y) }
-#[inline] pub fn floor<T: Num>(x: T) -> T { x.floor() }
-#[inline] pub fn ceil<T: Num>(x: T) -> T { x.ceil() }
-#[inline] pub fn round<T: Num>(x: T) -> T { x.round() }
-
 macro_rules! impl_signed_num {
     ( $($t:ty),* ) => {
     $( impl Num for $t {
@@ -175,14 +166,6 @@ pub trait Real : Copy
     fn tanh(self) -> Self;
 }
 
-#[inline] pub fn sqrt<T: Real>(x: T) -> T { x.sqrt() }
-#[inline] pub fn exp<T: Real>(x: T) -> T { x.exp() }
-#[inline] pub fn log<T: Real>(x: T) -> T { x.log() }
-#[inline] pub fn sin<T: Real>(x: T) -> T { x.sin() }
-#[inline] pub fn cos<T: Real>(x: T) -> T { x.cos() }
-#[inline] pub fn tan<T: Real>(x: T) -> T { x.tan() }
-#[inline] pub fn tanh<T: Real>(x: T) -> T { x.tanh() }
-
 macro_rules! impl_real {
     ( $($t:ty),* ) => {
     $( impl Real for $t {
@@ -255,10 +238,12 @@ pub fn into_f48<F: AsPrimitive<f48>>(x: F) -> f48 { x.as_() }
 
 pub mod audiocomponent;
 pub mod audiounit;
+pub mod combinator;
 pub mod envelope;
 pub mod filter;
 pub mod lti;
 pub mod math;
 pub mod noise;
+pub mod oscillator;
 pub mod prelude;
 pub mod sample;

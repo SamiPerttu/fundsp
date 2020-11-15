@@ -1,11 +1,17 @@
-# adsp
+# fundsp
 
 ## Audio DSP Library for Rust
 
-`adsp` is a high-level audio DSP library with a focus on usability.
+`fundsp` is a high-level audio DSP (digital dignal processing) library with a focus on usability.
 
-**This project is under construction**! It is already useful for experimentation.
-However, some breakage can be expected as we continue to experiment with best practices.
+It features a powerful inline graph notation that
+empowers users to accomplish diverse audio processing tasks with ease and elegance.
+
+`fundsp` comes with a function combinator environment containing
+a suite of audio components, math and utility functions and procedural generation tools.
+
+*This project is under construction*! It is already useful for experimentation.
+However, some standard components are missing and breakage can be expected as we continue to experiment with best practices.
 
 
 ## Principia
@@ -16,7 +22,10 @@ The ubiquitous glue type `f48` that connects audio components and populates audi
 is chosen globally, as a configuration option.
 It defaults to `f32`. The other choice is `f64` (feature `double_precision`).
 
+### Component Systems
+
 There are two parallel component systems: the static `AudioComponent` and the dynamic `AudioUnit`.
+
 Both systems operate on audio signals synchronously as an infinite stream.
 
 ---
@@ -28,12 +37,14 @@ Both systems operate on audio signals synchronously as an infinite stream.
 
 ---
 
-The `AudioUnit` system exists in embryonic form so far. The lower level `AudioComponent`s can be lifted
-to block processing mode with the object safe `AudioUnit` interface via the `AcUnit<A: AudioComponent>` wrapper.
+The lower level `AudioComponent`s can be lifted
+to block processing mode with the object safe `AudioUnit` interface via the `AcUnit<X: AudioComponent>` wrapper.
 Block processing aims to maximize efficiency in dynamic situations.
 
 `AudioComponent`s can be stack allocated for the most part.
 Some components may use the heap for audio buffers and the like.
+
+### Sample Rate Independence
 
 Of the signals flowing in graphs, some contain audio while others are controls of different kinds.
 
@@ -45,11 +56,13 @@ In both systems, a component `A` can be reinitialized with a new sample rate: `A
 
 ## Audio Processing Environment
 
-The prelude defines a convenient combinator environment for audio processing.
-It operates on `AudioComponent`s via the wrapper type `Ac<A: AudioComponent>`.
+The `fundsp` prelude defines a convenient combinator environment for audio processing.
+It operates on `AudioComponent`s via the wrapper type `Ac<X: AudioComponent>`.
 
 In the environment, the default form for components aims to ensure there is enough precision available.
 Therefore, many employ double precision internally.
+
+In the environment, generators are deterministic pseudorandom phase by default (to be implemented).
 
 
 ## Operators
@@ -64,11 +77,11 @@ In order of precedence, from highest to lowest:
 | `-A`           | negate `A`                    | `a`     | `a`     | Negates any number of outputs, even zero. |
 | `A * B`        | multiply `A` with `B`         | `a + b` | `a = b` | Aka amplification, or ring modulation when both are audio signals. Number of outputs in `A` and `B` must match. |
 | `A`&#160;`*`&#160;`constant` | multiply `A`    | `a`     | `a`     | Broadcasts constant. Same applies to `constant * A`. |
-| `A / B`        | cascade `A` and `B` in series | `a = b`  | `b`     | Pipes `A` to `B`, supplying missing `B` inputs from matching `A` inputs. Number of inputs in `A` and `B` must match. |
+| `A / B`        | cascade `A` and `B` in series | `a = b` | `b`     | Pipes `A` to `B`, supplying missing `B` inputs from matching `A` inputs. Number of inputs in `A` and `B` must match. |
 | `A + B`        | sum `A` and `B`               | `a + b` | `a = b` | Aka mixing. Number of outputs in `A` and `B` must match. |
 | `A`&#160;`+`&#160;`constant` | add to `A`      | `a`     | `a`     | Broadcasts constant. Same applies to `constant + A`. |
 | `A - B`        | difference of `A` and `B`     | `a + b` | `a = b` | Number of outputs in `A` and `B` must match. |
-| `A`&#160;`-`&#160;`constant` | subtract from `A`             | `a`     | `a`     | Broadcasts constant. Same applies to `constant - A`. |
+| `A`&#160;`-`&#160;`constant` | subtract from `A` | `a`   | `a`     | Broadcasts constant. Same applies to `constant - A`. |
 | `A >> B`       | pipe `A` to `B`               | `a`     | `b`     | Aka chaining. Number of outputs in `A` must match number of inputs in `B`. |
 | `A & B`        | branch input to `A` and `B` in parallel | `a = b` | `a + b` | Number of inputs in `A` and `B` must match. |
 | `A | B`        | stack `A` and `B` in parallel | `a + b` | `a + b` | - |
@@ -79,29 +92,46 @@ In the table, `constant` denotes an `f48` value.
 
 All operators are associative, except the left associative `-` and `/`.
 
+### Broadcasting
+
 Arithmetic operators are applied to outputs channel-wise.
 Arithmetic between two components never broadcasts channels.
 
 Direct arithmetic with `f48` values, however, broadcasts to an arbitrary number of channels.
+
 The negation operator broadcasts also: `-A` is equivalent with `(0.0 - A)`.
 
 For example, `A * constant(2.0)` and `A >> mul(2.0)` are equivalent and expect `A` to have one output.
 On the other hand, `A * 2.0` works with any `A`, even *sinks*.
 
+### Generators, Filters and Sinks
+
+Components can be broadly classified into generators, filters and sinks.
+*Generators* have only outputs, while *filters* have both inputs and outputs.
+
 Sinks are components with no outputs. Direct arithmetic on a sink translates to a no-op.
 In the prelude, `sink()` returns a mono sink.
 
+### Combinators
+
 Of special interest among operators are the four custom combinators:
 *cascade* ( `/` ), *pipe* ( `>>` ), *branch* ( `&` ) and *stack* ( `|` ).
-Each come with their own connectivity rules.
 
-### Cascade
+Cascade and pipe are serial operators where components appear in *processing* order. Branch, stack, and
+arithmetic operators are parallel operators where components appear in *channel* order.
+
+Each come with their own connectivity rules.
+Piping, branching and stacking are all fully associative operations,
+while cascading is left associative.
+
+#### Cascade
 
 The idea of the cascade is of a processing chain where some channels are threaded through and some are bypassed.
 Signals that are threaded throughout - typically audio - are placed in the first channels.
+A cascade can be thought of as an inline audio bus with a fixed set of audio and control channels.
 
+Each component in a cascade has the same number of inputs.
 The number of reused inputs depends on the number of preceding outputs.
-The number of inputs remains the same throughout a cascade.
 
 Due to associativity, a chain of cascade ( `/` ) operators defines a *far* cascade.
 In a far cascade, all bypasses are sourced from the leftmost input.
@@ -111,6 +141,10 @@ For instance, in `A / B / C / D`, missing inputs to `C` and `D` are sourced from
 To get a *close* cascade, write it right associatively: `A / (B / (C / D))`.
 In a close cascade, bypasses are sourced locally, resulting in *iterative* modulation.
 
+In the default form, cascading chains similar filters.
+For example, `lowpass() / lowpass()` sources the cutoff frequency for both filters
+from the leftmost input while threading the audio through.
+
 Cascading is equivalent to piping when no bypasses are needed.
 Chains can be notated as modulator-filter pairs; for example,
 `resonator() / mul((1.0, 1.0, 2.0)) / resonator() / mul((1.0, 1.0, 4.0)) / resonator()`.
@@ -119,17 +153,38 @@ In the preceding cascade, bandwidth is doubled and quadrupled for the second and
 while audio in the first channel is threaded through.
 
 If we convert it to right associative form, then modulation becomes left-to-right iterative:
-both modulator expressions are now applied to the third stage, doubling its bandwidth, while the second
+both modulator expressions are now applied to the third resonator stage, doubling its bandwidth, while the second
 stage remains the same.
 
-### Branch
+#### Pipe
 
-Where the arithmetic operators are reducing in nature, the branch ( `&` ) operator splits a signal.
+The pipe ( `>>` ) operator builds traditional processing chains akin to composition of functions.
+In `A >> B`, each output of `A` is piped to a matching input of `B`, so
+the output arity of `A` must match the input arity of `B`.
+
+It is possible to pipe a sink to a generator. This is similar to stacking.
+Processing works as normal and the sink processes its inputs before the generator is run.
+
+#### Branch
+
+Where the arithmetic operators are reducing in nature, the branch ( `&` ) operator splits a signal into parallel branches.
 
 A nice mnemonic for reading the branch operator is to think of it as sending a signal to a conjunction of components:
 `A >> (B & C & D)` is a triple branch that sends from `A` the same output to `B` *and* `C` *and* `D`.
 
-### Expressions Are Graphs
+All constituents of a branch receive the same input, so `B`, `C` and `D` must each have the same input arity,
+which must match the output arity of `A`.
+
+#### Stack
+
+The stack ( `|` ) operator builds composite components.
+It can be applied to any two components.
+
+In stacks, components are written in channel order.
+In `A | B | C`, channels of `A` come first, followed by channels of `B`, then `C`.
+
+
+## Expressions Are Graphs
 
 The expression `A >> (B & C & D)` defines a signal processing graph.
 It has whatever inputs `A` has, and outputs everything from `B` and `C` and `D` in parallel.
@@ -148,25 +203,77 @@ The arrays `Frame<Size>` that connect components come from the
 
 These free functions are available in the environment.
 
+### Component Functions
+
 ---
 
 | Function               | Inputs | Outputs  | Explanation                                    |
 | ---------------------- |:------:|:--------:| ---------------------------------------------- |
 | `add(x)`               |    x   |    x     | Adds constant `x` to signal. |
-| `constant(x)`          |    0   |    x     | Outputs constant `x`. Synonymous with `dc(x)`. |
-| `dc(x)`                |    0   |    x     | Outputs constant `x`. Synonymous with `constant(x)`. |
-| `envelope(Fn(f48)`&#160;`->`&#160;`f48)` | 0  |    1     | Time-varying control, e.g., `|t| exp(-t)`. Synonymous with `lfo(f)`. |
-| `lfo(Fn(f48)`&#160;`->`&#160;`f48)`  |    0   |    1     | Time-varying control, e.g., `|t| exp(-t)`. Synonymous with `envelope(f)`. |
+| `constant(x)`          |    -   |    x     | Outputs constant `x`. Synonymous with `dc`. |
+| `dc(x)`                |    -   |    x     | Outputs constant `x`. Synonymous with `constant`. |
+| `envelope(Fn(f48)`&#160;`->`&#160;`f48)` | - | 1 | Time-varying control, e.g., `envelope(|t| exp(-t))`. Synonymous with `lfo`. |
+| `lfo(Fn(f48)`&#160;`->`&#160;`f48)` | - | 1 | Time-varying control, e.g., `lfo(|t| exp(-t))`. Synonymous with `envelope`. |
 | `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
 | `lowpass_hz(c)`        |    1   |    1     | Butterworth lowpass filter (2nd order) with fixed cutoff frequency `c` Hz. |
+| `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
+| `lowpole_hz(c)`        | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order) with fixed cutoff frequency `c` Hz. |
+| `mls()`                |    -   |    1     | White MLS noise source. |
 | `mul(x)`               |    x   |    x     | Multiplies signal with constant `x`. |
-| `noise()`              |    0   |    1     | White noise source. |
+| `noise()`              |    -   |    1     | White noise source. Synonymous with `white`. |
 | `pass()`               |    1   |    1     | Mono pass-through. |
 | `resonator()`          | 3 (audio, center, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
+| `resonator_hz(c, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with fixed center frequency `c` Hz and bandwidth `bw` Hz. |
 | `sine()`               | 1 (pitch) | 1     | Sine oscillator. |
-| `sine_hz(f)`           |    0   |    1     | Sine oscillator at fixed frequency `f` Hz. |
-| `sink()`               |    1   |    0     | Consumes a channel. |
-| `zero()`               |    0   |    1     | A zero signal. |
+| `sine_hz(f)`           |    -   |    1     | Sine oscillator at fixed frequency `f` Hz. |
+| `sink()`               |    1   |    -     | Consumes a channel. |
+| `sub(x)`               |    x   |    x     | Subtracts constant `x` from signal. |
+| `white()`              |    -   |    1     | White noise source. Synonymous with `noise`. |
+| `zero()`               |    -   |    1     | Zero signal. |
+
+---
+
+### Math Functions
+
+| Function               | Explanation                                    |
+| ---------------------- | ---------------------------------------------- |
+| `abs(x)`               | absolute value of x |
+| `ceil(x)`              | ceiling function |
+| `clamp(min, max, x)`   | clamps `x` between `min` and `max`. |
+| `clamp01(x)`           | clamps `x` between 0 and 1. |
+| `clamp11(x)`           | clamps `x` between -1 and 1. |
+| `cerp(x0, x1, x2, x3, t)` | monotonic cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
+| `cos(x)`               | cos |
+| `db_gain(x)`           | converts `x` dB to amplitude (gain amount) |
+| `delerp(x0, x1, x)`    | recovers linear interpolation amount `t` from interpolated value |
+| `dexerp(x0, x1, x)`    | recovers exponential interpolation amount `t` from interpolated value |
+| `dissonance(f0, f1)`   | dissonance amount in 0...1 between pure tones at `f0` and `f1` Hz |
+| `dissonance_max(f)`    | maximally dissonant pure frequency above `f` Hz |
+| `downarc(x)`           | downward arcing quarter circle easing curve (inverse of `uparc`) |
+| `exp(x)`               | exp |
+| `exq(x)`               | polynomial alternative to `exp` |
+| `floor(x)`             | floor function |
+| `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` |
+| `log(x)`               | natural logarithm |
+| `logistic(x)`          | logistic function |
+| `min(x, y)`            | minimum of `x` and `y` |
+| `max(x, y)`            | maximum of `x` and `y` |
+| `m_weight(f)`          | M-weighted noise response amplitude at `f` Hz. |
+| `pow(x, y)`            | `x` raised to the power `y` |
+| `round(x)`             | rounds `x` to nearest integer |
+| `signum(x)`            | sign of `x` |
+| `sin(x)`               | sin |
+| `smooth3(x)`           | smooth cubic easing polynomial |
+| `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
+| `smooth7(x)`           | smooth 7th degree easing polynomial |
+| `smooth9(x)`           | smooth 9th degree easing polynomial |
+| `softsign(x)`          | softsign function, a polynomial alternative to `tanh` |
+| `spline(x0, x1, x2, x3, t)` | Catmull-Rom cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
+| `sqrt(x)`              | square root of `x` |
+| `tan(x)`               | tan |
+| `tanh(x)`              | hyperbolic tangent |
+| `uparc(x)`             | upward arcing quarter circle easing curve (inverse of `downarc`) |
+| `xerp(x0, x1, t)`      | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) |
 
 ---
 
@@ -179,74 +286,29 @@ For the practice of *graph fu*, some examples of graph expressions.
 | Expression                               | Inputs | Outputs | Meaning                                       |
 | ---------------------------------------- |:------:|:-------:| --------------------------------------------- |
 | `pass() & pass()`                        |   1    |    2    | mono-to-stereo splitter                       |
+| `mul(0.5) + mul(0.5)`                    |   2    |    1    | stereo-to-mono mixdown (inverse of mono-to-stereo splitter) |
 | `pass() & pass() & pass()`               |   1    |    3    | mono-to-trio splitter                         |
+| `sink() | zero()`                        |   1    |    1    | replace signal with silence                   |
+| `mul(0.0)`                               |   1    |    1    | -..-                                          |
 | `sink() | pass()`                        |   2    |    1    | extract right channel                         |
 | `pass() | sink()`                        |   2    |    1    | extract left channel                          |
 | `sink() | zero() | pass()`               |   2    |    2    | replace left channel with silence             |
+| `mul(0.0) | pass()`                      |   2    |    2    | -..-                                          |
+| `mul((0.0, 1.0))`                        |   2    |    2    | -..-                                          |
 | `pass() | sink() | zero()`               |   2    |    2    | replace right channel with silence            |
+| `pass() | mul(0.0)`                      |   2    |    2    | -..-                                          |
+| `mul((1.0, 0.0))`                        |   2    |    2    | -..-                                          |
+| `lowpass() / lowpole()`                  |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
 | `lowpass() / lowpass() / lowpass()`      |   2    |    1    | triple lowpass filter in series (6th order)   |
 | `resonator() / resonator()`              |   3    |    1    | double resonator in series (4th order)        |
-| `sine_hz(f) * f * m + f >> sine()`       |   0    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
+| `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
 | `(pass() & mul(2.0)) >> sine() + sine()` |   1    |    1    | frequency doubled dual sine oscillator        |
-| `envelope(|t| exp(-t)) * noise()`        |   0    |    1    | exponentially decaying white noise            |
+| `envelope(|t| exp(-t)) * noise()`        |   -    |    1    | exponentially decaying white noise            |
 
 ---
 
 Note that besides associativity, `sink() | zero()` and `zero() | sink()` are equivalent -
-both replace a signal with zeros.
-This is because `sink()` only adds an input, while `zero()` only adds an output.
-
-Native operator precedences are well suited for audio work, except for the sky high `/`.
-
-```rust
-
-use adsp::prelude::*;
-
-// Use the ">>" operator to chain components.
-// Lowpass filter some white noise with a cutoff of 400 Hz.
-let a = white() >> lowpass_hz(400.0);
-assert!(a.inputs() == 0 && a.outputs() == 1);
-
-// Use the "|" operator to stack components in parallel.
-// Here we send three inputs to a constant-gain resonator.
-// The output is bandlimited noise filtered with a center frequency of 400 Hz and a bandwidth of 200 Hz.
-let b = (white() | dc(400.0) | dc(200.0)) >> resonator();
-assert!(b.inputs() == 0 && b.outputs() == 1);
-
-// Use pass() to pass through a channel. Here is the filter from the above generator.
-// We also combine the constants into one stereo constant.
-let c = (pass() | dc((400.0, 200.0))) >> resonator();
-assert!(c.inputs() == 1 && c.outputs() == 1);
-
-// New components can be defined with the following return type.
-// Declaring the full arity in the signature enables use of the component in further combinations,
-// as does the full type name. Signatures with generic number of channels can be challenging to write.
-// Here we define a mono-to-quad splitter.
-// Use the "&" operator for branching.
-// Same input is sent to both components (read A & B as "send input to A AND B").
-pub fn split_quad() -> Ac<impl AudioComponent<Inputs = U1, Outputs = U4>> {
-  pass() & pass() & pass() & pass()
-}
-
-// Constants can be defined by supplying a scalar or tuple to dc() or constant().
-// The two forms are synonymous. DC is a shorthand for direct current, an electrical engineering term.
-// Here we define a stereo constant.
-let d = constant((0.0, 1.0));
-assert!(d.inputs() == 0 && d.outputs() == 2);
-
-// There are many ways to extract samples from components.
-// One shortcut is get_stereo(), which returns the next stereo sample pair using an all zeros input.
-assert_eq!(d.get_stereo(), (0.0, 1.0));
-// Or get_mono() (if there is more than one output, it picks the first):
-assert_eq!(d.get_mono(), 0.0);
-
-// Apply an exponentially decaying envelope to white noise.
-// The closure argument is time in seconds.
-// Time starts from zero and is reset to zero on reset().
-// envelope() and lfo() are equivalent forms. LFO is a shorthand for low frequency oscillator.
-let e: Ac<impl AudioComponent<Inputs = U0, Outputs = U1>> = white() * envelope(|t| exp(-t));
-
-```
+both replace a mono signal with zeros. This is because `sink()` only adds an input, while `zero()` only adds an output.
 
 
 ## License

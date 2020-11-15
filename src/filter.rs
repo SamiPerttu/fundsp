@@ -202,3 +202,48 @@ impl<F: AudioFloat> AudioComponent for Resonator<F> {
         self.biquad.tick(&[input[0]].into())
     }
 }
+
+/// One-pole lowpass filter.
+/// Input 0: input signal
+/// Input 1: cutoff frequency (Hz)
+/// Output 0: filtered signal
+#[derive(Copy, Clone, Default)]
+pub struct OnePoleLowpass<F: AudioFloat> {
+    value: F,
+    coeff: F,
+    cutoff: F,
+    sample_rate: F,
+}
+
+impl<F: AudioFloat> OnePoleLowpass<F> {
+    pub fn new(sample_rate: f64) -> OnePoleLowpass<F> {
+        OnePoleLowpass { value: F::zero(), coeff: F::zero(), cutoff: F::zero(), sample_rate: F::from_f64(sample_rate) }
+    }
+}
+
+impl<F: AudioFloat> AudioComponent for OnePoleLowpass<F> {
+    type Inputs = typenum::U2;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>)
+    {
+        if let Some(sample_rate) = sample_rate {
+            self.sample_rate = F::from_f64(sample_rate);
+            self.cutoff = F::zero();
+        }
+        self.value = F::zero();
+    }
+
+    #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs>
+    {
+        let cutoff: F = from_f48(input[1]);
+        if cutoff != self.cutoff {
+            self.cutoff = cutoff;
+            self.coeff = exp(F::from_f64(-TAU) * cutoff / self.sample_rate);
+        }
+        let x = from_f48(input[0]);
+        self.value = (F::one() - self.coeff) * x + self.coeff * self.value;
+        [into_f48(self.value)].into()
+    }
+}
+

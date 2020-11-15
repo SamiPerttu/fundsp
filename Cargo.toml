@@ -1,11 +1,11 @@
 [package]
-name = "adsp"
-description = "Audio DSP library featuring a combinator environment for audio processing."
+name = "fundsp"
+description = "Audio DSP library for Rust featuring an inline graph notation for audio processing."
 keywords = ["dsp", "audio"]
 license = "MIT OR Apache-2.0"
 version = "0.1.0"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
-homepage = "https://github.com/SamiPerttu/adsp"
+homepage = "https://github.com/SamiPerttu/fundsp"
 edition = "2018"
 
 [dependencies]

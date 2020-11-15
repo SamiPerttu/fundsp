@@ -35,9 +35,9 @@ pub trait AudioUnit {
 }
 
 /// Adapts an AudioComponent into an AudioUnit.
-pub struct AcUnit<A: AudioComponent>(pub A);
+pub struct AcUnit<X: AudioComponent>(pub X);
 
-impl<A: AudioComponent> AudioUnit for AcUnit<A> {
+impl<X: AudioComponent> AudioUnit for AcUnit<X> {
     fn reset(&mut self, sample_rate: Option<f64>) { self.0.reset(sample_rate); }
     fn process(&mut self, input: &[&[f48]], output: &mut [&mut[f48]])
     {

@@ -1,5 +1,6 @@
 use super::*;
 use super::audiocomponent::*;
+use super::math::*;
 use numeric_array::*;
 
 /// Maximum length sequences (MLS) are pseudorandom, spectrally flat,
@@ -117,8 +118,31 @@ impl AudioComponent for MlsNoise {
     }
 }
 
-/// Default MLS noise.
-pub fn mls() -> Ac<MlsNoise> { Ac(MlsNoise::new_default()) }
+/// White noise component.
+#[derive(Clone)]
+pub struct NoiseComponent {
+    x: u64,
+}
 
-/// n-bit MLS noise.
-pub fn mls_n(n: u32) -> Ac<MlsNoise> { Ac(MlsNoise::new(Mls::new(n))) }
+impl NoiseComponent {
+    pub fn new() -> NoiseComponent { NoiseComponent { x: 0 } }
+}
+
+impl AudioComponent for NoiseComponent {
+    type Inputs = typenum::U0;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self, _sample_rate: Option<f64>)
+    {
+        self.x = 0;
+    }
+
+    #[inline] fn tick(&mut self, _input: &Frame<Self::Inputs>) -> Frame<Self::Outputs>
+    {
+        self.x = self.x * 6364136223846793005 + 1442695040888963407;
+        // Pick some number of most significant bits from the linear congruential generator.
+        let use_bits = 16;
+        let value = (self.x >> (64 - use_bits)) as f48 / pow(2.0, (use_bits - 1) as f48) - 1.0;
+        [value].into()
+    }
+}

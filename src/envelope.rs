@@ -5,7 +5,7 @@ use numeric_array::*;
 
 /// EnvelopeComponent samples a time varying function.
 #[derive(Clone)]
-pub struct EnvelopeComponent<F: Fn(f48) -> f48>
+pub struct EnvelopeComponent<F: Fn(f48) -> f48 + Clone> where
 {
     envelope: F,
     t: f64,
@@ -17,7 +17,7 @@ pub struct EnvelopeComponent<F: Fn(f48) -> f48>
     sample_duration: f64,
 }
 
-impl<F: Fn(f48) -> f48> EnvelopeComponent<F>
+impl<F: Fn(f48) -> f48 + Clone> EnvelopeComponent<F>
 {
     pub fn new(interval: f64, sample_rate: f64, envelope: F) -> Self {
         assert!(interval > 0.0);
@@ -27,7 +27,7 @@ impl<F: Fn(f48) -> f48> EnvelopeComponent<F>
     }
 }
 
-impl<F: Fn(f48) -> f48> AudioComponent for EnvelopeComponent<F>
+impl<F: Fn(f48) -> f48 + Clone> AudioComponent for EnvelopeComponent<F>
 {
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;

@@ -1,5 +1,22 @@
 use super::*;
 
+#[inline] pub fn abs<T: Num>(x: T) -> T { x.abs() }
+#[inline] pub fn signum<T: Num>(x: T) -> T { x.signum() }
+#[inline] pub fn min<T: Num>(x: T, y: T) -> T { x.min(y) }
+#[inline] pub fn max<T: Num>(x: T, y: T) -> T { x.max(y) }
+#[inline] pub fn pow<T: Num>(x: T, y: T) -> T { x.pow(y) }
+#[inline] pub fn floor<T: Num>(x: T) -> T { x.floor() }
+#[inline] pub fn ceil<T: Num>(x: T) -> T { x.ceil() }
+#[inline] pub fn round<T: Num>(x: T) -> T { x.round() }
+
+#[inline] pub fn sqrt<T: Real>(x: T) -> T { x.sqrt() }
+#[inline] pub fn exp<T: Real>(x: T) -> T { x.exp() }
+#[inline] pub fn log<T: Real>(x: T) -> T { x.log() }
+#[inline] pub fn sin<T: Real>(x: T) -> T { x.sin() }
+#[inline] pub fn cos<T: Real>(x: T) -> T { x.cos() }
+#[inline] pub fn tan<T: Real>(x: T) -> T { x.tan() }
+#[inline] pub fn tanh<T: Real>(x: T) -> T { x.tanh() }
+
 /// sqrt(2)
 pub const SQRT_2: f64 = std::f64::consts::SQRT_2;
 /// e (Euler's constant)
@@ -44,24 +61,33 @@ impl<U, T> Lerp<T> for U where U: Add<Output = U> + Mul<T, Output = U>, T: Num {
     exp(lerp(log(a), log(b), t))
 }
 
+/// Returns a dissonance amount between pure tones at f0 and f1 Hz.
+/// Dissonance amounts range between 0 and 1.
+#[inline] pub fn dissonance<T: Num + Real>(f0: T, f1: T) -> T {
+    let q = abs(f0 - f1) / (T::from_f64(0.021) * min(f0, f1) + T::from_f64(19.0));
+    T::from_f64(5.531753) * (exp(T::from_f64(-0.84) * q) - exp(T::from_f64(-1.38) * q))
+}
+
+/// Returns maximally dissonant pure frequency above f Hz.
+#[inline] pub fn dissonance_max<T: Num>(f: T) -> T {
+    T::from_f64(1.0193) * f + T::from_f64(17.4672)
+}
+
 /// Exponential de-interpolation. a, b, x > 0. Recovers t from interpolated x.
 #[inline] pub fn dexerp<T: Num + Real>(a: T, b: T, x: T) -> T {
     log(x / a) / log(b / a)
 }
 
-/// Rounds to a multiple of step.
-#[inline] pub fn discretize<T: Num>(x: T, step: T) -> T {
-    (x / step).round() * step
-}
+/// Returns a gain amount from a decibel argument.
+#[inline] pub fn db_gain<T: Num + Real>(db: T) -> T { exp(log(T::new(10)) * db / T::new(20)) }
 
-/// Square of x.
-#[inline] pub fn squared<T: Mul<Output = T> + Copy>(x: T) -> T {
-    x * x
-}
-
-/// Cube of x.
-#[inline] pub fn cubed<T: Mul<Output = T> + Copy>(x: T) -> T {
-    x * x * x
+/// M-weighted noise response function. Returns human ear amplitude response at f Hz.
+#[inline] pub fn m_weight<T: Num + Into<f64>>(f: T) -> T {
+  let i0: f64 = log(max(f.into(), 1.0));
+  let r2 = softsign(pow(i0, i0) * -6.08068842478902e-05 - 255817.484465234);
+  let r4 = softsign(i0 * -0.0120284517694679 + 0.0137065071001576);
+  let db = pow(r2, r4) * -201414774.297872 - 201414825.531915;
+  T::from_f64(db_gain(db))
 }
 
 /// Catmull-Rom cubic spline interpolation, which is a form of cubic Hermite spline. Interpolates between
@@ -80,7 +106,7 @@ pub fn cerp<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
   let d2 = y3 - y2;
   let d1d = (signum(d0) + signum(d1)) * min(d0 + d1, min(abs(d0), abs(d1)));
   let d2d = (signum(d1) + signum(d2)) * min(d1 + d2, min(abs(d1), abs(d2)));
-  cubed(x) * (T::new(2) * y1 - T::new(2) * y2 + d1d + d2d) + squared(x) * (T::new(-3) * y1 + T::new(3) * y2 - T::new(2) * d1d - d2d) + x * d1d + y1
+  x * x * x * (T::new(2) * y1 - T::new(2) * y2 + d1d + d2d) + x * x * (T::new(-3) * y1 + T::new(3) * y2 - T::new(2) * d1d - d2d) + x * d1d + y1
 }
 
 /// Logistic sigmoid.
@@ -111,17 +137,61 @@ pub fn cerp<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
     (x * xw + y * yw) / (xw + yw + epsilon)
 }
 
-/// Sum of an arithmetic series with n terms: sum over i in [0, n[ of (a0 + step * i).
-#[inline] pub fn arithmetic_sum<T: Num>(n: T, a0: T, step: T) -> T {
-    n * (T::new(2) * a0 + step * (n - T::one())) / T::new(2)
+/// Smooth 3rd degree easing polynomial.
+#[inline] pub fn smooth3<T: Num>(x: T) -> T {
+    (T::new(3) - T::new(2) * x) * x * x
 }
 
-/// Sum of a geometric series with n terms: sum over i in [0, n[ of (a0 * ratio ** i).
-#[inline] pub fn geometric_sum<T: Num + PartialOrd>(n: T, a0: T, ratio: T) -> T {
-    let denom = T::one() - ratio;
-    if denom != T::zero() {
-        a0 * (T::one() - ratio.pow(n)) / denom
-    } else {
-        a0 * n
-    }
+/// Smooth 5th degree easing polynomial.
+#[inline] pub fn smooth5<T: Num>(x: T) -> T {
+    ((x * T::new(6) - T::new(15)) * x + T::new(10)) * x * x * x
 }
+
+/// Smooth 7th degree easing polynomial.
+#[inline] pub fn smooth7<T: Num>(x: T) -> T {
+    let x2 = x * x;
+    x2 * x2 * (T::new(35) - T::new(84) * x + (T::new(70) - T::new(20) * x) * x2)
+}
+
+/// Smooth 9th degree easing polynomial.
+#[inline] pub fn smooth9<T: Num>(x: T) -> T {
+    let x2 = x * x;
+    ((((T::new(70) * x - T::new(315)) * x + T::new(540)) * x - T::new(420)) * x + T::new(125)) * x2 * x2 * x
+}
+
+/// A quarter circle fade that slopes upwards. Inverse function of Fade.downarc.
+#[inline] pub fn uparc<T: Real + Num>(x: T) -> T {
+    T::one() - sqrt(max(T::zero(), T::one() - x * x))
+}
+
+/// A quarter circle fade that slopes downwards. Inverse function of Fade.uparc.
+#[inline] pub fn downarc<T: Real + Num>(x: T) -> T {
+    sqrt(max(T::new(0), (T::new(2) - x) * x))
+}
+
+/// Wave function stitched together from two symmetric pieces peaking at origin.
+#[inline] pub fn wave<T: Num, F: Fn(T) -> T>(f: F, x: T) -> T {
+    let u = (x - T::one()) / T::new(4);
+    let u = (u - u.floor()) * T::new(2);
+    let w0 = u.min(T::one());
+    let w1 = u - w0;
+    T::one() - (f(w0) - f(w1)) * T::new(2)
+}
+
+/// Wave function with smooth3 interpolation.
+#[inline] pub fn wave3<T: Num>(x: T) -> T { wave(smooth3, x) }
+
+/// Wave function with smooth5 interpolation.
+#[inline] pub fn wave5<T: Num>(x: T) -> T { wave(smooth5, x) }
+
+/// Sine that oscillates at the specified beats per minute. Time is input in seconds.
+#[inline] pub fn sin_bpm<T: Num + Real>(bpm: T, t: T) -> T { sin(t * bpm * T::from_f64(TAU / 60.0)) }
+
+/// Cosine that oscillates at the specified beats per minute. Time is input in seconds.
+#[inline] pub fn cos_bpm<T: Num + Real>(bpm: T, t: T) -> T { cos(t * bpm * T::from_f64(TAU / 60.0)) }
+
+/// Sine that oscillates at the specified frequency (Hz). Time is input in seconds.
+#[inline] pub fn sin_hz<T: Num + Real>(hz: T, t: T) -> T { sin(t * hz * T::from_f64(TAU)) }
+
+/// Cosine that oscillates at the specified frequency (Hz). Time is input in seconds.
+#[inline] pub fn cos_hz<T: Num + Real>(hz: T, t: T) -> T { cos(t * hz * T::from_f64(TAU)) }
