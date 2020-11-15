@@ -1,4 +1,5 @@
 use super::*;
+use super::math::*;
 use generic_array::sequence::*;
 use numeric_array::typenum::*;
 use std::marker::PhantomData;
@@ -20,11 +21,13 @@ pub trait AudioComponent: Clone
 
     /// Causal latency from input to output, in (fractional) samples.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
-    /// This applies only to components that have both inputs and outputs; others should return 0.0.
+    /// This applies only to components that have both inputs and outputs; others should return None.
     /// The latency can depend on the sample rate and is allowed to change after a reset.
-    fn latency(&self) -> f64 { 0.0 }
-    // TODO: latency needs to be an option.
-
+    fn latency(&self) -> Option<f64> {
+        // Default latency is zero.
+        if self.inputs() > 0 && self.outputs() > 0 { Some(0.0) } else { None }
+    }
+ 
     // End of interface. There is no need to override the following.
 
     /// Number of inputs.
@@ -69,6 +72,24 @@ pub trait AudioComponent: Clone
         assert!(self.outputs() >= 1);
         let output = self.tick(&Frame::generate(|i| if i & 1 == 0 { x } else { y }));
         (output[0], output[ if self.outputs() > 1 { 1 } else { 0 } ])
+    }
+}
+
+/// Combined latency of parallel components a and b.
+fn parallel_latency(a: Option<f64>, b: Option<f64>) -> Option<f64> {
+    match (a, b) {
+        (Some(x), Some(y)) => Some(min(x, y)),
+        (Some(x), None) => Some(x),
+        (None, Some(y)) => Some(y),
+        _ => None,
+    }
+}
+
+/// Combined latency of serial components a and b.
+fn serial_latency(a: Option<f64>, b: Option<f64>) -> Option<f64> {
+    match (a, b) {
+        (Some(x), Some(y)) => Some(x + y),
+        _ => None,
     }
 }
 
@@ -243,7 +264,9 @@ impl<X, Y, B> AudioComponent for BinopComponent<X, Y, B> where
         let y = self.y.tick(input_y.into());
         B::binop(&x, &y)
     }
-    fn latency(&self) -> f64 { self.x.latency().min(self.y.latency()) }
+    fn latency(&self) -> Option<f64> {
+        parallel_latency(self.x.latency(), self.y.latency())
+     }
 }
 
 /// UnopComponent applies an unary operator to its inputs.
@@ -312,7 +335,9 @@ impl<X, Y> AudioComponent for PipeComponent<X, Y> where
     #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
         self.y.tick(&self.x.tick(input))
     }
-    fn latency(&self) -> f64 { self.x.latency() + self.y.latency() }
+    fn latency(&self) -> Option<f64> {
+        serial_latency(self.x.latency(), self.y.latency())
+    }
 }
 
 //// StackComponent stacks X and Y in parallel.
@@ -368,7 +393,9 @@ impl<X, Y> AudioComponent for StackComponent<X, Y> where
         let output_y = self.y.tick(input_y.into());
         Frame::generate(|i| if i < X::Outputs::USIZE { output_x[i] } else { output_y[i - X::Outputs::USIZE] })
     }
-    fn latency(&self) -> f64 { self.x.latency().min(self.y.latency()) }
+    fn latency(&self) -> Option<f64> {
+        parallel_latency(self.x.latency(), self.y.latency())
+    }
 }
 
 /// BranchComponent sends the same input to X and Y and concatenates the outputs.
@@ -413,7 +440,9 @@ impl<X, Y> AudioComponent for BranchComponent<X, Y> where
         let output_y = self.y.tick(input);
         Frame::generate(|i| if i < X::Outputs::USIZE { output_x[i] } else { output_y[i - X::Outputs::USIZE] })
     }
-    fn latency(&self) -> f64 { self.x.latency().min(self.y.latency()) }
+    fn latency(&self) -> Option<f64> {
+        parallel_latency(self.x.latency(), self.y.latency())
+    }
 }
 
 /// CascadeComponent pipes X to Y, adding more inputs from X in place of missing ones.
@@ -453,10 +482,10 @@ impl<X, Y> AudioComponent for CascadeComponent<X, Y> where
         let input_y = Frame::generate(|i| if i < X::Outputs::USIZE { output_x[i] } else { input[i] });
         self.y.tick(&input_y)
     }
-    fn latency(&self) -> f64 {
-        // If all channels are piped through X, then take latency of X into account.
-        if X::Outputs::USIZE >= Y::Inputs::USIZE {
-            self.x.latency() + self.y.latency()
+    fn latency(&self) -> Option<f64> {
+        // Add latency from X only if all channels are piped through X.
+        if self.x.outputs() >= self.y.inputs() {
+            serial_latency(self.x.latency(), self.y.latency())
         } else {
             self.y.latency()
         }

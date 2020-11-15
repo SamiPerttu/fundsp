@@ -29,9 +29,12 @@ pub trait AudioUnit {
 
     /// Causal latency from input to output, in (fractional) samples.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
-    /// This applies only to components that have both inputs and outputs. Others should return 0.0.
+    /// This applies only to components that have both inputs and outputs. Others should return None.
     /// The latency can depend on the sample rate and is allowed to change after a reset.
-    fn latency(&self) -> f64 { 0.0 }
+    fn latency(&self) -> Option<f64> {
+        // Default latency is zero.
+        if self.inputs() > 0 && self.outputs() > 0 { Some(0.0) } else { None }
+    }
 }
 
 /// Adapts an AudioComponent into an AudioUnit.
@@ -56,5 +59,5 @@ impl<X: AudioComponent> AudioUnit for AcUnit<X> {
     }
     fn inputs(&self) -> usize { self.0.inputs() }
     fn outputs(&self) -> usize { self.0.outputs() }
-    fn latency(&self) -> f64 { self.0.latency() }
+    fn latency(&self) -> Option<f64> { self.0.latency() }
 }
