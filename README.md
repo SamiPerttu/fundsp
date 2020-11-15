@@ -217,7 +217,7 @@ These free functions are available in the environment.
 | `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
 | `lowpass_hz(c)`        |    1   |    1     | Butterworth lowpass filter (2nd order) with fixed cutoff frequency `c` Hz. |
 | `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
-| `lowpole_hz(c)`        | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order) with fixed cutoff frequency `c` Hz. |
+| `lowpole_hz(c)`        |    1   |    1     | 1-pole lowpass filter (1st order) with fixed cutoff frequency `c` Hz. |
 | `mls()`                |    -   |    1     | White MLS noise source. |
 | `mul(x)`               |    x   |    x     | Multiplies signal with constant `x`. |
 | `noise()`              |    -   |    1     | White noise source. Synonymous with `white`. |
