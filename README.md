@@ -75,16 +75,16 @@ In order of precedence, from highest to lowest:
 | Expression     | Meaning                       | Inputs  | Outputs | Notes                                       |
 | -------------- | ----------------------------- |:-------:|:-------:| ------------------------------------------- |
 | `-A`           | negate `A`                    | `a`     | `a`     | Negates any number of outputs, even zero. |
-| `A * B`        | multiply `A` with `B`         | `a + b` | `a = b` | Aka amplification, or ring modulation when both are audio signals. Number of outputs in `A` and `B` must match. |
+| `A * B`        | multiply `A` with `B`         | `a`&#160;`+`&#160;`b` | `a`&#160;`=`&#160;`b` | Aka amplification, or ring modulation when both are audio signals. Number of outputs in `A` and `B` must match. |
 | `A`&#160;`*`&#160;`constant` | multiply `A`    | `a`     | `a`     | Broadcasts constant. Same applies to `constant * A`. |
-| `A / B`        | cascade `A` and `B` in series | `a = b` | `b`     | Pipes `A` to `B`, supplying missing `B` inputs from matching `A` inputs. Number of inputs in `A` and `B` must match. |
-| `A + B`        | sum `A` and `B`               | `a + b` | `a = b` | Aka mixing. Number of outputs in `A` and `B` must match. |
+| `A / B`        | cascade `A` and `B` in series | `a`&#160;`=`&#160;`b` | `b`     | Pipes `A` to `B`, supplying missing `B` inputs from matching `A` inputs. Number of inputs in `A` and `B` must match. |
+| `A + B`        | sum `A` and `B`               | `a`&#160;`+`&#160;`b` | `a`&#160;`=`&#160;`b` | Aka mixing. Number of outputs in `A` and `B` must match. |
 | `A`&#160;`+`&#160;`constant` | add to `A`      | `a`     | `a`     | Broadcasts constant. Same applies to `constant + A`. |
-| `A - B`        | difference of `A` and `B`     | `a + b` | `a = b` | Number of outputs in `A` and `B` must match. |
+| `A - B`        | difference of `A` and `B`     | `a`&#160;`+`&#160;`b` | `a`&#160;`=`&#160;`b` | Number of outputs in `A` and `B` must match. |
 | `A`&#160;`-`&#160;`constant` | subtract from `A` | `a`   | `a`     | Broadcasts constant. Same applies to `constant - A`. |
 | `A >> B`       | pipe `A` to `B`               | `a`     | `b`     | Aka chaining. Number of outputs in `A` must match number of inputs in `B`. |
-| `A & B`        | branch input to `A` and `B` in parallel | `a = b` | `a + b` | Number of inputs in `A` and `B` must match. |
-| `A \| B`        | stack `A` and `B` in parallel | `a + b` | `a + b` | - |
+| `A & B`        | branch input to `A` and `B` in parallel | `a`&#160;`=`&#160;`b` | `a`&#160;`+`&#160;`b` | Number of inputs in `A` and `B` must match. |
+| `A \| B`        | stack `A` and `B` in parallel | `a`&#160;`+`&#160;`b` | `a`&#160;`+`&#160;`b` | - |
 
 ---
 
@@ -288,22 +288,22 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `pass() & pass()`                        |   1    |    2    | mono-to-stereo splitter                       |
 | `mul(0.5) + mul(0.5)`                    |   2    |    1    | stereo-to-mono mixdown (inverse of mono-to-stereo splitter) |
 | `pass() & pass() & pass()`               |   1    |    3    | mono-to-trio splitter                         |
-| `sink() \| zero()`                        |   1    |    1    | replace signal with silence                   |
+| `sink() \| zero()`                       |   1    |    1    | replace signal with silence                   |
 | `mul(0.0)`                               |   1    |    1    | -..-                                          |
-| `sink() \| pass()`                        |   2    |    1    | extract right channel                         |
-| `pass() \| sink()`                        |   2    |    1    | extract left channel                          |
-| `sink() \| zero() \| pass()`               |   2    |    2    | replace left channel with silence             |
-| `mul(0.0) \| pass()`                      |   2    |    2    | -..-                                          |
+| `sink() \| pass()`                       |   2    |    1    | extract right channel                         |
+| `pass() \| sink()`                       |   2    |    1    | extract left channel                          |
+| `sink() \| zero() \| pass()`             |   2    |    2    | replace left channel with silence             |
+| `mul(0.0) \| pass()`                     |   2    |    2    | -..-                                          |
 | `mul((0.0, 1.0))`                        |   2    |    2    | -..-                                          |
-| `pass() \| sink() \| zero()`               |   2    |    2    | replace right channel with silence            |
-| `pass() \| mul(0.0)`                      |   2    |    2    | -..-                                          |
+| `pass() \| sink() \| zero()`             |   2    |    2    | replace right channel with silence            |
+| `pass() \| mul(0.0)`                     |   2    |    2    | -..-                                          |
 | `mul((1.0, 0.0))`                        |   2    |    2    | -..-                                          |
 | `lowpass() / lowpole()`                  |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
 | `lowpass() / lowpass() / lowpass()`      |   2    |    1    | triple lowpass filter in series (6th order)   |
 | `resonator() / resonator()`              |   3    |    1    | double resonator in series (4th order)        |
 | `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
 | `(pass() & mul(2.0)) >> sine() + sine()` |   1    |    1    | frequency doubled dual sine oscillator        |
-| `envelope(\|t\| exp(-t)) * noise()`        |   -    |    1    | exponentially decaying white noise            |
+| `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
 
 ---
 
