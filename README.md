@@ -212,8 +212,8 @@ These free functions are available in the environment.
 | `add(x)`               |    x   |    x     | Adds constant `x` to signal. |
 | `constant(x)`          |    -   |    x     | Outputs constant `x`. Synonymous with `dc`. |
 | `dc(x)`                |    -   |    x     | Outputs constant `x`. Synonymous with `constant`. |
-| `envelope(Fn(f48)`&#160;`->`&#160;`f48)` | - | 1 | Time-varying control, e.g., `envelope(|t| exp(-t))`. Synonymous with `lfo`. |
-| `lfo(Fn(f48)`&#160;`->`&#160;`f48)` | - | 1 | Time-varying control, e.g., `lfo(|t| exp(-t))`. Synonymous with `envelope`. |
+| `envelope(Fn(f48)`&#160;`->`&#160;`f48)` | - | 1 | Time-varying control, e.g., `envelope(\|t\| exp(-t))`. Synonymous with `lfo`. |
+| `lfo(Fn(f48)`&#160;`->`&#160;`f48)` | - | 1 | Time-varying control, e.g., `lfo(\|t\| exp(-t))`. Synonymous with `envelope`. |
 | `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
 | `lowpass_hz(c)`        |    1   |    1     | Butterworth lowpass filter (2nd order) with fixed cutoff frequency `c` Hz. |
 | `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
