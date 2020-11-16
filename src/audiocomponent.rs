@@ -531,6 +531,50 @@ impl<N: Size> AudioComponent for TickComponent<N>
     }
 }
 
+/// BusComponent is a non-reducing mixing component.
+#[derive(Clone)]
+pub struct BusComponent<X, Y> where
+    X: AudioComponent,
+    Y: AudioComponent<Inputs = X::Inputs, Outputs = X::Outputs>,
+    Y::Inputs: Size,
+    Y::Outputs: Size,
+{
+    x: X,
+    y: Y,
+}
+
+impl<X, Y> BusComponent<X, Y> where
+    X: AudioComponent,
+    Y: AudioComponent<Inputs = X::Inputs, Outputs = X::Outputs>,
+    Y::Inputs: Size,
+    Y::Outputs: Size,
+{
+    pub fn new(x: X, y: Y) -> Self { BusComponent { x, y } }
+}
+
+impl<X, Y> AudioComponent for BusComponent<X, Y> where
+    X: AudioComponent,
+    Y: AudioComponent<Inputs = X::Inputs, Outputs = X::Outputs>,
+    Y::Inputs: Size,
+    Y::Outputs: Size,
+{
+    type Inputs = X::Inputs;
+    type Outputs = X::Outputs;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.x.reset(sample_rate);
+        self.y.reset(sample_rate);
+    }
+    #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
+        let output_x = self.x.tick(input);
+        let output_y = self.y.tick(input);
+        output_x + output_y
+    }
+    fn latency(&self) -> Option<f64> {
+        parallel_latency(self.x.latency(), self.y.latency())
+    }
+}
+
 /// FeedbackComponent encloses a feedback circuit.
 /// The feedback circuit must have an equal number of inputs and outputs.
 #[derive(Clone)]

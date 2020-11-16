@@ -85,7 +85,8 @@ In order of precedence, from highest to lowest:
 | `A`&#160;`-`&#160;`constant` | subtract from `A` | `a`   | `a`     | Broadcasts constant. Same applies to `constant - A`. |
 | `A >> B`       | pipe `A` to `B`               | `a`     | `b`     | Aka chaining. Number of outputs in `A` must match number of inputs in `B`. |
 | `A & B`        | branch input to `A` and `B` in parallel | `a`&#160;`=`&#160;`b` | `a`&#160;`+`&#160;`b` | Number of inputs in `A` and `B` must match. |
-| `A \| B`        | stack `A` and `B` in parallel | `a`&#160;`+`&#160;`b` | `a`&#160;`+`&#160;`b` | - |
+| `A ^ B`        | bus `A` and `B` together      | `a`&#160;`=`&#160;`b` | `a`&#160;`=`&#160;`b` | `A` and `B` must have identical connectivity |
+| `A \| B`       | stack `A` and `B` in parallel | `a`&#160;`+`&#160;`b` | `a`&#160;`+`&#160;`b` | - |
 
 ---
 
@@ -119,21 +120,23 @@ In the prelude, `sink()` returns a mono sink.
 
 ### Graph Combinators
 
-Of special interest among operators are the four custom combinators:
-*cascade* ( `/` ), *pipe* ( `>>` ), *branch* ( `&` ) and *stack* ( `|` ).
+Of special interest among operators are the five custom combinators:
+*cascade* ( `/` ), *pipe* ( `>>` ), *branch* ( `&` ), *bus* ( `^` ) and *stack* ( `|` ).
 
 Cascade and pipe are serial operators where components appear in *processing* order. Branch, stack, and
 arithmetic operators are parallel operators where components appear in *channel* order.
 
+Bus is a commutative parallel operator where components may appear in any order.
+The other operators are not commutative in general.
+
 Each come with their own connectivity rules.
-Piping, branching and stacking are all fully associative operations,
+Piping, branching, busing and stacking are all fully associative operations,
 while cascading is left associative.
 
 #### Cascade
 
 The idea of the cascade is of a processing chain where some channels are threaded through and some are bypassed.
 Signals that are threaded throughout - typically audio - are placed in the first channels.
-A cascade can be thought of as an inline audio bus with a fixed set of audio and control channels.
 
 Each component in a cascade has the same number of inputs.
 The number of reused inputs depends on the number of preceding outputs.
@@ -179,6 +182,23 @@ A nice mnemonic for reading the branch operator is to think of it as sending a s
 
 All constituents of a branch receive the same input, so `B`, `C` and `D` must each have the same input arity,
 which must match the output arity of `A`.
+
+#### Bus
+
+The bus ( `^` ) operator can be thought of as an inline audio bus with a fixed set of input and output channels.
+It builds signal buses from components with identical connectivity.
+
+In `A ^ B`, the same input is sent to both `A` and `B`, and the outputs are mixed together.
+Components in a bus may appear in any order.
+
+The bus is especially useful because it does not alter connectivity:
+we can always bus together any set of matching components
+without touching the rest of the expression.
+
+Both `A + B` and `A ^ B` are mixing operators. The difference between the two is that `A + B` is *reducing*:
+`A` and `B` have their own, separate inputs.
+In `A ^ B`, both components source from the same inputs, and the number of inputs must match.
+
 
 #### Stack
 
