@@ -48,10 +48,12 @@ fn test() {
     assert!(c.tick(&[2.0,-1.0, 2.0].into())[0] == f(2.0,-1.0, 2.0));
     assert!(c.tick(&[0.0, 3.0,-1.0].into())[0] == f(0.0, 3.0,-1.0));
 
-    // Test examples from docs.
     fn inouts<X: AudioComponent>(x: Ac<X>) -> (usize, usize) { (x.inputs(), x.outputs()) }
 
-    // Converted from docs using search: ^[|] .(.*)[`].*[|] +([\d-]).+(\d-) +[|](.*)[|].*$
+    // No-ops with sinks.
+    assert_eq!(inouts(!-!sink()-42.0^sink()&-!!--!-sink()*3.14), (1, 0));
+
+    // These were onverted from docs using search: ^[|] .(.*)[`].*[|] +([\d-]).+(\d-) +[|](.*)[|].*$
     // Replace with: assert_eq!(inouts($1), ($2, $3)); //$4
     assert_eq!(inouts(pass() & pass()), (1, 2)); // mono-to-stereo splitter
     assert_eq!(inouts(mul(0.5) + mul(0.5)), (2, 1)); // stereo-to-mono mixdown (inverse of mono-to-stereo splitter)
