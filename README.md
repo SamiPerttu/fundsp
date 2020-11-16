@@ -231,8 +231,8 @@ This prevents cycles and imposes an overall tree shape on the resulting computat
 Implicit cycle prevention means that the built structures are always computationally efficient
 in the dataflow sense. All reuse of computed data takes place locally, inside combinators and components.
 
-There are two main ways to structure the reuse of signals in `fundsp` graph notation:
-*branching* and *cascading*. Both are exposed as fundamental operators,
+There are three main ways to structure the reuse of signals in `fundsp` graph notation:
+*branching*, *busing* and *cascading*. All three are exposed as fundamental operators,
 guiding toward efficient structuring of computation.
 Dataflow concerns are thus explicated in the graph notation itself.
 
