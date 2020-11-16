@@ -130,7 +130,7 @@ impl<N: Size> SinkComponent<N>
 impl<N: Size> AudioComponent for SinkComponent<N>
 {
     type Inputs = N;
-    type Outputs = N;
+    type Outputs = U0;
 
     #[inline] fn tick(&mut self, _input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
         Frame::default()
@@ -296,10 +296,16 @@ impl<X, U> AudioComponent for UnopComponent<X, U> where
     type Inputs = X::Inputs;
     type Outputs = X::Outputs;
 
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.x.reset(sample_rate);
+    }
     #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
         U::unop(&self.x.tick(input))
     }
-}
+    fn latency(&self) -> Option<f64> {
+        self.x.latency()
+    }
+} 
 
 /// PipeComponent pipes the output of X to Y.
 #[derive(Clone)]
@@ -489,5 +495,86 @@ impl<X, Y> AudioComponent for CascadeComponent<X, Y> where
         } else {
             self.y.latency()
         }
+    }
+}
+
+/// TickComponent is a single sample delay.
+#[derive(Clone)]
+pub struct TickComponent<N: Size>
+{
+    buffer: Frame<N>,
+    sample_rate: f64,
+}
+
+impl<N: Size> TickComponent<N>
+{
+    pub fn new(sample_rate: f64) -> Self { TickComponent { buffer: Frame::default(), sample_rate } }
+}
+
+impl<N: Size> AudioComponent for TickComponent<N>
+{
+    type Inputs = N;
+    type Outputs = N;
+
+    #[inline] fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sample_rate) = sample_rate { self.sample_rate = sample_rate; }
+        self.buffer = Frame::default();
+    }
+
+    #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
+        let output = self.buffer.clone();
+        self.buffer = input.clone();
+        output
+    }
+    fn latency(&self) -> Option<f64> {
+        Some(1.0 / self.sample_rate)
+    }
+}
+
+/// FeedbackComponent encloses a feedback circuit.
+/// The feedback circuit must have an equal number of inputs and outputs.
+#[derive(Clone)]
+pub struct FeedbackComponent<X, S> where
+    X: AudioComponent<Inputs = S, Outputs = S>,
+    X::Inputs: Size,
+    X::Outputs: Size,
+    S: Size,
+{
+    x: X,
+    // Current feedback value.
+    value: Frame<S>,
+}
+
+impl<X, S> FeedbackComponent<X, S> where
+    X: AudioComponent<Inputs = S, Outputs = S>,
+    X::Inputs: Size,
+    X::Outputs: Size,
+    S: Size,
+{
+    pub fn new(x: X) -> Self { FeedbackComponent { x, value: Frame::default() } }
+}
+
+impl<X, S> AudioComponent for FeedbackComponent<X, S> where
+    X: AudioComponent<Inputs = S, Outputs = S>,
+    X::Inputs: Size,
+    X::Outputs: Size,
+    S: Size,
+{
+    type Inputs = S;
+    type Outputs = S;
+
+    #[inline] fn reset(&mut self, sample_rate: Option<f64>) {
+        self.x.reset(sample_rate);
+        self.value = Frame::default();
+    }
+
+    #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
+        let output = self.x.tick(&(input + self.value.clone()));
+        self.value = output.clone();
+        output
+    }
+
+    fn latency(&self) -> Option<f64> {
+        self.x.latency()
     }
 }

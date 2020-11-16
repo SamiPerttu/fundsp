@@ -59,11 +59,13 @@ where
     //let c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
     //let c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator() * 0.1;
     //let c = (((mls() | dc(400.0) | dc(50.0)) >> resonator()) | dc(400.0) | dc(50.0)) >> resonator() >> mul(0.1);
-    //let c = white() * envelope(|t| exp(-t * 0.5) * sin_bpm(128.0, t));
-    let f = 220.0;
-    let m = 1.0;
-    let c = sine_hz(f) * f * m + f >> sine();
-    let mut c = c * 0.2;
+    let c = white() * envelope(|t| exp(-t * 0.5) * sin_bpm(128.0, t));
+    //let f = 110.0;
+    //let m = 2.0;
+    //let c = sine_hz(f) * f * m + f >> sine();
+    let fb = feedback(lowpass_hz(1000.0) >> delay(1.0) * 0.9);
+    let mut c = (c >> fb) * 0.1;
+    //let mut c = c * 0.1;
     c.reset(Some(sample_rate));
 
     //let mut next_value = move || { let v = c.get_mono(); assert!(v.is_nan() == false && abs(v) < 1.0e6); v };

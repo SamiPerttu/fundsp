@@ -239,6 +239,7 @@ pub fn into_f48<F: AsPrimitive<f48>>(x: F) -> f48 { x.as_() }
 pub mod audiocomponent;
 pub mod audiounit;
 pub mod combinator;
+pub mod delay;
 pub mod envelope;
 pub mod filter;
 pub mod lti;

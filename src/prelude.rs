@@ -3,6 +3,7 @@ pub use super::math::*;
 pub use super::audiocomponent::*;
 pub use super::combinator::*;
 
+use super::delay::*;
 use super::filter::*;
 use super::envelope::*;
 use super::noise::*;
@@ -136,8 +137,27 @@ pub fn lfo(f: impl Fn(f48) -> f48 + Clone) -> Ac<impl AudioComponent<Inputs = U0
 /// MLS noise generator.
 pub fn mls() -> Ac<MlsNoise> { Ac(MlsNoise::new_default()) }
 
+/// MLS noise generator from an n-bit MLS sequence.
+pub fn mls_bits(n: u32) -> Ac<MlsNoise> { Ac(MlsNoise::new(Mls::new(n))) }
+
 /// White noise generator. Synonymous with white().
 pub fn noise() -> Ac<NoiseComponent> { Ac(NoiseComponent::new()) }
 
 /// White noise generator. Synonymous with noise().
 pub fn white() -> Ac<NoiseComponent> { Ac(NoiseComponent::new()) }
+
+/// Single sample delay.
+pub fn tick() -> Ac<TickComponent<U1>> { Ac(TickComponent::new(DEFAULT_SR)) }
+
+/// Fixed delay of t seconds.
+pub fn delay(t: f48) -> Ac<DelayComponent> { Ac(DelayComponent::new(t, DEFAULT_SR)) }
+
+/// Feedback component.
+/// Enclosed feedback circuit x must have an equal number of inputs and outputs.
+// TODO. Should we somehow take into account the extra sample of delay induced by the feedback component.
+pub fn feedback<X, S>(x: Ac<X>) -> Ac<FeedbackComponent<X, S>> where
+    X: AudioComponent<Inputs = S, Outputs = S>,
+    X::Inputs: Size,
+    X::Outputs: Size,
+    S: Size,
+    { Ac(FeedbackComponent::new(x.0)) }

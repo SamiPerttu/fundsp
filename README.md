@@ -223,24 +223,28 @@ These free functions are available in the environment.
 | Function               | Inputs | Outputs  | Explanation                                    |
 | ---------------------- |:------:|:--------:| ---------------------------------------------- |
 | `add(x)`               |    x   |    x     | Adds constant `x` to signal. |
-| `constant(x)`          |    -   |    x     | Outputs constant `x`. Synonymous with `dc`. |
-| `dc(x)`                |    -   |    x     | Outputs constant `x`. Synonymous with `constant`. |
+| `constant(x)`          |    -   |    x     | Constant signal `x`. Synonymous with `dc`. |
+| `dc(x)`                |    -   |    x     | Constant signal `x`. Synonymous with `constant`. |
+| `delay(t)`             |    1   |    1     | Fixed delay of t seconds. |
 | `envelope(Fn(f48)`&#160;`->`&#160;`f48)` | - | 1 | Time-varying control, e.g., `envelope(\|t\| exp(-t))`. Synonymous with `lfo`. |
+| `feedback(x)`          |    x   |    x     | Encloses feedback circuit x (with equal number of inputs and outputs). |
 | `lfo(Fn(f48)`&#160;`->`&#160;`f48)` | - | 1 | Time-varying control, e.g., `lfo(\|t\| exp(-t))`. Synonymous with `envelope`. |
 | `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
 | `lowpass_hz(c)`        |    1   |    1     | Butterworth lowpass filter (2nd order) with fixed cutoff frequency `c` Hz. |
 | `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
 | `lowpole_hz(c)`        |    1   |    1     | 1-pole lowpass filter (1st order) with fixed cutoff frequency `c` Hz. |
 | `mls()`                |    -   |    1     | White MLS noise source. |
+| `mls_bits(n)`          |    -   |    1     | White MLS noise source from n-bit MLS sequence. |
 | `mul(x)`               |    x   |    x     | Multiplies signal with constant `x`. |
 | `noise()`              |    -   |    1     | White noise source. Synonymous with `white`. |
-| `pass()`               |    1   |    1     | Mono pass-through. |
+| `pass()`               |    1   |    1     | Passes signal through. |
 | `resonator()`          | 3 (audio, center, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(c, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with fixed center frequency `c` Hz and bandwidth `bw` Hz. |
 | `sine()`               | 1 (pitch) | 1     | Sine oscillator. |
 | `sine_hz(f)`           |    -   |    1     | Sine oscillator at fixed frequency `f` Hz. |
 | `sink()`               |    1   |    -     | Consumes a channel. |
 | `sub(x)`               |    x   |    x     | Subtracts constant `x` from signal. |
+| `tick()`               |    1   |    1     | Single sample delay. |
 | `white()`              |    -   |    1     | White noise source. Synonymous with `noise`. |
 | `zero()`               |    -   |    1     | Zero signal. |
 
@@ -250,13 +254,14 @@ These free functions are available in the environment.
 
 | Function               | Explanation                                    |
 | ---------------------- | ---------------------------------------------- |
-| `abs(x)`               | absolute value of x |
+| `abs(x)`               | absolute value of `x` |
 | `ceil(x)`              | ceiling function |
 | `clamp(min, max, x)`   | clamps `x` between `min` and `max`. |
 | `clamp01(x)`           | clamps `x` between 0 and 1. |
 | `clamp11(x)`           | clamps `x` between -1 and 1. |
 | `cerp(x0, x1, x2, x3, t)` | monotonic cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `cos(x)`               | cos |
+| `cos_hz(f, t)`         | cosine that oscillates at `f` Hz at time `t` seconds |
 | `db_gain(x)`           | converts `x` dB to amplitude (gain amount) |
 | `delerp(x0, x1, x)`    | recovers linear interpolation amount `t` from interpolated value |
 | `dexerp(x0, x1, x)`    | recovers exponential interpolation amount `t` from interpolated value |
@@ -276,6 +281,7 @@ These free functions are available in the environment.
 | `round(x)`             | rounds `x` to nearest integer |
 | `signum(x)`            | sign of `x` |
 | `sin(x)`               | sin |
+| `sin_hz(f, t)`         | sine that oscillates at `f` Hz at time `t` seconds |
 | `smooth3(x)`           | smooth cubic easing polynomial |
 | `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
 | `smooth7(x)`           | smooth 7th degree easing polynomial |
