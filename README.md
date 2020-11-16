@@ -106,7 +106,8 @@ For example, `A * constant(2.0)` and `A >> mul(2.0)` are equivalent and expect `
 On the other hand, `A * 2.0` works with any `A`, even *sinks*.
 
 The other unary operator, *monitor* ( `!` ), can also be applied to any component.
-`!A` mixes inputs of `A` to its outputs, ignoring any missing or extra channels.
+`!A` adds inputs of `A` to its outputs, ignoring any missing or extra channels.
+`-!-A` subtracts inputs from outputs instead of adding them.
 
 ### Generators, Filters and Sinks
 

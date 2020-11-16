@@ -63,7 +63,7 @@ where
     //let f = 110.0;
     //let m = 2.0;
     //let c = sine_hz(f) * f * m + f >> sine();
-    let fb = !feedback(lowpass_hz(1000.0) >> delay(1.0) * 0.9);
+    let fb = -!-feedback(lowpass_hz(1000.0) >> delay(1.0) * 0.9);
     let mut c = (c >> fb) * 0.1;
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));
