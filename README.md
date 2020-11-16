@@ -347,7 +347,7 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `lowpass() / lowpass() / lowpass()`      |   2    |    1    | triple lowpass filter in series (6th order)   |
 | `resonator() / resonator()`              |   3    |    1    | double resonator in series (4th order)        |
 | `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
-| `(pass() & mul(2.0)) >> sine() + sine()` |   1    |    1    | frequency doubled dual sine oscillator        |
+| `sine() ^ (mul(2.0) >> sine())`          |   1    |    1    | frequency doubled dual sine oscillator        |
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
 | `!feedback(delay(0.5) * 0.5)`            |   1    |    1    | feedback delay of 0.5 seconds                 |
 
@@ -373,6 +373,18 @@ Many functions in the prelude itself are defined as graph expressions.
 
 ---
 
+### Equivalent Expressions ###
+
+There are usually many ways to express a particular graph. The following expression pairs are identical.
+
+---
+
+| Expression                                 | Is The Same As                  | Notes |
+| ------------------------------------------ | ------------------------------- | ----- |
+| `(pass() & mul(2.0)) >> sine() + sine()`   | `sine() ^ (mul(2.0) >> sine())` | Busing is often more convenient than explicit branching followed with summing. |
+| `!-!sink()-42.0^sink()&-!!--!-sink()*3.14` | `sink()`                        | Branching, busing, monitoring and arithmetic on sinks are no-ops. |
+
+---
 
 ## License
 
