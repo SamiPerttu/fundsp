@@ -61,6 +61,7 @@ impl<X, Y> std::ops::Add<Ac<Y>> for Ac<X> where
     }
 }
 
+/// -X: negated signal.
 impl<X> std::ops::Neg for Ac<X> where
     X: AudioComponent,
     X::Outputs: Size,

@@ -5,7 +5,7 @@ use super::lti::*;
 use numeric_array::*;
 use num_complex::Complex64;
 
-/// Returns a Complex64 with real component x and imaginary component zero.
+/// Complex64 with real component x and imaginary component zero.
 fn re<T: Into<f64>>(x: T) -> Complex64 { Complex64::new(x.into(), 0.0) }
 
 #[derive(Copy, Clone, Debug)]
@@ -48,14 +48,6 @@ impl<F: AudioFloat> BiquadCoefs<F> {
         BiquadCoefs::<F> { a1, a2, b0, b1, b2 }
     }
 }
-/*
-        let x0 = afloat(input[0]);
-        let y0 = self.b0 * x0 + self.b1 * self.x1 + self.b2 * self.x2 - self.a1 * self.y1 - self.a2 * self.y2;
-        self.x2 = self.x1;
-        self.x1 = x0;
-        self.y2 = self.y1;
-        self.y1 = y0;
-*/
 
 /// 2nd order IIR filter implemented in normalized Direct Form I.
 #[derive(Copy, Clone, Default)]

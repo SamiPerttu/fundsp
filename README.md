@@ -112,7 +112,7 @@ Components can be broadly classified into generators, filters and sinks.
 Sinks are components with no outputs. Direct arithmetic on a sink translates to a no-op.
 In the prelude, `sink()` returns a mono sink.
 
-### Combinators
+### Graph Combinators
 
 Of special interest among operators are the four custom combinators:
 *cascade* ( `/` ), *pipe* ( `>>` ), *branch* ( `&` ) and *stack* ( `|` ).
@@ -197,6 +197,19 @@ Mismatched connectivity will result in a compilation error complaining about mis
 [`typenum`](https://crates.io/crates/typenum) [types](https://docs.rs/typenum/1.12.0/typenum/uint/struct.UInt.html).
 The arrays `Frame<Size>` that connect components come from the
 [`numeric-array` crate](https://crates.io/crates/numeric-array).
+
+### Computational Structure
+
+Graph combinators consume their arguments.
+This prevents cycles and imposes an overall tree shape on the resulting computation graph.
+
+Implicit cycle prevention means that the built structures are always computationally efficient
+in the dataflow sense. All reuse of computed data takes place locally, inside combinators and components.
+
+There are two main ways to structure the reuse of signals In the `fundsp` graph notation:
+*branching* and *cascading*. Both are exposed as fundamental operators,
+acting as a guide toward efficient structuring of computation.
+Dataflow concerns are thus explicated in the graph notation itself.
 
 
 ## Free Functions
