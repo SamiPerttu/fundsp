@@ -578,3 +578,46 @@ impl<X, S> AudioComponent for FeedbackComponent<X, S> where
         self.x.latency()
     }
 }
+
+/// MonitorComponent adds its inputs to the outputs of the contained filter,
+/// which must have an equal number of inputs and outputs.
+#[derive(Clone)]
+pub struct MonitorComponent<X, S> where
+    X: AudioComponent<Inputs = S, Outputs = S>,
+    X::Inputs: Size,
+    X::Outputs: Size,
+    S: Size,
+{
+    x: X,
+    _size: PhantomData<S>,
+}
+
+impl<X, S> MonitorComponent<X, S> where
+    X: AudioComponent<Inputs = S, Outputs = S>,
+    X::Inputs: Size,
+    X::Outputs: Size,
+    S: Size,
+{
+    pub fn new(x: X) -> Self { MonitorComponent { x, _size: PhantomData::default() } }
+}
+
+impl<X, S> AudioComponent for MonitorComponent<X, S> where
+    X: AudioComponent<Inputs = S, Outputs = S>,
+    X::Inputs: Size,
+    X::Outputs: Size,
+    S: Size,
+{
+    type Inputs = S;
+    type Outputs = S;
+
+    #[inline] fn reset(&mut self, sample_rate: Option<f64>) {
+        self.x.reset(sample_rate);
+    }
+
+    #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
+        let output = self.x.tick(input);
+        output + input
+    }
+
+    fn latency(&self) -> Option<f64> { Some(0.0) }
+}

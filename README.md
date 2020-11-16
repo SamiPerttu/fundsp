@@ -75,6 +75,7 @@ In order of precedence, from highest to lowest:
 | Expression     | Meaning                       | Inputs  | Outputs | Notes                                       |
 | -------------- | ----------------------------- |:-------:|:-------:| ------------------------------------------- |
 | `-A`           | negate `A`                    | `a`     | `a`     | Negates any number of outputs, even zero. |
+| `!A`           | monitor `A`                   | `a`     | `a`     | Adds inputs of `A` to outputs of `A`. Number of inputs and outputs in `A` must be equal. |
 | `A * B`        | multiply `A` with `B`         | `a`&#160;`+`&#160;`b` | `a`&#160;`=`&#160;`b` | Aka amplification, or ring modulation when both are audio signals. Number of outputs in `A` and `B` must match. |
 | `A`&#160;`*`&#160;`constant` | multiply `A`    | `a`     | `a`     | Broadcasts constant. Same applies to `constant * A`. |
 | `A / B`        | cascade `A` and `B` in series | `a`&#160;`=`&#160;`b` | `b`     | Pipes `A` to `B`, supplying missing `B` inputs from matching `A` inputs. Number of inputs in `A` and `B` must match. |
@@ -324,6 +325,7 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
 | `(pass() & mul(2.0)) >> sine() + sine()` |   1    |    1    | frequency doubled dual sine oscillator        |
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
+| `!feedback(delay(0.5) * 0.5)`            |   1    |    1    | feedback delay of 0.5 seconds                 |
 
 ---
 

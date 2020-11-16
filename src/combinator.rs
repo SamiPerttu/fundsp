@@ -72,6 +72,18 @@ impl<X> std::ops::Neg for Ac<X> where
     }
 }
 
+/// !X: monitor signal.
+impl<X, S> std::ops::Not for Ac<X> where
+    X: AudioComponent<Inputs = S, Outputs = S>,
+    X::Inputs: Size,
+    X::Outputs: Size,
+    S: Size,
+{
+    type Output = Ac<MonitorComponent<X, S>>;
+    #[inline] fn not(self) -> Self::Output {
+        Ac(MonitorComponent::new(self.0))
+    }
+}
 
 /// X + constant: offset signal.
 impl<X> std::ops::Add<f48> for Ac<X> where
