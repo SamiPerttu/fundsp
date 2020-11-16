@@ -45,7 +45,7 @@ pub fn dc<X: ConstantFrame>(x: X) -> Ac<ConstantComponent<X::Size>> {
 }
 
 /// Zero generator.
-#[inline] pub fn zero() -> Ac<ConstantComponent<U1>> { dc(0.0) }
+#[inline] pub fn zero() -> Ac<ConstantComponent<U1>> { constant(0.0) }
 
 /// Mono pass-through component.
 #[inline] pub fn pass() -> Ac<PassComponent<U1>> { Ac(PassComponent::new()) }

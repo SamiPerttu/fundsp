@@ -206,9 +206,9 @@ This prevents cycles and imposes an overall tree shape on the resulting computat
 Implicit cycle prevention means that the built structures are always computationally efficient
 in the dataflow sense. All reuse of computed data takes place locally, inside combinators and components.
 
-There are two main ways to structure the reuse of signals In the `fundsp` graph notation:
+There are two main ways to structure the reuse of signals in `fundsp` graph notation:
 *branching* and *cascading*. Both are exposed as fundamental operators,
-acting as a guide toward efficient structuring of computation.
+guiding toward efficient structuring of computation.
 Dataflow concerns are thus explicated in the graph notation itself.
 
 
@@ -303,6 +303,7 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `pass() & pass() & pass()`               |   1    |    3    | mono-to-trio splitter                         |
 | `sink() \| zero()`                       |   1    |    1    | replace signal with silence                   |
 | `mul(0.0)`                               |   1    |    1    | -..-                                          |
+| `mul(db_gain(3.0))`                      |   1    |    1    | amplify signal by +3 dB                       |
 | `sink() \| pass()`                       |   2    |    1    | extract right channel                         |
 | `pass() \| sink()`                       |   2    |    1    | extract left channel                          |
 | `sink() \| zero() \| pass()`             |   2    |    2    | replace left channel with silence             |
@@ -322,6 +323,23 @@ For the practice of *graph fu*, some examples of graph expressions.
 
 Note that besides associativity, `sink() | zero()` and `zero() | sink()` are equivalent -
 both replace a mono signal with zeros. This is because `sink()` only adds an input, while `zero()` only adds an output.
+
+
+### Examples From The Prelude
+
+Many functions in the prelude itself are defined as graph expressions.
+
+---
+
+| Function                                 | Inputs | Outputs | Definition                                     |
+| ---------------------------------------- |:------:|:-------:| ---------------------------------------------- |
+| `lowpass_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpass()`         |
+| `lowpole_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpole()`         |
+| `resonator_hz(c, bw)`                    |   1    |    1    | `(pass() \| constant((c, bw))) >> resonator()` |
+| `sine_hz(f)`                             |   -    |    1    | `constant(f) >> sine()`                        |
+| `zero()`                                 |   -    |    1    | `constant(0.0)`                                |
+
+---
 
 
 ## License
