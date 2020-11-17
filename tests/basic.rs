@@ -74,6 +74,7 @@ fn test() {
     assert_eq!(inouts(resonator() / resonator()), (3, 1)); // double resonator in series (4th order)
     assert_eq!(inouts(sine_hz(2.0) * 2.0 * 1.0 + 2.0 >> sine()), (0, 1)); // PM (phase modulation) oscillator at `f` Hz with modulation index `m`
     assert_eq!(inouts((pass() & mul(2.0)) >> sine() + sine()), (1, 1)); // frequency doubled dual sine oscillator
+    assert_eq!(inouts(sine() ^ (mul(2.0) >> sine())), (1, 1)); // frequency doubled dual sine oscillator
     assert_eq!(inouts(envelope(|t| exp(-t)) * noise()), (0, 1)); // exponentially decaying white noise
     assert_eq!(inouts(!feedback(delay(0.5) * 0.5)), (1, 1)); // feedback delay of 0.5 seconds
 }
