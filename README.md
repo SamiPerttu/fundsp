@@ -88,7 +88,7 @@ In order of precedence, from highest to lowest:
 
 ---
 
-In the table, `constant` denotes an `f48` value.
+In the table, `constant` denotes an `f32` value.
 
 All operators are associative, except the left associative `-` and `/`.
 
@@ -97,7 +97,7 @@ All operators are associative, except the left associative `-` and `/`.
 Arithmetic operators are applied to outputs channel-wise.
 Arithmetic between two components never broadcasts channels.
 
-Direct arithmetic with `f48` values, however, broadcasts to an arbitrary number of channels.
+Direct arithmetic with `f32` values, however, broadcasts to an arbitrary number of channels.
 
 The negation operator broadcasts also: `-A` is equivalent with `(0.0 - A)`.
 
@@ -253,9 +253,9 @@ These free functions are available in the environment.
 | `constant(x)`          |    -   |    x     | Constant signal `x`. Synonymous with `dc`. |
 | `dc(x)`                |    -   |    x     | Constant signal `x`. Synonymous with `constant`. |
 | `delay(t)`             |    1   |    1     | Fixed delay of t seconds. |
-| `envelope(Fn(f48)`&#160;`->`&#160;`f48)` | - | 1 | Time-varying control, e.g., `envelope(\|t\| exp(-t))`. Synonymous with `lfo`. |
+| `envelope(Fn(f32)`&#160;`->`&#160;`f32)` | - | 1 | Time-varying control, e.g., `envelope(\|t\| exp(-t))`. Synonymous with `lfo`. |
 | `feedback(x)`          |    x   |    x     | Encloses feedback circuit x (with equal number of inputs and outputs). |
-| `lfo(Fn(f48)`&#160;`->`&#160;`f48)` | - | 1 | Time-varying control, e.g., `lfo(\|t\| exp(-t))`. Synonymous with `envelope`. |
+| `lfo(Fn(f32)`&#160;`->`&#160;`f32)` | - | 1 | Time-varying control, e.g., `lfo(\|t\| exp(-t))`. Synonymous with `envelope`. |
 | `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
 | `lowpass_hz(c)`        |    1   |    1     | Butterworth lowpass filter (2nd order) with fixed cutoff frequency `c` Hz. |
 | `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
@@ -409,7 +409,6 @@ MIT or Apache-2.0.
   Seeding also acknowledges imperfections and approximations in the synthesis process.
   The alternative is to embrace indeterminism.
 - Add support for `AudioComponent` graph parameters using a broadcast/gather mechanism.
-- Add support for some fixed-point type for `f48`.
 - Examine and optimize performance.
 - Add tests.
 - Add more stuff.
