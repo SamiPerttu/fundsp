@@ -3,37 +3,18 @@ use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 use std::cmp::PartialEq;
 
 /// Single precision floating point is used in audio buffers.
-#[cfg(not(feature = "double_precision"))]
 #[allow(non_camel_case_types)]
 pub type f48 = f32;
-/// Double precision floating point is used in audio buffers.
-#[cfg(feature = "double_precision")]
-#[allow(non_camel_case_types)]
-pub type f48 = f64;
 
+/// Type-level integer for encoding arities.
 pub trait Size: numeric_array::ArrayLength<f48> {}
 impl<T: numeric_array::ArrayLength<f48>> Size for T {}
 
+/// Frames transport audio data between components.
 pub type Frame<Size> = numeric_array::NumericArray<f48, Size>;
 
 /// Default sample rate is 44.1 khz.
-#[cfg(not(any(feature = "forty_eight_khz", feature = "eighty_eight_point_two_khz", feature = "ninety_six_khz", feature = "one_hundred_seventy_six_point_four_khz", feature = "one_hundred_ninety_two_khz" )))]
 pub const DEFAULT_SR: f64 = 44_100.0;
-/// Default sample rate is 48 khz.
-#[cfg(feature = "forty_eight_khz")]
-pub const DEFAULT_SR: f64 = 48_000.0;
-/// Default sample rate is 88.2 khz.
-#[cfg(feature = "eighty_eight_point_two_khz")]
-pub const DEFAULT_SR: f64 = 88_200.0;
-/// Default sample rate is 96 khz.
-#[cfg(feature = "ninety_six_khz")]
-pub const DEFAULT_SR: f64 = 96_000.0;
-/// Default sample rate is 176.4 khz.
-#[cfg(feature = "one_hundred_seventy_six_point_four_khz")]
-pub const DEFAULT_SR: f64 = 176_400.0;
-/// Default sample rate is 192 khz.
-#[cfg(feature = "one_hundred_ninety_two_khz")]
-pub const DEFAULT_SR: f64 = 192_000.0;
 
 pub trait Num: Copy
     + Add<Output = Self>
@@ -228,11 +209,7 @@ impl AudioFloat for f32 {}
 impl AudioFloat for f64 {}
 
 /// Converts from an f48.
-#[cfg(not(feature = "double_precision"))]
 pub fn from_f48<F: Num>(x: f48) -> F { F::from_f32(x) }
-/// Converts from an f48.
-#[cfg(feature = "double_precision")]
-pub fn from_f48<F: Num>(x: f48) -> F { F::from_f64(x) }
 /// Converts into an f48.
 pub fn into_f48<F: AsPrimitive<f48>>(x: F) -> f48 { x.as_() }
 

@@ -16,11 +16,9 @@ However, some standard components are missing and breakage can be expected as we
 
 ## Principia
 
-Most filters are expected to be generic over their inner processing type.
+Audio buffers and connections between audio components use single precision floating point (`f32`).
 
-The ubiquitous glue type `f48` that connects audio components and populates audio buffers
-is chosen globally, as a configuration option.
-It defaults to `f32`. The other choice is `f64` (feature `double_precision`).
+Components overall are mixed precision. Many filters are generic over their inner processing type.
 
 ### Component Systems
 

@@ -19,12 +19,6 @@ anyhow = "1.0"
 
 [features]
 default = []
-double_precision = []
-forty_eight_khz = []
-eighty_eight_point_two_khz = []
-ninety_six_khz = []
-one_hundred_seventy_six_point_four_khz = []
-one_hundred_ninety_two_khz = []
 
 [[example]]
 name = "beep"
