@@ -100,7 +100,7 @@ impl<U, T> Lerp<T> for U where U: Add<Output = U> + Mul<T, Output = U>, T: Num {
 /// Monotonic cubic interpolation via Steffen's method. The result never overshoots.
 /// It is first order continuous. Interpolates between y1 (at x = 0) and y2 (at x = 1)
 /// while using the previous (y0) and next (y3) values to influence slopes.
-pub fn cerp<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
+pub fn splinem<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
   let d0 = y1 - y0;
   let d1 = y2 - y1;
   let d2 = y3 - y2;
@@ -129,10 +129,10 @@ pub fn cerp<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
     p * p + p + T::one() / (T::one() + p - x)
 }
 
-// Softmin function when amount < 0, softmax when amount > 0, and average when amount = 0.
-#[inline] pub fn softmix<T: Num>(amount: T, x: T, y: T) -> T {
-    let xw = exq(x * amount);
-    let yw = exq(y * amount);
+// Softmin function when bias < 0, softmax when bias > 0, and average when bias = 0.
+#[inline] pub fn softmix<T: Num>(x: T, y: T, bias: T) -> T {
+    let xw = exq(x * bias);
+    let yw = exq(y * bias);
     let epsilon = T::from_f32(1.0e-10);
     (x * xw + y * yw) / (xw + yw + epsilon)
 }

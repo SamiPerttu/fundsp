@@ -286,8 +286,8 @@ These free functions are available in the environment.
 | `clamp(min, max, x)`   | clamps `x` between `min` and `max`. |
 | `clamp01(x)`           | clamps `x` between 0 and 1. |
 | `clamp11(x)`           | clamps `x` between -1 and 1. |
-| `cerp(x0, x1, x2, x3, t)` | monotonic cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `cos(x)`               | cos |
+| `cos_bpm(f, t)`        | cosine that oscillates at `f` BPM at time `t` seconds 
 | `cos_hz(f, t)`         | cosine that oscillates at `f` Hz at time `t` seconds |
 | `db_gain(x)`           | converts `x` dB to amplitude (gain amount) |
 | `delerp(x0, x1, x)`    | recovers linear interpolation amount `t` from interpolated value |
@@ -308,13 +308,16 @@ These free functions are available in the environment.
 | `round(x)`             | rounds `x` to nearest integer |
 | `signum(x)`            | sign of `x` |
 | `sin(x)`               | sin |
+| `sin_bpm(f, t)`        | sine that oscillates at `f` BPM at time `t` seconds |
 | `sin_hz(f, t)`         | sine that oscillates at `f` Hz at time `t` seconds |
 | `smooth3(x)`           | smooth cubic easing polynomial |
 | `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
 | `smooth7(x)`           | smooth 7th degree easing polynomial |
 | `smooth9(x)`           | smooth 9th degree easing polynomial |
+| `softmix(x, y, bias)`  | weighted average of `x` and `y` according to `bias`: polynomial softmin when `bias` < 0, average when `bias` = 0, polynomial softmax when `bias` > 0. |
 | `softsign(x)`          | softsign function, a polynomial alternative to `tanh` |
 | `spline(x0, x1, x2, x3, t)` | Catmull-Rom cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
+| `splinem(x0, x1, x2, x3, t)` | monotonic cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `sqrt(x)`              | square root of `x` |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
@@ -381,7 +384,7 @@ There are usually many ways to express a particular graph. The following express
 | ------------------------------------------ | ------------------------------- | ----- |
 | `(pass() ^ mul(2.0)) >> sine() + sine()`   | `sine() & mul(2.0) >> sine()`   | Busing is often more convenient than explicit branching followed with summing. |
 | `!-!sink()-42.0^sink()&-!!--!-sink()*3.14` | `sink()`                        | Branching, busing, monitoring and arithmetic on sinks are no-ops. |
-| `constant(0) \| constant(1)`               | `constant((0, 1))`              | Stacking concatenates channels. |
+| `constant(0.0) \| dc(1.0)`                 | `constant((0.0, 1.0))`          | Stacking concatenates channels. |
 | `sink() \| zero()`                         | `zero() \| sink()`              | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
 
 ---
