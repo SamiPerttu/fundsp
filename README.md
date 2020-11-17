@@ -93,8 +93,9 @@ In the table, `constant` denotes an `f32` value.
 All operators are associative, except the left associative `-` and `/`.
 
 
-![Operators Diagram](https://github.com/SamiPerttu/fundsp/operators.png "fundsp Graph Operators")
+## Operators Diagram
 
+![](operators.png "fundsp Graph Operators")
 
 ### Broadcasting
 
