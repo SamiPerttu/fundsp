@@ -349,7 +349,7 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `lowpass() / lowpass() / lowpass()`      |   2    |    1    | triple lowpass filter in series (6th order)   |
 | `resonator() / resonator()`              |   3    |    1    | double resonator in series (4th order)        |
 | `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
-| `sine() & (mul(2.0) >> sine())`          |   1    |    1    | frequency doubled dual sine oscillator        |
+| `sine() & mul(2.0) >> sine()`            |   1    |    1    | frequency doubled dual sine oscillator        |
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
 | `!feedback(delay(1.0) * db_gain(-3.0))`  |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 
@@ -379,7 +379,7 @@ There are usually many ways to express a particular graph. The following express
 
 | Expression                                 | Is The Same As                  | Notes |
 | ------------------------------------------ | ------------------------------- | ----- |
-| `(pass() ^ mul(2.0)) >> sine() + sine()`   | `sine() & (mul(2.0) >> sine())` | Busing is often more convenient than explicit branching followed with summing. |
+| `(pass() ^ mul(2.0)) >> sine() + sine()`   | `sine() & mul(2.0) >> sine()`   | Busing is often more convenient than explicit branching followed with summing. |
 | `!-!sink()-42.0^sink()&-!!--!-sink()*3.14` | `sink()`                        | Branching, busing, monitoring and arithmetic on sinks are no-ops. |
 | `constant(0) \| constant(1)`               | `constant((0, 1))`              | Stacking concatenates channels. |
 | `sink() \| zero()`                         | `zero() \| sink()`              | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
