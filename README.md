@@ -84,9 +84,9 @@ In order of precedence, from highest to lowest:
 | `A - B`        | difference of `A` and `B`     | `a`&#160;`+`&#160;`b` | `a`&#160;`=`&#160;`b` | Number of outputs in `A` and `B` must match. |
 | `A`&#160;`-`&#160;`constant` | subtract from `A` | `a`   | `a`     | Broadcasts constant. Same applies to `constant - A`. |
 | `A >> B`       | pipe `A` to `B`               | `a`     | `b`     | Aka chaining. Number of outputs in `A` must match number of inputs in `B`. |
-| `A & B`        | branch input to `A` and `B` in parallel | `a`&#160;`=`&#160;`b` | `a`&#160;`+`&#160;`b` | Number of inputs in `A` and `B` must match. |
-| `A ^ B`        | bus `A` and `B` together      | `a`&#160;`=`&#160;`b` | `a`&#160;`=`&#160;`b` | `A` and `B` must have identical connectivity |
-| `A \| B`       | stack `A` and `B` in parallel | `a`&#160;`+`&#160;`b` | `a`&#160;`+`&#160;`b` | - |
+| `A & B`        | bus `A` and `B` together      | `a`&#160;`=`&#160;`b` | `a`&#160;`=`&#160;`b` | `A` and `B` must have identical connectivity. |
+| `A ^ B`        | branch input to `A` and `B` in parallel | `a`&#160;`=`&#160;`b` | `a`&#160;`+`&#160;`b` | Number of inputs in `A` and `B` must match. |
+| `A \| B`       | stack `A` and `B` in parallel | `a`&#160;`+`&#160;`b` | `a`&#160;`+`&#160;`b` | Concatenates `A` and `B` inputs and outputs. |
 
 ---
 
@@ -121,16 +121,16 @@ In the prelude, `sink()` returns a mono sink.
 ### Graph Combinators
 
 Of special interest among operators are the five custom combinators:
-*cascade* ( `/` ), *pipe* ( `>>` ), *branch* ( `&` ), *bus* ( `^` ) and *stack* ( `|` ).
+*cascade* ( `/` ), *pipe* ( `>>` ), *bus* ( `&` ), *branch* ( `^` ),  and *stack* ( `|` ).
 
 Cascade and pipe are serial operators where components appear in *processing* order. Branch, stack, and
 arithmetic operators are parallel operators where components appear in *channel* order.
 
-Bus is a commutative parallel operator where components may appear in any order.
+Bus is a commutative operator where components may appear in any order.
 The other operators are not commutative in general.
 
 Each come with their own connectivity rules.
-Piping, branching, busing and stacking are all fully associative operations,
+Piping, busing, branching and stacking are all fully associative operations,
 while cascading is left associative.
 
 #### Cascade
@@ -175,29 +175,30 @@ Processing works as normal and the sink processes its inputs before the generato
 
 #### Branch
 
-Where the arithmetic operators are reducing in nature, the branch ( `&` ) operator splits a signal into parallel branches.
+Where the arithmetic operators are reducing in nature,
+the branch ( `^` ) operator splits a signal into parallel branches.
 
-A nice mnemonic for reading the branch operator is to think of it as sending a signal to a conjunction of components:
-`A >> (B & C & D)` is a triple branch that sends from `A` the same output to `B` *and* `C` *and* `D`.
+In `A ^ B`, both components receive the same input but their outputs are disjoint.
+Because the components receive the same input, the number of inputs in `A` and `B` must match.
+In `A ^ B`, the outputs of `A` appear first, followed with outputs of `B`.
 
-All constituents of a branch receive the same input, so `B`, `C` and `D` must each have the same input arity,
-which must match the output arity of `A`.
+Branching is useful for building *banks* of components such as filters.
 
 #### Bus
 
-The bus ( `^` ) operator can be thought of as an inline audio bus with a fixed set of input and output channels.
+The bus ( `&` ) operator can be thought of as an inline audio bus with a fixed set of input and output channels.
 It builds signal buses from components with identical connectivity.
 
-In `A ^ B`, the same input is sent to both `A` and `B`, and the outputs are mixed together.
+In `A & B`, the same input is sent to both `A` and `B`, and their outputs are mixed together.
 Components in a bus may appear in any order.
 
 The bus is especially useful because it does not alter connectivity:
 we can always bus together any set of matching components
 without touching the rest of the expression.
 
-Both `A + B` and `A ^ B` are mixing operators. The difference between the two is that `A + B` is *reducing*:
-`A` and `B` have their own, separate inputs.
-In `A ^ B`, both components source from the same inputs, and the number of inputs must match.
+Both `A + B` and `A & B` are mixing operators. The difference between the two is that `A + B` is *reducing*:
+`A` and `B` have their own, disjoint inputs.
+In `A & B`, both components source from the same inputs, and the number of inputs must match.
 
 
 #### Stack
@@ -205,13 +206,16 @@ In `A ^ B`, both components source from the same inputs, and the number of input
 The stack ( `|` ) operator builds composite components.
 It can be applied to any two components.
 
+As a graph operator, the stack corresponds to the *disjoint union*. In `A | B`, the inputs and outputs of `A` and `B`
+are disjoint and they are processed independently, in parallel.
+
 In stacks, components are written in channel order.
 In `A | B | C`, channels of `A` come first, followed by channels of `B`, then `C`.
 
 
 ## Expressions Are Graphs
 
-The expression `A >> (B & C & D)` defines a signal processing graph.
+The expression `A >> (B ^ C ^ D)` defines a signal processing graph.
 It has whatever inputs `A` has, and outputs everything from `B` and `C` and `D` in parallel.
 
 The whole structure is packed, monomorphized and inlined with the constituent components consumed.
@@ -329,12 +333,12 @@ For the practice of *graph fu*, some examples of graph expressions.
 
 | Expression                               | Inputs | Outputs | Meaning                                       |
 | ---------------------------------------- |:------:|:-------:| --------------------------------------------- |
-| `pass() & pass()`                        |   1    |    2    | mono-to-stereo splitter                       |
+| `pass() ^ pass()`                        |   1    |    2    | mono-to-stereo splitter                       |
 | `mul(0.5) + mul(0.5)`                    |   2    |    1    | stereo-to-mono mixdown (inverse of mono-to-stereo splitter) |
-| `pass() & pass() & pass()`               |   1    |    3    | mono-to-trio splitter                         |
+| `pass() ^ pass() ^ pass()`               |   1    |    3    | mono-to-trio splitter                         |
 | `sink() \| zero()`                       |   1    |    1    | replace signal with silence                   |
 | `mul(0.0)`                               |   1    |    1    | -..-                                          |
-| `mul(db_gain(3.0))`                      |   1    |    1    | amplify signal by +3 dB                       |
+| `mul(db_gain(3.0))`                      |   1    |    1    | amplify signal by 3 dB                        |
 | `sink() \| pass()`                       |   2    |    1    | extract right channel                         |
 | `pass() \| sink()`                       |   2    |    1    | extract left channel                          |
 | `sink() \| zero() \| pass()`             |   2    |    2    | replace left channel with silence             |
@@ -347,15 +351,11 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `lowpass() / lowpass() / lowpass()`      |   2    |    1    | triple lowpass filter in series (6th order)   |
 | `resonator() / resonator()`              |   3    |    1    | double resonator in series (4th order)        |
 | `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
-| `sine() ^ (mul(2.0) >> sine())`          |   1    |    1    | frequency doubled dual sine oscillator        |
+| `sine() & (mul(2.0) >> sine())`          |   1    |    1    | frequency doubled dual sine oscillator        |
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
-| `!feedback(delay(0.5) * 0.5)`            |   1    |    1    | feedback delay of 0.5 seconds                 |
+| `!feedback(delay(1.0) * db_gain(-3.0))`  |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 
 ---
-
-Note that besides associativity, `sink() | zero()` and `zero() | sink()` are equivalent -
-both replace a mono signal with zeros. This is because `sink()` only adds an input, while `zero()` only adds an output.
-
 
 ### Examples From The Prelude
 
@@ -381,8 +381,10 @@ There are usually many ways to express a particular graph. The following express
 
 | Expression                                 | Is The Same As                  | Notes |
 | ------------------------------------------ | ------------------------------- | ----- |
-| `(pass() & mul(2.0)) >> sine() + sine()`   | `sine() ^ (mul(2.0) >> sine())` | Busing is often more convenient than explicit branching followed with summing. |
+| `(pass() ^ mul(2.0)) >> sine() + sine()`   | `sine() & (mul(2.0) >> sine())` | Busing is often more convenient than explicit branching followed with summing. |
 | `!-!sink()-42.0^sink()&-!!--!-sink()*3.14` | `sink()`                        | Branching, busing, monitoring and arithmetic on sinks are no-ops. |
+| `constant(0) | constant(1)`                | `constant((0, 1))`              | Stacking concatenates channels. |
+| `sink() | zero()`                          | `zero() | sink()`               | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
 
 ---
 

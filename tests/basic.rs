@@ -7,7 +7,7 @@ pub use fundsp::prelude::*;
 // in further combinations, as does the full type name.
 // Signatures with generic number of channels can be challenging to write.
 fn split_quad() -> Ac<impl AudioComponent<Inputs = U1, Outputs = U4>> {
-    pass() & pass() & pass() & pass()
+    pass() ^ pass() ^ pass() ^ pass()
 }
 
 #[test]
@@ -55,9 +55,9 @@ fn test() {
 
     // These were onverted from docs using search: ^[|] .(.*)[`].*[|] +([\d-]).+(\d-) +[|](.*)[|].*$
     // Replace with: assert_eq!(inouts($1), ($2, $3)); //$4
-    assert_eq!(inouts(pass() & pass()), (1, 2)); // mono-to-stereo splitter
+    assert_eq!(inouts(pass() ^ pass()), (1, 2)); // mono-to-stereo splitter
     assert_eq!(inouts(mul(0.5) + mul(0.5)), (2, 1)); // stereo-to-mono mixdown (inverse of mono-to-stereo splitter)
-    assert_eq!(inouts(pass() & pass() & pass()), (1, 3)); // mono-to-trio splitter
+    assert_eq!(inouts(pass() ^ pass() ^ pass()), (1, 3)); // mono-to-trio splitter
     assert_eq!(inouts(sink() | zero()), (1, 1)); // replace signal with silence
     assert_eq!(inouts(mul(0.0)), (1, 1)); // -..-
     assert_eq!(inouts(mul(db_gain(3.0))), (1, 1)); // amplify signal by +3 dB
@@ -73,8 +73,8 @@ fn test() {
     assert_eq!(inouts(lowpass() / lowpass() / lowpass()), (2, 1)); // triple lowpass filter in series (6th order)
     assert_eq!(inouts(resonator() / resonator()), (3, 1)); // double resonator in series (4th order)
     assert_eq!(inouts(sine_hz(2.0) * 2.0 * 1.0 + 2.0 >> sine()), (0, 1)); // PM (phase modulation) oscillator at `f` Hz with modulation index `m`
-    assert_eq!(inouts((pass() & mul(2.0)) >> sine() + sine()), (1, 1)); // frequency doubled dual sine oscillator
-    assert_eq!(inouts(sine() ^ (mul(2.0) >> sine())), (1, 1)); // frequency doubled dual sine oscillator
+    assert_eq!(inouts((pass() ^ mul(2.0)) >> sine() + sine()), (1, 1)); // frequency doubled dual sine oscillator
+    assert_eq!(inouts(sine() & (mul(2.0) >> sine())), (1, 1)); // frequency doubled dual sine oscillator
     assert_eq!(inouts(envelope(|t| exp(-t)) * noise()), (0, 1)); // exponentially decaying white noise
     assert_eq!(inouts(!feedback(delay(0.5) * 0.5)), (1, 1)); // feedback delay of 0.5 seconds
 }

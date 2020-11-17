@@ -212,8 +212,21 @@ impl<X, Y> std::ops::Shr<Ac<Y>> for Ac<X> where
     }
 }
 
-/// X & Y: parallel branch.
+/// X & Y: parallel bus.
 impl<X, Y> std::ops::BitAnd<Ac<Y>> for Ac<X> where
+    X: AudioComponent,
+    Y: AudioComponent<Inputs = X::Inputs, Outputs = X::Outputs>,
+    Y::Inputs: Size,
+    Y::Outputs: Size,
+{
+    type Output = Ac<BusComponent<X, Y>>;
+    #[inline] fn bitand(self, y: Ac<Y>) -> Self::Output {
+        Ac(BusComponent::new(self.0, y.0))
+    }
+}
+
+/// X ^ Y: parallel branch.
+impl<X, Y> std::ops::BitXor<Ac<Y>> for Ac<X> where
     X: AudioComponent,
     Y: AudioComponent<Inputs = X::Inputs>,
     X::Outputs: Size + Add<Y::Outputs>,
@@ -221,21 +234,8 @@ impl<X, Y> std::ops::BitAnd<Ac<Y>> for Ac<X> where
     <X::Outputs as Add<Y::Outputs>>::Output: Size
 {
     type Output = Ac<BranchComponent<X, Y>>;
-    #[inline] fn bitand(self, y: Ac<Y>) -> Self::Output {
-        Ac(BranchComponent::new(self.0, y.0))
-    }
-}
-
-/// X ^ Y: parallel bus.
-impl<X, Y> std::ops::BitXor<Ac<Y>> for Ac<X> where
-    X: AudioComponent,
-    Y: AudioComponent<Inputs = X::Inputs, Outputs = X::Outputs>,
-    Y::Inputs: Size,
-    Y::Outputs: Size,
-{
-    type Output = Ac<BusComponent<X, Y>>;
     #[inline] fn bitxor(self, y: Ac<Y>) -> Self::Output {
-        Ac(BusComponent::new(self.0, y.0))
+        Ac(BranchComponent::new(self.0, y.0))
     }
 }
 

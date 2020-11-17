@@ -59,7 +59,7 @@ where
     //let c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
     //let c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator() * 0.1;
     //let c = (((mls() | dc(400.0) | dc(50.0)) >> resonator()) | dc(400.0) | dc(50.0)) >> resonator() >> mul(0.1);
-    let c = (white() ^ white()) * 0.5 * envelope(|t| exp(-t * 0.5) * sin_bpm(128.0, t));
+    let c = (white() & white()) * 0.5 * envelope(|t| exp(-t * 0.5) * sin_bpm(128.0, t));
     //let f = 110.0;
     //let m = 2.0;
     //let c = sine_hz(f) * f * m + f >> sine();
