@@ -280,7 +280,14 @@ impl<X, Y, B> AudioComponent for BinopComponent<X, Y, B> where
     }
     fn latency(&self) -> Option<f64> {
         parallel_latency(self.x.latency(), self.y.latency())
-     }
+    }
+    fn route_input(&self, input: u32) -> Option<u32> {
+        if input < X::Inputs::U32 { self.x.route_input(input) } else { self.y.route_input(input - X::Inputs::U32) }
+    }
+    fn route_output(&self, output: u32) -> Option<u32> {
+        // Route to X arbitrarily.
+        self.x.route_output(output)
+    }
 }
 
 /// UnopComponent applies an unary operator to its inputs.
@@ -318,6 +325,12 @@ impl<X, U> AudioComponent for UnopComponent<X, U> where
     }
     fn latency(&self) -> Option<f64> {
         self.x.latency()
+    }
+    fn route_input(&self, input: u32) -> Option<u32> {
+        self.x.route_input(input)
+    }
+    fn route_output(&self, output: u32) -> Option<u32> {
+        self.x.route_output(output)
     }
 } 
 
@@ -479,6 +492,13 @@ impl<X, Y> AudioComponent for BranchComponent<X, Y> where
     fn latency(&self) -> Option<f64> {
         parallel_latency(self.x.latency(), self.y.latency())
     }
+    fn route_input(&self, input: u32) -> Option<u32> {
+        // Route to X arbitrarily.
+        self.x.route_input(input)
+    }
+    fn route_output(&self, output: u32) -> Option<u32> {
+        if output < X::Outputs::U32 { self.x.route_output(output) } else { self.y.route_output(output - X::Outputs::U32) }
+    }
 }
 
 /// TickComponent is a single sample delay.
@@ -558,7 +578,7 @@ impl<X, Y> AudioComponent for BusComponent<X, Y> where
     }
     fn route_input(&self, input: u32) -> Option<u32> {
         if input >= Self::Outputs::U32 { return None; }
-        // TODO: Should we query Y if X cannot route the output?
+        // TODO: Should we query Y if X cannot route the input?
         self.x.route_input(input)
     }
     fn route_output(&self, output: u32) -> Option<u32> {
@@ -615,13 +635,8 @@ impl<X, S> AudioComponent for FeedbackComponent<X, S> where
         self.x.latency()
     }
 
-    fn route_input(&self, input: u32) -> Option<u32> {
-        self.x.route_input(input)
-    }
-
-    fn route_output(&self, output: u32) -> Option<u32> {
-        self.x.route_output(output)
-    }
+    // Logically, feedback components should already be pipelines.
+    // Therefore we do not query the circuit for routing.
 }
 
 /// FitComponent adapts a filter to a pipeline using routing information
@@ -660,4 +675,6 @@ impl<X> AudioComponent for FitComponent<X> where
     }
 
     fn latency(&self) -> Option<f64> { Some(0.0) }
+
+    // FitComponent has identity routing because of tick(), so we do not need to override routing methods.
 }
