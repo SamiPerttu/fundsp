@@ -34,24 +34,10 @@ fn test() {
     assert!(f.inputs() == 0 && f.outputs() == 1);
     assert!(f.get_mono() == 6.5);
 
-    // Test a visual cascade. The notation is slightly confusing.
-    let c =     (pass()            | mul(1.0)          | add(1.0)           );
-    let c = c / (pass()            | pass() * add(2.0)                      );
-    let c = c / (mul(5.0)          | add(2.0)          | -add(1.0)          );
-    let c = c / (mul(5.0)          + mul(5.0)          + pass()             );
-    let mut c = c;
-    let f = | x: f48, y: f48, z: f48 | 25.0 * x + 5.0 * y * z + 15.0 * y - z + 9.0;
-    assert!(c.tick(&[0.0, 0.0, 0.0].into())[0] == f(0.0, 0.0, 0.0));
-    assert!(c.tick(&[1.0, 0.0, 0.0].into())[0] == f(1.0, 0.0, 0.0));
-    assert!(c.tick(&[0.0, 2.0, 0.0].into())[0] == f(0.0, 2.0, 0.0));
-    assert!(c.tick(&[0.0, 0.0, 3.0].into())[0] == f(0.0, 0.0, 3.0));
-    assert!(c.tick(&[2.0,-1.0, 2.0].into())[0] == f(2.0,-1.0, 2.0));
-    assert!(c.tick(&[0.0, 3.0,-1.0].into())[0] == f(0.0, 3.0,-1.0));
-
     fn inouts<X: AudioComponent>(x: Ac<X>) -> (usize, usize) { (x.inputs(), x.outputs()) }
 
     // No-ops with sinks.
-    assert_eq!(inouts(!-!sink()-42.0^sink()&-!!--!-sink()*3.14), (1, 0));
+    assert_eq!(inouts(--sink()-42.0^sink()&---sink()*3.14), (1, 0));
 
     // These were onverted from docs using search: ^[|] .(.*)[`].*[|] +([\d-]).+(\d-) +[|](.*)[|].*$
     // Replace with: assert_eq!(inouts($1), ($2, $3)); //$4
@@ -69,9 +55,9 @@ fn test() {
     assert_eq!(inouts(pass() | sink() | zero()), (2, 2)); // replace right channel with silence
     assert_eq!(inouts(pass() | mul(0.0)), (2, 2)); // -..-
     assert_eq!(inouts(mul((1.0, 0.0))), (2, 2)); // -..-
-    assert_eq!(inouts(lowpass() / lowpole()), (2, 1)); // 2nd order and 1-pole lowpass filters in series (3rd order)
-    assert_eq!(inouts(lowpass() / lowpass() / lowpass()), (2, 1)); // triple lowpass filter in series (6th order)
-    assert_eq!(inouts(resonator() / resonator()), (3, 1)); // double resonator in series (4th order)
+    assert_eq!(inouts(!lowpass() >> lowpole()), (2, 1)); // 2nd order and 1-pole lowpass filters in series (3rd order)
+    assert_eq!(inouts(!lowpass() >> !lowpass() >> lowpass()), (2, 1)); // triple lowpass filter in series (6th order)
+    assert_eq!(inouts(!resonator() >> resonator()), (3, 1)); // double resonator in series (4th order)
     assert_eq!(inouts(sine_hz(2.0) * 2.0 * 1.0 + 2.0 >> sine()), (0, 1)); // PM (phase modulation) oscillator at `f` Hz with modulation index `m`
     assert_eq!(inouts((pass() ^ mul(2.0)) >> sine() + sine()), (1, 1)); // frequency doubled dual sine oscillator
     assert_eq!(inouts(sine() & mul(2.0) >> sine()), (1, 1)); // frequency doubled dual sine oscillator

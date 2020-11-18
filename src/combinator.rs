@@ -72,13 +72,13 @@ impl<X> std::ops::Neg for Ac<X> where
     }
 }
 
-/// !X: monitor signal.
+/// !X: fit signal.
 impl<X> std::ops::Not for Ac<X> where
     X: AudioComponent,
 {
-    type Output = Ac<MonitorComponent<X>>;
+    type Output = Ac<FitComponent<X>>;
     #[inline] fn not(self) -> Self::Output {
-        Ac(MonitorComponent::new(self.0))
+        Ac(FitComponent::new(self.0))
     }
 }
 
@@ -185,18 +185,6 @@ impl<X> std::ops::Mul<Ac<X>> for f48 where
     type Output = Ac<BinopComponent<ConstantComponent<X::Outputs>, X, FrameMul<X::Outputs>>>;
     #[inline] fn mul(self, y: Ac<X>) -> Self::Output {
         Ac(BinopComponent::new(ConstantComponent::new(Frame::splat(self)), y.0, FrameMul::new()))
-    }
-}
-
-/// X / Y: serial cascade.
-impl<X, Y> std::ops::Div<Ac<Y>> for Ac<X> where
-    X: AudioComponent,
-    Y: AudioComponent<Inputs = X::Inputs>,
-    Y::Outputs: Size,
-{
-    type Output = Ac<CascadeComponent<X, Y>>;
-    #[inline] fn div(self, y: Ac<Y>) -> Self::Output {
-        Ac(CascadeComponent::new(self.0, y.0))
     }
 }
 

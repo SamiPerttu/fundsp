@@ -73,10 +73,9 @@ In order of precedence, from highest to lowest:
 | Expression     | Meaning                       | Inputs  | Outputs | Notes                                       |
 | -------------- | ----------------------------- |:-------:|:-------:| ------------------------------------------- |
 | `-A`           | negate `A`                    | `a`     | `a`     | Negates any number of outputs, even zero.   |
-| `!A`           | monitor `A`                   | `a`     | `a`     | Mixes inputs of `A` to outputs of `A`.      |
+| `!A`           | fit `A`                       | `a`     | same as inputs | Fits a filter into a pipeline.       |
 | `A * B`        | multiply `A` with `B`         | `a`&#160;`+`&#160;`b` | `a`&#160;`=`&#160;`b` | Aka amplification, or ring modulation when both are audio signals. Number of outputs in `A` and `B` must match. |
 | `A`&#160;`*`&#160;`constant` | multiply `A`    | `a`     | `a`     | Broadcasts constant. Same applies to `constant * A`. |
-| `A / B`        | cascade `A` and `B` in series | `a`&#160;`=`&#160;`b` | `b`     | Pipes `A` to `B`, supplying missing `B` inputs from matching `A` inputs. Number of inputs in `A` and `B` must match. |
 | `A + B`        | sum `A` and `B`               | `a`&#160;`+`&#160;`b` | `a`&#160;`=`&#160;`b` | Aka mixing. Number of outputs in `A` and `B` must match. |
 | `A`&#160;`+`&#160;`constant` | add to `A`      | `a`     | `a`     | Broadcasts constant. Same applies to `constant + A`. |
 | `A - B`        | difference of `A` and `B`     | `a`&#160;`+`&#160;`b` | `a`&#160;`=`&#160;`b` | Number of outputs in `A` and `B` must match. |
@@ -90,7 +89,7 @@ In order of precedence, from highest to lowest:
 
 In the table, `constant` denotes an `f32` value.
 
-All operators are associative, except the left associative `-` and `/`.
+All operators are associative, except the left associative `-`.
 
 
 ## Operators Diagram
@@ -109,10 +108,6 @@ The negation operator broadcasts also: `-A` is equivalent with `(0.0 - A)`.
 For example, `A * constant(2.0)` and `A >> mul(2.0)` are equivalent and expect `A` to have one output.
 On the other hand, `A * 2.0` works with any `A`, even *sinks*.
 
-The other unary operator, *monitor* ( `!` ), can also be applied to any component.
-`!A` adds inputs of `A` to its outputs, ignoring any missing or extra channels.
-`-!-A` subtracts inputs from outputs instead of adding them.
-
 ### Generators, Filters and Sinks
 
 Components can be broadly classified into generators, filters and sinks.
@@ -123,49 +118,17 @@ In the prelude, `sink()` returns a mono sink.
 
 ### Graph Combinators
 
-Of special interest among operators are the five custom combinators:
-*cascade* ( `/` ), *pipe* ( `>>` ), *bus* ( `&` ), *branch* ( `^` ),  and *stack* ( `|` ).
+Of special interest among operators are the four custom combinators:
+*pipe* ( `>>` ), *bus* ( `&` ), *branch* ( `^` ),  and *stack* ( `|` ).
 
-Cascade and pipe are serial operators where components appear in *processing* order. Branch, stack, and
+The pipe is a serial operator where components appear in *processing* order. Branch, stack, and
 arithmetic operators are parallel operators where components appear in *channel* order.
 
 Bus is a commutative operator where components may appear in any order.
 The other operators are not commutative in general.
 
-Each come with their own connectivity rules.
-Piping, busing, branching and stacking are all fully associative operations,
-while cascading is left associative.
-
-#### Cascade
-
-The idea of the cascade is of a processing chain where some channels are threaded through and some are bypassed.
-Signals that are threaded throughout - typically audio - are placed in the first channels.
-
-Each component in a cascade has the same number of inputs.
-The number of reused inputs depends on the number of preceding outputs.
-
-Due to associativity, a chain of cascade ( `/` ) operators defines a *far* cascade.
-In a far cascade, all bypasses are sourced from the leftmost input.
-
-For instance, in `A / B / C / D`, missing inputs to `C` and `D` are sourced from inputs to `A`, not `B` or `C`.
-
-To get a *close* cascade, write it right associatively: `A / (B / (C / D))`.
-In a close cascade, bypasses are sourced locally, resulting in *iterative* modulation.
-
-In the default form, cascading chains similar filters.
-For example, `lowpass() / lowpass()` sources the cutoff frequency for both filters
-from the leftmost input while threading the audio through.
-
-Cascading is equivalent to piping when no bypasses are needed.
-Chains can be notated as modulator-filter pairs; for example,
-`resonator() / mul((1.0, 1.0, 2.0)) / resonator() / mul((1.0, 1.0, 4.0)) / resonator()`.
-
-In the preceding cascade, bandwidth is doubled and quadrupled for the second and third resonator stages, respectively,
-while audio in the first channel is threaded through.
-
-If we convert it to right associative form, then modulation becomes left-to-right iterative:
-both modulator expressions are now applied to the third resonator stage, doubling its bandwidth, while the second
-stage remains the same.
+All four are fully associative, and
+each come with their own connectivity rules.
 
 #### Pipe
 
@@ -238,8 +201,8 @@ This prevents cycles and imposes an overall tree shape on the resulting computat
 Implicit cycle prevention means that the built structures are always computationally efficient
 in the dataflow sense. All reuse of computed data takes place locally, inside combinators and components.
 
-There are three main ways to structure the reuse of signals in `fundsp` graph notation:
-*branching*, *busing* and *cascading*. All three are exposed as fundamental operators,
+There are two main ways to structure the reuse of signals in `fundsp` graph notation:
+*branching* and *busing*. Both are exposed as fundamental operators,
 guiding toward efficient structuring of computation.
 Dataflow concerns are thus explicated in the graph notation itself.
 
@@ -287,19 +250,20 @@ These free functions are available in the environment.
 | Function               | Explanation                                    |
 | ---------------------- | ---------------------------------------------- |
 | `abs(x)`               | absolute value of `x` |
+| `arcdown(x)`           | concave quarter circle easing curve (inverse of `arcup`) |
+| `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
 | `ceil(x)`              | ceiling function |
-| `clamp(min, max, x)`   | clamps `x` between `min` and `max`. |
-| `clamp01(x)`           | clamps `x` between 0 and 1. |
-| `clamp11(x)`           | clamps `x` between -1 and 1. |
+| `clamp(min, max, x)`   | clamps `x` between `min` and `max` |
+| `clamp01(x)`           | clamps `x` between 0 and 1 |
+| `clamp11(x)`           | clamps `x` between -1 and 1 |
 | `cos(x)`               | cos |
-| `cos_bpm(f, t)`        | cosine that oscillates at `f` BPM at time `t` seconds 
+| `cos_bpm(f, t)`        | cosine that oscillates at `f` BPM at time `t` seconds |
 | `cos_hz(f, t)`         | cosine that oscillates at `f` Hz at time `t` seconds |
 | `db_gain(x)`           | converts `x` dB to amplitude (gain amount) |
 | `delerp(x0, x1, x)`    | recovers linear interpolation amount `t` from interpolated value |
-| `dexerp(x0, x1, x)`    | recovers exponential interpolation amount `t` from interpolated value |
+| `dexerp(x0, x1, x)`    | recovers exponential interpolation amount `t` from interpolated value (`x0`, `x1`, `x` > 0) |
 | `dissonance(f0, f1)`   | dissonance amount in 0...1 between pure tones at `f0` and `f1` Hz |
 | `dissonance_max(f)`    | maximally dissonant pure frequency above `f` Hz |
-| `downarc(x)`           | downward arcing quarter circle easing curve (inverse of `uparc`) |
 | `exp(x)`               | exp |
 | `exq(x)`               | polynomial alternative to `exp` |
 | `floor(x)`             | floor function |
@@ -308,7 +272,7 @@ These free functions are available in the environment.
 | `logistic(x)`          | logistic function |
 | `min(x, y)`            | minimum of `x` and `y` |
 | `max(x, y)`            | maximum of `x` and `y` |
-| `m_weight(f)`          | M-weighted noise response amplitude at `f` Hz. |
+| `m_weight(f)`          | M-weighted noise response amplitude at `f` Hz |
 | `pow(x, y)`            | `x` raised to the power `y` |
 | `round(x)`             | rounds `x` to nearest integer |
 | `signum(x)`            | sign of `x` |
@@ -319,14 +283,13 @@ These free functions are available in the environment.
 | `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
 | `smooth7(x)`           | smooth 7th degree easing polynomial |
 | `smooth9(x)`           | smooth 9th degree easing polynomial |
-| `softmix(x, y, bias)`  | weighted average of `x` and `y` according to `bias`: polynomial softmin when `bias` < 0, average when `bias` = 0, polynomial softmax when `bias` > 0. |
+| `softmix(x, y, bias)`  | weighted average of `x` and `y` according to `bias`: polynomial softmin when `bias` < 0, average when `bias` = 0, polynomial softmax when `bias` > 0 |
 | `softsign(x)`          | softsign function, a polynomial alternative to `tanh` |
 | `spline(x0, x1, x2, x3, t)` | Catmull-Rom cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `splinem(x0, x1, x2, x3, t)` | monotonic cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `sqrt(x)`              | square root of `x` |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
-| `uparc(x)`             | upward arcing quarter circle easing curve (inverse of `downarc`) |
 | `xerp(x0, x1, t)`      | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) |
 
 ---
@@ -353,13 +316,13 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `pass() \| sink() \| zero()`             |   2    |    2    | replace right channel with silence            |
 | `pass() \| mul(0.0)`                     |   2    |    2    | -..-                                          |
 | `mul((1.0, 0.0))`                        |   2    |    2    | -..-                                          |
-| `lowpass() / lowpole()`                  |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
-| `lowpass() / lowpass() / lowpass()`      |   2    |    1    | triple lowpass filter in series (6th order)   |
-| `resonator() / resonator()`              |   3    |    1    | double resonator in series (4th order)        |
+| `!lowpass() >> lowpole()`                |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
+| `!lowpass() >> !lowpass() >> lowpass()`  |   2    |    1    | triple lowpass filter in series (6th order)   |
+| `!resonator() >> resonator()`            |   3    |    1    | double resonator in series (4th order)        |
 | `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
 | `sine() & mul(2.0) >> sine()`            |   1    |    1    | frequency doubled dual sine oscillator        |
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
-| `!feedback(delay(1.0) * db_gain(-3.0))`  |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
+| `feedback(delay(1.0) * db_gain(-3.0))`   |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 
 ---
 
@@ -388,10 +351,10 @@ There are usually many ways to express a particular graph. The following express
 | Expression                                 | Is The Same As                  | Notes |
 | ------------------------------------------ | ------------------------------- | ----- |
 | `(pass() ^ mul(2.0)) >> sine() + sine()`   | `sine() & mul(2.0) >> sine()`   | Busing is often more convenient than explicit branching followed with summing. |
-| `!-!sink()-42.0^sink()&-!!--!-sink()*3.14` | `sink()`                        | Branching, busing, monitoring and arithmetic on sinks are no-ops. |
+| `--sink()-42.0^sink()&---sink()*3.14`      | `sink()`                        | Branching, busing, monitoring and arithmetic on sinks are no-ops. |
 | `constant(0.0) \| dc(1.0)`                 | `constant((0.0, 1.0))`          | Stacking concatenates channels. |
 | `sink() \| zero()`                         | `zero() \| sink()`              | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
-| `(lowpass() ^ (sink() \| pass())) >> lowpass()` | `lowpass() / lowpass()`    | Running a manual bypass. |
+| `(lowpass() ^ (sink() \| pass())) >> lowpass()` | `!lowpass() >> lowpass()`  | Running a manual bypass. |
 
 ---
 

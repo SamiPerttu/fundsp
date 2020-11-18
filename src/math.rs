@@ -160,18 +160,18 @@ pub fn splinem<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
 }
 
 /// A quarter circle fade that slopes upwards. Inverse function of Fade.downarc.
-#[inline] pub fn uparc<T: Real + Num>(x: T) -> T {
+#[inline] pub fn arcup<T: Real + Num>(x: T) -> T {
     T::one() - sqrt(max(T::zero(), T::one() - x * x))
 }
 
 /// A quarter circle fade that slopes downwards. Inverse function of Fade.uparc.
-#[inline] pub fn downarc<T: Real + Num>(x: T) -> T {
+#[inline] pub fn arcdown<T: Real + Num>(x: T) -> T {
     sqrt(max(T::new(0), (T::new(2) - x) * x))
 }
 
 /// Wave function stitched together from two symmetric pieces peaking at origin.
 #[inline] pub fn wave<T: Num, F: Fn(T) -> T>(f: F, x: T) -> T {
-    let u = (x - T::one()) / T::new(4);
+    let u = (x - T::from_f64(PI)) / T::from_f64(4.0 * PI);
     let u = (u - u.floor()) * T::new(2);
     let w0 = u.min(T::one());
     let w1 = u - w0;

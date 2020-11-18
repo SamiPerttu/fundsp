@@ -27,6 +27,20 @@ pub trait AudioComponent: Clone
         // Default latency is zero.
         if self.inputs() > 0 && self.outputs() > 0 { Some(0.0) } else { None }
     }
+
+    /// Returns output, if any, where the input is routed to.
+    /// This is used for the fit operator and other routing functionality.
+    fn route_input(&self, input: u32) -> Option<u32> {
+        // Default is to route matching inputs and outputs.
+        if input < Self::Outputs::U32 { Some(input) } else { None }
+    }
+ 
+    /// Returns input, if any, where the output is routed to.
+    /// This is used for the fit operator and other routing functionality.
+    fn route_output(&self, output: u32) -> Option<u32> {
+        // Default is to route matching inputs and outputs.
+        if output < Self::Inputs::U32 { Some(output) } else { None }
+    }
  
     // End of interface. There is no need to override the following.
 
@@ -344,6 +358,14 @@ impl<X, Y> AudioComponent for PipeComponent<X, Y> where
     fn latency(&self) -> Option<f64> {
         serial_latency(self.x.latency(), self.y.latency())
     }
+    fn route_input(&self, input: u32) -> Option<u32> {
+        if input >= Self::Outputs::U32 { return None; }
+        self.x.route_input(input).and_then(|y_input| self.y.route_input(y_input))
+    }
+    fn route_output(&self, output: u32) -> Option<u32> {
+        if output >= Self::Inputs::U32 { return None; }
+        self.y.route_output(output).and_then(|x_output| self.x.route_output(x_output))
+    }
 }
 
 //// StackComponent stacks X and Y in parallel.
@@ -402,6 +424,14 @@ impl<X, Y> AudioComponent for StackComponent<X, Y> where
     fn latency(&self) -> Option<f64> {
         parallel_latency(self.x.latency(), self.y.latency())
     }
+    fn route_input(&self, input: u32) -> Option<u32> {
+        if input >= Self::Outputs::U32 { return None; }
+        if input < X::Inputs::U32 { self.x.route_input(input) } else { self.y.route_input(input - X::Inputs::U32) }
+    }
+    fn route_output(&self, output: u32) -> Option<u32> {
+        if output >= Self::Inputs::U32 { return None; }
+        if output < X::Outputs::U32 { self.x.route_output(output) } else { self.y.route_output(output - X::Outputs::U32) }
+    }
 }
 
 /// BranchComponent sends the same input to X and Y and concatenates the outputs.
@@ -448,53 +478,6 @@ impl<X, Y> AudioComponent for BranchComponent<X, Y> where
     }
     fn latency(&self) -> Option<f64> {
         parallel_latency(self.x.latency(), self.y.latency())
-    }
-}
-
-/// CascadeComponent pipes X to Y, adding more inputs from X in place of missing ones.
-/// The number of inputs in X and Y must match.
-#[derive(Clone)]
-pub struct CascadeComponent<X, Y> where
-    X: AudioComponent,
-    Y: AudioComponent<Inputs = X::Inputs>,
-    Y::Outputs: Size,
-{
-    x: X,
-    y: Y,
-}
-
-impl<X, Y> CascadeComponent<X, Y> where
-    X: AudioComponent,
-    Y: AudioComponent<Inputs = X::Inputs>,
-    Y::Outputs: Size,
-{
-    pub fn new(x: X, y: Y) -> Self { CascadeComponent { x, y } }
-}
-
-impl<X, Y> AudioComponent for CascadeComponent<X, Y> where
-    X: AudioComponent,
-    Y: AudioComponent<Inputs = X::Inputs>,
-    Y::Outputs: Size,
-{
-    type Inputs = X::Inputs;
-    type Outputs = Y::Outputs;
-
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
-        self.y.reset(sample_rate);
-    }
-    #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
-        let output_x = self.x.tick(input);
-        let input_y = Frame::generate(|i| if i < X::Outputs::USIZE { output_x[i] } else { input[i] });
-        self.y.tick(&input_y)
-    }
-    fn latency(&self) -> Option<f64> {
-        // Add latency from X only if all channels are piped through X.
-        if self.x.outputs() >= self.y.inputs() {
-            serial_latency(self.x.latency(), self.y.latency())
-        } else {
-            self.y.latency()
-        }
     }
 }
 
@@ -573,6 +556,16 @@ impl<X, Y> AudioComponent for BusComponent<X, Y> where
     fn latency(&self) -> Option<f64> {
         parallel_latency(self.x.latency(), self.y.latency())
     }
+    fn route_input(&self, input: u32) -> Option<u32> {
+        if input >= Self::Outputs::U32 { return None; }
+        // TODO: Should we query Y if X cannot route the output?
+        self.x.route_input(input)
+    }
+    fn route_output(&self, output: u32) -> Option<u32> {
+        if output >= Self::Inputs::U32 { return None; }
+        // TODO: Should we query Y if X cannot route the output?
+        self.x.route_output(output)
+    }
 }
 
 /// FeedbackComponent encloses a feedback circuit.
@@ -621,28 +614,36 @@ impl<X, S> AudioComponent for FeedbackComponent<X, S> where
     fn latency(&self) -> Option<f64> {
         self.x.latency()
     }
+
+    fn route_input(&self, input: u32) -> Option<u32> {
+        self.x.route_input(input)
+    }
+
+    fn route_output(&self, output: u32) -> Option<u32> {
+        self.x.route_output(output)
+    }
 }
 
-/// MonitorComponent adds its inputs to the outputs of the contained filter.
-/// Extra or missing outputs are ignored.
+/// FitComponent adapts a filter to a pipeline using routing information
+/// from the component.
 #[derive(Clone)]
-pub struct MonitorComponent<X> where
+pub struct FitComponent<X> where
     X: AudioComponent,
 {
     x: X,
 }
 
-impl<X> MonitorComponent<X> where
+impl<X> FitComponent<X> where
     X: AudioComponent,
 {
-    pub fn new(x: X) -> Self { MonitorComponent { x } }
+    pub fn new(x: X) -> Self { FitComponent { x } }
 }
 
-impl<X> AudioComponent for MonitorComponent<X> where
+impl<X> AudioComponent for FitComponent<X> where
     X: AudioComponent,
 {
     type Inputs = X::Inputs;
-    type Outputs = X::Outputs;
+    type Outputs = X::Inputs;
 
     #[inline] fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.reset(sample_rate);
@@ -650,7 +651,12 @@ impl<X> AudioComponent for MonitorComponent<X> where
 
     #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
         let output = self.x.tick(input);
-        output + Frame::generate(|i| if i < self.inputs() { input[i] } else { 0.0 })
+        Frame::generate(|i| {
+            match self.x.route_input(i as u32) {
+                Some(j) => output[j as usize],
+                None => if i < Self::Inputs::USIZE { input[i] } else { 0.0 }
+            }
+        })
     }
 
     fn latency(&self) -> Option<f64> { Some(0.0) }
