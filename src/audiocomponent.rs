@@ -334,6 +334,36 @@ impl<X, U> AudioComponent for UnopComponent<X, U> where
     }
 } 
 
+#[derive(Clone)]
+pub struct Map<F, I, O> {
+    f: F,
+    _marker: PhantomData<(I, O)>,
+}
+
+impl<F, I, O> Map<F, I, O>
+where F: Clone + FnMut(&Frame<I>) -> Frame<O>,
+      I: Size,
+      O: Size,
+{
+    pub fn new(f: F) -> Self {
+        Self { f, _marker: PhantomData }
+    }
+}
+
+impl<F, I, O> AudioComponent for Map<F, I, O>
+where F: Clone + FnMut(&Frame<I>) -> Frame<O>,
+      I: Size,
+      O: Size,
+{
+    type Inputs = I;
+    type Outputs = O;
+    
+    #[inline]
+    fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
+        (self.f)(input)
+    }
+}
+
 /// PipeComponent pipes the output of X to Y.
 #[derive(Clone)]
 pub struct PipeComponent<X, Y> where

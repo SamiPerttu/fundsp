@@ -161,3 +161,18 @@ pub fn feedback<X, S>(x: Ac<X>) -> Ac<FeedbackComponent<X, S>> where
     X::Outputs: Size,
     S: Size,
     { Ac(FeedbackComponent::new(x.0)) }
+
+/// Transform channels freely
+///
+/// # Example
+/// ```
+/// # use fundsp::prelude::*;
+/// let my_sum = map(|i: &Frame<U2>| Frame::<U1>::splat(i[0] + i[1]));
+/// ```
+pub fn map<F, I, O>(f: F) -> Map<F, I, O>
+where F: Clone + FnMut(&Frame<I>) -> Frame<O>,
+      I: Size,
+      O: Size,
+{
+    Map::new(f)
+}
