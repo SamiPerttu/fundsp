@@ -150,6 +150,12 @@ impl<F: AudioFloat> AudioComponent for ButterLowpass<F> {
     }
 }
 
+
+impl<F: AudioFloat> Pipeline for ButterLowpass<F> {
+    fn is_dropped(x: usize) -> bool { x == 1 }
+}
+
+
 /// Constant-gain bandpass filter (resonator).
 /// Filter gain is (nearly) independent of bandwidth.
 /// Input 0: input signal
@@ -239,3 +245,7 @@ impl<F: AudioFloat> AudioComponent for OnePoleLowpass<F> {
     }
 }
 
+
+impl<F: AudioFloat> Pipeline for OnePoleLowpass<F> {
+    fn is_dropped(x: usize) -> bool { x == 1 }
+}

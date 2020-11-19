@@ -655,3 +655,77 @@ impl<X> AudioComponent for MonitorComponent<X> where
 
     fn latency(&self) -> Option<f64> { Some(0.0) }
 }
+
+/// An AudioComponent which transforms some of its inputs and drops the rest
+///
+/// Useful for chaining a series of filters that share control inputs. To make a filter
+/// pipelineable, implement this trait such that `is_dropped` returns `true` for every input that
+/// doesn't correspond directly to an output, e.g. for control signals.
+pub trait Pipeline: AudioComponent {
+    /// Whether input `i` is dropped rather than transformed
+    fn is_dropped(i: usize) -> bool;
+}
+
+impl<X, Y> Pipeline for StackComponent<X, Y>
+where
+    X: Pipeline,
+    Y: Pipeline,
+    X::Inputs: Size + Add<Y::Inputs>,
+    X::Outputs: Size + Add<Y::Outputs>,
+    Y::Inputs: Size,
+    Y::Outputs: Size,
+    <X::Inputs as Add<Y::Inputs>>::Output: Size,
+    <X::Outputs as Add<Y::Outputs>>::Output: Size,
+{
+    #[inline]
+    fn is_dropped(i: usize) -> bool {
+        if let Some(y_i) = i.checked_sub(X::Inputs::USIZE) {
+            Y::is_dropped(y_i)
+        } else {
+            X::is_dropped(i)
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct PipelineComponent<T> {
+    inner: T,
+}
+
+impl<T> PipelineComponent<T> {
+    pub fn new(x: T) -> Self {
+        Self { inner: x }
+    }
+}
+
+impl<T> AudioComponent for PipelineComponent<T>
+where
+    T: Pipeline,
+    <T as AudioComponent>::Outputs: Cmp<<T as AudioComponent>::Inputs>,
+    <T as AudioComponent>::Outputs: IsLessOrEqual<<T as AudioComponent>::Inputs, Output = True>,
+{
+    type Inputs = T::Inputs;
+    type Outputs = T::Inputs;
+
+    #[inline]
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.inner.reset(sample_rate);
+    }
+
+    #[inline]
+    fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs> {
+        let mut output = self.inner.tick(input).into_iter();
+        Frame::generate(|i| {
+            if T::is_dropped(i) {
+                input[i]
+            } else {
+                output.next().unwrap()
+            }
+        })
+    }
+
+    #[inline]
+    fn latency(&self) -> Option<f64> {
+        self.inner.latency()
+    }
+}

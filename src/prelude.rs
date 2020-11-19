@@ -8,6 +8,7 @@ use super::filter::*;
 use super::envelope::*;
 use super::noise::*;
 use super::oscillator::*;
+use numeric_array::typenum::*;
 
 // Function combinator environment. We like to define all kinds of useful functions here.
 
@@ -161,3 +162,21 @@ pub fn feedback<X, S>(x: Ac<X>) -> Ac<FeedbackComponent<X, S>> where
     X::Outputs: Size,
     S: Size,
     { Ac(FeedbackComponent::new(x.0)) }
+
+/// Replicate the input signals of a filter on its outputs to allow similar filters to be chained
+///
+/// # Examples
+/// ```
+/// # use fundsp::prelude::*;
+/// let _ = pipeline(lowpass()) >> lowpass();
+/// ```
+/// ```
+/// # use fundsp::prelude::*;
+/// let _ = pipeline(lowpass() | lowpass()) >> (lowpass() | lowpass());
+/// ```
+pub fn pipeline<T: Pipeline>(x: Ac<T>) -> Ac<PipelineComponent<T>>
+    where <T as AudioComponent>::Outputs: Cmp<<T as AudioComponent>::Inputs>,
+    <T as AudioComponent>::Outputs: IsLessOrEqual<<T as AudioComponent>::Inputs, Output = True>,
+{
+    Ac(PipelineComponent::new(x.0))
+}
