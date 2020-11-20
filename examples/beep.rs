@@ -70,6 +70,7 @@ where
 
     //let mut next_value = move || { let v = c.get_mono(); assert!(v.is_nan() == false && abs(v) < 1.0e6); v };
     let mut next_value = move || c.get_mono() as f32;
+    //let mut next_value = c.as_mono_fn();
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
