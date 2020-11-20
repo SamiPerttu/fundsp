@@ -16,13 +16,9 @@ However, some standard components are missing and breakage can be expected as we
 
 ## Principia
 
-Audio buffers and connections between audio components use single precision floating point (`f32`).
-
-Components overall are mixed precision. Many filters are generic over their inner processing type.
-
 ### Component Systems
 
-There are two parallel component systems: the static `AudioComponent` and the dynamic `AudioUnit`.
+There are two parallel component systems: the static `AudioNode` and the dynamic `AudioUnit`.
 
 Both systems operate on audio signals synchronously as an infinite stream.
 
@@ -30,16 +26,16 @@ Both systems operate on audio signals synchronously as an infinite stream.
 
 | Trait            | Dispatch             | Allocation      | Operation        | Connectivity |
 | ---------------- | -------------------- | --------------- | ---------------- | ------------ |
-| `AudioComponent` | static, inlined      | mostly stack    | sample by sample | input and output arity fixed at compile time |
+| `AudioNode`      | static, inlined      | stack           | sample by sample | input and output arity fixed at compile time |
 | `AudioUnit`      | dynamic, object safe | heap            | block by block   | input and output arity fixed after construction |
 
 ---
 
-The lower level `AudioComponent`s can be lifted
-to block processing mode with the object safe `AudioUnit` interface via the `AcUnit<X: AudioComponent>` wrapper.
+The lower level `AudioNode`s can be lifted
+to block processing mode with the object safe `AudioUnit` interface via the `AcUnit<X: AudioNode>` wrapper.
 Block processing aims to maximize efficiency in dynamic situations.
 
-`AudioComponent`s can be stack allocated for the most part.
+`AudioNode`s can be stack allocated for the most part.
 Some components may use the heap for audio buffers and the like.
 
 ### Sample Rate Independence
@@ -55,10 +51,18 @@ In both systems, a component `A` can be reinitialized with a new sample rate: `A
 ## Audio Processing Environment
 
 The `fundsp` prelude defines a convenient combinator environment for audio processing.
-It operates on `AudioComponent`s via the wrapper type `Ac<X: AudioComponent>`.
+It operates on `AudioNode`s via the wrapper type `Ac<X: AudioNode>`.
 
-In the environment, the default form for components aims to ensure there is enough precision available.
+Data buffers and samples are single precision in the environment.
+The default form for components aims to ensure there is enough precision available.
 Therefore, many employ double precision internally.
+
+The environment is designed to require minimal type annotations, so most interfaces are
+explicit with respect to floating point precision. Math functions are generic, however.
+
+Representing time in single precision can run into issues in longer pieces: sample accuracy in timing
+is lost after around 4 minutes. This is usually not disastrous for control signals:
+therefore the default form for `lfo` and `envelope` is single precision to keep the interface as uniform as possible.
 
 In the environment, generators are deterministic pseudorandom phase by default (to be implemented).
 
@@ -107,6 +111,14 @@ The negation operator broadcasts also: `-A` is equivalent with `(0.0 - A)`.
 
 For example, `A * constant(2.0)` and `A >> mul(2.0)` are equivalent and expect `A` to have one output.
 On the other hand, `A * 2.0` works with any `A`, even *sinks*.
+
+#### Fit
+
+The fit (`!`) operator is for chaining filters. It adjusts output arity to match input arity and
+passes through any missing outputs. Extra outputs are set to zero.
+
+For example, while `lowpass()` is a 2nd order lowpass filter, `!lowpass() >> lowpass()`
+is a steeper 4th order lowpass filter with identical connectivity.
 
 ### Generators, Filters and Sinks
 
@@ -190,8 +202,9 @@ If you want to reuse components, define them as functions or clone them. See the
 Connectivity is checked during compilation.
 Mismatched connectivity will result in a compilation error complaining about mismatched
 [`typenum`](https://crates.io/crates/typenum) [types](https://docs.rs/typenum/1.12.0/typenum/uint/struct.UInt.html).
-The arrays `Frame<Size>` that connect components come from the
-[`numeric-array` crate](https://crates.io/crates/numeric-array).
+The arrays `Frame<T, Size>` that connect components come from the
+[`generic-array`](https://crates.io/crates/generic-array) and
+[`numeric-array`](https://crates.io/crates/numeric-array) crates.
 
 ### Computational Structure
 
@@ -267,6 +280,7 @@ These free functions are available in the environment.
 | `exp(x)`               | exp |
 | `exq(x)`               | polynomial alternative to `exp` |
 | `floor(x)`             | floor function |
+| `interval(x)`          | convert interval `x` semitones to frequency ratio |
 | `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` |
 | `log(x)`               | natural logarithm |
 | `logistic(x)`          | logistic function |
@@ -365,22 +379,51 @@ MIT or Apache-2.0.
 
 ## Future
 
+- Overload division operator as an arithmetic operator once foundational overhaul is complete.
 - Develop an equivalent combinator environment for `AudioUnit`s so the user can
   decide when and where to lift components to block processing. `AudioUnit` combinators would operate
   at runtime and thus connectivity checks would be deferred to runtime, too.
   Ideally, we would like SIMD optimization to happen automatically during lifting, but this is a lofty goal.
 - Investigate whether adding more checking at compile time is possible by introducing
-  opt-in signal units/modalities for `AudioComponent` inputs and outputs.
+  opt-in signal units/modalities for `AudioNode` inputs and outputs.
   So if the user sends a constant marked `Hz` to an audio input, then that would fail at compile time.
-- How should we initialize pseudorandom phases and other sundry where the seed is properly location dependent in a graph?
-  We would like a procedure so left and right channels can sound different in a deterministic way.
-  Some kind of automatic poking during combination would be possible: a location ping.
-  This would be complimented with a seed argument in reset(). So, for instance, get different versions of the same drum
-  hit by supplying reset() with a different seed. Or are we adding too many concerns here.
-  Music is naturally random phase, so taking this into account at a fundamental level is not necessarily overstepping.
-  Seeding also acknowledges imperfections and approximations in the synthesis process.
-  The alternative is to embrace indeterminism.
-- Add support for `AudioComponent` graph parameters using a broadcast/gather mechanism.
+- Location ping system: `ping(hash)` in `AudioNode`. 
+  Compute a pseudorandom hash value for every node enclosed that is dependent only on graph structure.
+  This will be used by many components: Noise components will use the hash as a seed so that each noise
+  source sounds different in a deterministic way. Envelope component will use the hash as a seed to jitter samples.
 - Examine and optimize performance.
-- Add tests.
-- Add more stuff.
+- Implement conversion of graph to diagram (normalize operators to associative form).
+  Layout and display a graph as a diagram and show the signals flowing in it.
+  Allow user to poke at `plug` nodes while audio is playing.
+
+### TODO: Standard Components
+
+- Rest of the basic first order and biquad filters. `bandpass`, `highpass`, `highpole`, `allpass`
+- `dcblock`, `declick` (the latter should include the former)
+- `pink`, `brown`, `pinkpass` (pinking filter). Define `pink()` as `white() >> pinkpass()`.
+  Define `brown()` as `white() >> pinkpass() >> pinkpass()`.
+- FIR filters.
+- `pluck`
+- Fractional delay line using an allpass filter (the standard delay should remain sample accurate only to not introduce extra
+  processing).
+- Variable delay and feedback lines.
+- `plug(tag)`. Mono parameter source.
+  Tag is an arbitrary tag type. Tag can include metainformation about parameter.
+  Add `AudioNode` interfaces: `gather()` and `set(tag, value)`.
+  The former returns all information about enclosed parameters and their current values.
+- `wave(table)`. Wavetable synthesizer. Add a set of standard wavetables behind `lazy_static`s (or similar) so they are shared
+  and can be given concise names.
+- `saw`, `square` (syntactic sugar for `wave` initially)
+- `fdn4`, `fdn8`, `fdn16`
+- `oversample(n, x)`. Oversample enclosed circuit `x` by `n`.
+  Impose a default maximum sample rate to keep nested oversampling sensible.
+- Standard mono and stereo reverbs using a 16x FDN.
+- Operators as functions. For example, `pipe(n, f)` where `n` is const (for stack allocation)
+  and `f` is an indexed generator function.
+
+### TODO: Prelude
+
+- `melody(f, string)`: melody generator.
+- `snoise(f, t)`: 1-D spline noise.
+- `enoise(ease, f, t)`, 1-D value noise interpolated with an easing function.
+- `lfo64` and `envelope64`: extra accurate control signals.
