@@ -1,4 +1,4 @@
-use super::audiocomponent::*;
+use super::audionode::*;
 use super::lti::*;
 use super::math::*;
 use super::*;

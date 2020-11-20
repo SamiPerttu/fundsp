@@ -1,4 +1,4 @@
-use super::audiocomponent::*;
+use super::audionode::*;
 use super::math::{delerp, lerp};
 use super::*;
 use numeric_array::*;

@@ -1,4 +1,4 @@
-pub use super::audiocomponent::*;
+pub use super::audionode::*;
 pub use super::combinator::*;
 pub use super::math::*;
 pub use super::*;

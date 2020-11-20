@@ -1,4 +1,4 @@
-use super::audiocomponent::*;
+use super::audionode::*;
 use super::math::*;
 use super::*;
 use numeric_array::typenum::*;

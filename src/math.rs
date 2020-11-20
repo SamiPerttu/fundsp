@@ -153,12 +153,12 @@ pub fn db_gain<T: Num + Real>(db: T) -> T {
 
 /// M-weighted noise response function. Returns human ear amplitude response at f Hz.
 #[inline]
-pub fn m_weight<T: Num + Into<f64>>(f: T) -> T {
-    let i0: f64 = log(max(f.into(), 1.0));
+pub fn m_weight<T: Float>(f: T) -> T {
+    let i0: f64 = log(max(f.to_f64(), 1.0));
     let r2 = softsign(pow(i0, i0) * -6.08068842478902e-05 - 255817.484465234);
     let r4 = softsign(i0 * -0.0120284517694679 + 0.0137065071001576);
     let db = pow(r2, r4) * -201414774.297872 - 201414825.531915;
-    T::from_f64(db_gain(db))
+    convert(db_gain(db))
 }
 
 /// Catmull-Rom cubic spline interpolation, which is a form of cubic Hermite spline. Interpolates between
@@ -285,29 +285,29 @@ pub fn wave5<T: Num>(x: T) -> T {
 /// Sine that oscillates at the specified beats per minute. Time is input in seconds.
 #[inline]
 pub fn sin_bpm<T: Num + Real>(bpm: T, t: T) -> T {
-    sin(t * bpm * T::from_f64(TAU / 60.0))
+    sin(t * bpm * convert(TAU / 60.0))
 }
 
 /// Cosine that oscillates at the specified beats per minute. Time is input in seconds.
 #[inline]
 pub fn cos_bpm<T: Num + Real>(bpm: T, t: T) -> T {
-    cos(t * bpm * T::from_f64(TAU / 60.0))
+    cos(t * bpm * convert(TAU / 60.0))
 }
 
 /// Sine that oscillates at the specified frequency (Hz). Time is input in seconds.
 #[inline]
 pub fn sin_hz<T: Num + Real>(hz: T, t: T) -> T {
-    sin(t * hz * T::from_f64(TAU))
+    sin(t * hz * convert(TAU))
 }
 
 /// Cosine that oscillates at the specified frequency (Hz). Time is input in seconds.
 #[inline]
 pub fn cos_hz<T: Num + Real>(hz: T, t: T) -> T {
-    cos(t * hz * T::from_f64(TAU))
+    cos(t * hz * convert(TAU))
 }
 
 /// Converts from semitone interval to frequency ratio.
 #[inline]
 pub fn interval<T: Num + Real>(x: T) -> T {
-    exp(x * T::from_f64(LN_2 / 12.0))
+    exp(x * convert(LN_2 / 12.0))
 }

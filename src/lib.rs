@@ -214,7 +214,7 @@ impl_as_primitive!(f64 => { f32, f64 });
 impl_as_primitive!(char => { char });
 impl_as_primitive!(bool => {});
 
-pub mod audiocomponent;
+pub mod audionode;
 pub mod audiounit;
 pub mod combinator;
 pub mod delay;
