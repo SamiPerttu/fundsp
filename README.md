@@ -115,7 +115,7 @@ On the other hand, `A * 2.0` works with any `A`, even *sinks*.
 #### Fit
 
 The fit (`!`) operator is for chaining filters. It adjusts output arity to match input arity and
-passes through any missing outputs. Extra outputs are set to zero.
+passes through any missing outputs.
 
 For example, while `lowpass()` is a 2nd order lowpass filter, `!lowpass() >> lowpass()`
 is a steeper 4th order lowpass filter with identical connectivity.
