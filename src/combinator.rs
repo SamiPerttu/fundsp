@@ -1,285 +1,372 @@
+use super::audiocomponent::*;
 use super::*;
 use numeric_array::typenum::*;
-use super::audiocomponent::*;
 
 /// Trait for multi-channel constants.
 pub trait ConstantFrame {
-    type Size: Size;
-    fn convert(self) -> Frame<Self::Size>;
+    type Sample: Float;
+    type Size: Size<Self::Sample>;
+    fn convert(self) -> Frame<Self::Sample, Self::Size>;
 }
 
-impl ConstantFrame for f48 {
+impl ConstantFrame for f64 {
+    type Sample = f64;
     type Size = U1;
-    fn convert(self) -> Frame<Self::Size> { [self].into() }
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        [self].into()
+    }
 }
 
-impl ConstantFrame for (f48, f48) {
+impl ConstantFrame for (f64, f64) {
+    type Sample = f64;
     type Size = U2;
-    fn convert(self) -> Frame<Self::Size> { [self.0, self.1].into() }
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        [self.0, self.1].into()
+    }
 }
 
-impl ConstantFrame for (f48, f48, f48) {
+impl ConstantFrame for (f64, f64, f64) {
+    type Sample = f64;
     type Size = U3;
-    fn convert(self) -> Frame<Self::Size> { [self.0, self.1, self.2].into() }
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        [self.0, self.1, self.2].into()
+    }
 }
 
-impl ConstantFrame for (f48, f48, f48, f48) {
+impl ConstantFrame for (f64, f64, f64, f64) {
+    type Sample = f64;
     type Size = U4;
-    fn convert(self) -> Frame<Self::Size> { [self.0, self.1, self.2, self.3].into() }
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        [self.0, self.1, self.2, self.3].into()
+    }
 }
 
-impl ConstantFrame for (f48, f48, f48, f48, f48) {
+impl ConstantFrame for (f64, f64, f64, f64, f64) {
+    type Sample = f64;
     type Size = U5;
-    fn convert(self) -> Frame<Self::Size> { [self.0, self.1, self.2, self.3, self.4].into() }
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        [self.0, self.1, self.2, self.3, self.4].into()
+    }
 }
-/// AudioComponent wrapper that implements operators and traits.
+
+/// AudioNode wrapper that implements operators and traits.
 #[derive(Clone)]
-pub struct Ac<X: AudioComponent>(pub X);
+pub struct An<X: AudioNode>(pub X);
 
-impl<X: AudioComponent> core::ops::Deref for Ac<X>
-{
+impl<X: AudioNode> core::ops::Deref for An<X> {
     type Target = X;
-    #[inline] fn deref(&self) -> &Self::Target { &self.0 }
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-impl<X: AudioComponent> core::ops::DerefMut for Ac<X>
-{
-    #[inline] fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
-}
-
-/// X + Y: sum signal.
-impl<X, Y> std::ops::Add<Ac<Y>> for Ac<X> where
-    X: AudioComponent,
-    Y: AudioComponent<Outputs = X::Outputs>,
-    X::Inputs: Size + Add<Y::Inputs>,
-    Y::Inputs: Size,
-    <X::Inputs as Add<Y::Inputs>>::Output: Size,
-{
-    type Output = Ac<BinopComponent<X, Y, FrameAdd<X::Outputs>>>;
-    #[inline] fn add(self, y: Ac<Y>) -> Self::Output {
-        Ac(BinopComponent::new(self.0, y.0, FrameAdd::new()))
+impl<X: AudioNode> core::ops::DerefMut for An<X> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
 /// -X: negated signal.
-impl<X> std::ops::Neg for Ac<X> where
-    X: AudioComponent,
-    X::Outputs: Size,
+impl<X> std::ops::Neg for An<X>
+where
+    X: AudioNode,
+    X::Outputs: Size<X::Sample>,
 {
-    type Output = Ac<UnopComponent<X, FrameNeg<X::Outputs>>>;
-    #[inline] fn neg(self) -> Self::Output {
-        Ac(UnopComponent::new(self.0, FrameNeg::new()))
+    type Output = An<UnopNode<X::Sample, X, FrameNeg<X::Sample, X::Outputs>>>;
+    #[inline]
+    fn neg(self) -> Self::Output {
+        An(UnopNode::new(self.0, FrameNeg::new()))
     }
 }
 
 /// !X: fit signal.
-impl<X> std::ops::Not for Ac<X> where
-    X: AudioComponent,
+impl<X> std::ops::Not for An<X>
+where
+    X: AudioNode,
 {
-    type Output = Ac<FitComponent<X>>;
-    #[inline] fn not(self) -> Self::Output {
-        Ac(FitComponent::new(self.0))
+    type Output = An<FitNode<X>>;
+    #[inline]
+    fn not(self) -> Self::Output {
+        An(FitNode::new(self.0))
+    }
+}
+
+/// X + Y: sum signal.
+impl<X, Y> std::ops::Add<An<Y>> for An<X>
+where
+    X: AudioNode,
+    Y: AudioNode<Sample = X::Sample, Outputs = X::Outputs>,
+    X::Inputs: Size<X::Sample> + Add<Y::Inputs>,
+    Y::Inputs: Size<Y::Sample>,
+    <X::Inputs as Add<Y::Inputs>>::Output: Size<X::Sample>,
+{
+    type Output = An<BinopNode<X::Sample, X, Y, FrameAdd<X::Sample, X::Outputs>>>;
+    #[inline]
+    fn add(self, y: An<Y>) -> Self::Output {
+        An(BinopNode::new(self.0, y.0, FrameAdd::new()))
     }
 }
 
 /// X + constant: offset signal.
-impl<X> std::ops::Add<f48> for Ac<X> where
-    X: AudioComponent,
-    X::Inputs: Size + Add<U0>,
-    X::Outputs: Size,
-    <X::Inputs as Add<U0>>::Output: Size
+impl<X> std::ops::Add<f64> for An<X>
+where
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64> + Add<U0>,
+    X::Outputs: Size<f64>,
+    <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = Ac<BinopComponent<X, ConstantComponent<X::Outputs>, FrameAdd<X::Outputs>>>;
-    #[inline] fn add(self, y: f48) -> Self::Output {
-        Ac(BinopComponent::new(self.0, ConstantComponent::new(Frame::splat(y)), FrameAdd::new()))
+    type Output =
+        An<BinopNode<f64, X, ConstantNode<f64, X::Outputs>, FrameAdd<X::Sample, X::Outputs>>>;
+    #[inline]
+    fn add(self, y: f64) -> Self::Output {
+        An(BinopNode::new(
+            self.0,
+            ConstantNode::new(Frame::splat(y)),
+            FrameAdd::new(),
+        ))
     }
 }
 
 /// constant + X: offset signal.
-impl<X> std::ops::Add<Ac<X>> for f48 where
-    X: AudioComponent,
-    X::Inputs: Size + Add<U0>,
-    X::Outputs: Size,
-    <X::Inputs as Add<U0>>::Output: Size
+impl<X> std::ops::Add<An<X>> for f64
+where
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64> + Add<U0>,
+    X::Outputs: Size<f64>,
+    <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = Ac<BinopComponent<ConstantComponent<X::Outputs>, X, FrameAdd<X::Outputs>>>;
-    #[inline] fn add(self, y: Ac<X>) -> Self::Output {
-        Ac(BinopComponent::new(ConstantComponent::new(Frame::splat(self)), y.0, FrameAdd::new()))
+    type Output = An<BinopNode<f64, ConstantNode<f64, X::Outputs>, X, FrameAdd<f64, X::Outputs>>>;
+    #[inline]
+    fn add(self, y: An<X>) -> Self::Output {
+        An(BinopNode::new(
+            ConstantNode::new(Frame::splat(self)),
+            y.0,
+            FrameAdd::new(),
+        ))
     }
 }
 
 /// X - Y: difference signal.
-impl<X, Y> std::ops::Sub<Ac<Y>> for Ac<X> where
-    X: AudioComponent,
-    Y: AudioComponent<Outputs = X::Outputs>,
-    X::Inputs: Size + Add<Y::Inputs>,
-    Y::Inputs: Size,
-    <X::Inputs as Add<Y::Inputs>>::Output: Size,
+impl<X, Y> std::ops::Sub<An<Y>> for An<X>
+where
+    X: AudioNode,
+    Y: AudioNode<Sample = X::Sample, Outputs = X::Outputs>,
+    X::Inputs: Size<X::Sample> + Add<Y::Inputs>,
+    Y::Inputs: Size<Y::Sample>,
+    <X::Inputs as Add<Y::Inputs>>::Output: Size<X::Sample>,
 {
-    type Output = Ac<BinopComponent<X, Y, FrameSub<X::Outputs>>>;
-    #[inline] fn sub(self, y: Ac<Y>) -> Self::Output {
-        Ac(BinopComponent::new(self.0, y.0, FrameSub::new()))
+    type Output = An<BinopNode<X::Sample, X, Y, FrameSub<X::Sample, X::Outputs>>>;
+    #[inline]
+    fn sub(self, y: An<Y>) -> Self::Output {
+        An(BinopNode::new(self.0, y.0, FrameSub::new()))
     }
 }
 
 /// X - constant: offset signal.
-impl<X> std::ops::Sub<f48> for Ac<X> where
-    X: AudioComponent,
-    X::Inputs: Size + Add<U0>,
-    X::Outputs: Size,
-    <X::Inputs as Add<U0>>::Output: Size
+impl<X> std::ops::Sub<f64> for An<X>
+where
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64> + Add<U0>,
+    X::Outputs: Size<f64>,
+    <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = Ac<BinopComponent<X, ConstantComponent<X::Outputs>, FrameSub<X::Outputs>>>;
-    #[inline] fn sub(self, y: f48) -> Self::Output {
-        Ac(BinopComponent::new(self.0, ConstantComponent::new(Frame::splat(y)), FrameSub::new()))
+    type Output = An<BinopNode<f64, X, ConstantNode<f64, X::Outputs>, FrameSub<f64, X::Outputs>>>;
+    #[inline]
+    fn sub(self, y: f64) -> Self::Output {
+        An(BinopNode::new(
+            self.0,
+            ConstantNode::new(Frame::splat(y)),
+            FrameSub::new(),
+        ))
     }
 }
 
 /// constant - X: inverted offset signal.
-impl<X> std::ops::Sub<Ac<X>> for f48 where
-    X: AudioComponent,
-    X::Inputs: Size + Add<U0>,
-    X::Outputs: Size,
-    <X::Inputs as Add<U0>>::Output: Size
+impl<X> std::ops::Sub<An<X>> for f64
+where
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64> + Add<U0>,
+    X::Outputs: Size<f64>,
+    <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = Ac<BinopComponent<ConstantComponent<X::Outputs>, X, FrameSub<X::Outputs>>>;
-    #[inline] fn sub(self, y: Ac<X>) -> Self::Output {
-        Ac(BinopComponent::new(ConstantComponent::new(Frame::splat(self)), y.0, FrameSub::new()))
+    type Output = An<BinopNode<f64, ConstantNode<f64, X::Outputs>, X, FrameSub<f64, X::Outputs>>>;
+    #[inline]
+    fn sub(self, y: An<X>) -> Self::Output {
+        An(BinopNode::new(
+            ConstantNode::new(Frame::splat(self)),
+            y.0,
+            FrameSub::new(),
+        ))
     }
 }
 
 /// X * Y: product signal.
-impl<X, Y> std::ops::Mul<Ac<Y>> for Ac<X> where
-    X: AudioComponent,
-    Y: AudioComponent<Outputs = X::Outputs>,
-    X::Inputs: Size + Add<Y::Inputs>,
-    Y::Inputs: Size,
-    <X::Inputs as Add<Y::Inputs>>::Output: Size,
+impl<X, Y> std::ops::Mul<An<Y>> for An<X>
+where
+    X: AudioNode,
+    Y: AudioNode<Sample = X::Sample, Outputs = X::Outputs>,
+    X::Inputs: Size<X::Sample> + Add<Y::Inputs>,
+    Y::Inputs: Size<Y::Sample>,
+    <X::Inputs as Add<Y::Inputs>>::Output: Size<X::Sample>,
 {
-    type Output = Ac<BinopComponent<X, Y, FrameMul<X::Outputs>>>;
-    #[inline] fn mul(self, y: Ac<Y>) -> Self::Output {
-        Ac(BinopComponent::new(self.0, y.0, FrameMul::new()))
+    type Output = An<BinopNode<X::Sample, X, Y, FrameMul<X::Sample, X::Outputs>>>;
+    #[inline]
+    fn mul(self, y: An<Y>) -> Self::Output {
+        An(BinopNode::new(self.0, y.0, FrameMul::new()))
     }
 }
 
 /// X * constant: amplified signal.
-impl<X> std::ops::Mul<f48> for Ac<X> where
-    X: AudioComponent,
-    X::Inputs: Size + Add<U0>,
-    X::Outputs: Size,
-    <X::Inputs as Add<U0>>::Output: Size
+impl<X> std::ops::Mul<f64> for An<X>
+where
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64> + Add<U0>,
+    X::Outputs: Size<f64>,
+    <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = Ac<BinopComponent<X, ConstantComponent<X::Outputs>, FrameMul<X::Outputs>>>;
-    #[inline] fn mul(self, y: f48) -> Self::Output {
-        Ac(BinopComponent::new(self.0, ConstantComponent::new(Frame::splat(y)), FrameMul::new()))
+    type Output = An<BinopNode<f64, X, ConstantNode<f64, X::Outputs>, FrameMul<f64, X::Outputs>>>;
+    #[inline]
+    fn mul(self, y: f64) -> Self::Output {
+        An(BinopNode::new(
+            self.0,
+            ConstantNode::new(Frame::splat(y)),
+            FrameMul::new(),
+        ))
     }
 }
 
 /// constant * X: amplified signal.
-impl<X> std::ops::Mul<Ac<X>> for f48 where
-    X: AudioComponent,
-    X::Inputs: Size + Add<U0>,
-    X::Outputs: Size,
-    <X::Inputs as Add<U0>>::Output: Size
+impl<X> std::ops::Mul<An<X>> for f64
+where
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64> + Add<U0>,
+    X::Outputs: Size<f64>,
+    <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = Ac<BinopComponent<ConstantComponent<X::Outputs>, X, FrameMul<X::Outputs>>>;
-    #[inline] fn mul(self, y: Ac<X>) -> Self::Output {
-        Ac(BinopComponent::new(ConstantComponent::new(Frame::splat(self)), y.0, FrameMul::new()))
+    type Output = An<BinopNode<f64, ConstantNode<f64, X::Outputs>, X, FrameMul<f64, X::Outputs>>>;
+    #[inline]
+    fn mul(self, y: An<X>) -> Self::Output {
+        An(BinopNode::new(
+            ConstantNode::new(Frame::splat(self)),
+            y.0,
+            FrameMul::new(),
+        ))
     }
 }
 
 /// X >> Y: serial pipe.
-impl<X, Y> std::ops::Shr<Ac<Y>> for Ac<X> where
-    X: AudioComponent,
-    Y: AudioComponent<Inputs = X::Outputs>,
-    Y::Outputs: Size,
+impl<T, X, Y> std::ops::Shr<An<Y>> for An<X>
+where
+    T: Float,
+    X: AudioNode<Sample = T>,
+    Y: AudioNode<Sample = T, Inputs = X::Outputs>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+    Y::Outputs: Size<T>,
 {
-    type Output = Ac<PipeComponent<X, Y>>;
-    #[inline] fn shr(self, y: Ac<Y>) -> Self::Output {
-        Ac(PipeComponent::new(self.0, y.0))
+    type Output = An<PipeNode<T, X, Y>>;
+    #[inline]
+    fn shr(self, y: An<Y>) -> Self::Output {
+        An(PipeNode::new(self.0, y.0))
     }
 }
 
 /// X & Y: parallel bus.
-impl<X, Y> std::ops::BitAnd<Ac<Y>> for Ac<X> where
-    X: AudioComponent,
-    Y: AudioComponent<Inputs = X::Inputs, Outputs = X::Outputs>,
-    Y::Inputs: Size,
-    Y::Outputs: Size,
+impl<T, X, Y> std::ops::BitAnd<An<Y>> for An<X>
+where
+    T: Float,
+    X: AudioNode<Sample = T>,
+    Y: AudioNode<Sample = T, Inputs = X::Inputs, Outputs = X::Outputs>,
+    Y::Inputs: Size<T>,
+    Y::Outputs: Size<T>,
 {
-    type Output = Ac<BusComponent<X, Y>>;
-    #[inline] fn bitand(self, y: Ac<Y>) -> Self::Output {
-        Ac(BusComponent::new(self.0, y.0))
+    type Output = An<BusNode<T, X, Y>>;
+    #[inline]
+    fn bitand(self, y: An<Y>) -> Self::Output {
+        An(BusNode::new(self.0, y.0))
     }
 }
 
 /// X ^ Y: parallel branch.
-impl<X, Y> std::ops::BitXor<Ac<Y>> for Ac<X> where
-    X: AudioComponent,
-    Y: AudioComponent<Inputs = X::Inputs>,
-    X::Outputs: Size + Add<Y::Outputs>,
-    Y::Outputs: Size,
-    <X::Outputs as Add<Y::Outputs>>::Output: Size
+impl<T, X, Y> std::ops::BitXor<An<Y>> for An<X>
+where
+    T: Float,
+    X: AudioNode<Sample = T>,
+    Y: AudioNode<Sample = T, Inputs = X::Inputs>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T> + Add<Y::Outputs>,
+    Y::Outputs: Size<T>,
+    <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
 {
-    type Output = Ac<BranchComponent<X, Y>>;
-    #[inline] fn bitxor(self, y: Ac<Y>) -> Self::Output {
-        Ac(BranchComponent::new(self.0, y.0))
+    type Output = An<BranchNode<T, X, Y>>;
+    #[inline]
+    fn bitxor(self, y: An<Y>) -> Self::Output {
+        An(BranchNode::new(self.0, y.0))
     }
 }
 
 /// X | Y: parallel stack.
-impl<X, Y> std::ops::BitOr<Ac<Y>> for Ac<X> where
-    X: AudioComponent,
-    Y: AudioComponent,
-    X::Inputs: Size + Add<Y::Inputs>,
-    X::Outputs: Size + Add<Y::Outputs>,
-    Y::Inputs: Size,
-    Y::Outputs: Size,
-    <X::Inputs as Add<Y::Inputs>>::Output: Size,
-    <X::Outputs as Add<Y::Outputs>>::Output: Size
+impl<T, X, Y> std::ops::BitOr<An<Y>> for An<X>
+where
+    T: Float,
+    X: AudioNode<Sample = T>,
+    Y: AudioNode<Sample = T>,
+    X::Inputs: Size<T> + Add<Y::Inputs>,
+    X::Outputs: Size<T> + Add<Y::Outputs>,
+    Y::Inputs: Size<T>,
+    Y::Outputs: Size<T>,
+    <X::Inputs as Add<Y::Inputs>>::Output: Size<T>,
+    <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
 {
-    type Output = Ac<StackComponent<X, Y>>;
-    #[inline] fn bitor(self, y: Ac<Y>) -> Self::Output {
-        Ac(StackComponent::new(self.0, y.0))
+    type Output = An<StackNode<T, X, Y>>;
+    #[inline]
+    fn bitor(self, y: An<Y>) -> Self::Output {
+        An(StackNode::new(self.0, y.0))
     }
 }
 
-impl<X: AudioComponent> Iterator for Ac<X>
-{
-    type Item = Frame<X::Outputs>;
+impl<X: AudioNode> Iterator for An<X> {
+    type Item = Frame<X::Sample, X::Outputs>;
     /// Processes a sample from an all-zeros input.
-    #[inline] fn next(&mut self) -> Option<Self::Item> { 
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
         Some(self.tick(&Frame::default()))
     }
 }
 
-impl<X: AudioComponent> Ac<X> {
+impl<X: AudioNode<Sample = f64>> An<X>
+where
+    X::Inputs: Size<f64>,
+    X::Outputs: Size<f64>,
+{
     /// Consumes and returns the component as an FnMut closure
-    /// that yields mono samples via AudioComponent::get_mono.
-    pub fn as_mono_fn(self) -> impl FnMut() -> f48 {
+    /// that yields mono samples via AudioNode::get_mono.
+    pub fn as_mono_fn(self) -> impl FnMut() -> f64 {
         let mut c = self;
         move || c.get_mono()
     }
 
     /// Consumes and returns the component as an FnMut closure
-    /// that filters mono samples via AudioComponent::filter_mono.
+    /// that filters mono samples via AudioNode::filter_mono.
     /// Broadcasts the mono input if applicable.
-    pub fn as_mono_filter_fn(self) -> impl FnMut(f48) -> f48 {
+    pub fn as_mono_filter_fn(self) -> impl FnMut(f64) -> f64 {
         let mut c = self;
         move |x| c.filter_mono(x)
     }
 
     /// Consumes and returns the component as an FnMut closure
-    /// that yields stereo samples via AudioComponent::get_stereo.
-    pub fn as_stereo_fn(self) -> impl FnMut() -> (f48, f48) {
+    /// that yields stereo samples via AudioNode::get_stereo.
+    pub fn as_stereo_fn(self) -> impl FnMut() -> (f64, f64) {
         let mut c = self;
         move || c.get_stereo()
     }
 
     /// Consumes and returns the component as an FnMut closure
-    /// that filters stereo samples via AudioComponent::filter_stereo.
+    /// that filters stereo samples via AudioNode::filter_stereo.
     /// Broadcasts the stereo input if applicable.
-    pub fn as_stereo_filter_fn(self) -> impl FnMut(f48, f48) -> (f48, f48) {
+    pub fn as_stereo_filter_fn(self) -> impl FnMut(f64, f64) -> (f64, f64) {
         let mut c = self;
         move |x, y| c.filter_stereo(x, y)
     }

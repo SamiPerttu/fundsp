@@ -1,31 +1,15 @@
-use std::ops::{Add, Sub, Mul, Div, Neg};
-use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 use std::cmp::PartialEq;
-
-/// Single precision floating point is used in audio buffers.
-#[allow(non_camel_case_types)]
-pub type f48 = f32;
-
-/// Type-level integer for encoding arities.
-pub trait Size: numeric_array::ArrayLength<f48> {}
-impl<T: numeric_array::ArrayLength<f48>> Size for T {}
-
-/// Frames transport audio data between components.
-pub type Frame<Size> = numeric_array::NumericArray<f48, Size>;
-
+use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 /// Default sample rate is 44.1 khz.
 pub const DEFAULT_SR: f64 = 44_100.0;
 
-pub trait Num: Copy
-    + Add<Output = Self>
-    + Sub<Output = Self>
-    + Mul<Output = Self>
-    + Div<Output = Self>
+pub trait Num:
+    Copy + Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Div<Output = Self> + PartialEq
 {
     fn zero() -> Self;
     fn one() -> Self;
     fn new(x: i64) -> Self;
-    fn from_u64(x: u64) -> Self;
     fn from_f64(x: f64) -> Self;
     fn from_f32(x: f32) -> Self;
     fn abs(self) -> Self;
@@ -46,7 +30,6 @@ macro_rules! impl_signed_num {
         #[inline] fn zero() -> Self { 0 }
         #[inline] fn one() -> Self { 1 }
         #[inline] fn new(x: i64) -> Self { x as Self }
-        #[inline] fn from_u64(x: u64) -> Self { x as Self }
         #[inline] fn from_f64(x: f64) -> Self { x as Self }
         #[inline] fn from_f32(x: f32) -> Self { x as Self }
         #[inline] fn abs(self) -> Self { <$t>::abs(self) }
@@ -68,7 +51,6 @@ macro_rules! impl_unsigned_num {
         #[inline] fn zero() -> Self { 0 }
         #[inline] fn one() -> Self { 1 }
         #[inline] fn new(x: i64) -> Self { x as Self }
-        #[inline] fn from_u64(x: u64) -> Self { x as Self }
         #[inline] fn from_f64(x: f64) -> Self { x as Self }
         #[inline] fn from_f32(x: f32) -> Self { x as Self }
         #[inline] fn abs(self) -> Self { self }
@@ -90,7 +72,6 @@ macro_rules! impl_float_num {
         #[inline] fn zero() -> Self { 0.0 }
         #[inline] fn one() -> Self { 1.0 }
         #[inline] fn new(x: i64) -> Self { x as Self }
-        #[inline] fn from_u64(x: u64) -> Self { x as Self }
         #[inline] fn from_f64(x: f64) -> Self { x as Self }
         #[inline] fn from_f32(x: f32) -> Self { x as Self }
         #[inline] fn abs(self) -> Self { <$t>::abs(self) }
@@ -106,7 +87,8 @@ macro_rules! impl_float_num {
 }
 impl_float_num! { f32, f64 }
 
-pub trait Int: Num
+pub trait Int:
+    Num
     + Not<Output = Self>
     + BitAnd<Output = Self>
     + BitOr<Output = Self>
@@ -130,14 +112,45 @@ macro_rules! impl_int {
 }
 impl_int! { i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize }
 
-pub trait Real : Copy
-    + Add<Output = Self>
-    + Sub<Output = Self>
-    + Mul<Output = Self>
-    + Div<Output = Self>
-    + Neg<Output = Self>
-    + PartialEq
-{
+pub trait Float: Num + Default + Neg<Output = Self> {
+    fn from_float<T: Float>(x: T) -> Self;
+    fn to_f64(self) -> f64;
+    fn to_f32(self) -> f32;
+}
+
+impl Float for f32 {
+    fn from_float<T: Float>(x: T) -> Self {
+        x.to_f32()
+    }
+
+    fn to_f64(self) -> f64 {
+        self.into()
+    }
+
+    fn to_f32(self) -> f32 {
+        self
+    }
+}
+
+impl Float for f64 {
+    fn from_float<T: Float>(x: T) -> Self {
+        x.to_f64()
+    }
+
+    fn to_f64(self) -> f64 {
+        self
+    }
+
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+}
+
+pub fn convert<T: Float, U: Float>(x: T) -> U {
+    U::from_float(x)
+}
+
+pub trait Real: Num + Float {
     fn sqrt(self) -> Self;
     fn exp(self) -> Self;
     fn log(self) -> Self;
@@ -150,7 +163,7 @@ pub trait Real : Copy
 macro_rules! impl_real {
     ( $($t:ty),* ) => {
     $( impl Real for $t {
-        #[inline] fn sqrt(self) -> Self { self.sqrt() }    
+        #[inline] fn sqrt(self) -> Self { self.sqrt() }
         #[inline] fn exp(self) -> Self { self.exp() }
         #[inline] fn log(self) -> Self { self.ln() }
         #[inline] fn sin(self) -> Self { self.sin() }
@@ -162,8 +175,7 @@ macro_rules! impl_real {
 }
 impl_real! { f32, f64 }
 
-pub trait AsPrimitive<T: Copy>: Copy
-{
+pub trait AsPrimitive<T: Copy>: Copy {
     /// Convert a value using the as operator.
     fn as_(self) -> T;
 }
@@ -201,17 +213,6 @@ impl_as_primitive!(f32 => { f32, f64 });
 impl_as_primitive!(f64 => { f32, f64 });
 impl_as_primitive!(char => { char });
 impl_as_primitive!(bool => {});
-
-/// AudioFloat trait for audio processing.
-pub trait AudioFloat: Real + Num + Default + AsPrimitive<f48> + Into<f64> {}
-
-impl AudioFloat for f32 {}
-impl AudioFloat for f64 {}
-
-/// Converts from an f48.
-pub fn from_f48<F: Num>(x: f48) -> F { F::from_f32(x) }
-/// Converts into an f48.
-pub fn into_f48<F: AsPrimitive<f48>>(x: F) -> f48 { x.as_() }
 
 pub mod audiocomponent;
 pub mod audiounit;

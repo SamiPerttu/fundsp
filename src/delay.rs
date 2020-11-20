@@ -1,43 +1,57 @@
-use super::*;
 use super::audiocomponent::*;
 use super::math::*;
+use super::*;
 use numeric_array::typenum::*;
 
 /// Fixed delay.
 #[derive(Clone)]
-pub struct DelayComponent {
-    buffer: Vec<f48>,
+pub struct DelayNode<T: Float> {
+    buffer: Vec<T>,
     i: usize,
-    delay: f48,
+    delay_time: f64,
 }
 
-impl DelayComponent {
-    pub fn new(delay: f48, sample_rate: f64) -> DelayComponent {
-        let mut ac = DelayComponent { buffer: vec!(), i: 0, delay };
+impl<T: Float> DelayNode<T> {
+    pub fn new(delay_time: f64, sample_rate: f64) -> DelayNode<T> {
+        let mut ac = DelayNode {
+            buffer: vec![],
+            i: 0,
+            delay_time,
+        };
         ac.reset(Some(sample_rate));
         ac
     }
 }
 
-impl AudioComponent for DelayComponent {
+impl<T: Float> AudioNode for DelayNode<T> {
+    type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    
-    #[inline] fn reset(&mut self, sample_rate: Option<f64>) {
+
+    #[inline]
+    fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
-            let buffer_length = ceil(self.delay as f64 * sample_rate);
-            self.buffer.resize(max(1, buffer_length as usize), 0.0);
+            let buffer_length = ceil(self.delay_time * sample_rate);
+            self.buffer
+                .resize(max(1, buffer_length as usize), T::zero());
         }
         self.i = 0;
-        for x in self.buffer.iter_mut() { *x = 0.0; }
+        for x in self.buffer.iter_mut() {
+            *x = T::zero();
+        }
     }
 
-    #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs>
-    {
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
         let output = self.buffer[self.i];
         self.buffer[self.i] = input[0];
         self.i += 1;
-        if self.i >= self.buffer.len() { self.i = 0; }
+        if self.i >= self.buffer.len() {
+            self.i = 0;
+        }
         [output].into()
     }
 }

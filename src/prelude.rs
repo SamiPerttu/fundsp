@@ -1,11 +1,11 @@
-pub use super::*;
-pub use super::math::*;
 pub use super::audiocomponent::*;
 pub use super::combinator::*;
+pub use super::math::*;
+pub use super::*;
 
 use super::delay::*;
-use super::filter::*;
 use super::envelope::*;
+use super::filter::*;
 use super::noise::*;
 use super::oscillator::*;
 
@@ -35,144 +35,204 @@ pub type U19 = numeric_array::typenum::U19;
 pub type U20 = numeric_array::typenum::U20;
 
 /// Constant component. Synonymous with dc.
-pub fn constant<X: ConstantFrame>(x: X) -> Ac<ConstantComponent<X::Size>> {
-    Ac(ConstantComponent::new(x.convert()))
+pub fn constant<X: ConstantFrame<Sample = f64>>(x: X) -> An<ConstantNode<f64, X::Size>>
+where
+    X::Size: Size<f64>,
+{
+    An(ConstantNode::new(x.convert()))
 }
 
 /// Constant component. Synonymous with constant.
 /// DC stands for "direct current", which is an electrical engineering term used with signals.
-pub fn dc<X: ConstantFrame>(x: X) -> Ac<ConstantComponent<X::Size>> {
-    Ac(ConstantComponent::new(x.convert()))
+pub fn dc<X: ConstantFrame<Sample = f64>>(x: X) -> An<ConstantNode<f64, X::Size>>
+where
+    X::Size: Size<f64>,
+{
+    An(ConstantNode::new(x.convert()))
 }
 
 /// Zero generator.
-#[inline] pub fn zero() -> Ac<ConstantComponent<U1>> { constant(0.0) }
+#[inline]
+pub fn zero() -> An<ConstantNode<f64, U1>> {
+    constant(0.0)
+}
 
 /// Mono pass-through component.
-#[inline] pub fn pass() -> Ac<PassComponent<U1>> { Ac(PassComponent::new()) }
+#[inline]
+pub fn pass() -> An<PassNode<f64, U1>> {
+    An(PassNode::new())
+}
 
 /// Mono sink.
-#[inline] pub fn sink() -> Ac<SinkComponent<U1>> { Ac(SinkComponent::new()) }
+#[inline]
+pub fn sink() -> An<SinkNode<f64, U1>> {
+    An(SinkNode::new())
+}
 
 /// Sine oscillator with frequency input.
-#[inline] pub fn sine() -> Ac<SineComponent> { Ac(SineComponent::new()) }
+#[inline]
+pub fn sine() -> An<SineComponent<f64>> {
+    An(SineComponent::new())
+}
 
 /// Fixed sine oscillator at f Hz.
-#[inline] pub fn sine_hz(f: f48) -> Ac<impl AudioComponent<Inputs = U0, Outputs = U1>> {
+#[inline]
+pub fn sine_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
     constant(f) >> sine()
 }
 
 /// Adds a constant to the input.
-#[inline] pub fn add<X: ConstantFrame>(x: X) -> Ac<BinopComponent<PassComponent::<X::Size>, ConstantComponent::<X::Size>, FrameAdd<X::Size>>> where
-  X::Size: Size + Add<U0>,
-  <X::Size as Add<U0>>::Output: Size
+#[inline]
+pub fn add<X: ConstantFrame<Sample = f64>>(
+    x: X,
+) -> An<BinopNode<f64, PassNode<f64, X::Size>, ConstantNode<f64, X::Size>, FrameAdd<f64, X::Size>>>
+where
+    X::Size: Size<f64> + Add<U0>,
+    <X::Size as Add<U0>>::Output: Size<f64>,
 {
-    Ac(PassComponent::<X::Size>::new()) + dc(x)
+    An(PassNode::<f64, X::Size>::new()) + dc(x)
 }
 
 /// Subtracts a constant from the input.
-#[inline] pub fn sub<X: ConstantFrame>(x: X) -> Ac<BinopComponent<PassComponent::<X::Size>, ConstantComponent::<X::Size>, FrameSub<X::Size>>> where
-  X::Size: Size + Add<U0>,
-  <X::Size as Add<U0>>::Output: Size
+#[inline]
+pub fn sub<X: ConstantFrame<Sample = f64>>(
+    x: X,
+) -> An<BinopNode<f64, PassNode<f64, X::Size>, ConstantNode<f64, X::Size>, FrameSub<f64, X::Size>>>
+where
+    X::Size: Size<f64> + Add<U0>,
+    <X::Size as Add<U0>>::Output: Size<f64>,
 {
-    Ac(PassComponent::<X::Size>::new()) - dc(x)
+    An(PassNode::<f64, X::Size>::new()) - dc(x)
 }
 
 /// Multiplies the input with a constant.
-#[inline] pub fn mul<X: ConstantFrame>(x: X) -> Ac<BinopComponent<PassComponent::<X::Size>, ConstantComponent::<X::Size>, FrameMul<X::Size>>> where
-  X::Size: Size + Add<U0>,
-  <X::Size as Add<U0>>::Output: Size
+#[inline]
+pub fn mul<X: ConstantFrame<Sample = f64>>(
+    x: X,
+) -> An<BinopNode<f64, PassNode<f64, X::Size>, ConstantNode<f64, X::Size>, FrameMul<f64, X::Size>>>
+where
+    X::Size: Size<f64> + Add<U0>,
+    <X::Size as Add<U0>>::Output: Size<f64>,
 {
-    Ac(PassComponent::<X::Size>::new()) * dc(x)
+    An(PassNode::<f64, X::Size>::new()) * dc(x)
 }
 
 /// Butterworth lowpass filter. Inputs are signal and cutoff frequency (Hz).
-#[inline] pub fn lowpass() -> Ac<ButterLowpass<f64>> {
-    Ac(ButterLowpass::new(DEFAULT_SR))
+#[inline]
+pub fn lowpass() -> An<ButterLowpass<f64, f64>> {
+    An(ButterLowpass::new(DEFAULT_SR))
 }
 
 /// Butterworth lowpass filter with fixed cutoff frequency.
-#[inline] pub fn lowpass_hz(cutoff: f48) -> Ac<impl AudioComponent<Inputs = U1, Outputs = U1>> {
+#[inline]
+pub fn lowpass_hz(cutoff: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
     (pass() | constant(cutoff)) >> lowpass()
 }
 
 /// One-pole lowpass filter. Inputs are signal and cutoff frequency (Hz).
-#[inline] pub fn lowpole() -> Ac<OnePoleLowpass<f48>> {
-    Ac(OnePoleLowpass::new(DEFAULT_SR))
+#[inline]
+pub fn lowpole() -> An<OnePoleLowpass<f64, f64>> {
+    An(OnePoleLowpass::new(DEFAULT_SR))
 }
 
 /// One-pole lowpass filter with fixed cutoff frequency.
-#[inline] pub fn lowpole_hz(cutoff: f48) -> Ac<impl AudioComponent<Inputs = U1, Outputs = U1>> {
+#[inline]
+pub fn lowpole_hz(cutoff: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
     (pass() | constant(cutoff)) >> lowpole()
 }
 
 /// Constant-gain bandpass resonator. Inputs are signal, cutoff frequency (Hz) and bandwidth (Hz).
-#[inline] pub fn resonator() -> Ac<Resonator<f64>> {
-    Ac(Resonator::new(DEFAULT_SR))
+#[inline]
+pub fn resonator() -> An<Resonator<f64, f64>> {
+    An(Resonator::new(DEFAULT_SR))
 }
 
 /// Constant-gain bandpass resonator with a fixed cutoff frequency and bandwidth.
-#[inline] pub fn resonator_hz(cutoff: f48, bandwidth: f48) -> Ac<impl AudioComponent<Inputs = U1, Outputs = U1>> {
+#[inline]
+pub fn resonator_hz(
+    cutoff: f64,
+    bandwidth: f64,
+) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
     (pass() | constant((cutoff, bandwidth))) >> resonator()
 }
 
 /// Control envelope from a time-varying function.
 /// The output is linearly interpolated from samples at 2 ms intervals.
 /// Synonymous with lfo.
-pub fn envelope(f: impl Fn(f48) -> f48 + Clone) -> Ac<impl AudioComponent<Inputs = U0, Outputs = U1>> {
+pub fn envelope(
+    f: impl Fn(f64) -> f64 + Clone,
+) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
     // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
     // Therefore, sampling at 500 Hz means these signals are fairly well represented.
     // While we represent time in double precision internally, it is often okay to use single precision
     // in envelopes, as local component time typically does not get far from origin.
-    Ac(EnvelopeComponent::new(0.002, DEFAULT_SR, f))
+    An(EnvelopeNode::new(0.002, DEFAULT_SR, f))
 }
 
 /// Control signal from a time-varying function.
 /// The output is linearly interpolated from samples at 2 ms intervals.
 /// Synonymous with envelope.
-pub fn lfo(f: impl Fn(f48) -> f48 + Clone) -> Ac<impl AudioComponent<Inputs = U0, Outputs = U1>> {
-    Ac(EnvelopeComponent::new(0.002, DEFAULT_SR, f))
+pub fn lfo(
+    f: impl Fn(f64) -> f64 + Clone,
+) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+    An(EnvelopeNode::new(0.002, DEFAULT_SR, f))
 }
 
 /// MLS noise generator.
-pub fn mls() -> Ac<MlsNoise> { Ac(MlsNoise::new_default()) }
+pub fn mls() -> An<MlsNoise<f64>> {
+    An(MlsNoise::new_default())
+}
 
 /// MLS noise generator from an n-bit MLS sequence.
-pub fn mls_bits(n: u32) -> Ac<MlsNoise> { Ac(MlsNoise::new(Mls::new(n))) }
+pub fn mls_bits(n: u32) -> An<MlsNoise<f64>> {
+    An(MlsNoise::new(Mls::new(n)))
+}
 
 /// White noise generator. Synonymous with white().
-pub fn noise() -> Ac<NoiseComponent> { Ac(NoiseComponent::new()) }
+pub fn noise() -> An<NoiseNode<f64>> {
+    An(NoiseNode::new())
+}
 
 /// White noise generator. Synonymous with noise().
-pub fn white() -> Ac<NoiseComponent> { Ac(NoiseComponent::new()) }
+pub fn white() -> An<NoiseNode<f64>> {
+    An(NoiseNode::new())
+}
 
 /// Single sample delay.
-pub fn tick() -> Ac<TickComponent<U1>> { Ac(TickComponent::new(DEFAULT_SR)) }
+pub fn tick() -> An<TickNode<f64, U1>> {
+    An(TickNode::new(DEFAULT_SR))
+}
 
 /// Fixed delay of t seconds.
-pub fn delay(t: f48) -> Ac<DelayComponent> { Ac(DelayComponent::new(t, DEFAULT_SR)) }
+pub fn delay(t: f64) -> An<DelayNode<f64>> {
+    An(DelayNode::new(t, DEFAULT_SR))
+}
 
 /// Feedback component.
 /// Enclosed feedback circuit x must have an equal number of inputs and outputs.
 // TODO. Should we somehow take into account the extra sample of delay induced by the feedback component.
-pub fn feedback<X, S>(x: Ac<X>) -> Ac<FeedbackComponent<X, S>> where
-    X: AudioComponent<Inputs = S, Outputs = S>,
-    X::Inputs: Size,
-    X::Outputs: Size,
-    S: Size,
-    { Ac(FeedbackComponent::new(x.0)) }
+pub fn feedback<X, N>(x: An<X>) -> An<FeedbackNode<f64, X, N>>
+where
+    X: AudioNode<Sample = f64, Inputs = N, Outputs = N>,
+    X::Inputs: Size<f64>,
+    X::Outputs: Size<f64>,
+    N: Size<f64>,
+{
+    An(FeedbackNode::new(x.0))
+}
 
 /// Transform channels freely
 ///
 /// # Example
 /// ```
 /// # use fundsp::prelude::*;
-/// let my_sum = map(|i: &Frame<U2>| Frame::<U1>::splat(i[0] + i[1]));
+/// let my_sum = map(|i: &Frame<f64, U2>| Frame::<f64, U1>::splat(i[0] + i[1]));
 /// ```
-pub fn map<F, I, O>(f: F) -> Map<F, I, O>
-where F: Clone + FnMut(&Frame<I>) -> Frame<O>,
-      I: Size,
-      O: Size,
+pub fn map<F, I, O>(f: F) -> Map<f64, F, I, O>
+where
+    F: Clone + FnMut(&Frame<f64, I>) -> Frame<f64, O>,
+    I: Size<f64>,
+    O: Size<f64>,
 {
     Map::new(f)
 }

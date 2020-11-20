@@ -1,14 +1,13 @@
-use super::*;
 use super::audiocomponent::*;
-use numeric_array::*;
+use super::*;
 use generic_array::sequence::*;
+use numeric_array::*;
 
 /// AudioUnit processes audio data block by block at a synchronous rate.
 /// Once constructed, it has a fixed number of inputs and outputs that can be queried.
 /// If not set otherwise, the sample rate is presumed the system default DEFAULT_SR.
 pub trait AudioUnit {
-
-    /// Resets the input state of the unit to an initial state where it has not processed any data. 
+    /// Resets the input state of the unit to an initial state where it has not processed any data.
     /// In other words, resets time to zero.
     fn reset(&mut self, _sample_rate: Option<f64>) {}
 
@@ -17,7 +16,7 @@ pub trait AudioUnit {
     /// The caller decides the length of the block.
     /// Using the same length for many consecutive calls is presumed to be efficient.
     /// The number of input and output buffers must correspond to inputs() and outputs(), respectively.
-    fn process(&mut self, input: &[&[f48]], output: &mut [&mut[f48]]);
+    fn process(&mut self, input: &[&[f32]], output: &mut [&mut [f32]]);
 
     /// Number of inputs to this unit. Size of the input argument in compute().
     /// This should be fixed after construction.
@@ -33,31 +32,48 @@ pub trait AudioUnit {
     /// The latency can depend on the sample rate and is allowed to change after a reset.
     fn latency(&self) -> Option<f64> {
         // Default latency is zero.
-        if self.inputs() > 0 && self.outputs() > 0 { Some(0.0) } else { None }
+        if self.inputs() > 0 && self.outputs() > 0 {
+            Some(0.0)
+        } else {
+            None
+        }
     }
 }
 
-/// Adapts an AudioComponent into an AudioUnit.
-pub struct AcUnit<X: AudioComponent>(pub X);
+/// Adapts an AudioNode into an AudioUnit.
+pub struct AnUnit<X: AudioNode>(pub X);
 
-impl<X: AudioComponent> AudioUnit for AcUnit<X> {
-    fn reset(&mut self, sample_rate: Option<f64>) { self.0.reset(sample_rate); }
-    fn process(&mut self, input: &[&[f48]], output: &mut [&mut[f48]])
-    {
+impl<X: AudioNode> AudioUnit for AnUnit<X> {
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.0.reset(sample_rate);
+    }
+    fn process(&mut self, input: &[&[f32]], output: &mut [&mut [f32]]) {
         assert!(input.len() == self.inputs());
         assert!(output.len() == self.outputs());
         // Assume we have at least one input or output.
-        let buffer_size = if input.len() > 0 { input[0].len() } else { output[0].len() };
+        let buffer_size = if input.len() > 0 {
+            input[0].len()
+        } else {
+            output[0].len()
+        };
         assert!(input.iter().all(|x| x.len() == buffer_size));
         assert!(output.iter().all(|x| x.len() == buffer_size));
-        for i in 0 .. buffer_size {
-            let result = self.0.tick(&NumericArray::generate( |j| from_f48(input[j][i]) ));
+        for i in 0..buffer_size {
+            let result = self
+                .0
+                .tick(&NumericArray::generate(|j| convert(input[j][i])));
             for (j, &x) in result.iter().enumerate() {
-                output[j][i] = into_f48(x);
+                output[j][i] = convert(x);
             }
         }
     }
-    fn inputs(&self) -> usize { self.0.inputs() }
-    fn outputs(&self) -> usize { self.0.outputs() }
-    fn latency(&self) -> Option<f64> { self.0.latency() }
+    fn inputs(&self) -> usize {
+        self.0.inputs()
+    }
+    fn outputs(&self) -> usize {
+        self.0.outputs()
+    }
+    fn latency(&self) -> Option<f64> {
+        self.0.latency()
+    }
 }

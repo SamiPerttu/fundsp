@@ -6,13 +6,12 @@ pub use fundsp::prelude::*;
 // Declaring the full arity in the signature enables use of the component
 // in further combinations, as does the full type name.
 // Signatures with generic number of channels can be challenging to write.
-fn split_quad() -> Ac<impl AudioComponent<Inputs = U1, Outputs = U4>> {
+fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
     pass() ^ pass() ^ pass() ^ pass()
 }
 
 #[test]
 fn test() {
-
     // Constants.
     let mut d = constant(1.0);
     assert!(d.inputs() == 0 && d.outputs() == 1);
@@ -34,12 +33,14 @@ fn test() {
     assert!(f.inputs() == 0 && f.outputs() == 1);
     assert!(f.get_mono() == 6.5);
 
-    fn inouts<X: AudioComponent>(x: Ac<X>) -> (usize, usize) { (x.inputs(), x.outputs()) }
+    fn inouts<X: AudioNode>(x: An<X>) -> (usize, usize) {
+        (x.inputs(), x.outputs())
+    }
 
     // No-ops with sinks.
-    assert_eq!(inouts(--sink()-42.0^sink()&---sink()*3.14), (1, 0));
+    assert_eq!(inouts(--sink() - 42.0 ^ sink() & ---sink() * 3.14), (1, 0));
 
-    // These were onverted from docs using search: ^[|] .(.*)[`].*[|] +([\d-]).+(\d-) +[|](.*)[|].*$
+    // These were converted from docs using search: ^[|] .(.*)[`].*[|] +([\d-]).+(\d-) +[|](.*)[|].*$
     // Replace with: assert_eq!(inouts($1), ($2, $3)); //$4
     assert_eq!(inouts(pass() ^ pass()), (1, 2)); // mono-to-stereo splitter
     assert_eq!(inouts(mul(0.5) + mul(0.5)), (2, 1)); // stereo-to-mono mixdown (inverse of mono-to-stereo splitter)
@@ -62,5 +63,5 @@ fn test() {
     assert_eq!(inouts((pass() ^ mul(2.0)) >> sine() + sine()), (1, 1)); // frequency doubled dual sine oscillator
     assert_eq!(inouts(sine() & mul(2.0) >> sine()), (1, 1)); // frequency doubled dual sine oscillator
     assert_eq!(inouts(envelope(|t| exp(-t)) * noise()), (0, 1)); // exponentially decaying white noise
-    assert_eq!(inouts(!feedback(delay(0.5) * 0.5)), (1, 1)); // feedback delay of 0.5 seconds
+    assert_eq!(inouts(feedback(delay(0.5) * 0.5)), (1, 1)); // feedback delay of 0.5 seconds
 }

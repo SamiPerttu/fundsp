@@ -1,33 +1,46 @@
-use super::*;
 use super::audiocomponent::*;
-use numeric_array::*;
 use super::math::*;
+use super::*;
+use numeric_array::*;
+use std::marker::PhantomData;
 
 /// Sine oscillator.
 #[derive(Clone)]
-pub struct SineComponent {
+pub struct SineComponent<T: Float> {
+    _marker: PhantomData<T>,
     phase: f64,
     sample_duration: f64,
 }
 
-impl SineComponent {
-    pub fn new() -> SineComponent { SineComponent { phase: 0.0, sample_duration: 1.0 / DEFAULT_SR } }
+impl<T: Float> SineComponent<T> {
+    pub fn new() -> SineComponent<T> {
+        SineComponent {
+            _marker: PhantomData,
+            phase: 0.0,
+            sample_duration: 1.0 / DEFAULT_SR,
+        }
+    }
 }
 
-impl AudioComponent for SineComponent {
+impl<T: Float> AudioNode for SineComponent<T> {
+    type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
 
-    fn reset(&mut self, sample_rate: Option<f64>)
-    {
+    fn reset(&mut self, sample_rate: Option<f64>) {
         self.phase = 0.0;
-        if let Some(sr) = sample_rate { self.sample_duration = 1.0 / sr };
+        if let Some(sr) = sample_rate {
+            self.sample_duration = 1.0 / sr
+        };
     }
 
-    #[inline] fn tick(&mut self, input: &Frame<Self::Inputs>) -> Frame<Self::Outputs>
-    {
-        let frequency = input[0] as f64;
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let frequency = input[0].to_f64();
         self.phase += frequency * self.sample_duration;
-        [into_f48(sin(self.phase * TAU))].into()
+        [convert(sin(self.phase * TAU))].into()
     }
 }

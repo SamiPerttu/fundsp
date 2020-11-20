@@ -24,15 +24,15 @@ Both systems operate on audio signals synchronously as an infinite stream.
 
 ---
 
-| Trait            | Dispatch             | Allocation      | Operation        | Connectivity |
-| ---------------- | -------------------- | --------------- | ---------------- | ------------ |
-| `AudioNode`      | static, inlined      | stack           | sample by sample | input and output arity fixed at compile time |
-| `AudioUnit`      | dynamic, object safe | heap            | block by block   | input and output arity fixed after construction |
+| Trait            | Sample Type | Dispatch             | Allocation Strategy | Operation    | Connectivity |
+| ---------------- | ----------- | -------------------- | --------------- | ---------------- | ------------ |
+| `AudioNode`      | generic     | static, inlined      | stack           | sample by sample | input and output arity fixed at compile time |
+| `AudioUnit`      | `f32`       | dynamic, object safe | heap            | block by block   | input and output arity fixed after construction |
 
 ---
 
 The lower level `AudioNode`s can be lifted
-to block processing mode with the object safe `AudioUnit` interface via the `AcUnit<X: AudioNode>` wrapper.
+to block processing mode with the object safe `AudioUnit` interface via the `AnUnit<X: AudioNode>` wrapper.
 Block processing aims to maximize efficiency in dynamic situations.
 
 `AudioNode`s can be stack allocated for the most part.
@@ -51,7 +51,7 @@ In both systems, a component `A` can be reinitialized with a new sample rate: `A
 ## Audio Processing Environment
 
 The `fundsp` prelude defines a convenient combinator environment for audio processing.
-It operates on `AudioNode`s via the wrapper type `Ac<X: AudioNode>`.
+It operates on `AudioNode`s via the wrapper type `An<X: AudioNode>`.
 
 Data buffers and samples are single precision in the environment.
 The default form for components aims to ensure there is enough precision available.

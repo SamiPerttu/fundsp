@@ -4,7 +4,6 @@ use num_complex::Complex64;
 /// which are characterized by their (complex) frequency response.
 /// This characterization applies to linear FIR and IIR filters with fixed parameters.
 pub trait Lti {
-
     /// Evaluates frequency response at frequency omega.
     /// Omega is expressed as a fraction of the sample rate (0 <= omega <= 1/2).
     fn response(&self, omega: f64) -> Complex64;
