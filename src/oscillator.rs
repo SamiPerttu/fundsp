@@ -10,6 +10,7 @@ pub struct SineComponent<T: Float> {
     _marker: PhantomData<T>,
     phase: f64,
     sample_duration: f64,
+    hash: u32,
 }
 
 impl<T: Float> SineComponent<T> {
@@ -18,6 +19,7 @@ impl<T: Float> SineComponent<T> {
             _marker: PhantomData,
             phase: 0.0,
             sample_duration: 1.0 / DEFAULT_SR,
+            hash: 0,
         }
     }
 }
@@ -28,8 +30,7 @@ impl<T: Float> AudioNode for SineComponent<T> {
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
-        // This basic sine component rewinds to zero phase always. TODO: Is this the right policy?
-        self.phase = 0.0;
+        self.phase = rnd(self.hash as u64);
         if let Some(sr) = sample_rate {
             self.sample_duration = 1.0 / sr
         };
@@ -47,6 +48,7 @@ impl<T: Float> AudioNode for SineComponent<T> {
 
     #[inline]
     fn ping(&mut self, hash: u32) -> u32 {
-        hashw(0x016 ^ hash)
+        self.hash = hashw(0x016 ^ hash);
+        self.hash
     }
 }

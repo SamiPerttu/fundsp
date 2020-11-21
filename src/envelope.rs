@@ -1,5 +1,5 @@
 use super::audionode::*;
-use super::math::{delerp, hashw, lerp};
+use super::math::*;
 use super::*;
 use numeric_array::*;
 
@@ -10,6 +10,7 @@ pub struct EnvelopeNode<T: Float, F: Fn(f64) -> f64 + Clone> {
     t: f64,
     t_0: f64,
     t_1: f64,
+    t_hash: u32,
     value_0: T,
     value_1: T,
     interval: f64,
@@ -25,6 +26,7 @@ impl<T: Float, F: Fn(f64) -> f64 + Clone> EnvelopeNode<T, F> {
             t: 0.0,
             t_0: 0.0,
             t_1: 0.0,
+            t_hash: 0,
             value_0: T::zero(),
             value_1: T::zero(),
             interval,
@@ -44,9 +46,10 @@ impl<T: Float, F: Fn(f64) -> f64 + Clone> AudioNode for EnvelopeNode<T, F> {
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.t = 0.0;
         self.t_0 = 0.0;
-        self.t_1 = self.interval;
+        self.t_1 = 0.0;
+        self.t_hash = self.hash;
         self.value_0 = T::from_f64((self.envelope)(self.t_0));
-        self.value_1 = T::from_f64((self.envelope)(self.t_1));
+        self.value_1 = T::zero();
         if let Some(sr) = sample_rate {
             self.sample_duration = 1.0 / sr
         };
@@ -58,11 +61,12 @@ impl<T: Float, F: Fn(f64) -> f64 + Clone> AudioNode for EnvelopeNode<T, F> {
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         if self.t >= self.t_1 {
-            // TODO: Implement jitter.
             self.t_0 = self.t_1;
             self.value_0 = self.value_1;
-            self.t_1 = self.t_0 + self.interval;
+            // Jitter the next sample point.
+            self.t_1 = self.t_0 + self.interval * lerp(0.75, 1.25, rnd(self.t_hash as u64));
             self.value_1 = T::from_f64((self.envelope)(self.t_1));
+            self.t_hash = hashw(self.t_hash);
         }
         let value = lerp(
             self.value_0,
