@@ -332,5 +332,5 @@ pub fn rnd(x: u64) -> f64 {
     let x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
     let x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
     let x = x ^ (x >> 31);
-    (x >> 11) as f64 / (1 << 53) as f64
+    (x >> 11) as f64 / (1u64 << 53) as f64
 }
