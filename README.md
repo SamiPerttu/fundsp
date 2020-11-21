@@ -364,8 +364,8 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `feedback(delay(1.0) * db_gain(-3.0))`   |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 | `sine() & mul(semitone(4.0)) >> sine() & mul(semitone(7.0)) >> sine()` | 1 | 1 | major chord |
 | `dc(midi_hz(69)) >> sine() & dc(midi_hz(73)) >> sine() & dc(midi_hz(76)) >> sine()` | 0 | 1 | A major chord generator |
-| `!zero()`                                |   0    |    0    | A null unit. Stacking it with a graph modifies its sound subtly, as the hash is altered. |
-| `!-!!!--!!!-!!--!zero()`                 |   0    |    0    | Hot-rodded null unit outfitted with a custom hash. Uses more electricity. |
+| `!zero()`                                |   0    |    0    | A null node. Stacking it with another node modifies its sound subtly, as the hash is altered. |
+| `!-!!!--!!!-!!--!zero()`                 |   0    |    0    | Hot-rodded null node outfitted with a custom hash. Uses more electricity. |
 
 ---
 
