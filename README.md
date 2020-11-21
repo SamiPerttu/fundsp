@@ -41,7 +41,7 @@ sine_hz(f) * f * m + f >> sine()
 
 The above expression defines an audio graph that is
 compiled into a stack allocated, inlined form using
-the powerful generic abstractions built into the Rust language.
+the powerful generic abstractions built into [Rust](https://www.rust-lang.org/).
 Connectivity errors are detected at compile time, saving
 development time.
 
@@ -49,7 +49,7 @@ The power of FunDSP provides complex synthesis and filtering
 capabilities to games and applications using one-liners.
 
 With no macros needed, the FunDSP Composable Graph Notation
-integrates audio DSP tightly into the Rust programming language
+integrates audio DSP tightly into the [Rust programming language](https://www.rust-lang.org/)
 as a first-class citizen. Native Rust operator precedences
 work in harmony with the notation, minimizing 
 the number of parentheses needed.
