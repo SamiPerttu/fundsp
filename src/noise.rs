@@ -1,4 +1,5 @@
 use super::audionode::*;
+use super::math::*;
 use super::*;
 use numeric_array::*;
 
@@ -98,6 +99,7 @@ impl Mls {
 pub struct MlsNoise<T> {
     _marker: std::marker::PhantomData<T>,
     mls: Mls,
+    hash: u32,
 }
 
 impl<T: Float> MlsNoise<T> {
@@ -105,6 +107,7 @@ impl<T: Float> MlsNoise<T> {
         MlsNoise {
             _marker: std::marker::PhantomData,
             mls,
+            hash: 0,
         }
     }
     pub fn new_default() -> MlsNoise<T> {
@@ -118,7 +121,7 @@ impl<T: Float> AudioNode for MlsNoise<T> {
     type Outputs = typenum::U1;
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
-        self.mls = Mls::new(self.mls.n);
+        self.mls = Mls::new_with_seed(self.mls.n, self.hash);
     }
 
     #[inline]
@@ -130,6 +133,12 @@ impl<T: Float> AudioNode for MlsNoise<T> {
         self.mls = self.mls.next();
         [value * T::new(2) - T::new(1)].into()
     }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        self.hash = hashw(0x014 ^ hash);
+        hash
+    }
 }
 
 /// White noise component.
@@ -137,6 +146,7 @@ impl<T: Float> AudioNode for MlsNoise<T> {
 pub struct NoiseNode<T> {
     _marker: std::marker::PhantomData<T>,
     x: u64,
+    hash: u32,
 }
 
 impl<T: Float> NoiseNode<T> {
@@ -144,6 +154,7 @@ impl<T: Float> NoiseNode<T> {
         NoiseNode {
             _marker: std::marker::PhantomData,
             x: 0,
+            hash: 0,
         }
     }
 }
@@ -154,7 +165,7 @@ impl<T: Float> AudioNode for NoiseNode<T> {
     type Outputs = typenum::U1;
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
-        self.x = 0;
+        self.x = self.hash as u64;
     }
 
     #[inline]
@@ -166,11 +177,14 @@ impl<T: Float> AudioNode for NoiseNode<T> {
             .x
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
-        // Pick some number of most significant bits from the linear congruential generator.
-        let use_bits = 16;
-        // TODO: Fix DC to 0.
-        let value: T =
-            T::new((self.x >> (64 - use_bits)) as i64) / T::new(1 << (use_bits - 1)) - T::new(1);
+        // Pick 20 most significant bits from the linear congruential generator.
+        let value: T = T::new((self.x >> 44) as i64) / convert(524287.5) - T::new(1);
         [value].into()
+    }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        self.hash = hashw(0x015 ^ hash);
+        hash
     }
 }

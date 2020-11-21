@@ -42,8 +42,24 @@ pub fn exp<T: Real>(x: T) -> T {
     x.exp()
 }
 #[inline]
+pub fn exp2<T: Real>(x: T) -> T {
+    (x * T::from_f64(LN_2)).exp()
+}
+#[inline]
+pub fn exp10<T: Real>(x: T) -> T {
+    (x * T::from_f64(LN_10)).exp()
+}
+#[inline]
 pub fn log<T: Real>(x: T) -> T {
     x.log()
+}
+#[inline]
+pub fn log2<T: Real>(x: T) -> T {
+    x.log() / T::from_f64(LN_2)
+}
+#[inline]
+pub fn log10<T: Real>(x: T) -> T {
+    x.log() / T::from_f64(LN_10)
 }
 #[inline]
 pub fn sin<T: Real>(x: T) -> T {
@@ -72,6 +88,8 @@ pub const PI: f64 = std::f64::consts::PI;
 pub const TAU: f64 = std::f64::consts::TAU;
 /// log(2)
 pub const LN_2: f64 = std::f64::consts::LN_2;
+/// log(10)
+pub const LN_10: f64 = std::f64::consts::LN_10;
 
 /// Clamps x between x0 and x1.
 #[inline]
@@ -148,7 +166,7 @@ pub fn dexerp<T: Num + Real>(a: T, b: T, x: T) -> T {
 /// Returns a gain amount from a decibel argument.
 #[inline]
 pub fn db_gain<T: Num + Real>(db: T) -> T {
-    exp(log(T::new(10)) * db / T::new(20))
+    exp10(db / T::new(20))
 }
 
 /// M-weighted noise response function. Returns human ear amplitude response at f Hz.
@@ -262,7 +280,7 @@ pub fn arcdown<T: Real + Num>(x: T) -> T {
 
 /// Wave function stitched together from two symmetric pieces peaking at origin.
 #[inline]
-pub fn wave<T: Num, F: Fn(T) -> T>(f: F, x: T) -> T {
+pub fn easewave<T: Num, F: Fn(T) -> T>(f: F, x: T) -> T {
     let u = (x - T::from_f64(PI)) / T::from_f64(4.0 * PI);
     let u = (u - u.floor()) * T::new(2);
     let w0 = u.min(T::one());
@@ -270,44 +288,39 @@ pub fn wave<T: Num, F: Fn(T) -> T>(f: F, x: T) -> T {
     T::one() - (f(w0) - f(w1)) * T::new(2)
 }
 
-/// Wave function with smooth3 interpolation.
-#[inline]
-pub fn wave3<T: Num>(x: T) -> T {
-    wave(smooth3, x)
-}
-
-/// Wave function with smooth5 interpolation.
-#[inline]
-pub fn wave5<T: Num>(x: T) -> T {
-    wave(smooth5, x)
-}
-
 /// Sine that oscillates at the specified beats per minute. Time is input in seconds.
 #[inline]
 pub fn sin_bpm<T: Num + Real>(bpm: T, t: T) -> T {
-    sin(t * bpm * convert(TAU / 60.0))
+    sin(t * bpm * T::from_f64(TAU / 60.0))
 }
 
 /// Cosine that oscillates at the specified beats per minute. Time is input in seconds.
 #[inline]
 pub fn cos_bpm<T: Num + Real>(bpm: T, t: T) -> T {
-    cos(t * bpm * convert(TAU / 60.0))
+    cos(t * bpm * T::from_f64(TAU / 60.0))
 }
 
 /// Sine that oscillates at the specified frequency (Hz). Time is input in seconds.
 #[inline]
 pub fn sin_hz<T: Num + Real>(hz: T, t: T) -> T {
-    sin(t * hz * convert(TAU))
+    sin(t * hz * T::from_f64(TAU))
 }
 
 /// Cosine that oscillates at the specified frequency (Hz). Time is input in seconds.
 #[inline]
 pub fn cos_hz<T: Num + Real>(hz: T, t: T) -> T {
-    cos(t * hz * convert(TAU))
+    cos(t * hz * T::from_f64(TAU))
 }
 
 /// Converts from semitone interval to frequency ratio.
 #[inline]
-pub fn interval<T: Num + Real>(x: T) -> T {
-    exp(x * convert(LN_2 / 12.0))
+pub fn semitone<T: Num + Real>(x: T) -> T {
+    exp2(x / T::from_f64(12.0))
+}
+
+/// 32-bit hash by Chris Wellon, used for pinging.
+pub const fn hashw(x: u32) -> u32 {
+    let x = (x ^ (x >> 16)).wrapping_mul(0x7feb352d);
+    let x = (x ^ (x >> 15)).wrapping_mul(0x846ca68b);
+    x ^ (x >> 16)
 }

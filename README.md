@@ -45,6 +45,9 @@ Of the signals flowing in graphs, some contain audio while others are controls o
 With control signals and parameters in general, we prefer to use natural units like Hz and seconds.
 It is useful to keep parameters independent of the sample rate, which we can then adjust as we like.
 
+In addition to sample rate adjustments, natural units enable support for
+selective oversampling in nested sections that are easy to configure and modify.
+
 In both systems, a component `A` can be reinitialized with a new sample rate: `A.reset(Some(sr))`.
 
 
@@ -53,18 +56,20 @@ In both systems, a component `A` can be reinitialized with a new sample rate: `A
 The `fundsp` prelude defines a convenient combinator environment for audio processing.
 It operates on `AudioNode`s via the wrapper type `An<X: AudioNode>`.
 
-Data buffers and samples are single precision in the environment.
-The default form for components aims to ensure there is enough precision available.
-Therefore, many employ double precision internally.
+Data buffers and samples are single precision in the environment,
+while processing takes place in double precision. Extra source compatible environments
+will be provided for different performance needs (to be implemented).
 
-The environment is designed to require minimal type annotations, so most interfaces are
-explicit with respect to floating point precision. Math functions are generic, however.
+The aims of the environment are:
 
-Representing time in single precision can run into issues in longer pieces: sample accuracy in timing
-is lost after around 4 minutes. This is usually not disastrous for control signals:
-therefore the default form for `lfo` and `envelope` is single precision to keep the interface as uniform as possible.
+- Minimize the number of characters needed to type to express an idiom.
+- Keep the syntax clean so that a subset of the environment
+  can be straightforwardly parsed as a high-level DSL for quick prototyping.
+- Make the syntax usable even to people with no prior exposure to programming.
+  Type annotations should not be needed, or if they are, they should be minimized.
 
-In the environment, generators are deterministic pseudorandom phase by default (to be implemented).
+In the environment, applicable generators are deterministic pseudorandom phase by default.
+
 
 
 ## Operators
@@ -91,7 +96,7 @@ In order of precedence, from highest to lowest:
 
 ---
 
-In the table, `constant` denotes an `f32` value.
+In the table, `constant` denotes an `f32` or `f64` value.
 
 All operators are associative, except the left associative `-`.
 
@@ -105,7 +110,7 @@ All operators are associative, except the left associative `-`.
 Arithmetic operators are applied to outputs channel-wise.
 Arithmetic between two components never broadcasts channels.
 
-Direct arithmetic with `f32` values, however, broadcasts to an arbitrary number of channels.
+Direct arithmetic with `f32` and `f64` values, however, broadcasts to an arbitrary number of channels.
 
 The negation operator broadcasts also: `-A` is equivalent with `(0.0 - A)`.
 
@@ -114,8 +119,10 @@ On the other hand, `A * 2.0` works with any `A`, even *sinks*.
 
 #### Fit
 
-The fit (`!`) operator is for chaining filters. It adjusts output arity to match input arity and
-passes through any missing outputs.
+The fit (`!`) operator is syntactic sugar for chaining filters with similar connectivity.
+
+It adjusts output arity to match input arity and passes through any missing outputs to the next node in the pipe.
+The missing outputs are parameters to the filter.
 
 For example, while `lowpass()` is a 2nd order lowpass filter, `!lowpass() >> lowpass()`
 is a steeper 4th order lowpass filter with identical connectivity.
@@ -278,17 +285,21 @@ These free functions are available in the environment.
 | `dissonance(f0, f1)`   | dissonance amount in 0...1 between pure tones at `f0` and `f1` Hz |
 | `dissonance_max(f)`    | maximally dissonant pure frequency above `f` Hz |
 | `exp(x)`               | exp |
+| `exp10(x)`             | 10 to the power of `x` |
+| `exp2(x)`              | 2 to the power of `x` |
 | `exq(x)`               | polynomial alternative to `exp` |
 | `floor(x)`             | floor function |
-| `interval(x)`          | convert interval `x` semitones to frequency ratio |
 | `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` |
 | `log(x)`               | natural logarithm |
+| `log10(x)`             | base 10 logarithm |
+| `log2(x)`              | binary logarithm |
 | `logistic(x)`          | logistic function |
 | `min(x, y)`            | minimum of `x` and `y` |
 | `max(x, y)`            | maximum of `x` and `y` |
 | `m_weight(f)`          | M-weighted noise response amplitude at `f` Hz |
 | `pow(x, y)`            | `x` raised to the power `y` |
 | `round(x)`             | rounds `x` to nearest integer |
+| `semitone(x)`          | convert interval `x` semitones to frequency ratio |
 | `signum(x)`            | sign of `x` |
 | `sin(x)`               | sin |
 | `sin_bpm(f, t)`        | sine that oscillates at `f` BPM at time `t` seconds |
@@ -387,10 +398,6 @@ MIT or Apache-2.0.
 - Investigate whether adding more checking at compile time is possible by introducing
   opt-in signal units/modalities for `AudioNode` inputs and outputs.
   So if the user sends a constant marked `Hz` to an audio input, then that would fail at compile time.
-- Location ping system: `ping(hash)` in `AudioNode`. 
-  Compute a pseudorandom hash value for every node enclosed that is dependent only on graph structure.
-  This will be used by many components: Noise components will use the hash as a seed so that each noise
-  source sounds different in a deterministic way. Envelope component will use the hash as a seed to jitter samples.
 - Examine and optimize performance.
 - Implement conversion of graph to diagram (normalize operators to associative form).
   Layout and display a graph as a diagram and show the signals flowing in it.
@@ -426,4 +433,3 @@ MIT or Apache-2.0.
 - `melody(f, string)`: melody generator.
 - `snoise(f, t)`: 1-D spline noise.
 - `enoise(ease, f, t)`, 1-D value noise interpolated with an easing function.
-- `lfo64` and `envelope64`: extra accurate control signals.

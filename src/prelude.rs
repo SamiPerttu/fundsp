@@ -210,7 +210,6 @@ pub fn delay(t: f64) -> An<DelayNode<f64>> {
 
 /// Feedback component.
 /// Enclosed feedback circuit x must have an equal number of inputs and outputs.
-// TODO. Should we somehow take into account the extra sample of delay induced by the feedback component.
 pub fn feedback<X, N>(x: An<X>) -> An<FeedbackNode<f64, X, N>>
 where
     X: AudioNode<Sample = f64, Inputs = N, Outputs = N>,

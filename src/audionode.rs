@@ -42,6 +42,10 @@ pub trait AudioNode: Clone {
         }
     }
 
+    /// Ping contained nodes to obtain a deterministic pseudorandom seed.
+    /// The local hash includes children, too.
+    fn ping(&mut self, hash: u32) -> u32;
+
     // End of interface. There is no need to override the following.
 
     /// Number of inputs.
@@ -143,6 +147,12 @@ impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         input.clone()
     }
+
+    #[inline]
+    // TODO: Find a clever way to do this automatically.
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x001 ^ hash)
+    }
 }
 
 /// SinkNode consumes its inputs.
@@ -171,6 +181,10 @@ impl<T: Float, N: Size<T>> AudioNode for SinkNode<T, N> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         Frame::default()
     }
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x002 ^ hash)
+    }
 }
 
 /// ConstantNode outputs a constant value.
@@ -196,6 +210,10 @@ impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.output.clone()
+    }
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x003 ^ hash)
     }
 }
 
@@ -319,12 +337,14 @@ where
     <X::Inputs as Add<Y::Inputs>>::Output: Size<T>,
 {
     pub fn new(x: X, y: Y, b: B) -> Self {
-        BinopNode {
+        let mut node = BinopNode {
             _marker: PhantomData,
             x,
             y,
             b,
-        }
+        };
+        node.ping(0x0001);
+        node
     }
 }
 
@@ -361,6 +381,12 @@ where
     fn latency(&self) -> Option<f64> {
         parallel_latency(self.x.latency(), self.y.latency())
     }
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        let hash = self.x.ping(hash);
+        let hash = self.y.ping(hash);
+        hashw(0x004 ^ hash)
+    }
 }
 
 /// UnopNode applies an unary operator to its inputs.
@@ -380,11 +406,13 @@ where
     X::Outputs: Size<T>,
 {
     pub fn new(x: X, u: U) -> Self {
-        UnopNode {
+        let mut node = UnopNode {
             _marker: PhantomData,
             x,
             u,
-        }
+        };
+        node.ping(0x0002);
+        node
     }
 }
 
@@ -412,6 +440,11 @@ where
     }
     fn latency(&self) -> Option<f64> {
         self.x.latency()
+    }
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        let hash = self.x.ping(hash);
+        hashw(0x005 ^ hash)
     }
 }
 
@@ -456,6 +489,10 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         (self.f)(input)
     }
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x007 ^ hash)
+    }
 }
 
 /// PipeNode pipes the output of X to Y.
@@ -476,11 +513,13 @@ where
     Y::Outputs: Size<T>,
 {
     pub fn new(x: X, y: Y) -> Self {
-        PipeNode {
+        let mut node = PipeNode {
             _marker: PhantomData,
             x,
             y,
-        }
+        };
+        node.ping(0x0003);
+        node
     }
 }
 
@@ -511,6 +550,12 @@ where
     fn latency(&self) -> Option<f64> {
         serial_latency(self.x.latency(), self.y.latency())
     }
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        let hash = self.x.ping(hash);
+        let hash = self.y.ping(hash);
+        hashw(0x008 ^ hash)
+    }
 }
 
 //// StackNode stacks X and Y in parallel.
@@ -534,11 +579,13 @@ where
     <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
 {
     pub fn new(x: X, y: Y) -> Self {
-        StackNode {
+        let mut node = StackNode {
             _marker: PhantomData,
             x,
             y,
-        }
+        };
+        node.ping(0x0004);
+        node
     }
 }
 
@@ -582,6 +629,12 @@ where
     fn latency(&self) -> Option<f64> {
         parallel_latency(self.x.latency(), self.y.latency())
     }
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        let hash = self.x.ping(hash);
+        let hash = self.y.ping(hash);
+        hashw(0x009 ^ hash)
+    }
 }
 
 /// BranchNode sends the same input to X and Y and concatenates the outputs.
@@ -603,11 +656,13 @@ where
     <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
 {
     pub fn new(x: X, y: Y) -> Self {
-        BranchNode {
+        let mut node = BranchNode {
             _marker: PhantomData,
             x,
             y,
-        }
+        };
+        node.ping(0x0005);
+        node
     }
 }
 
@@ -646,6 +701,12 @@ where
     }
     fn latency(&self) -> Option<f64> {
         parallel_latency(self.x.latency(), self.y.latency())
+    }
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        let hash = self.x.ping(hash);
+        let hash = self.y.ping(hash);
+        hashw(0x00A ^ hash)
     }
 }
 
@@ -690,6 +751,10 @@ impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
     fn latency(&self) -> Option<f64> {
         Some(1.0 / self.sample_rate)
     }
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x00B ^ hash)
+    }
 }
 
 /// BusNode mixes together a set of nodes sourcing from the same inputs.
@@ -711,11 +776,13 @@ where
     Y::Outputs: Size<T>,
 {
     pub fn new(x: X, y: Y) -> Self {
-        BusNode {
+        let mut node = BusNode {
             _marker: PhantomData,
             x,
             y,
-        }
+        };
+        node.ping(0x0006);
+        node
     }
 }
 
@@ -749,6 +816,12 @@ where
     fn latency(&self) -> Option<f64> {
         parallel_latency(self.x.latency(), self.y.latency())
     }
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        let hash = self.x.ping(hash);
+        let hash = self.y.ping(hash);
+        hashw(0x00C ^ hash)
+    }
 }
 
 /// FeedbackNode encloses a feedback circuit.
@@ -776,10 +849,12 @@ where
     N: Size<T>,
 {
     pub fn new(x: X) -> Self {
-        FeedbackNode {
+        let mut node = FeedbackNode {
             x,
             value: Frame::default(),
-        }
+        };
+        node.ping(0x0007);
+        node
     }
 }
 
@@ -814,6 +889,12 @@ where
     fn latency(&self) -> Option<f64> {
         self.x.latency()
     }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        let hash = self.x.ping(hash);
+        hashw(0x00D ^ hash)
+    }
 }
 
 /// FitNode adapts a filter to a pipeline.
@@ -824,7 +905,9 @@ pub struct FitNode<X> {
 
 impl<X: AudioNode> FitNode<X> {
     pub fn new(x: X) -> Self {
-        FitNode { x }
+        let mut node = FitNode { x };
+        node.ping(0x0008);
+        node
     }
 }
 
@@ -855,5 +938,11 @@ impl<X: AudioNode> AudioNode for FitNode<X> {
 
     fn latency(&self) -> Option<f64> {
         self.x.latency()
+    }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        let hash = self.x.ping(hash);
+        hashw(0x00D ^ hash)
     }
 }

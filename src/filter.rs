@@ -119,6 +119,11 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
         //   s1 = s2 + b1 * x0 - a1 * y0
         //   s2 = b2 * x0 - a2 * y0
     }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x00F ^ hash)
+    }
 }
 
 /// Butterworth lowpass filter.
@@ -165,6 +170,11 @@ impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
             self.cutoff = cutoff;
         }
         self.biquad.tick(&[input[0]].into())
+    }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x010 ^ hash)
     }
 }
 
@@ -222,6 +232,11 @@ impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
         }
         self.biquad.tick(&[input[0]].into())
     }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x011 ^ hash)
+    }
 }
 
 /// One-pole lowpass filter.
@@ -275,5 +290,10 @@ impl<T: Float, F: Real> AudioNode for OnePoleLowpass<T, F> {
         let x = convert(input[0]);
         self.value = (F::one() - self.coeff) * x + self.coeff * self.value;
         [convert(self.value)].into()
+    }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x012 ^ hash)
     }
 }

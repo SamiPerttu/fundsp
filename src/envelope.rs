@@ -1,5 +1,5 @@
 use super::audionode::*;
-use super::math::{delerp, lerp};
+use super::math::{delerp, hashw, lerp};
 use super::*;
 use numeric_array::*;
 
@@ -14,6 +14,7 @@ pub struct EnvelopeNode<T: Float, F: Fn(f64) -> f64 + Clone> {
     value_1: T,
     interval: f64,
     sample_duration: f64,
+    hash: u32,
 }
 
 impl<T: Float, F: Fn(f64) -> f64 + Clone> EnvelopeNode<T, F> {
@@ -28,6 +29,7 @@ impl<T: Float, F: Fn(f64) -> f64 + Clone> EnvelopeNode<T, F> {
             value_1: T::zero(),
             interval,
             sample_duration: 0.0,
+            hash: 0,
         };
         component.reset(Some(sample_rate));
         component
@@ -56,6 +58,7 @@ impl<T: Float, F: Fn(f64) -> f64 + Clone> AudioNode for EnvelopeNode<T, F> {
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         if self.t >= self.t_1 {
+            // TODO: Implement jitter.
             self.t_0 = self.t_1;
             self.value_0 = self.value_1;
             self.t_1 = self.t_0 + self.interval;
@@ -68,5 +71,11 @@ impl<T: Float, F: Fn(f64) -> f64 + Clone> AudioNode for EnvelopeNode<T, F> {
         );
         self.t += self.sample_duration;
         [value].into()
+    }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        self.hash = hashw(0x00E ^ hash);
+        self.hash
     }
 }

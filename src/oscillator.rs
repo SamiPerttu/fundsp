@@ -28,6 +28,7 @@ impl<T: Float> AudioNode for SineComponent<T> {
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
+        // This basic sine component rewinds to zero phase always. TODO: Is this the right policy?
         self.phase = 0.0;
         if let Some(sr) = sample_rate {
             self.sample_duration = 1.0 / sr
@@ -42,5 +43,10 @@ impl<T: Float> AudioNode for SineComponent<T> {
         let frequency = input[0].to_f64();
         self.phase += frequency * self.sample_duration;
         [convert(sin(self.phase * TAU))].into()
+    }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x016 ^ hash)
     }
 }

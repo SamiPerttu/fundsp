@@ -54,4 +54,9 @@ impl<T: Float> AudioNode for DelayNode<T> {
         }
         [output].into()
     }
+
+    #[inline]
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(0x00E ^ hash)
+    }
 }
