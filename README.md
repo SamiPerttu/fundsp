@@ -1,13 +1,14 @@
-# fundsp
+# FunDSP
 
 ## Audio DSP Library for Rust
 
-`fundsp` is an audio DSP (digital dignal processing) library with a focus on usability.
+[FunDSP](https://github.com/SamiPerttu/fundsp)
+is an audio DSP (digital dignal processing) library with a focus on usability.
 
 It features a powerful inline graph notation that
 empowers users to accomplish diverse audio processing tasks with ease and elegance.
 
-`fundsp` comes with a function combinator environment containing
+FunDSP comes with a function combinator environment containing
 a suite of audio components, math and utility functions and procedural generation tools.
 
 *This project is under construction*! It is already useful for experimentation.
@@ -20,6 +21,47 @@ However, some standard components are missing and breakage can be expected as we
 - Sound hacking and audio golfing
 - Audio synthesis for games and applications
 - Prototyping of DSP algorithms
+
+### Making Audio DSP a First-Class Citizen
+
+*FunDSP Composable Graph Notation* expresses DSP graphs
+in an algebraic form, using graph operators. It
+was developed together with the functional
+environment to minimize the number
+of typed characters needed to accomplish common DSP tasks.
+
+Many common algorithms can be expressed in a natural form
+conducive to understanding, making FunDSP the perfect platform for education.
+For example, a [PM oscillator](https://ccrma.stanford.edu/~jos/sasp/Frequency_Modulation_FM_Synthesis.html)
+can be written simply as:
+
+```rust
+sine_hz(f) * f * m + f >> sine()
+```
+
+The above expression defines an audio graph that is
+compiled into a stack allocated, inlined form using
+the powerful generic abstractions built into the Rust language.
+Connectivity errors are detected at compile time, saving
+development time.
+
+The power of FunDSP provides complex synthesis and filtering
+capabilities to games and applications using one-liners.
+
+With no macros needed, the FunDSP Composable Graph Notation
+integrates audio DSP tightly into the Rust programming language
+as a first-class citizen. Native Rust operator precedences
+work in harmony with the notation, minimizing 
+the number of parentheses needed.
+
+FunDSP graph expressions offer even more economy in being generic
+over the number of channels. A mono network can be expressed
+as a stereo network simply by replacing its mono generators and
+filters with stereo ones, the graph notation remaining the same.
+
+FunDSP Composable Graph Notation was developed by Sami Perttu,
+with contributions from Benjamin Saunders.
+
 
 ## Principia
 
