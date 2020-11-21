@@ -307,6 +307,7 @@ These free functions are available in the environment.
 | `log10(x)`             | base 10 logarithm |
 | `log2(x)`              | binary logarithm |
 | `logistic(x)`          | logistic function |
+| `midi_hz(x)`           | convert MIDI note number `x` to Hz (69.0 = A-4 = 440 Hz) |
 | `min(x, y)`            | minimum of `x` and `y` |
 | `max(x, y)`            | maximum of `x` and `y` |
 | `m_weight(f)`          | M-weighted noise response amplitude at `f` Hz |
