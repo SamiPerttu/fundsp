@@ -2,7 +2,7 @@
 
 ## Audio DSP Library for Rust
 
-`fundsp` is a high-level audio DSP (digital dignal processing) library with a focus on usability.
+`fundsp` is an audio DSP (digital dignal processing) library with a focus on usability.
 
 It features a powerful inline graph notation that
 empowers users to accomplish diverse audio processing tasks with ease and elegance.
@@ -13,6 +13,13 @@ a suite of audio components, math and utility functions and procedural generatio
 *This project is under construction*! It is already useful for experimentation.
 However, some standard components are missing and breakage can be expected as we continue to experiment with best practices.
 
+### Uses
+
+- Education
+- Music making
+- Sound hacking and audio golfing
+- Audio synthesis for games and applications
+- Prototyping of DSP algorithms
 
 ## Principia
 
@@ -36,7 +43,7 @@ to block processing mode with the object safe `AudioUnit` interface via the `AnU
 Block processing aims to maximize efficiency in dynamic situations.
 
 `AudioNode`s can be stack allocated for the most part.
-Some components may use the heap for audio buffers and the like.
+Some nodes may use the heap for audio buffers and the like.
 
 ### Sample Rate Independence
 
@@ -68,8 +75,8 @@ The aims of the environment are:
 - Make the syntax usable even to people with no prior exposure to programming.
   Type annotations should not be needed, or if they are, they should be minimized.
 
-In the environment, applicable generators are deterministic pseudorandom phase by default.
-
+In the environment, applicable generators are deterministic pseudorandom phase.
+This means that `noise() | noise()` is a stereo noise source, for example.
 
 
 ## Operators
@@ -121,7 +128,7 @@ On the other hand, `A * 2.0` works with any `A`, even *sinks*.
 
 The fit (`!`) operator is syntactic sugar for chaining filters with similar connectivity.
 
-It adjusts output arity to match input arity and passes through any missing outputs to the next node in the pipe.
+It adjusts output arity to match input arity and passes through any missing outputs to the next node.
 The missing outputs are parameters to the filter.
 
 For example, while `lowpass()` is a 2nd order lowpass filter, `!lowpass() >> lowpass()`
@@ -171,7 +178,8 @@ Branching is useful for building *banks* of components such as filters.
 
 #### Bus
 
-The bus ( `&` ) operator can be thought of as an inline audio bus with a fixed set of input and output channels.
+The bus ( `&` ) operator can be thought of as an inline [audio bus](https://en.wikipedia.org/wiki/Audio_bus)
+with a fixed set of input and output channels.
 It builds signal buses from components with identical connectivity.
 
 In `A & B`, the same input is sent to both `A` and `B`, and their outputs are mixed together.
@@ -203,8 +211,9 @@ In `A | B | C`, channels of `A` come first, followed by channels of `B`, then `C
 The expression `A >> (B ^ C ^ D)` defines a signal processing graph.
 It has whatever inputs `A` has, and outputs everything from `B` and `C` and `D` in parallel.
 
-The whole structure is packed, monomorphized and inlined with the constituent components consumed.
-If you want to reuse components, define them as functions or clone them. See the prelude for examples of the former.
+The whole structure is packed, monomorphized and inlined with the constituent nodes consumed.
+If you want to reuse components, define them as functions or closures, or clone them.
+See the prelude for examples of the former.
 
 Connectivity is checked during compilation.
 Mismatched connectivity will result in a compilation error complaining about mismatched
@@ -230,6 +239,8 @@ Dataflow concerns are thus explicated in the graph notation itself.
 ## Free Functions
 
 These free functions are available in the environment.
+
+---
 
 ### Component Functions
 
@@ -265,7 +276,9 @@ These free functions are available in the environment.
 
 ---
 
-### Math Functions
+### Math And Utility Functions
+
+---
 
 | Function               | Explanation                                    |
 | ---------------------- | ---------------------------------------------- |
@@ -273,15 +286,15 @@ These free functions are available in the environment.
 | `arcdown(x)`           | concave quarter circle easing curve (inverse of `arcup`) |
 | `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
 | `ceil(x)`              | ceiling function |
-| `clamp(min, max, x)`   | clamps `x` between `min` and `max` |
-| `clamp01(x)`           | clamps `x` between 0 and 1 |
-| `clamp11(x)`           | clamps `x` between -1 and 1 |
+| `clamp(min, max, x)`   | clamp `x` between `min` and `max` |
+| `clamp01(x)`           | clamp `x` between 0 and 1 |
+| `clamp11(x)`           | clamp `x` between -1 and 1 |
 | `cos(x)`               | cos |
 | `cos_bpm(f, t)`        | cosine that oscillates at `f` BPM at time `t` seconds |
 | `cos_hz(f, t)`         | cosine that oscillates at `f` Hz at time `t` seconds |
-| `db_gain(x)`           | converts `x` dB to amplitude (gain amount) |
-| `delerp(x0, x1, x)`    | recovers linear interpolation amount `t` from interpolated value |
-| `dexerp(x0, x1, x)`    | recovers exponential interpolation amount `t` from interpolated value (`x0`, `x1`, `x` > 0) |
+| `db_gain(x)`           | convert `x` dB to amplitude (gain amount) |
+| `delerp(x0, x1, x)`    | recover linear interpolation amount `t` from interpolated value |
+| `dexerp(x0, x1, x)`    | recover exponential interpolation amount `t` from interpolated value (`x0`, `x1`, `x` > 0) |
 | `dissonance(f0, f1)`   | dissonance amount in 0...1 between pure tones at `f0` and `f1` Hz |
 | `dissonance_max(f)`    | maximally dissonant pure frequency above `f` Hz |
 | `exp(x)`               | exp |
@@ -298,7 +311,8 @@ These free functions are available in the environment.
 | `max(x, y)`            | maximum of `x` and `y` |
 | `m_weight(f)`          | M-weighted noise response amplitude at `f` Hz |
 | `pow(x, y)`            | `x` raised to the power `y` |
-| `round(x)`             | rounds `x` to nearest integer |
+| `rnd(i)`               | pseudorandom number in 0...1 from integer `i` |
+| `round(x)`             | round `x` to nearest integer |
 | `semitone(x)`          | convert interval `x` semitones to frequency ratio |
 | `signum(x)`            | sign of `x` |
 | `sin(x)`               | sin |
@@ -348,6 +362,10 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `sine() & mul(2.0) >> sine()`            |   1    |    1    | frequency doubled dual sine oscillator        |
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
 | `feedback(delay(1.0) * db_gain(-3.0))`   |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
+| `sine() & mul(semitone(4.0)) >> sine() & mul(semitone(7.0)) >> sine()` | 1 | 1 | major chord |
+| `dc(midi_hz(69)) >> sine() & dc(midi_hz(73)) >> sine() & dc(midi_hz(76)) >> sine()` | 0 | 1 | A major chord generator |
+| `!zero()`                                |   0    |    0    | A null unit. Stacking it with a graph modifies its sound subtly, as the hash is altered. |
+| `!-!!!--!!!-!!--!zero()`                 |   0    |    0    | Hot-rodded null unit outfitted with a custom hash. Uses more electricity. |
 
 ---
 
@@ -380,6 +398,7 @@ There are usually many ways to express a particular graph. The following express
 | `constant(0.0) \| dc(1.0)`                 | `constant((0.0, 1.0))`          | Stacking concatenates channels. |
 | `sink() \| zero()`                         | `zero() \| sink()`              | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
 | `(lowpass() ^ (sink() \| pass())) >> lowpass()` | `!lowpass() >> lowpass()`  | Running a manual bypass. |
+| `!noise()`                                 | `!zero()`                       | The fit operator nullifies any generator. |
 
 ---
 

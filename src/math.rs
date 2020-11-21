@@ -319,6 +319,7 @@ pub fn semitone<T: Num + Real>(x: T) -> T {
 }
 
 /// 32-bit hash by Chris Wellon, used for pinging.
+#[inline]
 pub const fn hashw(x: u32) -> u32 {
     let x = (x ^ (x >> 16)).wrapping_mul(0x7feb352d);
     let x = (x ^ (x >> 15)).wrapping_mul(0x846ca68b);
@@ -327,10 +328,19 @@ pub const fn hashw(x: u32) -> u32 {
 
 /// SplitMix hash as an indexed RNG.
 /// Returns pseudorandom f64 in range [0, 1[.
+#[inline]
 pub fn rnd(x: u64) -> f64 {
     let x = x.wrapping_mul(0x9e3779b97f4a7c15);
     let x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
     let x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
     let x = x ^ (x >> 31);
     (x >> 11) as f64 / (1u64 << 53) as f64
+}
+
+/// Converts MIDI note number to frequency in Hz. Returns 440 Hz for A_4 (note number 69).
+/// The lowest key on a grand piano is A_0 at 27.5 Hz (note number 21).
+/// Note number 0 is C_-1.
+#[inline]
+pub fn midi_hz(i: i32) -> f64 {
+    440.0 * exp2 ((i - 69) as f64 / 12.0)
 }
