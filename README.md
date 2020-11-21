@@ -22,7 +22,7 @@ However, some standard components are missing and breakage can be expected as we
 - Audio synthesis for games and applications
 - Prototyping of DSP algorithms
 
-### Making Audio DSP a First-Class Citizen
+### Graph Notation
 
 *FunDSP Composable Graph Notation* expresses DSP graphs
 in an algebraic form, using graph operators. It
@@ -47,6 +47,8 @@ development time.
 
 The power of FunDSP provides complex synthesis and filtering
 capabilities to games and applications using one-liners.
+
+### Audio DSP Becomes a First-Class Citizen
 
 With no macros needed, the FunDSP Composable Graph Notation
 integrates audio DSP tightly into the [Rust programming language](https://www.rust-lang.org/)
