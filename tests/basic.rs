@@ -64,8 +64,16 @@ fn test() {
     assert_eq!(inouts(sine() & mul(2.0) >> sine()), (1, 1)); // frequency doubled dual sine oscillator
     assert_eq!(inouts(envelope(|t| exp(-t)) * noise()), (0, 1)); // exponentially decaying white noise
     assert_eq!(inouts(feedback(delay(0.5) * 0.5)), (1, 1)); // feedback delay of 0.5 seconds
-    assert_eq!(inouts(sine() & mul(semitone(4.0)) >> sine() & mul(semitone(7.0)) >> sine()), (1, 1)); // major chord
-    assert_eq!(inouts(dc(midi_hz(69.0)) >> sine() & dc(midi_hz(73.0)) >> sine() & dc(midi_hz(76.0)) >> sine()), (0, 1)); // A major chord generator
+    assert_eq!(
+        inouts(sine() & mul(semitone(4.0)) >> sine() & mul(semitone(7.0)) >> sine()),
+        (1, 1)
+    ); // major chord
+    assert_eq!(
+        inouts(
+            dc(midi_hz(69.0)) >> sine() & dc(midi_hz(73.0)) >> sine() & dc(midi_hz(76.0)) >> sine()
+        ),
+        (0, 1)
+    ); // A major chord generator
     assert_eq!(inouts(!zero()), (0, 0)); //  A null unit. Stacking it with a graph modifies its sound subtly, as the hash is altered.
     assert_eq!(inouts(!-!!!--!!!-!!--!zero()), (0, 0)); // Hot-rodded null unit with a custom hash. Uses more electricity.
 }

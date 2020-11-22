@@ -342,5 +342,5 @@ pub fn rnd(x: u64) -> f64 {
 /// Note number 0 is C_-1.
 #[inline]
 pub fn midi_hz(x: f64) -> f64 {
-    440.0 * exp2 ((x - 69.0) / 12.0)
+    440.0 * exp2((x - 69.0) / 12.0)
 }
