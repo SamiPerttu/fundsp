@@ -443,7 +443,7 @@ There are usually many ways to express a particular graph. The following express
 | `constant(0.0) \| dc(1.0)`                 | `constant((0.0, 1.0))`          | Stacking concatenates channels. |
 | `sink() \| zero()`                         | `zero() \| sink()`              | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
 | `(lowpass() ^ (sink() \| pass())) >> lowpass()` | `!lowpass() >> lowpass()`  | Running a manual bypass. |
-| `!noise()`                                 | `!zero()`                       | The fit operator nullifies any generator. |
+| `!(noise() \| noise())`                    | `!noise()`                      | The fit operator nullifies any generator. |
 
 ---
 
