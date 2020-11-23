@@ -24,11 +24,11 @@ However, some standard components are missing and breakage can be expected as we
 
 ### Graph Notation
 
-*FunDSP Composable Graph Notation* expresses DSP graphs
+*FunDSP Composable Graph Notation* expresses DSP networks
 in an algebraic form, using graph operators. It
 was developed together with the functional
 environment to minimize the number
-of typed characters needed to accomplish common DSP tasks.
+of typed characters needed to accomplish common audio tasks.
 
 Many common algorithms can be expressed in a natural form
 conducive to understanding, making FunDSP a superb platform for education.
