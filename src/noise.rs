@@ -1,4 +1,5 @@
 use super::audionode::*;
+use super::math::*;
 use super::*;
 use numeric_array::*;
 
@@ -135,12 +136,14 @@ impl<T: Float> AudioNode for MlsNoise<T> {
 #[derive(Clone, Default)]
 pub struct NoiseNode<T> {
     _marker: std::marker::PhantomData<T>,
-    x: u64,
+    x: NanoRand,
     hash: u32,
 }
 
 impl<T: Float> NoiseNode<T> {
-    pub fn new() -> NoiseNode<T> { NoiseNode::default() }
+    pub fn new() -> NoiseNode<T> {
+        NoiseNode::default()
+    }
 }
 
 impl<T: Float> AudioNode for NoiseNode<T> {
@@ -150,7 +153,7 @@ impl<T: Float> AudioNode for NoiseNode<T> {
     type Outputs = typenum::U1;
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
-        self.x = self.hash as u64;
+        self.x = NanoRand::new(self.hash as u64);
     }
 
     #[inline]
@@ -158,12 +161,7 @@ impl<T: Float> AudioNode for NoiseNode<T> {
         &mut self,
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        self.x = self
-            .x
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        // Pick 20 most significant bits from the linear congruential generator.
-        let value: T = T::new((self.x >> 44) as i64) / T::from_f32(524287.5) - T::new(1);
+        let value = lerp(T::new(-1), T::new(1), self.x.gen_01());
         [value].into()
     }
 

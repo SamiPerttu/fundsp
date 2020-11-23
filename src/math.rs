@@ -382,3 +382,22 @@ pub fn rnd(x: u64) -> f64 {
 pub fn midi_hz(x: f64) -> f64 {
     440.0 * exp2((x - 69.0) / 12.0)
 }
+
+#[derive(Default, Copy, Clone)]
+pub struct NanoRand {
+    state: u64,
+}
+
+impl NanoRand {
+    pub fn new(seed: u64) -> NanoRand {
+        NanoRand { state: seed }
+    }
+    pub fn gen(&mut self) -> u32 {
+        self.state = self.state.wrapping_mul(0xaf251af3b0f025b5).wrapping_add(1);
+        hashw((self.state >> 32) as u32)
+    }
+    pub fn gen_01<T: Float>(&mut self) -> T {
+        let x = self.gen();
+        T::new(x as i64) / T::new(1i64 << 32)
+    }
+}

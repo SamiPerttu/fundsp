@@ -1,7 +1,5 @@
 use super::audionode::*;
 use super::*;
-use generic_array::sequence::*;
-use numeric_array::*;
 
 /// AudioUnit processes audio data block by block at a synchronous rate.
 /// Once constructed, it has a fixed number of inputs and outputs that can be queried.
@@ -59,9 +57,7 @@ impl<X: AudioNode> AudioUnit for AnUnit<X> {
         assert!(input.iter().all(|x| x.len() == buffer_size));
         assert!(output.iter().all(|x| x.len() == buffer_size));
         for i in 0..buffer_size {
-            let result = self
-                .0
-                .tick(&NumericArray::generate(|j| convert(input[j][i])));
+            let result = self.0.tick(&Frame::generate(|j| convert(input[j][i])));
             for (j, &x) in result.iter().enumerate() {
                 output[j][i] = convert(x);
             }

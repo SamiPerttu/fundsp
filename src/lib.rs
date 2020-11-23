@@ -1,4 +1,10 @@
-#![allow(clippy::precedence, clippy::type_complexity, clippy::float_cmp, clippy::len_zero, clippy::double_neg)]
+#![allow(
+    clippy::precedence,
+    clippy::type_complexity,
+    clippy::float_cmp,
+    clippy::len_zero,
+    clippy::double_neg
+)]
 
 use std::cmp::PartialEq;
 use std::ops::{Add, Div, Mul, Neg, Sub};
@@ -234,3 +240,6 @@ pub mod math;
 pub mod noise;
 pub mod oscillator;
 pub mod prelude;
+
+pub use audionode::{AudioNode, Frame, Size};
+pub use generic_array::sequence::GenericSequence;

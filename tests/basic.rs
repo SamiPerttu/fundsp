@@ -1,4 +1,11 @@
-#![allow(clippy::precedence, clippy::type_complexity, clippy::float_cmp, clippy::len_zero, clippy::double_neg)]
+#![allow(
+    clippy::precedence,
+    clippy::type_complexity,
+    clippy::float_cmp,
+    clippy::len_zero,
+    clippy::double_neg,
+    clippy::clippy::many_single_char_names
+)]
 #![allow(dead_code)]
 
 extern crate fundsp;
@@ -11,6 +18,25 @@ use fundsp::hacker::*;
 // Signatures with generic number of channels can be challenging to write.
 fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
     pass() ^ pass() ^ pass() ^ pass()
+}
+
+// Attempt to test two (memoryless) nodes for equality.
+fn is_equal<X, Y>(rnd: &mut NanoRand, x: &mut An<X>, y: &mut An<Y>) -> bool
+where
+    X: AudioNode,
+    Y: AudioNode<Sample = X::Sample, Inputs = X::Inputs, Outputs = X::Outputs>,
+{
+    // The signature constrains the structure already, try some random inputs.
+    for _ in 0..1000 {
+        let input =
+            Frame::<X::Sample, X::Inputs>::generate(|_| X::Sample::new((rnd.gen() as i64) % 3 - 1));
+        let output_x = x.tick(&input.clone());
+        let output_y = y.tick(&input.clone());
+        if output_x != output_y {
+            return false;
+        }
+    }
+    true
 }
 
 #[test]
@@ -33,6 +59,27 @@ fn test() {
     fn inouts<X: AudioNode>(x: An<X>) -> (usize, usize) {
         (x.inputs(), x.outputs())
     }
+
+    // Equivalent networks.
+    let mut rnd = NanoRand::new(0);
+    let x = 1.0;
+    let y = 2.0;
+    let z = 3.0;
+    assert!(is_equal(
+        &mut rnd,
+        &mut ((pass() ^ mul(y)) >> add(z) + sub(x)),
+        &mut (add(z) & mul(y) >> sub(x))
+    ));
+    assert!(is_equal(
+        &mut rnd,
+        &mut (dc(x) | dc(y) | dc(z)),
+        &mut (constant((x, y, z)))
+    ));
+    assert!(is_equal(
+        &mut rnd,
+        &mut (sink() | sink() | zero() | zero()),
+        &mut (zero() | zero() | sink() | sink())
+    ));
 
     // No-ops with sinks.
     assert_eq!(inouts(--sink() - 42.0 ^ sink() & ---sink() * 3.15), (1, 0));

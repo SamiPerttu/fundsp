@@ -1,6 +1,5 @@
 use super::math::*;
 use super::*;
-use generic_array::sequence::*;
 use numeric_array::typenum::*;
 use std::marker::PhantomData;
 
@@ -141,7 +140,9 @@ pub struct PassNode<T, N> {
 }
 
 impl<T: Float, N: Size<T>> PassNode<T, N> {
-    pub fn new() -> Self { PassNode::default() }
+    pub fn new() -> Self {
+        PassNode::default()
+    }
 }
 
 impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
@@ -166,7 +167,9 @@ pub struct SinkNode<T, N> {
 }
 
 impl<T: Float, N: Size<T>> SinkNode<T, N> {
-    pub fn new() -> Self { SinkNode::default() }
+    pub fn new() -> Self {
+        SinkNode::default()
+    }
 }
 
 impl<T: Float, N: Size<T>> AudioNode for SinkNode<T, N> {
@@ -227,7 +230,9 @@ pub struct FrameAdd<T: Float, N: Size<T>> {
 }
 
 impl<T: Float, N: Size<T>> FrameAdd<T, N> {
-    pub fn new() -> FrameAdd<T, N> { FrameAdd::default() }
+    pub fn new() -> FrameAdd<T, N> {
+        FrameAdd::default()
+    }
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
@@ -243,7 +248,9 @@ pub struct FrameSub<T: Float, N: Size<T>> {
 }
 
 impl<T: Float, N: Size<T>> FrameSub<T, N> {
-    pub fn new() -> FrameSub<T, N> { FrameSub::default() }
+    pub fn new() -> FrameSub<T, N> {
+        FrameSub::default()
+    }
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
@@ -259,7 +266,9 @@ pub struct FrameMul<T: Float, N: Size<T>> {
 }
 
 impl<T: Float, N: Size<T>> FrameMul<T, N> {
-    pub fn new() -> FrameMul<T, N> { FrameMul::default() }
+    pub fn new() -> FrameMul<T, N> {
+        FrameMul::default()
+    }
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
@@ -283,7 +292,9 @@ pub struct FrameNeg<T: Float, N: Size<T>> {
 }
 
 impl<T: Float, N: Size<T>> FrameNeg<T, N> {
-    pub fn new() -> FrameNeg<T, N> { FrameNeg::default() }
+    pub fn new() -> FrameNeg<T, N> {
+        FrameNeg::default()
+    }
 }
 
 impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
