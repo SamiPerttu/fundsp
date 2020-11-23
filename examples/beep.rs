@@ -3,7 +3,7 @@ extern crate cpal;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
-use fundsp::prelude::*;
+use fundsp::hacker::*;
 
 #[cfg_attr(target_os = "android", ndk_glue::main(backtrace = "full"))]
 fn main() {

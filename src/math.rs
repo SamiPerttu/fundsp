@@ -109,6 +109,16 @@ pub fn clamp11<T: Num>(x: T) -> T {
     x.max(T::new(-1)).min(T::one())
 }
 
+#[inline]
+pub fn square<T: Num>(x: T) -> T {
+    x * x
+}
+
+#[inline]
+pub fn cube<T: Num>(x: T) -> T {
+    x * x * x
+}
+
 /// Generic linear interpolation trait.
 pub trait Lerp<T> {
     fn lerp(self, other: Self, t: T) -> Self;
@@ -169,14 +179,42 @@ pub fn db_gain<T: Num + Real>(db: T) -> T {
     exp10(db / T::new(20))
 }
 
-/// M-weighted noise response function. Returns human ear amplitude response at f Hz.
+/// A-weighted response function.
+/// Returns equal loudness amplitude response at f Hz.
+/// Normalized to 1.0 at 1 kHz.
 #[inline]
-pub fn m_weight<T: Float>(f: T) -> T {
-    let i0: f64 = log(max(f.to_f64(), 1.0));
-    let r2 = softsign(pow(i0, i0) * -6.08068842478902e-05 - 255817.484465234);
-    let r4 = softsign(i0 * -0.0120284517694679 + 0.0137065071001576);
-    let db = pow(r2, r4) * -201414774.297872 - 201414825.531915;
-    convert(db_gain(db))
+pub fn a_weight<T: Real>(f: T) -> T {
+    let f2 = square(f);
+    let c0 = square(T::from_f64(12194.0));
+    let c1 = square(T::from_f64(20.6));
+    let c2 = square(T::from_f64(107.7));
+    let c3 = square(T::from_f64(737.9));
+    let c4 = T::from_f64(1.2589048990582914);
+    c4 * c0 * f2 * f2 / ((f2 + c1) * sqrt((f2 + c2) * (f2 + c3)) * (f2 + c0))
+}
+
+/// M-weighted response function normalized to 1 kHz.
+/// M-weighting is an unofficial name for
+/// the frequency response curve of the ITU-R 468 noise weighting standard.
+/// Returns equal loudness amplitude response at f Hz.
+/// Normalized to 1.0 at 1 kHz.
+#[inline]
+pub fn m_weight<T: Real>(f: T) -> T {
+    let c0 = T::from_f64(1.246332637532143 * 1.0e-4);
+    let c1 = T::from_f64(-4.737338981378384 * 1.0e-24);
+    let c2 = T::from_f64(2.04382833606125 * 1.0e-15);
+    let c3 = T::from_f64(-1.363894795463638 * 1.0e-7);
+    let c4 = T::from_f64(1.306612257412824 * 1.0e-19);
+    let c5 = T::from_f64(-2.118150887518656 * 1.0e-11);
+    let c6 = T::from_f64(5.559488023498642 * 1.0e-4);
+    let c7 = T::from_f64(8.164578311186197);
+    let f2 = f * f;
+    let f4 = f2 * f2;
+    c7 * c0 * f
+        / sqrt(
+            square(c1 * f4 * f2 + c2 * f4 + c3 * f2 + T::one())
+                + square(c4 * f4 * f + c5 * f2 * f + c6 * f),
+        )
 }
 
 /// Catmull-Rom cubic spline interpolation, which is a form of cubic Hermite spline. Interpolates between

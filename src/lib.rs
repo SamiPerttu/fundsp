@@ -5,7 +5,13 @@ use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 pub const DEFAULT_SR: f64 = 44_100.0;
 
 pub trait Num:
-    Copy + Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Div<Output = Self> + PartialEq
+    Copy
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + PartialEq
+    + PartialOrd
 {
     fn zero() -> Self;
     fn one() -> Self;
@@ -220,8 +226,10 @@ pub mod combinator;
 pub mod delay;
 pub mod envelope;
 pub mod filter;
+pub mod hacker;
 pub mod lti;
 pub mod math;
 pub mod noise;
 pub mod oscillator;
 pub mod prelude;
+pub mod util;

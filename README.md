@@ -8,7 +8,7 @@ is an audio DSP (digital dignal processing) library with a focus on usability.
 It features a powerful inline graph notation that
 empowers users to accomplish diverse audio processing tasks with ease and elegance.
 
-FunDSP comes with a function combinator environment containing
+FunDSP comes with a combinator environment containing
 a suite of audio components, math and utility functions and procedural generation tools.
 
 *This project is under construction*! It is already useful for experimentation.
@@ -31,7 +31,7 @@ environment to minimize the number
 of typed characters needed to accomplish common DSP tasks.
 
 Many common algorithms can be expressed in a natural form
-conducive to understanding, making FunDSP the perfect platform for education.
+conducive to understanding, making FunDSP a superb platform for education.
 For example, a [PM oscillator](https://ccrma.stanford.edu/~jos/sasp/Frequency_Modulation_FM_Synthesis.html)
 can be written simply as:
 
@@ -44,9 +44,6 @@ compiled into a stack allocated, inlined form using
 the powerful generic abstractions built into [Rust](https://www.rust-lang.org/).
 Connectivity errors are detected at compile time, saving
 development time.
-
-The power of FunDSP provides complex synthesis and filtering
-capabilities to games and applications using one-liners.
 
 ### Audio DSP Becomes a First-Class Citizen
 
@@ -99,27 +96,36 @@ It is useful to keep parameters independent of the sample rate, which we can the
 In addition to sample rate adjustments, natural units enable support for
 selective oversampling in nested sections that are easy to configure and modify.
 
+Some low-level components ignore the sample rate by design, such as the single sample delay `tick()`.
+
 In both systems, a component `A` can be reinitialized with a new sample rate: `A.reset(Some(sr))`.
 
 
 ## Audio Processing Environment
 
-The FunDSP prelude defines a convenient combinator environment for audio processing.
-It operates on `AudioNode`s via the wrapper type `An<X: AudioNode>`.
+FunDSP prelude defines a convenient combinator environment for audio processing.
 
-Data buffers and samples are single precision in the environment,
-while processing takes place in double precision. Extra source compatible environments
-will be provided for different performance needs (to be implemented).
+There are two name-level compatible versions of the prelude.
 
-The aims of the environment are:
+The default environment (`fundsp::prelude`) offers a generic interface.
+It is flexible and attempts to conform to Rust practices.
+
+The hacker environment (`fundsp::hacker`) for audio hacking
+is fully 64-bit to minimize type annotations and maximize audio quality.
+The hacker interface uses 1 floating point type (`f64`) and 1 integer type (`i64`) only.
+
+An application interfacing `fundsp` will likely pick the default environment for maximum flexibility,
+while experimenters will be drawn to the succinctness of the hacker prelude.
+
+The aims of the environments are:
 
 - Minimize the number of characters needed to type to express an idiom.
-- Keep the syntax clean so that a subset of the environment
-  can be straightforwardly parsed as a high-level DSL for quick prototyping.
+- Keep the syntax clean so that a subset of the hacker environment
+  can be parsed straightforwardly as a high-level DSL for quick prototyping.
 - Make the syntax usable even to people with no prior exposure to programming.
-  Type annotations should not be needed, or if they are, they should be minimized.
 
 In the environment, applicable generators are deterministic pseudorandom phase.
+Two identical networks sound identical on their own but different when combined.
 This means that `noise() | noise()` is a stereo noise source, for example.
 
 
@@ -159,7 +165,8 @@ All operators are associative, except the left associative `-`.
 ### Broadcasting
 
 Arithmetic operators are applied to outputs channel-wise.
-Arithmetic between two components never broadcasts channels.
+
+Arithmetic between two components never broadcasts channels: channel arities have to match always.
 
 Direct arithmetic with `f32` and `f64` values, however, broadcasts to an arbitrary number of channels.
 
@@ -280,6 +287,19 @@ guiding toward efficient structuring of computation.
 Dataflow concerns are thus explicated in the graph notation itself.
 
 
+### Input Modalities And Ranges
+
+Some signals found flowing in audio networks.
+
+| Modality       | Preferred Units/Range  | Notes                                      |
+| -------------- | ---------------------- | ------------------------------------------ |
+| frequency      | Hz                     | |
+| time           | s                      | |
+| audio data     | -1...1                 | Only special formats can process data outside this range. |
+| stereo pan     | -1...1 (left to right) | For ergonomy, it is useful to clamp any pan input to this range. |
+| control amount | 0...1                  | If there is no natural interpretation of the parameter. |
+
+
 ## Free Functions
 
 These free functions are available in the environment.
@@ -295,7 +315,7 @@ These free functions are available in the environment.
 | `add(x)`               |    x   |    x     | Adds constant `x` to signal. |
 | `constant(x)`          |    -   |    x     | Constant signal `x`. Synonymous with `dc`. |
 | `dc(x)`                |    -   |    x     | Constant signal `x`. Synonymous with `constant`. |
-| `delay(t)`             |    1   |    1     | Fixed delay of t seconds. |
+| `delay(t)`             |    1   |    1     | Fixed delay of `t` seconds. |
 | `envelope(f)`          |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `feedback(x)`          |    x   |    x     | Encloses feedback circuit x (with equal number of inputs and outputs). |
 | `lfo(f)`               |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
@@ -304,7 +324,7 @@ These free functions are available in the environment.
 | `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
 | `lowpole_hz(c)`        |    1   |    1     | 1-pole lowpass filter (1st order) with fixed cutoff frequency `c` Hz. |
 | `mls()`                |    -   |    1     | White MLS noise source. |
-| `mls_bits(n)`          |    -   |    1     | White MLS noise source from n-bit MLS sequence. |
+| `mls_bits(n)`          |    -   |    1     | White MLS noise source from `n`-bit MLS sequence. |
 | `mul(x)`               |    x   |    x     | Multiplies signal with constant `x`. |
 | `noise()`              |    -   |    1     | White noise source. Synonymous with `white`. |
 | `pass()`               |    1   |    1     | Passes signal through. |
@@ -312,7 +332,7 @@ These free functions are available in the environment.
 | `resonator_hz(c, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with fixed center frequency `c` Hz and bandwidth `bw` Hz. |
 | `sine()`               | 1 (pitch) | 1     | Sine oscillator. |
 | `sine_hz(f)`           |    -   |    1     | Sine oscillator at fixed frequency `f` Hz. |
-| `sink()`               |    1   |    -     | Consumes a channel. |
+| `sink()`               |    1   |    -     | Consumes signal. |
 | `sub(x)`               |    x   |    x     | Subtracts constant `x` from signal. |
 | `tick()`               |    1   |    1     | Single sample delay. |
 | `white()`              |    -   |    1     | White noise source. Synonymous with `noise`. |
@@ -329,6 +349,7 @@ These free functions are available in the environment.
 | `abs(x)`               | absolute value of `x` |
 | `arcdown(x)`           | concave quarter circle easing curve (inverse of `arcup`) |
 | `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
+| `a_weight(f)`          | A-weighted amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `ceil(x)`              | ceiling function |
 | `clamp(min, max, x)`   | clamp `x` between `min` and `max` |
 | `clamp01(x)`           | clamp `x` between 0 and 1 |
@@ -354,7 +375,7 @@ These free functions are available in the environment.
 | `midi_hz(x)`           | convert MIDI note number `x` to Hz (69.0 = A-4 = 440 Hz) |
 | `min(x, y)`            | minimum of `x` and `y` |
 | `max(x, y)`            | maximum of `x` and `y` |
-| `m_weight(f)`          | M-weighted noise response amplitude at `f` Hz |
+| `m_weight(f)`          | M-weighted amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `pow(x, y)`            | `x` raised to the power `y` |
 | `rnd(i)`               | pseudorandom number in 0...1 from integer `i` |
 | `round(x)`             | round `x` to nearest integer |
@@ -424,6 +445,7 @@ Many functions in the prelude itself are defined as graph expressions.
 | ---------------------------------------- |:------:|:-------:| ---------------------------------------------- |
 | `lowpass_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpass()`         |
 | `lowpole_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpole()`         |
+| `mls()`                                  |   -    |    1    | `mls_bits(29)`                                 |
 | `resonator_hz(c, bw)`                    |   1    |    1    | `(pass() \| constant((c, bw))) >> resonator()` |
 | `sine_hz(f)`                             |   -    |    1    | `constant(f) >> sine()`                        |
 | `zero()`                                 |   -    |    1    | `constant(0.0)`                                |

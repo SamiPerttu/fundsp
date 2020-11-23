@@ -25,6 +25,7 @@ impl<T: Float> SineComponent<T> {
 }
 
 impl<T: Float> AudioNode for SineComponent<T> {
+    const ID: u32 = 21;
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
@@ -47,8 +48,7 @@ impl<T: Float> AudioNode for SineComponent<T> {
     }
 
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        self.hash = hashw(0x016 ^ hash);
-        self.hash
+    fn set_hash(&mut self, hash: u32) {
+        self.hash = hash;
     }
 }

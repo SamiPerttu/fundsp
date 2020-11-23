@@ -9,21 +9,28 @@ pub trait Size<T>: numeric_array::ArrayLength<T> {}
 
 impl<T, A: numeric_array::ArrayLength<T>> Size<T> for A {}
 
-/// Frames transport audio data between AudioNodes.
+/// Transports audio data between `AudioNode` instances.
 pub type Frame<T, Size> = numeric_array::NumericArray<T, Size>;
 
-/// AudioNode processes audio data sample by sample.
-/// It has a static number of inputs and outputs known at compile time.
+/// An audio processor that processes audio data sample by sample.
+/// `AudioNode` has a static number of inputs (`AudioNode::Inputs`) and outputs (`AudioNode::Outputs`)
+/// known at compile time (they are encoded in the types as type-level integers).
+/// `AudioNode` processes samples of type `AudioNode::Sample`, chosen statically.
 pub trait AudioNode: Clone {
+    /// Unique ID for hashing.
+    const ID: u32;
+    /// Sample type for input and output.
     type Sample: Float;
+    /// Input arity.
     type Inputs: Size<Self::Sample>;
+    /// Output arity.
     type Outputs: Size<Self::Sample>;
 
-    /// Resets the input state of the component to an initial state where it has not processed any samples.
-    /// In other words, resets time to zero.
+    /// Reset the input state of the component to an initial state where it has not processed any samples.
+    /// In other words, reset time to zero.
     fn reset(&mut self, _sample_rate: Option<f64>) {}
 
-    /// Processes one sample.
+    /// Process one sample.
     fn tick(
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
@@ -31,8 +38,8 @@ pub trait AudioNode: Clone {
 
     /// Causal latency from input to output, in (fractional) samples.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
-    /// This applies only to components that have both inputs and outputs; others should return None.
-    /// The latency can depend on the sample rate and is allowed to change after a reset.
+    /// This applies only to nodes that have both inputs and outputs; others should return `None`.
+    /// The latency can depend on the sample rate and is allowed to change after `reset`.
     fn latency(&self) -> Option<f64> {
         // Default latency is zero.
         if self.inputs() > 0 && self.outputs() > 0 {
@@ -42,9 +49,15 @@ pub trait AudioNode: Clone {
         }
     }
 
-    /// Ping contained nodes to obtain a deterministic pseudorandom seed.
+    /// Set node hash. Override this to use the hash. This is called from `ping`. It should not be called by users.
+    fn set_hash(&mut self, _hash: u32) {}
+
+    /// Ping contained `AudioNode`s to obtain a deterministic pseudorandom seed.
     /// The local hash includes children, too.
-    fn ping(&mut self, hash: u32) -> u32;
+    /// Leaf nodes should not need to override this.
+    fn ping(&mut self, hash: u32) -> u32 {
+        hashw(Self::ID ^ hash)
+    }
 
     // End of interface. There is no need to override the following.
 
@@ -60,50 +73,50 @@ pub trait AudioNode: Clone {
         Self::Outputs::USIZE
     }
 
-    /// Retrieves the next mono sample from an all-zero input.
-    /// If there are many outputs, chooses the first.
-    /// This is an infallible convenience method.
+    /// Retrieve the next mono sample from a zero input.
+    /// The node must have exactly 1 output.
     #[inline]
     fn get_mono(&mut self) -> Self::Sample {
-        assert!(self.outputs() >= 1);
+        // TODO. Is there some way to make this constraint static.
+        assert!(Self::Outputs::USIZE == 1);
         let output = self.tick(&Frame::default());
         output[0]
     }
 
-    /// Retrieves the next stereo sample pair (left, right) from an all-zero input.
-    /// If there are more outputs, chooses the first two. If there is just one output, duplicates it.
-    /// This is an infallible convenience method.
+    /// Retrieve the next stereo sample (left, right) from a zero input.
+    /// The node must have 1 or 2 outputs. If there is just one output, duplicate it.
     #[inline]
     fn get_stereo(&mut self) -> (Self::Sample, Self::Sample) {
-        assert!(self.outputs() >= 1);
+        assert!(Self::Outputs::USIZE == 1 || Self::Outputs::USIZE == 2);
         let output = self.tick(&Frame::default());
-        (output[0], output[if self.outputs() > 1 { 1 } else { 0 }])
+        (
+            output[0],
+            output[if Self::Outputs::USIZE > 1 { 1 } else { 0 }],
+        )
     }
 
-    /// Filters the next mono sample.
-    /// Broadcasts the input to as many channels as are needed.
-    /// If there are many outputs, chooses the first.
-    /// This is an infallible convenience method.
+    /// Filter the next mono sample `x`.
+    /// The node must have exactly 1 input and 1 output.
     #[inline]
     fn filter_mono(&mut self, x: Self::Sample) -> Self::Sample {
-        assert!(self.outputs() >= 1);
+        assert!(Self::Inputs::USIZE == 1 && Self::Outputs::USIZE == 1);
         let output = self.tick(&Frame::splat(x));
         output[0]
     }
 
-    /// Filters the next stereo sample pair.
-    /// Broadcasts the input by wrapping to as many channels as are needed.
-    /// If there are more outputs, chooses the first two. If there is just one output, duplicates it.
-    /// This is an infallible convenience method.
+    /// Filter the next stereo sample `(x, y)`.
+    /// The node must have exactly 2 inputs.
+    /// The node must have 1 or 2 outputs. If there is just one output, duplicate it.
     #[inline]
     fn filter_stereo(&mut self, x: Self::Sample, y: Self::Sample) -> (Self::Sample, Self::Sample) {
-        assert!(self.outputs() >= 1);
+        assert!(Self::Inputs::USIZE == 2);
+        assert!(Self::Outputs::USIZE == 1 || Self::Outputs::USIZE == 2);
         let output = self.tick(&Frame::generate(|i| if i & 1 == 0 { x } else { y }));
         (output[0], output[if self.outputs() > 1 { 1 } else { 0 }])
     }
 }
 
-/// Combined latency of parallel components a and b.
+/// Combined latency of parallel components `a` and `b`.
 fn parallel_latency(a: Option<f64>, b: Option<f64>) -> Option<f64> {
     match (a, b) {
         (Some(x), Some(y)) => Some(min(x, y)),
@@ -113,7 +126,7 @@ fn parallel_latency(a: Option<f64>, b: Option<f64>) -> Option<f64> {
     }
 }
 
-/// Combined latency of serial components a and b.
+/// Combined latency of serial components `a` and `b`.
 fn serial_latency(a: Option<f64>, b: Option<f64>) -> Option<f64> {
     match (a, b) {
         (Some(x), Some(y)) => Some(x + y),
@@ -121,7 +134,7 @@ fn serial_latency(a: Option<f64>, b: Option<f64>) -> Option<f64> {
     }
 }
 
-/// PassNode passes through its inputs unchanged.
+/// Pass through inputs unchanged.
 #[derive(Clone)]
 pub struct PassNode<T, N> {
     _marker: PhantomData<(T, N)>,
@@ -136,6 +149,7 @@ impl<T: Float, N: Size<T>> PassNode<T, N> {
 }
 
 impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
+    const ID: u32 = 0;
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
@@ -147,15 +161,9 @@ impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         input.clone()
     }
-
-    #[inline]
-    // TODO: Find a clever way to do this automatically.
-    fn ping(&mut self, hash: u32) -> u32 {
-        hashw(0x001 ^ hash)
-    }
 }
 
-/// SinkNode consumes its inputs.
+/// Consume inputs.
 #[derive(Clone)]
 pub struct SinkNode<T, N> {
     _marker: PhantomData<(T, N)>,
@@ -170,6 +178,7 @@ impl<T: Float, N: Size<T>> SinkNode<T, N> {
 }
 
 impl<T: Float, N: Size<T>> AudioNode for SinkNode<T, N> {
+    const ID: u32 = 1;
     type Sample = T;
     type Inputs = N;
     type Outputs = U0;
@@ -181,13 +190,9 @@ impl<T: Float, N: Size<T>> AudioNode for SinkNode<T, N> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         Frame::default()
     }
-    #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        hashw(0x002 ^ hash)
-    }
 }
 
-/// ConstantNode outputs a constant value.
+/// Output a constant value.
 #[derive(Clone)]
 pub struct ConstantNode<T: Float, N: Size<T>> {
     output: Frame<T, N>,
@@ -200,6 +205,7 @@ impl<T: Float, N: Size<T>> ConstantNode<T, N> {
 }
 
 impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
+    const ID: u32 = 2;
     type Sample = T;
     type Inputs = U0;
     type Outputs = N;
@@ -210,10 +216,6 @@ impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.output.clone()
-    }
-    #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        hashw(0x003 ^ hash)
     }
 }
 
@@ -315,8 +317,9 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
     }
 }
 
-/// BinopNode combines outputs of two components, channel-wise, with a binary operation.
-/// The components must have the same number of outputs.
+/// Combine outputs of two nodes with a binary operation.
+/// Outputs are combined channel-wise.
+/// The nodes must have the same number of outputs.
 #[derive(Clone)]
 pub struct BinopNode<T, X, Y, B> {
     _marker: PhantomData<T>,
@@ -343,7 +346,7 @@ where
             y,
             b,
         };
-        node.ping(0x0001);
+        node.ping(Self::ID);
         node
     }
 }
@@ -359,6 +362,7 @@ where
     Y::Inputs: Size<T>,
     <X::Inputs as Add<Y::Inputs>>::Output: Size<T>,
 {
+    const ID: u32 = 3;
     type Sample = T;
     type Inputs = Sum<X::Inputs, Y::Inputs>;
     type Outputs = X::Outputs;
@@ -385,11 +389,11 @@ where
     fn ping(&mut self, hash: u32) -> u32 {
         let hash = self.x.ping(hash);
         let hash = self.y.ping(hash);
-        hashw(0x004 ^ hash)
+        hashw(Self::ID ^ hash)
     }
 }
 
-/// UnopNode applies an unary operator to its inputs.
+/// Apply a unary operation to output of contained node.
 #[derive(Clone)]
 pub struct UnopNode<T, X, U> {
     _marker: PhantomData<T>,
@@ -411,7 +415,7 @@ where
             x,
             u,
         };
-        node.ping(0x0002);
+        node.ping(Self::ID);
         node
     }
 }
@@ -424,6 +428,7 @@ where
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
 {
+    const ID: u32 = 4;
     type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = X::Outputs;
@@ -444,7 +449,7 @@ where
     #[inline]
     fn ping(&mut self, hash: u32) -> u32 {
         let hash = self.x.ping(hash);
-        hashw(0x005 ^ hash)
+        hashw(Self::ID ^ hash)
     }
 }
 
@@ -454,6 +459,7 @@ pub struct Map<T, F, I, O> {
     _marker: PhantomData<(T, I, O)>,
 }
 
+/// Map any number of channels.
 impl<T, F, I, O> Map<T, F, I, O>
 where
     T: Float,
@@ -476,6 +482,7 @@ where
     I: Size<T>,
     O: Size<T>,
 {
+    const ID: u32 = 5;
     type Sample = T;
     type Inputs = I;
     type Outputs = O;
@@ -489,13 +496,9 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         (self.f)(input)
     }
-    #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        hashw(0x007 ^ hash)
-    }
 }
 
-/// PipeNode pipes the output of X to Y.
+/// Pipe the output of `X` to `Y`.
 #[derive(Clone)]
 pub struct PipeNode<T, X, Y> {
     _marker: PhantomData<T>,
@@ -518,7 +521,7 @@ where
             x,
             y,
         };
-        node.ping(0x0003);
+        node.ping(Self::ID);
         node
     }
 }
@@ -532,6 +535,7 @@ where
     X::Outputs: Size<T>,
     Y::Outputs: Size<T>,
 {
+    const ID: u32 = 6;
     type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = Y::Outputs;
@@ -554,11 +558,11 @@ where
     fn ping(&mut self, hash: u32) -> u32 {
         let hash = self.x.ping(hash);
         let hash = self.y.ping(hash);
-        hashw(0x008 ^ hash)
+        hashw(Self::ID ^ hash)
     }
 }
 
-//// StackNode stacks X and Y in parallel.
+//// Stack `X` and `Y` in parallel.
 #[derive(Clone)]
 pub struct StackNode<T, X, Y> {
     _marker: PhantomData<T>,
@@ -584,7 +588,7 @@ where
             x,
             y,
         };
-        node.ping(0x0004);
+        node.ping(Self::ID);
         node
     }
 }
@@ -601,6 +605,7 @@ where
     <X::Inputs as Add<Y::Inputs>>::Output: Size<T>,
     <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
 {
+    const ID: u32 = 7;
     type Sample = T;
     type Inputs = Sum<X::Inputs, Y::Inputs>;
     type Outputs = Sum<X::Outputs, Y::Outputs>;
@@ -633,11 +638,11 @@ where
     fn ping(&mut self, hash: u32) -> u32 {
         let hash = self.x.ping(hash);
         let hash = self.y.ping(hash);
-        hashw(0x009 ^ hash)
+        hashw(Self::ID ^ hash)
     }
 }
 
-/// BranchNode sends the same input to X and Y and concatenates the outputs.
+/// Send the same input to `X` and `Y`. Concatenate outputs.
 #[derive(Clone)]
 pub struct BranchNode<T, X, Y> {
     _marker: PhantomData<T>,
@@ -661,7 +666,7 @@ where
             x,
             y,
         };
-        node.ping(0x0005);
+        node.ping(Self::ID);
         node
     }
 }
@@ -676,6 +681,7 @@ where
     Y::Outputs: Size<T>,
     <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
 {
+    const ID: u32 = 8;
     type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = Sum<X::Outputs, Y::Outputs>;
@@ -710,7 +716,7 @@ where
     }
 }
 
-/// TickNode is a single sample delay.
+/// Single sample delay.
 #[derive(Clone)]
 pub struct TickNode<T: Float, N: Size<T>> {
     buffer: Frame<T, N>,
@@ -727,6 +733,7 @@ impl<T: Float, N: Size<T>> TickNode<T, N> {
 }
 
 impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
+    const ID: u32 = 9;
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
@@ -751,13 +758,9 @@ impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
     fn latency(&self) -> Option<f64> {
         Some(1.0 / self.sample_rate)
     }
-    #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        hashw(0x00B ^ hash)
-    }
 }
 
-/// BusNode mixes together a set of nodes sourcing from the same inputs.
+/// Mix together `X` and `Y` sourcing from the same inputs.
 #[derive(Clone)]
 pub struct BusNode<T, X, Y> {
     _marker: PhantomData<T>,
@@ -781,7 +784,7 @@ where
             x,
             y,
         };
-        node.ping(0x0006);
+        node.ping(Self::ID);
         node
     }
 }
@@ -796,6 +799,7 @@ where
     Y::Inputs: Size<T>,
     Y::Outputs: Size<T>,
 {
+    const ID: u32 = 10;
     type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = X::Outputs;
@@ -820,12 +824,12 @@ where
     fn ping(&mut self, hash: u32) -> u32 {
         let hash = self.x.ping(hash);
         let hash = self.y.ping(hash);
-        hashw(0x00C ^ hash)
+        hashw(Self::ID ^ hash)
     }
 }
 
-/// FeedbackNode encloses a feedback circuit.
-/// The feedback circuit must have an equal number of inputs and outputs.
+/// Mix back output of contained node to its input.
+/// The contained node must have an equal number of inputs and outputs.
 #[derive(Clone)]
 pub struct FeedbackNode<T, X, N>
 where
@@ -853,7 +857,7 @@ where
             x,
             value: Frame::default(),
         };
-        node.ping(0x0007);
+        node.ping(Self::ID);
         node
     }
 }
@@ -866,6 +870,7 @@ where
     X::Outputs: Size<T>,
     N: Size<T>,
 {
+    const ID: u32 = 11;
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
@@ -893,11 +898,11 @@ where
     #[inline]
     fn ping(&mut self, hash: u32) -> u32 {
         let hash = self.x.ping(hash);
-        hashw(0x00D ^ hash)
+        hashw(Self::ID ^ hash)
     }
 }
 
-/// FitNode adapts a filter to a pipeline.
+/// Adapt a filter to a pipeline.
 #[derive(Clone)]
 pub struct FitNode<X> {
     x: X,
@@ -906,12 +911,13 @@ pub struct FitNode<X> {
 impl<X: AudioNode> FitNode<X> {
     pub fn new(x: X) -> Self {
         let mut node = FitNode { x };
-        node.ping(0x0008);
+        node.ping(Self::ID);
         node
     }
 }
 
 impl<X: AudioNode> AudioNode for FitNode<X> {
+    const ID: u32 = 12;
     type Sample = X::Sample;
     type Inputs = X::Inputs;
     type Outputs = X::Inputs;
@@ -943,6 +949,6 @@ impl<X: AudioNode> AudioNode for FitNode<X> {
     #[inline]
     fn ping(&mut self, hash: u32) -> u32 {
         let hash = self.x.ping(hash);
-        hashw(0x00D ^ hash)
+        hashw(Self::ID ^ hash)
     }
 }

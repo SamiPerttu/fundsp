@@ -1,5 +1,4 @@
 use super::audionode::*;
-use super::math::*;
 use super::*;
 use numeric_array::*;
 
@@ -57,12 +56,6 @@ impl Mls {
         Mls { n, s: (1 << n) - 1 }
     }
 
-    /// Creates a default MLS with 29-bit state space
-    /// (which repeats @ ~12174 seconds @ 44.1 kHz).
-    pub fn new_default() -> Mls {
-        Mls::new(29)
-    }
-
     /// Creates a MLS from seed.
     /// Number of bits in the state space is n (1 <= n <= 31).
     pub fn new_with_seed(n: u32, seed: u32) -> Mls {
@@ -88,7 +81,7 @@ impl Mls {
         }
     }
 
-    /// Returns the current value in the sequence, either 0 or 1.
+    /// The current value in the sequence, either 0 or 1.
     pub fn value(self) -> u32 {
         (self.s >> (self.n - 1)) & 1
     }
@@ -110,12 +103,10 @@ impl<T: Float> MlsNoise<T> {
             hash: 0,
         }
     }
-    pub fn new_default() -> MlsNoise<T> {
-        MlsNoise::new(Mls::new_default())
-    }
 }
 
 impl<T: Float> AudioNode for MlsNoise<T> {
+    const ID: u32 = 19;
     type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
@@ -135,9 +126,8 @@ impl<T: Float> AudioNode for MlsNoise<T> {
     }
 
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        self.hash = hashw(0x014 ^ hash);
-        hash
+    fn set_hash(&mut self, hash: u32) {
+        self.hash = hash;
     }
 }
 
@@ -160,6 +150,7 @@ impl<T: Float> NoiseNode<T> {
 }
 
 impl<T: Float> AudioNode for NoiseNode<T> {
+    const ID: u32 = 20;
     type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
@@ -178,13 +169,12 @@ impl<T: Float> AudioNode for NoiseNode<T> {
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
         // Pick 20 most significant bits from the linear congruential generator.
-        let value: T = T::new((self.x >> 44) as i64) / convert(524287.5) - T::new(1);
+        let value: T = T::new((self.x >> 44) as i64) / T::from_f32(524287.5) - T::new(1);
         [value].into()
     }
 
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        self.hash = hashw(0x015 ^ hash);
-        hash
+    fn set_hash(&mut self, hash: u32) {
+        self.hash = hash;
     }
 }

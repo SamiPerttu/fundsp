@@ -9,80 +9,40 @@ pub trait ConstantFrame {
     fn convert(self) -> Frame<Self::Sample, Self::Size>;
 }
 
-impl ConstantFrame for f64 {
-    type Sample = f64;
+impl<T: Float> ConstantFrame for T {
+    type Sample = T;
     type Size = U1;
     fn convert(self) -> Frame<Self::Sample, Self::Size> {
         [self].into()
     }
 }
 
-impl ConstantFrame for (f64, f64) {
-    type Sample = f64;
+impl<T: Float> ConstantFrame for (T, T) {
+    type Sample = T;
     type Size = U2;
     fn convert(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1].into()
     }
 }
 
-impl ConstantFrame for (f64, f64, f64) {
-    type Sample = f64;
+impl<T: Float> ConstantFrame for (T, T, T) {
+    type Sample = T;
     type Size = U3;
     fn convert(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1, self.2].into()
     }
 }
 
-impl ConstantFrame for (f64, f64, f64, f64) {
-    type Sample = f64;
+impl<T: Float> ConstantFrame for (T, T, T, T) {
+    type Sample = T;
     type Size = U4;
     fn convert(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1, self.2, self.3].into()
     }
 }
 
-impl ConstantFrame for (f64, f64, f64, f64, f64) {
-    type Sample = f64;
-    type Size = U5;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
-        [self.0, self.1, self.2, self.3, self.4].into()
-    }
-}
-
-impl ConstantFrame for f32 {
-    type Sample = f32;
-    type Size = U1;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
-        [self].into()
-    }
-}
-
-impl ConstantFrame for (f32, f32) {
-    type Sample = f32;
-    type Size = U2;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
-        [self.0, self.1].into()
-    }
-}
-
-impl ConstantFrame for (f32, f32, f32) {
-    type Sample = f32;
-    type Size = U3;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
-        [self.0, self.1, self.2].into()
-    }
-}
-
-impl ConstantFrame for (f32, f32, f32, f32) {
-    type Sample = f32;
-    type Size = U4;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
-        [self.0, self.1, self.2, self.3].into()
-    }
-}
-
-impl ConstantFrame for (f32, f32, f32, f32, f32) {
-    type Sample = f32;
+impl<T: Float> ConstantFrame for (T, T, T, T, T) {
+    type Sample = T;
     type Size = U5;
     fn convert(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1, self.2, self.3, self.4].into()
@@ -108,7 +68,7 @@ impl<X: AudioNode> core::ops::DerefMut for An<X> {
     }
 }
 
-/// -X: negated signal.
+/// `-` unary operator: Negates node outputs. Any node can be negated.
 impl<X> std::ops::Neg for An<X>
 where
     X: AudioNode,
@@ -121,7 +81,7 @@ where
     }
 }
 
-/// !X: fit signal.
+/// `!` unary operator: The fit operator converts output arity to match input arity and passes through missing outputs.
 impl<X> std::ops::Not for An<X>
 where
     X: AudioNode,
@@ -133,7 +93,7 @@ where
     }
 }
 
-/// X + Y: sum signal.
+/// `+` binary operator: Sums outputs of two nodes with disjoint inputs. The nodes must have the same number of outputs.
 impl<X, Y> std::ops::Add<An<Y>> for An<X>
 where
     X: AudioNode,
@@ -149,7 +109,7 @@ where
     }
 }
 
-/// X + constant: offset signal.
+/// `X + constant` binary operator: Adds `constant` to outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Add<f64> for An<X>
 where
     X: AudioNode<Sample = f64>,
@@ -169,7 +129,7 @@ where
     }
 }
 
-/// constant + X: offset signal.
+/// `constant + X` binary operator: Adds `constant` to outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Add<An<X>> for f64
 where
     X: AudioNode<Sample = f64>,
@@ -188,7 +148,7 @@ where
     }
 }
 
-/// X + constant: offset signal.
+/// `X + constant` binary operator: Adds `constant` to outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Add<f32> for An<X>
 where
     X: AudioNode<Sample = f32>,
@@ -208,7 +168,7 @@ where
     }
 }
 
-/// constant + X: offset signal.
+/// `constant + X` binary operator: Adds `constant` to outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Add<An<X>> for f32
 where
     X: AudioNode<Sample = f32>,
@@ -227,7 +187,7 @@ where
     }
 }
 
-/// X - Y: difference signal.
+/// `-` binary operator: The difference of outputs of two nodes with disjoint inputs. The nodes must have the same number of outputs.
 impl<X, Y> std::ops::Sub<An<Y>> for An<X>
 where
     X: AudioNode,
@@ -243,7 +203,7 @@ where
     }
 }
 
-/// X - constant: offset signal.
+/// `X - constant` binary operator: Subtracts `constant` from outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Sub<f64> for An<X>
 where
     X: AudioNode<Sample = f64>,
@@ -262,7 +222,7 @@ where
     }
 }
 
-/// constant - X: inverted offset signal.
+/// `constant - X` binary operator: Negates `X` and adds `constant` to its outputs. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Sub<An<X>> for f64
 where
     X: AudioNode<Sample = f64>,
@@ -281,7 +241,7 @@ where
     }
 }
 
-/// X - constant: offset signal.
+/// `X - constant` binary operator: Subtracts `constant` from outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Sub<f32> for An<X>
 where
     X: AudioNode<Sample = f32>,
@@ -300,7 +260,7 @@ where
     }
 }
 
-/// constant - X: inverted offset signal.
+/// `constant - X` binary operator: Negates `X` and adds `constant` to its outputs. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Sub<An<X>> for f32
 where
     X: AudioNode<Sample = f32>,
@@ -319,7 +279,7 @@ where
     }
 }
 
-/// X * Y: product signal.
+/// `*` binary operator: Multiplies outputs of two nodes with disjoint inputs. The nodes must have the same number of outputs.
 impl<X, Y> std::ops::Mul<An<Y>> for An<X>
 where
     X: AudioNode,
@@ -335,7 +295,7 @@ where
     }
 }
 
-/// X * constant: amplified signal.
+/// `X * constant` binary operator: Multplies outputs of `X` with `constant`. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<f64> for An<X>
 where
     X: AudioNode<Sample = f64>,
@@ -354,7 +314,7 @@ where
     }
 }
 
-/// constant * X: amplified signal.
+/// `constant * X` binary operator: Multplies outputs of `X` with `constant`. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<An<X>> for f64
 where
     X: AudioNode<Sample = f64>,
@@ -373,7 +333,7 @@ where
     }
 }
 
-/// X * constant: amplified signal.
+/// `X * constant` binary operator: Multplies outputs of `X` with `constant`. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<f32> for An<X>
 where
     X: AudioNode<Sample = f32>,
@@ -392,7 +352,7 @@ where
     }
 }
 
-/// constant * X: amplified signal.
+/// `constant * X` binary operator: Multplies outputs of `X` with `constant`. Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<An<X>> for f32
 where
     X: AudioNode<Sample = f32>,
@@ -411,7 +371,8 @@ where
     }
 }
 
-/// X >> Y: serial pipe.
+/// `>>` binary operator: The pipe operator pipes outputs of left node to inputs of right node.
+/// Number of outputs on the left side and number of inputs on the right side must match.
 impl<T, X, Y> std::ops::Shr<An<Y>> for An<X>
 where
     T: Float,
@@ -428,7 +389,7 @@ where
     }
 }
 
-/// X & Y: parallel bus.
+/// `&` binary operator: The bus operator mixes together units with similar connectivity that share inputs and outputs.
 impl<T, X, Y> std::ops::BitAnd<An<Y>> for An<X>
 where
     T: Float,
@@ -444,7 +405,7 @@ where
     }
 }
 
-/// X ^ Y: parallel branch.
+/// `^` binary operator: The branch operator sources two nodes from the same inputs and concatenates their outputs.
 impl<T, X, Y> std::ops::BitXor<An<Y>> for An<X>
 where
     T: Float,
@@ -462,7 +423,7 @@ where
     }
 }
 
-/// X | Y: parallel stack.
+/// `|` binary operator: The stack operator stacks inputs and outputs of two nodes running in parallel.
 impl<T, X, Y> std::ops::BitOr<An<Y>> for An<X>
 where
     T: Float,

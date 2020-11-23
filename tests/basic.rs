@@ -1,6 +1,6 @@
 extern crate fundsp;
 
-pub use fundsp::prelude::*;
+use fundsp::hacker::*;
 
 // New components can be defined with the following return signature.
 // Declaring the full arity in the signature enables use of the component
@@ -19,12 +19,6 @@ fn test() {
     let mut d = constant((2.0, 3.0));
     assert!(d.inputs() == 0 && d.outputs() == 2);
     assert!(d.get_stereo() == (2.0, 3.0));
-    assert!(d.get_mono() == 2.0);
-    let mut d = constant((4.0, 5.0, 6.0));
-    assert!(d.inputs() == 0 && d.outputs() == 3);
-    assert!(d.get_stereo() == (4.0, 5.0));
-
-    assert!(split_quad().filter_mono(10.0) == 10.0);
 
     // Random stuff.
     let c = constant((2.0, 3.0)) * dc((2.0, 3.0));

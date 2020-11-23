@@ -37,9 +37,9 @@ pub type U20 = numeric_array::typenum::U20;
 
 /// Constant node.
 /// Synonymous with `[dc]`.
-pub fn constant<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<ConstantNode<T, X::Size>>
+pub fn constant<X: ConstantFrame<Sample = f64>>(x: X) -> An<ConstantNode<f64, X::Size>>
 where
-    X::Size: Size<T>,
+    X::Size: Size<f64>,
 {
     An(ConstantNode::new(x.convert()))
 }
@@ -47,9 +47,9 @@ where
 /// Constant node.
 /// Synonymous with `constant`.
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
-pub fn dc<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<ConstantNode<T, X::Size>>
+pub fn dc<X: ConstantFrame<Sample = f64>>(x: X) -> An<ConstantNode<f64, X::Size>>
 where
-    X::Size: Size<T>,
+    X::Size: Size<f64>,
 {
     An(ConstantNode::new(x.convert()))
 }
@@ -57,19 +57,19 @@ where
 /// Zero generator.
 /// - Output 0: zero
 #[inline]
-pub fn zero<T: Float>() -> An<ConstantNode<T, U1>> {
-    dc(T::new(0))
+pub fn zero() -> An<ConstantNode<f64, U1>> {
+    constant(0.0)
 }
 
 /// Mono pass-through.
 #[inline]
-pub fn pass<T: Float>() -> An<PassNode<T, U1>> {
+pub fn pass() -> An<PassNode<f64, U1>> {
     An(PassNode::new())
 }
 
 /// Mono sink.
 #[inline]
-pub fn sink<T: Float>() -> An<SinkNode<T, U1>> {
+pub fn sink() -> An<SinkNode<f64, U1>> {
     An(SinkNode::new())
 }
 
@@ -77,72 +77,51 @@ pub fn sink<T: Float>() -> An<SinkNode<T, U1>> {
 /// - Input 0: frequency (Hz)
 /// - Output 0: sine wave
 #[inline]
-pub fn sine<T: Float>() -> An<SineComponent<T>> {
+pub fn sine() -> An<SineComponent<f64>> {
     An(SineComponent::new())
 }
 
 /// Fixed sine oscillator at `f` Hz.
 /// - Output 0: sine wave
 #[inline]
-pub fn sine_hz<T: Float>(f: T) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+pub fn sine_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
     constant(f) >> sine()
 }
 
 /// Add constant to signal.
 #[inline]
-pub fn add<X: ConstantFrame>(
+pub fn add<X: ConstantFrame<Sample = f64>>(
     x: X,
-) -> An<
-    BinopNode<
-        X::Sample,
-        PassNode<X::Sample, X::Size>,
-        ConstantNode<X::Sample, X::Size>,
-        FrameAdd<X::Sample, X::Size>,
-    >,
->
+) -> An<BinopNode<f64, PassNode<f64, X::Size>, ConstantNode<f64, X::Size>, FrameAdd<f64, X::Size>>>
 where
-    X::Size: Size<X::Sample> + Add<U0>,
-    <X::Size as Add<U0>>::Output: Size<X::Sample>,
+    X::Size: Size<f64> + Add<U0>,
+    <X::Size as Add<U0>>::Output: Size<f64>,
 {
-    An(PassNode::<X::Sample, X::Size>::new()) + dc(x)
+    An(PassNode::<f64, X::Size>::new()) + dc(x)
 }
 
 /// Subtract constant from signal.
 #[inline]
-pub fn sub<X: ConstantFrame>(
+pub fn sub<X: ConstantFrame<Sample = f64>>(
     x: X,
-) -> An<
-    BinopNode<
-        X::Sample,
-        PassNode<X::Sample, X::Size>,
-        ConstantNode<X::Sample, X::Size>,
-        FrameSub<X::Sample, X::Size>,
-    >,
->
+) -> An<BinopNode<f64, PassNode<f64, X::Size>, ConstantNode<f64, X::Size>, FrameSub<f64, X::Size>>>
 where
-    X::Size: Size<X::Sample> + Add<U0>,
-    <X::Size as Add<U0>>::Output: Size<X::Sample>,
+    X::Size: Size<f64> + Add<U0>,
+    <X::Size as Add<U0>>::Output: Size<f64>,
 {
-    An(PassNode::<X::Sample, X::Size>::new()) - dc(x)
+    An(PassNode::<f64, X::Size>::new()) - dc(x)
 }
 
 /// Multiply signal with constant.
 #[inline]
-pub fn mul<X: ConstantFrame>(
+pub fn mul<X: ConstantFrame<Sample = f64>>(
     x: X,
-) -> An<
-    BinopNode<
-        X::Sample,
-        PassNode<X::Sample, X::Size>,
-        ConstantNode<X::Sample, X::Size>,
-        FrameMul<X::Sample, X::Size>,
-    >,
->
+) -> An<BinopNode<f64, PassNode<f64, X::Size>, ConstantNode<f64, X::Size>, FrameMul<f64, X::Size>>>
 where
-    X::Size: Size<X::Sample> + Add<U0>,
-    <X::Size as Add<U0>>::Output: Size<X::Sample>,
+    X::Size: Size<f64> + Add<U0>,
+    <X::Size as Add<U0>>::Output: Size<f64>,
 {
-    An(PassNode::<X::Sample, X::Size>::new()) * dc(x)
+    An(PassNode::<f64, X::Size>::new()) * dc(x)
 }
 
 /// Butterworth lowpass filter (2nd order).
@@ -150,18 +129,16 @@ where
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpass<T: Float, F: Real>() -> An<ButterLowpass<T, F>> {
-    An(ButterLowpass::new(convert(DEFAULT_SR)))
+pub fn lowpass() -> An<ButterLowpass<f64, f64>> {
+    An(ButterLowpass::new(DEFAULT_SR))
 }
 
 /// Butterworth lowpass filter (2nd order) with fixed `cutoff` frequency.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpass_hz<T: Float, F: Real>(
-    cutoff: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    (pass() | constant(cutoff)) >> lowpass::<T, F>()
+pub fn lowpass_hz(cutoff: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | constant(cutoff)) >> lowpass()
 }
 
 /// One-pole lowpass filter (1st order).
@@ -169,18 +146,16 @@ pub fn lowpass_hz<T: Float, F: Real>(
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpole<T: Float, F: Real>() -> An<OnePoleLowpass<T, F>> {
-    An(OnePoleLowpass::new(convert(DEFAULT_SR)))
+pub fn lowpole() -> An<OnePoleLowpass<f64, f64>> {
+    An(OnePoleLowpass::new(DEFAULT_SR))
 }
 
 /// One-pole lowpass filter (1st order) with fixed `cutoff` frequency.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpole_hz<T: Float, F: Real>(
-    cutoff: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    (pass::<T>() | constant(cutoff)) >> lowpole::<T, F>()
+pub fn lowpole_hz(cutoff: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | constant(cutoff)) >> lowpole()
 }
 
 /// Constant-gain bandpass resonator.
@@ -189,82 +164,82 @@ pub fn lowpole_hz<T: Float, F: Real>(
 /// - Input 2: bandwidth (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn resonator<T: Float, F: Real>() -> An<Resonator<T, F>> {
-    An(Resonator::new(convert(DEFAULT_SR)))
+pub fn resonator() -> An<Resonator<f64, f64>> {
+    An(Resonator::new(DEFAULT_SR))
 }
 
 /// Constant-gain bandpass resonator with fixed `cutoff` frequency (Hz) and `bandwidth` (Hz).
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn resonator_hz<T: Float, F: Real>(
-    cutoff: T,
-    bandwidth: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    (pass::<T>() | constant((cutoff, bandwidth))) >> resonator::<T, F>()
+pub fn resonator_hz(
+    cutoff: f64,
+    bandwidth: f64,
+) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | constant((cutoff, bandwidth))) >> resonator()
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `lfo`.
 /// - Output 0: envelope linearly interpolated from samples at 2 ms intervals (average).
-pub fn envelope<T: Float, F: Real>(
-    f: impl Fn(F) -> F + Clone,
-) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+pub fn envelope(
+    f: impl Fn(f64) -> f64 + Clone,
+) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
     // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
     // Therefore, sampling at 500 Hz means these signals are fairly well represented.
     // While we represent time in double precision internally, it is often okay to use single precision
     // in envelopes, as local component time typically does not get far from origin.
-    An(EnvelopeNode::new(F::from_f64(0.002), DEFAULT_SR, f))
+    An(EnvelopeNode::new(0.002, DEFAULT_SR, f))
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `envelope`.
 /// - Output 0: envelope linearly interpolated from samples at 2 ms intervals (average).
-pub fn lfo<T: Float, F: Real>(
-    f: impl Fn(F) -> F + Clone,
-) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
-    An(EnvelopeNode::new(F::from_f64(0.002), DEFAULT_SR, f))
+pub fn lfo(
+    f: impl Fn(f64) -> f64 + Clone,
+) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+    An(EnvelopeNode::new(0.002, DEFAULT_SR, f))
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
-pub fn mls_bits<T: Float>(n: u32) -> An<MlsNoise<T>> {
-    An(MlsNoise::new(Mls::new(n)))
+pub fn mls_bits(n: i64) -> An<MlsNoise<f64>> {
+    An(MlsNoise::new(Mls::new(n as u32)))
 }
 
 /// Default Maximum Length Sequence noise generator.
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
-pub fn mls<T: Float>() -> An<MlsNoise<T>> {
+pub fn mls() -> An<MlsNoise<f64>> {
     mls_bits(29)
 }
 
 /// White noise generator.
 /// Synonymous with `white`.
 /// - Output 0: white noise.
-pub fn noise<T: Float>() -> An<NoiseNode<T>> {
+pub fn noise() -> An<NoiseNode<f64>> {
     An(NoiseNode::new())
 }
 
 /// White noise generator.
 /// Synonymous with `noise`.
 /// - Output 0: white noise.
-pub fn white<T: Float>() -> An<NoiseNode<T>> {
+pub fn white() -> An<NoiseNode<f64>> {
     An(NoiseNode::new())
 }
 
 /// Single sample delay.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
-pub fn tick<T: Float>() -> An<TickNode<T, U1>> {
-    An(TickNode::new(convert(DEFAULT_SR)))
+pub fn tick() -> An<TickNode<f64, U1>> {
+    An(TickNode::new(DEFAULT_SR))
 }
 
 /// Fixed delay of `t` seconds.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
-pub fn delay<T: Float>(t: f64) -> An<DelayNode<T>> {
+pub fn delay(t: f64) -> An<DelayNode<f64>> {
     An(DelayNode::new(t, DEFAULT_SR))
 }
 
@@ -272,13 +247,12 @@ pub fn delay<T: Float>(t: f64) -> An<DelayNode<T>> {
 /// Feedback circuit `x` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
-pub fn feedback<T, X, N>(x: An<X>) -> An<FeedbackNode<T, X, N>>
+pub fn feedback<X, N>(x: An<X>) -> An<FeedbackNode<f64, X, N>>
 where
-    T: Float,
-    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    N: Size<T>,
+    X: AudioNode<Sample = f64, Inputs = N, Outputs = N>,
+    X::Inputs: Size<f64>,
+    X::Outputs: Size<f64>,
+    N: Size<f64>,
 {
     An(FeedbackNode::new(x.0))
 }
