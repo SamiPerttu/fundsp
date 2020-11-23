@@ -299,3 +299,8 @@ where
 {
     Map::new(f)
 }
+
+/// Keeps a signal zero centered.
+pub fn dcblock<T: Float, F: Real>() -> An<DCBlocker<T, F>> {
+    An(DCBlocker::new(convert(DEFAULT_SR)))
+}

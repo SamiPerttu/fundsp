@@ -241,7 +241,7 @@ pub struct OnePoleLowpass<T: Float, F: Real> {
 }
 
 impl<T: Float, F: Real> OnePoleLowpass<T, F> {
-    pub fn new(sample_rate: f64) -> OnePoleLowpass<T, F> {
+    pub fn new(sample_rate: f64) -> Self {
         OnePoleLowpass {
             _marker: std::marker::PhantomData,
             value: F::zero(),
@@ -279,5 +279,52 @@ impl<T: Float, F: Real> AudioNode for OnePoleLowpass<T, F> {
         let x = convert(input[0]);
         self.value = (F::one() - self.coeff) * x + self.coeff * self.value;
         [convert(self.value)].into()
+    }
+}
+
+/// DC blocking filter.
+/// Input 0: input signal
+/// Output 0: zero centered signal
+#[derive(Copy, Clone, Default)]
+pub struct DCBlocker<T: Float, F: Real> {
+    _marker: std::marker::PhantomData<T>,
+    x1: F,
+    y1: F,
+    coeff: F,
+}
+
+impl<T: Float, F: Real> DCBlocker<T, F> {
+    pub fn new(sample_rate: f64) -> Self {
+        let mut node = DCBlocker::default();
+        node.reset(Some(sample_rate));
+        node
+    }
+}
+
+impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
+    const ID: u32 = 22;
+    type Sample = T;
+    type Inputs = typenum::U1;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sample_rate) = sample_rate {
+            let cutoff = F::new(9); // Hz
+            self.coeff = F::one() - (F::from_f64(TAU / sample_rate) * cutoff);
+        }
+        self.x1 = F::zero();
+        self.y1 = F::zero();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let x = convert(input[0]);
+        let y0 = x - self.x1 + self.coeff * self.y1;
+        self.x1 = x;
+        self.y1 = y0;
+        [convert(y0)].into()
     }
 }

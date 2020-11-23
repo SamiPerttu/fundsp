@@ -256,3 +256,8 @@ where
 {
     An(FeedbackNode::new(x.0))
 }
+
+/// Keeps a signal zero centered.
+pub fn dcblock() -> An<DCBlocker<f64, f64>> {
+    An(DCBlocker::new(DEFAULT_SR))
+}
