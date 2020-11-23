@@ -315,6 +315,7 @@ These free functions are available in the environment.
 | `add(x)`               |    x   |    x     | Adds constant `x` to signal. |
 | `constant(x)`          |    -   |    x     | Constant signal `x`. Synonymous with `dc`. |
 | `dc(x)`                |    -   |    x     | Constant signal `x`. Synonymous with `constant`. |
+| `dcblock()`            |    1   |    1     | Zero centers signal. |
 | `delay(t)`             |    1   |    1     | Fixed delay of `t` seconds. |
 | `envelope(f)`          |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `feedback(x)`          |    x   |    x     | Encloses feedback circuit x (with equal number of inputs and outputs). |
