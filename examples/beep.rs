@@ -1,3 +1,5 @@
+#![allow(clippy::precedence)]
+
 extern crate anyhow;
 extern crate cpal;
 

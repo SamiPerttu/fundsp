@@ -78,7 +78,7 @@ pub fn sink() -> An<SinkNode<f64, U1>> {
 /// - Output 0: sine wave
 #[inline]
 pub fn sine() -> An<SineComponent<f64>> {
-    An(SineComponent::new())
+    An(SineComponent::new(DEFAULT_SR))
 }
 
 /// Fixed sine oscillator at `f` Hz.

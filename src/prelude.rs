@@ -78,7 +78,7 @@ pub fn sink<T: Float>() -> An<SinkNode<T, U1>> {
 /// - Output 0: sine wave
 #[inline]
 pub fn sine<T: Float>() -> An<SineComponent<T>> {
-    An(SineComponent::new())
+    An(SineComponent::new(DEFAULT_SR))
 }
 
 /// Fixed sine oscillator at `f` Hz.

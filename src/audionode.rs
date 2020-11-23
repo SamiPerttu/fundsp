@@ -135,17 +135,13 @@ fn serial_latency(a: Option<f64>, b: Option<f64>) -> Option<f64> {
 }
 
 /// Pass through inputs unchanged.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct PassNode<T, N> {
     _marker: PhantomData<(T, N)>,
 }
 
 impl<T: Float, N: Size<T>> PassNode<T, N> {
-    pub fn new() -> Self {
-        PassNode {
-            _marker: PhantomData,
-        }
-    }
+    pub fn new() -> Self { PassNode::default() }
 }
 
 impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
@@ -164,17 +160,13 @@ impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
 }
 
 /// Consume inputs.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct SinkNode<T, N> {
     _marker: PhantomData<(T, N)>,
 }
 
 impl<T: Float, N: Size<T>> SinkNode<T, N> {
-    pub fn new() -> Self {
-        SinkNode {
-            _marker: PhantomData,
-        }
-    }
+    pub fn new() -> Self { SinkNode::default() }
 }
 
 impl<T: Float, N: Size<T>> AudioNode for SinkNode<T, N> {
@@ -229,17 +221,13 @@ pub enum Binop {
 pub trait FrameBinop<T: Float, N: Size<T>>: Clone {
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
 }
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct FrameAdd<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
 }
 
 impl<T: Float, N: Size<T>> FrameAdd<T, N> {
-    pub fn new() -> FrameAdd<T, N> {
-        FrameAdd {
-            _marker: PhantomData,
-        }
-    }
+    pub fn new() -> FrameAdd<T, N> { FrameAdd::default() }
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
@@ -249,17 +237,13 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct FrameSub<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
 }
 
 impl<T: Float, N: Size<T>> FrameSub<T, N> {
-    pub fn new() -> FrameSub<T, N> {
-        FrameSub {
-            _marker: PhantomData,
-        }
-    }
+    pub fn new() -> FrameSub<T, N> { FrameSub::default() }
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
@@ -269,17 +253,13 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct FrameMul<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
 }
 
 impl<T: Float, N: Size<T>> FrameMul<T, N> {
-    pub fn new() -> FrameMul<T, N> {
-        FrameMul {
-            _marker: PhantomData,
-        }
-    }
+    pub fn new() -> FrameMul<T, N> { FrameMul::default() }
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
@@ -297,17 +277,13 @@ pub enum Unop {
 pub trait FrameUnop<T: Float, N: Size<T>>: Clone {
     fn unop(x: &Frame<T, N>) -> Frame<T, N>;
 }
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct FrameNeg<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
 }
 
 impl<T: Float, N: Size<T>> FrameNeg<T, N> {
-    pub fn new() -> FrameNeg<T, N> {
-        FrameNeg {
-            _marker: PhantomData,
-        }
-    }
+    pub fn new() -> FrameNeg<T, N> { FrameNeg::default() }
 }
 
 impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {

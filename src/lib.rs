@@ -1,3 +1,5 @@
+#![allow(clippy::precedence, clippy::type_complexity, clippy::float_cmp, clippy::len_zero, clippy::double_neg)]
+
 use std::cmp::PartialEq;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};

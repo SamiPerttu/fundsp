@@ -459,7 +459,7 @@ where
 {
     /// Consumes and returns the component as an FnMut closure
     /// that yields mono samples via AudioNode::get_mono.
-    pub fn as_mono_fn(self) -> impl FnMut() -> f32 {
+    pub fn into_mono_fn(self) -> impl FnMut() -> f32 {
         let mut c = self;
         move || c.get_mono()
     }
@@ -467,14 +467,14 @@ where
     /// Consumes and returns the component as an FnMut closure
     /// that filters mono samples via AudioNode::filter_mono.
     /// Broadcasts the mono input if applicable.
-    pub fn as_mono_filter_fn(self) -> impl FnMut(f32) -> f32 {
+    pub fn into_mono_filter_fn(self) -> impl FnMut(f32) -> f32 {
         let mut c = self;
         move |x| c.filter_mono(x)
     }
 
     /// Consumes and returns the component as an FnMut closure
     /// that yields stereo samples via AudioNode::get_stereo.
-    pub fn as_stereo_fn(self) -> impl FnMut() -> (f32, f32) {
+    pub fn into_stereo_fn(self) -> impl FnMut() -> (f32, f32) {
         let mut c = self;
         move || c.get_stereo()
     }
@@ -482,7 +482,7 @@ where
     /// Consumes and returns the component as an FnMut closure
     /// that filters stereo samples via AudioNode::filter_stereo.
     /// Broadcasts the stereo input if applicable.
-    pub fn as_stereo_filter_fn(self) -> impl FnMut(f32, f32) -> (f32, f32) {
+    pub fn into_stereo_filter_fn(self) -> impl FnMut(f32, f32) -> (f32, f32) {
         let mut c = self;
         move |x, y| c.filter_stereo(x, y)
     }

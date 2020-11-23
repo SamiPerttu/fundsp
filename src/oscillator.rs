@@ -14,11 +14,11 @@ pub struct SineComponent<T: Float> {
 }
 
 impl<T: Float> SineComponent<T> {
-    pub fn new() -> SineComponent<T> {
+    pub fn new(sample_rate: f64) -> SineComponent<T> {
         SineComponent {
             _marker: PhantomData,
             phase: 0.0,
-            sample_duration: 1.0 / DEFAULT_SR,
+            sample_duration: 1.0 / sample_rate,
             hash: 0,
         }
     }
