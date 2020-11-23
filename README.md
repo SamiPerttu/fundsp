@@ -295,7 +295,7 @@ Some signals found flowing in audio networks.
 | -------------- | ---------------------- | ------------------------------------------ |
 | frequency      | Hz                     | |
 | time           | s                      | |
-| audio data     | -1...1                 | Only special formats can process data outside this range. |
+| audio data     | -1...1                 | Only special output formats can store audio data outside this range. |
 | stereo pan     | -1...1 (left to right) | For ergonomy, it is useful to clamp any pan input to this range. |
 | control amount | 0...1                  | If there is no natural interpretation of the parameter. |
 
