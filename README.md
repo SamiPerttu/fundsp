@@ -47,7 +47,7 @@ development time.
 
 ### Audio DSP Becomes a First-Class Citizen
 
-With no macros needed, the FunDSP Composable Graph Notation
+With no macros needed, the FunDSP graph notation
 integrates audio DSP tightly into the [Rust programming language](https://www.rust-lang.org/)
 as a first-class citizen. Native Rust operator precedences
 work in harmony with the notation, minimizing 
