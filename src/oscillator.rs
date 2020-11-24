@@ -50,5 +50,6 @@ impl<T: Float> AudioNode for SineNode<T> {
     #[inline]
     fn set_hash(&mut self, hash: u32) {
         self.hash = hash;
+        self.reset(None);
     }
 }

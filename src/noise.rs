@@ -129,6 +129,7 @@ impl<T: Float> AudioNode for MlsNoise<T> {
     #[inline]
     fn set_hash(&mut self, hash: u32) {
         self.hash = hash;
+        self.reset(None);
     }
 }
 
@@ -168,5 +169,6 @@ impl<T: Float> AudioNode for NoiseNode<T> {
     #[inline]
     fn set_hash(&mut self, hash: u32) {
         self.hash = hash;
+        self.reset(None);
     }
 }

@@ -383,7 +383,7 @@ pub fn midi_hz(x: f64) -> f64 {
     440.0 * exp2((x - 69.0) / 12.0)
 }
 
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Clone)]
 pub struct NanoRand {
     state: u64,
 }

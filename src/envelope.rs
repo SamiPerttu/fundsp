@@ -87,5 +87,6 @@ impl<T: Float, F: Real, E: Fn(F) -> F + Clone> AudioNode for EnvelopeNode<T, F, 
     #[inline]
     fn set_hash(&mut self, hash: u32) {
         self.hash = hash;
+        self.t_hash = hash;
     }
 }

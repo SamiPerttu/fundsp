@@ -20,7 +20,7 @@ fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
     pass() ^ pass() ^ pass() ^ pass()
 }
 
-// Attempt to test two (memoryless) nodes for equality.
+// Attempt to test two nodes for equality.
 fn is_equal<X, Y>(rnd: &mut NanoRand, x: &mut An<X>, y: &mut An<Y>) -> bool
 where
     X: AudioNode,
@@ -34,6 +34,39 @@ where
         let output_y = y.tick(&input.clone());
         if output_x != output_y {
             return false;
+        }
+    }
+    true
+}
+
+// Check if the outputs of a node are all unique.
+fn outputs_diverge<X>(rnd: &mut NanoRand, x: &mut An<X>) -> bool
+where
+    X: AudioNode,
+{
+    assert!(x.outputs() <= 8);
+
+    let mut diverged: u64 = 0;
+
+    // Send 10 inputs. If none of them diverge, then we declare failure.
+    for _ in 0..10 {
+        let input =
+            Frame::<X::Sample, X::Inputs>::generate(|_| X::Sample::new((rnd.gen() as i64) % 3 - 1));
+        let output = x.tick(&input);
+        for i in 0..x.outputs() {
+            for j in 0..x.outputs() {
+                if output[i] != output[j] {
+                    diverged |= 1 << (i * 8 + j);
+                }
+            }
+        }
+    }
+
+    for i in 0..x.outputs() {
+        for j in 0..x.outputs() {
+            if i != j && diverged & (1 << (i * 8 + j)) == 0 {
+                return false;
+            }
         }
     }
     true
@@ -79,6 +112,20 @@ fn test() {
         &mut rnd,
         &mut (sink() | sink() | zero() | zero()),
         &mut (zero() | zero() | sink() | sink())
+    ));
+
+    // Test pseudorandom phase: stacked generator outputs should diverge.
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut (noise() | noise() | noise() | noise() | noise() | noise())
+    ));
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut (mls() | mls() | mls() | mls() | mls())
+    ));
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut (sine_hz(1.0) | sine_hz(1.0) | sine_hz(1.0) | sine_hz(1.0))
     ));
 
     // No-ops with sinks.
