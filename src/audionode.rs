@@ -48,14 +48,21 @@ pub trait AudioNode: Clone {
         }
     }
 
-    /// Set node hash. Override this to use the hash. This is called from `ping`. It should not be called by users.
+    /// Set node hash. Override this to use the hash.
+    /// This is called from `ping`. It should not be called by users.
     fn set_hash(&mut self, _hash: u32) {}
 
     /// Ping contained `AudioNode`s to obtain a deterministic pseudorandom seed.
     /// The local hash includes children, too.
     /// Leaf nodes should not need to override this.
-    fn ping(&mut self, hash: u32) -> u32 {
-        hashw(Self::ID ^ hash)
+    /// If `probe` is true, then this is a probe for computing the network hash
+    /// and `set_hash` should not be called yet.
+    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
+        let hash = hashw(Self::ID ^ hash);
+        if !probe {
+            self.set_hash(hash);
+        }
+        hash
     }
 
     // End of interface. There is no need to override the following.
@@ -214,13 +221,6 @@ impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
     }
 }
 
-#[derive(Clone)]
-pub enum Binop {
-    Add,
-    Sub,
-    Mul,
-}
-
 pub trait FrameBinop<T: Float, N: Size<T>>: Clone {
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
 }
@@ -278,11 +278,6 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
     }
 }
 
-#[derive(Clone)]
-pub enum Unop {
-    Neg,
-}
-
 pub trait FrameUnop<T: Float, N: Size<T>>: Clone {
     fn unop(x: &Frame<T, N>) -> Frame<T, N>;
 }
@@ -305,6 +300,7 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
 }
 
 /// Combine outputs of two nodes with a binary operation.
+/// Inputs are disjoint.
 /// Outputs are combined channel-wise.
 /// The nodes must have the same number of outputs.
 #[derive(Clone)]
@@ -333,7 +329,8 @@ where
             y,
             b,
         };
-        node.ping(Self::ID);
+        let hash = node.ping(true, Self::ID);
+        node.ping(false, hash);
         node
     }
 }
@@ -373,10 +370,10 @@ where
         parallel_latency(self.x.latency(), self.y.latency())
     }
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        let hash = self.x.ping(hash);
-        let hash = self.y.ping(hash);
-        hashw(Self::ID ^ hash)
+    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
+        let hash = hashw(Self::ID ^ hash);
+        let hash = self.x.ping(probe, hash);
+        self.y.ping(probe, hash)
     }
 }
 
@@ -402,7 +399,8 @@ where
             x,
             u,
         };
-        node.ping(Self::ID);
+        let hash = node.ping(true, Self::ID);
+        node.ping(false, hash);
         node
     }
 }
@@ -434,9 +432,9 @@ where
         self.x.latency()
     }
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        let hash = self.x.ping(hash);
-        hashw(Self::ID ^ hash)
+    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
+        let hash = hashw(Self::ID ^ hash);
+        self.x.ping(probe, hash)
     }
 }
 
@@ -508,7 +506,8 @@ where
             x,
             y,
         };
-        node.ping(Self::ID);
+        let hash = node.ping(true, Self::ID);
+        node.ping(false, hash);
         node
     }
 }
@@ -542,10 +541,10 @@ where
         serial_latency(self.x.latency(), self.y.latency())
     }
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        let hash = self.x.ping(hash);
-        let hash = self.y.ping(hash);
-        hashw(Self::ID ^ hash)
+    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
+        let hash = hashw(Self::ID ^ hash);
+        let hash = self.x.ping(probe, hash);
+        self.y.ping(probe, hash)
     }
 }
 
@@ -575,7 +574,8 @@ where
             x,
             y,
         };
-        node.ping(Self::ID);
+        let hash = node.ping(true, Self::ID);
+        node.ping(false, hash);
         node
     }
 }
@@ -622,10 +622,10 @@ where
         parallel_latency(self.x.latency(), self.y.latency())
     }
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        let hash = self.x.ping(hash);
-        let hash = self.y.ping(hash);
-        hashw(Self::ID ^ hash)
+    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
+        let hash = hashw(Self::ID ^ hash);
+        let hash = self.x.ping(probe, hash);
+        self.y.ping(probe, hash)
     }
 }
 
@@ -653,7 +653,8 @@ where
             x,
             y,
         };
-        node.ping(Self::ID);
+        let hash = node.ping(true, Self::ID);
+        node.ping(false, hash);
         node
     }
 }
@@ -696,10 +697,10 @@ where
         parallel_latency(self.x.latency(), self.y.latency())
     }
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        let hash = self.x.ping(hash);
-        let hash = self.y.ping(hash);
-        hashw(0x00A ^ hash)
+    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
+        let hash = hashw(Self::ID ^ hash);
+        let hash = self.x.ping(probe, hash);
+        self.y.ping(probe, hash)
     }
 }
 
@@ -771,7 +772,8 @@ where
             x,
             y,
         };
-        node.ping(Self::ID);
+        let hash = node.ping(true, Self::ID);
+        node.ping(false, hash);
         node
     }
 }
@@ -808,10 +810,10 @@ where
         parallel_latency(self.x.latency(), self.y.latency())
     }
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        let hash = self.x.ping(hash);
-        let hash = self.y.ping(hash);
-        hashw(Self::ID ^ hash)
+    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
+        let hash = hashw(Self::ID ^ hash);
+        let hash = self.x.ping(probe, hash);
+        self.y.ping(probe, hash)
     }
 }
 
@@ -844,7 +846,8 @@ where
             x,
             value: Frame::default(),
         };
-        node.ping(Self::ID);
+        let hash = node.ping(true, Self::ID);
+        node.ping(false, hash);
         node
     }
 }
@@ -883,9 +886,9 @@ where
     }
 
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        let hash = self.x.ping(hash);
-        hashw(Self::ID ^ hash)
+    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
+        let hash = hashw(Self::ID ^ hash);
+        self.x.ping(probe, hash)
     }
 }
 
@@ -898,7 +901,8 @@ pub struct FitNode<X> {
 impl<X: AudioNode> FitNode<X> {
     pub fn new(x: X) -> Self {
         let mut node = FitNode { x };
-        node.ping(Self::ID);
+        let hash = node.ping(true, Self::ID);
+        node.ping(false, hash);
         node
     }
 }
@@ -934,8 +938,8 @@ impl<X: AudioNode> AudioNode for FitNode<X> {
     }
 
     #[inline]
-    fn ping(&mut self, hash: u32) -> u32 {
-        let hash = self.x.ping(hash);
-        hashw(Self::ID ^ hash)
+    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
+        let hash = hashw(Self::ID ^ hash);
+        self.x.ping(probe, hash)
     }
 }
