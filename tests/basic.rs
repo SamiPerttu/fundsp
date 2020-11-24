@@ -12,8 +12,8 @@ extern crate fundsp;
 
 use fundsp::hacker::*;
 
-// New components can be defined with the following return signature.
-// Declaring the full arity in the signature enables use of the component
+// New nodes can be defined with the following return signature.
+// Declaring the full arity in the signature enables use of the node
 // in further combinations, as does the full type name.
 // Signatures with generic number of channels can be challenging to write.
 fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {

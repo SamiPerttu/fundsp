@@ -6,16 +6,16 @@ use std::marker::PhantomData;
 
 /// Sine oscillator.
 #[derive(Clone)]
-pub struct SineComponent<T: Float> {
+pub struct SineNode<T: Float> {
     _marker: PhantomData<T>,
     phase: f64,
     sample_duration: f64,
     hash: u32,
 }
 
-impl<T: Float> SineComponent<T> {
-    pub fn new(sample_rate: f64) -> SineComponent<T> {
-        SineComponent {
+impl<T: Float> SineNode<T> {
+    pub fn new(sample_rate: f64) -> SineNode<T> {
+        SineNode {
             _marker: PhantomData,
             phase: 0.0,
             sample_duration: 1.0 / sample_rate,
@@ -24,7 +24,7 @@ impl<T: Float> SineComponent<T> {
     }
 }
 
-impl<T: Float> AudioNode for SineComponent<T> {
+impl<T: Float> AudioNode for SineNode<T> {
     const ID: u32 = 21;
     type Sample = T;
     type Inputs = typenum::U1;

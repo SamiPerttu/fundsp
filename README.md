@@ -431,7 +431,7 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
 | `feedback(delay(1.0) * db_gain(-3.0))`   |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 | `sine() & mul(semitone(4.0)) >> sine() & mul(semitone(7.0)) >> sine()` | 1 | 1 | major chord |
-| `dc(midi_hz(69.0)) >> sine() & dc(midi_hz(73.0)) >> sine() & dc(midi_hz(76.0)) >> sine()` | 0 | 1 | A major chord generator |
+| `dc(midi_hz(72.0)) >> sine() & dc(midi_hz(76.0)) >> sine() & dc(midi_hz(79.0)) >> sine()` | 0 | 1 | C major chord generator |
 | `!zero()`                                |   0    |    0    | A null node. Stacking it with another node modifies its sound subtly, as the hash is altered. |
 | `!-!!!--!!!-!!--!zero()`                 |   0    |    0    | Hot-rodded null node outfitted with a custom hash. Uses more electricity. |
 
@@ -470,6 +470,34 @@ There are usually many ways to express a particular graph. The following express
 | `!(noise() \| noise())`                    | `!noise()`                      | The fit operator nullifies any generator. |
 
 ---
+
+### Audio Graph Types
+
+The `AudioNode` component system represents audio network structure at the type level.
+
+The representation contains input and output arities,
+which are encoded as types `U0`, `U1`, ..., by the `typenum` crate.
+The associated types are `AudioNode::Inputs` and `AudioNode::Outputs`.
+
+The representation contains sample and inner processing types when applicable, encoded in that order.
+These are chosen statically. The associated sample type, which is used to transport
+data between nodes, is `AudioNode::Sample`.
+
+The encoding is straightforward. As an example from the hacker prelude,
+
+```rust
+sine() & mul(2.0) >> sine()
+```
+
+is represented as
+
+```rust
+An<BusNode<f64, SineNode<f64>, PipeNode<f64, ConstantNode<f64, U1>, SineNode<f64>>>>
+```
+
+The prelude employs the wrapper type `An<X: AudioNode>`
+containing operator overloads and other trait implementations.
+
 
 ## License
 
