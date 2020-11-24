@@ -24,7 +24,7 @@ However, some standard components are missing and breakage can be expected as we
 
 ### Graph Notation
 
-*FunDSP Composable Graph Notation* expresses DSP networks
+*FunDSP Composable Graph Notation* expresses audio networks
 in an algebraic form, using graph operators. It
 was developed together with the functional
 environment to minimize the number
@@ -296,7 +296,7 @@ Some signals found flowing in audio networks.
 | frequency      | Hz                     | |
 | time           | s                      | |
 | audio data     | -1...1                 | Only special output formats can store audio data outside this range. |
-| stereo pan     | -1...1 (left to right) | For ergonomy, it is useful to clamp any pan input to this range. |
+| stereo pan     | -1...1 (left to right) | For ergonomy, consider clamping any pan input to this range. |
 | control amount | 0...1                  | If there is no natural interpretation of the parameter. |
 
 
@@ -317,6 +317,7 @@ These free functions are available in the environment.
 | `dc(x)`                |    -   |    x     | Constant signal `x`. Synonymous with `constant`. |
 | `dcblock()`            |    1   |    1     | Zero centers signal with cutoff frequency 10 Hz. |
 | `dcblock_hz(c)`        |    1   |    1     | Zero centers signal with cutoff frequency `c`. |
+| `declick()`            |    1   |    1     | Apply 10 ms of fade-in to signal. |
 | `delay(t)`             |    1   |    1     | Fixed delay of `t` seconds. |
 | `envelope(f)`          |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `feedback(x)`          |    x   |    x     | Encloses feedback circuit x (with equal number of inputs and outputs). |
@@ -374,7 +375,7 @@ These free functions are available in the environment.
 | `log10(x)`             | base 10 logarithm |
 | `log2(x)`              | binary logarithm |
 | `logistic(x)`          | logistic function |
-| `midi_hz(x)`           | convert MIDI note number `x` to Hz (69.0 = A-4 = 440 Hz) |
+| `midi_hz(x)`           | convert [MIDI](https://en.wikipedia.org/wiki/MIDI) note number `x` to Hz (69.0 = *A4* = 440 Hz) |
 | `min(x, y)`            | minimum of `x` and `y` |
 | `max(x, y)`            | maximum of `x` and `y` |
 | `m_weight(f)`          | M-weighted amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |

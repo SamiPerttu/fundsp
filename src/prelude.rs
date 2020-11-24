@@ -307,6 +307,16 @@ pub fn dcblock_hz<T: Float, F: Real>(c: F) -> An<DCBlocker<T, F>> {
     An(DCBlocker::new(DEFAULT_SR, c))
 }
 
+/// Keeps a signal zero centered.
 pub fn dcblock<T: Float, F: Real>() -> An<DCBlocker<T, F>> {
     An(DCBlocker::new(DEFAULT_SR, F::new(10)))
 }
+
+pub fn declick<T: Float, F: Real>() -> An<Declicker<T, F>> {
+    An(Declicker::new(DEFAULT_SR, F::from_f64(0.010)))
+}
+
+// This alternative version includes a DC blocker.
+//pub fn declick<T: Float, F: Real>() -> An<PipeNode<T, Declicker<T, F>, DCBlocker<T, F>>> {
+//    An(Declicker::new(DEFAULT_SR, F::from_f64(0.010))) >> dcblock()
+//}

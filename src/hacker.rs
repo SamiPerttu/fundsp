@@ -268,3 +268,7 @@ pub fn dcblock_hz(c: f64) -> An<DCBlocker<f64, f64>> {
 pub fn dcblock() -> An<DCBlocker<f64, f64>> {
     dcblock_hz(10.0)
 }
+
+pub fn declick() -> An<Declicker<f64, f64>> {
+    An(Declicker::new(DEFAULT_SR, 0.010))
+}

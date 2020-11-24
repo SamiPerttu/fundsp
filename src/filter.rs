@@ -5,7 +5,7 @@ use super::*;
 use num_complex::Complex64;
 use numeric_array::*;
 
-/// Complex64 with real component x and imaginary component zero.
+/// Complex64 with real component `x` and imaginary component zero.
 fn re<T: Float>(x: T) -> Complex64 {
     Complex64::new(x.to_f64(), 0.0)
 }
@@ -123,9 +123,9 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
 }
 
 /// Butterworth lowpass filter.
-/// Input 0: input signal
-/// Input 1: cutoff frequency (Hz)
-/// Output 0: filtered signal
+/// - Input 0: input signal
+/// - Input 1: cutoff frequency (Hz)
+/// - Output 0: filtered signal
 #[derive(Copy, Clone)]
 pub struct ButterLowpass<T: Float, F: Real> {
     biquad: Biquad<T, F>,
@@ -172,10 +172,10 @@ impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
 
 /// Constant-gain bandpass filter (resonator).
 /// Filter gain is (nearly) independent of bandwidth.
-/// Input 0: input signal
-/// Input 1: filter center frequency (peak) (Hz)
-/// Input 2: filter bandwidth (distance) between -3 dB points (Hz)
-/// Output 0: filtered signal
+/// - Input 0: input signal
+/// - Input 1: filter center frequency (peak) (Hz)
+/// - Input 2: filter bandwidth (distance) between -3 dB points (Hz)
+/// - Output 0: filtered signal
 #[derive(Copy, Clone)]
 pub struct Resonator<T: Float, F: Real> {
     biquad: Biquad<T, F>,
@@ -228,9 +228,9 @@ impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
 }
 
 /// One-pole lowpass filter.
-/// Input 0: input signal
-/// Input 1: cutoff frequency (Hz)
-/// Output 0: filtered signal
+/// - Input 0: input signal
+/// - Input 1: cutoff frequency (Hz)
+/// - Output 0: filtered signal
 #[derive(Copy, Clone, Default)]
 pub struct OnePoleLowpass<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
@@ -283,8 +283,8 @@ impl<T: Float, F: Real> AudioNode for OnePoleLowpass<T, F> {
 }
 
 /// DC blocking filter.
-/// Input 0: input signal
-/// Output 0: zero centered signal
+/// - Input 0: input signal
+/// - Output 0: zero centered signal
 #[derive(Copy, Clone, Default)]
 pub struct DCBlocker<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
@@ -327,5 +327,55 @@ impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
         self.x1 = x;
         self.y1 = y0;
         [convert(y0)].into()
+    }
+}
+
+/// Transient filter. Multiply the signal with a fade-in curve.
+/// After fade-in, pass signal through.
+/// - Input 0: input signal
+/// - Output 0: filtered signal
+#[derive(Copy, Clone, Default)]
+pub struct Declicker<T: Float, F: Real> {
+    _marker: std::marker::PhantomData<T>,
+    t: F,
+    duration: F,
+    sample_duration: F,
+}
+
+impl<T: Float, F: Real> Declicker<T, F> {
+    pub fn new(sample_rate: f64, duration: F) -> Self {
+        let mut node = Declicker::default();
+        node.duration = duration;
+        node.reset(Some(sample_rate));
+        node
+    }
+}
+
+impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
+    const ID: u32 = 22;
+    type Sample = T;
+    type Inputs = typenum::U1;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sample_rate) = sample_rate {
+            self.sample_duration = F::from_f64(1.0 / sample_rate);
+        }
+        self.t = F::zero();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        if self.t < self.duration {
+            let phase = delerp(F::zero(), self.duration, self.t);
+            let value = smooth9(phase);
+            self.t = self.t + self.sample_duration;
+            [input[0] * convert(value)].into()
+        } else {
+            [input[0]].into()
+        }
     }
 }
