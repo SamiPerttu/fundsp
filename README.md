@@ -333,6 +333,7 @@ These free functions are available in the environment.
 | `pass()`               |    1   |    1     | Passes signal through. |
 | `resonator()`          | 3 (audio, center, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(c, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with fixed center frequency `c` Hz and bandwidth `bw` Hz. |
+| `shape(f)`             |    1   |    1     | Shape signal with waveshaper `f`, e.g., `tanh`. |
 | `sine()`               | 1 (pitch) | 1     | Sine oscillator. |
 | `sine_hz(f)`           |    -   |    1     | Sine oscillator at fixed frequency `f` Hz. |
 | `sink()`               |    1   |    -     | Consumes signal. |
@@ -484,16 +485,16 @@ The representation contains sample and inner processing types when applicable, e
 These are chosen statically. The associated sample type, which is used to transport
 data between nodes, is `AudioNode::Sample`.
 
-The encoding is straightforward. As an example from the hacker prelude,
+The encoding is straightforward. As an example, in the hacker prelude
 
 ```rust
-sine() & mul(2.0) >> sine()
+noise() & constant(440.0) >> sine()
 ```
 
 is represented as
 
 ```rust
-An<BusNode<f64, SineNode<f64>, PipeNode<f64, ConstantNode<f64, U1>, SineNode<f64>>>>
+An<BusNode<f64, NoiseNode<f64>, PipeNode<f64, ConstantNode<f64, U1>, SineNode<f64>>>>
 ```
 
 The prelude employs the wrapper type `An<X: AudioNode>`

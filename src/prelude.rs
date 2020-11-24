@@ -104,6 +104,7 @@ where
     X::Size: Size<X::Sample> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<X::Sample>,
 {
+    // TODO: Should we use MapNode in these?
     An(PassNode::<X::Sample, X::Size>::new()) + dc(x)
 }
 
@@ -291,13 +292,14 @@ where
 /// let my_sum = map(|i: &Frame<f64, U2>| Frame::<f64, U1>::splat(i[0] + i[1]));
 /// ```
 // TODO: ConstantFrame (?) based version for prelude.
-pub fn map<F, I, O>(f: F) -> Map<f64, F, I, O>
+pub fn map<T, M, I, O>(f: M) -> MapNode<T, M, I, O>
 where
-    F: Clone + FnMut(&Frame<f64, I>) -> Frame<f64, O>,
-    I: Size<f64>,
-    O: Size<f64>,
+    T: Float,
+    M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
+    I: Size<T>,
+    O: Size<T>,
 {
-    Map::new(f)
+    MapNode::new(f)
 }
 
 /// Keeps a signal zero centered.
@@ -320,3 +322,12 @@ pub fn declick<T: Float, F: Real>() -> An<Declicker<T, F>> {
 //pub fn declick<T: Float, F: Real>() -> An<PipeNode<T, Declicker<T, F>, DCBlocker<T, F>>> {
 //    An(Declicker::new(DEFAULT_SR, F::from_f64(0.010))) >> dcblock()
 //}
+
+/// Shape signal with a waveshaper.
+pub fn shape<T: Float, S: Fn(T) -> T + Clone>(
+    f: S,
+) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+    An(MapNode::new(move |input: &Frame<T, U1>| {
+        [f(input[0])].into()
+    }))
+}

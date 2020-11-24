@@ -272,3 +272,12 @@ pub fn dcblock() -> An<DCBlocker<f64, f64>> {
 pub fn declick() -> An<Declicker<f64, f64>> {
     An(Declicker::new(DEFAULT_SR, 0.010))
 }
+
+/// Shape signal with a waveshaper.
+pub fn shape<S: Fn(f64) -> f64 + Clone>(
+    f: S,
+) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    An(MapNode::new(move |input: &Frame<f64, U1>| {
+        [f(input[0])].into()
+    }))
+}

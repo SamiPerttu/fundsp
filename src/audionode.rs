@@ -439,20 +439,20 @@ where
 }
 
 #[derive(Clone)]
-pub struct Map<T, F, I, O> {
-    f: F,
+pub struct MapNode<T, M, I, O> {
+    f: M,
     _marker: PhantomData<(T, I, O)>,
 }
 
 /// Map any number of channels.
-impl<T, F, I, O> Map<T, F, I, O>
+impl<T, M, I, O> MapNode<T, M, I, O>
 where
     T: Float,
-    F: Clone + FnMut(&Frame<T, I>) -> Frame<T, O>,
+    M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
     I: Size<T>,
     O: Size<T>,
 {
-    pub fn new(f: F) -> Self {
+    pub fn new(f: M) -> Self {
         Self {
             f,
             _marker: PhantomData,
@@ -460,10 +460,10 @@ where
     }
 }
 
-impl<T, F, I, O> AudioNode for Map<T, F, I, O>
+impl<T, M, I, O> AudioNode for MapNode<T, M, I, O>
 where
     T: Float,
-    F: Clone + FnMut(&Frame<T, I>) -> Frame<T, O>,
+    M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
     I: Size<T>,
     O: Size<T>,
 {
@@ -471,8 +471,6 @@ where
     type Sample = T;
     type Inputs = I;
     type Outputs = O;
-
-    // TODO: Implement reset() by storing initial state?
 
     #[inline]
     fn tick(
