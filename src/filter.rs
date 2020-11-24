@@ -290,12 +290,14 @@ pub struct DCBlocker<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
     x1: F,
     y1: F,
+    cutoff: F,
     coeff: F,
 }
 
 impl<T: Float, F: Real> DCBlocker<T, F> {
-    pub fn new(sample_rate: f64) -> Self {
+    pub fn new(sample_rate: f64, cutoff: F) -> Self {
         let mut node = DCBlocker::default();
+        node.cutoff = cutoff;
         node.reset(Some(sample_rate));
         node
     }
@@ -309,8 +311,7 @@ impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
-            let cutoff = F::new(9); // Hz
-            self.coeff = F::one() - (F::from_f64(TAU / sample_rate) * cutoff);
+            self.coeff = F::one() - (F::from_f64(TAU / sample_rate) * self.cutoff);
         }
         self.x1 = F::zero();
         self.y1 = F::zero();

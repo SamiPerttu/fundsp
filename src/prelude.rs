@@ -301,6 +301,12 @@ where
 }
 
 /// Keeps a signal zero centered.
+/// Filter cutoff `c` is usually somewhere below the audible range.
+/// The default blocker cutoff is 10 Hz.
+pub fn dcblock_hz<T: Float, F: Real>(c: F) -> An<DCBlocker<T, F>> {
+    An(DCBlocker::new(DEFAULT_SR, c))
+}
+
 pub fn dcblock<T: Float, F: Real>() -> An<DCBlocker<T, F>> {
-    An(DCBlocker::new(convert(DEFAULT_SR)))
+    An(DCBlocker::new(DEFAULT_SR, F::new(10)))
 }
