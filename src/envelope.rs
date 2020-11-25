@@ -39,7 +39,7 @@ impl<T: Float, F: Real, E: Fn(F) -> F + Clone> EnvelopeNode<T, F, E> {
 }
 
 impl<T: Float, F: Real, E: Fn(F) -> F + Clone> AudioNode for EnvelopeNode<T, F, E> {
-    const ID: u32 = 14;
+    const ID: u64 = 14;
     type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
@@ -70,7 +70,7 @@ impl<T: Float, F: Real, E: Fn(F) -> F + Clone> AudioNode for EnvelopeNode<T, F, 
                     * lerp(
                         F::from_f32(0.75),
                         F::from_f32(1.25),
-                        convert(rnd(self.t_hash as u64)),
+                        convert(rnd(self.t_hash as i64)),
                     );
             self.value_1 = convert((self.envelope)(self.t_1));
             self.t_hash = hashw(self.t_hash);

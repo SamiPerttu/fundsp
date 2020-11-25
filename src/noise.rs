@@ -107,7 +107,7 @@ impl<T: Float> MlsNoise<T> {
 }
 
 impl<T: Float> AudioNode for MlsNoise<T> {
-    const ID: u32 = 19;
+    const ID: u64 = 19;
     type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
@@ -137,7 +137,7 @@ impl<T: Float> AudioNode for MlsNoise<T> {
 #[derive(Clone, Default)]
 pub struct NoiseNode<T> {
     _marker: std::marker::PhantomData<T>,
-    x: NanoRand,
+    rnd: AttoRand,
     hash: u32,
 }
 
@@ -148,13 +148,13 @@ impl<T: Float> NoiseNode<T> {
 }
 
 impl<T: Float> AudioNode for NoiseNode<T> {
-    const ID: u32 = 20;
+    const ID: u64 = 20;
     type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
-        self.x = NanoRand::new(self.hash as u64);
+        self.rnd = AttoRand::new(self.hash as u64);
     }
 
     #[inline]
@@ -162,7 +162,7 @@ impl<T: Float> AudioNode for NoiseNode<T> {
         &mut self,
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let value = lerp(T::new(-1), T::new(1), self.x.gen_01());
+        let value = lerp(T::new(-1), T::new(1), self.rnd.gen_01_closed());
         [value].into()
     }
 

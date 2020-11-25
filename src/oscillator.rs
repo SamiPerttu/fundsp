@@ -25,13 +25,13 @@ impl<T: Float> SineNode<T> {
 }
 
 impl<T: Float> AudioNode for SineNode<T> {
-    const ID: u32 = 21;
+    const ID: u64 = 21;
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
-        self.phase = rnd(self.hash as u64);
+        self.phase = rnd(self.hash as i64);
         if let Some(sr) = sample_rate {
             self.sample_duration = 1.0 / sr
         };

@@ -88,7 +88,7 @@ impl<T: Float, F: Real> Biquad<T, F> {
 }
 
 impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
-    const ID: u32 = 15;
+    const ID: u64 = 15;
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
@@ -145,7 +145,7 @@ impl<T: Float, F: Real> ButterLowpass<T, F> {
 }
 
 impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
-    const ID: u32 = 16;
+    const ID: u64 = 16;
     type Sample = T;
     type Inputs = typenum::U2;
     type Outputs = typenum::U1;
@@ -196,7 +196,7 @@ impl<T: Float, F: Real> Resonator<T, F> {
 }
 
 impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
-    const ID: u32 = 17;
+    const ID: u64 = 17;
     type Sample = T;
     type Inputs = typenum::U3;
     type Outputs = typenum::U1;
@@ -253,7 +253,7 @@ impl<T: Float, F: Real> OnePoleLowpass<T, F> {
 }
 
 impl<T: Float, F: Real> AudioNode for OnePoleLowpass<T, F> {
-    const ID: u32 = 18;
+    const ID: u64 = 18;
     type Sample = T;
     type Inputs = typenum::U2;
     type Outputs = typenum::U1;
@@ -304,7 +304,7 @@ impl<T: Float, F: Real> DCBlocker<T, F> {
 }
 
 impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
-    const ID: u32 = 22;
+    const ID: u64 = 22;
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
@@ -352,7 +352,7 @@ impl<T: Float, F: Real> Declicker<T, F> {
 }
 
 impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
-    const ID: u32 = 22;
+    const ID: u64 = 22;
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;

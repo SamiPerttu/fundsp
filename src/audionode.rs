@@ -17,7 +17,7 @@ pub type Frame<T, Size> = numeric_array::NumericArray<T, Size>;
 /// `AudioNode` processes samples of type `AudioNode::Sample`, chosen statically.
 pub trait AudioNode: Clone {
     /// Unique ID for hashing.
-    const ID: u32;
+    const ID: u64;
     /// Sample type for input and output.
     type Sample: Float;
     /// Input arity.
@@ -52,17 +52,16 @@ pub trait AudioNode: Clone {
     /// This is called from `ping`. It should not be called by users.
     fn set_hash(&mut self, _hash: u32) {}
 
-    /// Ping contained `AudioNode`s to obtain a deterministic pseudorandom seed.
+    /// Ping contained `AudioNode`s to obtain a deterministic pseudorandom hash.
     /// The local hash includes children, too.
     /// Leaf nodes should not need to override this.
     /// If `probe` is true, then this is a probe for computing the network hash
     /// and `set_hash` should not be called yet.
-    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
-        let hash = hashw(Self::ID ^ hash);
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         if !probe {
-            self.set_hash(hash);
+            self.set_hash(hash.value());
         }
-        hash
+        hash.hash(Self::ID)
     }
 
     // End of interface. There is no need to override the following.
@@ -153,7 +152,7 @@ impl<T: Float, N: Size<T>> PassNode<T, N> {
 }
 
 impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
-    const ID: u32 = 0;
+    const ID: u64 = 0;
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
@@ -180,7 +179,7 @@ impl<T: Float, N: Size<T>> SinkNode<T, N> {
 }
 
 impl<T: Float, N: Size<T>> AudioNode for SinkNode<T, N> {
-    const ID: u32 = 1;
+    const ID: u64 = 1;
     type Sample = T;
     type Inputs = N;
     type Outputs = U0;
@@ -207,7 +206,7 @@ impl<T: Float, N: Size<T>> ConstantNode<T, N> {
 }
 
 impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
-    const ID: u32 = 2;
+    const ID: u64 = 2;
     type Sample = T;
     type Inputs = U0;
     type Outputs = N;
@@ -329,7 +328,7 @@ where
             y,
             b,
         };
-        let hash = node.ping(true, Self::ID);
+        let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -346,7 +345,7 @@ where
     Y::Inputs: Size<T>,
     <X::Inputs as Add<Y::Inputs>>::Output: Size<T>,
 {
-    const ID: u32 = 3;
+    const ID: u64 = 3;
     type Sample = T;
     type Inputs = Sum<X::Inputs, Y::Inputs>;
     type Outputs = X::Outputs;
@@ -370,10 +369,8 @@ where
         parallel_latency(self.x.latency(), self.y.latency())
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
-        let hash = hashw(Self::ID ^ hash);
-        let hash = self.x.ping(probe, hash);
-        self.y.ping(probe, hash)
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 }
 
@@ -399,7 +396,7 @@ where
             x,
             u,
         };
-        let hash = node.ping(true, Self::ID);
+        let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -413,7 +410,7 @@ where
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
 {
-    const ID: u32 = 4;
+    const ID: u64 = 4;
     type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = X::Outputs;
@@ -432,9 +429,8 @@ where
         self.x.latency()
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
-        let hash = hashw(Self::ID ^ hash);
-        self.x.ping(probe, hash)
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.x.ping(probe, hash.hash(Self::ID))
     }
 }
 
@@ -467,7 +463,7 @@ where
     I: Size<T>,
     O: Size<T>,
 {
-    const ID: u32 = 5;
+    const ID: u64 = 5;
     type Sample = T;
     type Inputs = I;
     type Outputs = O;
@@ -504,7 +500,7 @@ where
             x,
             y,
         };
-        let hash = node.ping(true, Self::ID);
+        let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -519,7 +515,7 @@ where
     X::Outputs: Size<T>,
     Y::Outputs: Size<T>,
 {
-    const ID: u32 = 6;
+    const ID: u64 = 6;
     type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = Y::Outputs;
@@ -539,10 +535,8 @@ where
         serial_latency(self.x.latency(), self.y.latency())
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
-        let hash = hashw(Self::ID ^ hash);
-        let hash = self.x.ping(probe, hash);
-        self.y.ping(probe, hash)
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 }
 
@@ -572,7 +566,7 @@ where
             x,
             y,
         };
-        let hash = node.ping(true, Self::ID);
+        let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -590,7 +584,7 @@ where
     <X::Inputs as Add<Y::Inputs>>::Output: Size<T>,
     <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
 {
-    const ID: u32 = 7;
+    const ID: u64 = 7;
     type Sample = T;
     type Inputs = Sum<X::Inputs, Y::Inputs>;
     type Outputs = Sum<X::Outputs, Y::Outputs>;
@@ -620,10 +614,8 @@ where
         parallel_latency(self.x.latency(), self.y.latency())
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
-        let hash = hashw(Self::ID ^ hash);
-        let hash = self.x.ping(probe, hash);
-        self.y.ping(probe, hash)
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 }
 
@@ -651,7 +643,7 @@ where
             x,
             y,
         };
-        let hash = node.ping(true, Self::ID);
+        let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -667,7 +659,7 @@ where
     Y::Outputs: Size<T>,
     <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
 {
-    const ID: u32 = 8;
+    const ID: u64 = 8;
     type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = Sum<X::Outputs, Y::Outputs>;
@@ -695,10 +687,8 @@ where
         parallel_latency(self.x.latency(), self.y.latency())
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
-        let hash = hashw(Self::ID ^ hash);
-        let hash = self.x.ping(probe, hash);
-        self.y.ping(probe, hash)
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 }
 
@@ -719,7 +709,7 @@ impl<T: Float, N: Size<T>> TickNode<T, N> {
 }
 
 impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
-    const ID: u32 = 9;
+    const ID: u64 = 9;
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
@@ -770,7 +760,7 @@ where
             x,
             y,
         };
-        let hash = node.ping(true, Self::ID);
+        let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -786,7 +776,7 @@ where
     Y::Inputs: Size<T>,
     Y::Outputs: Size<T>,
 {
-    const ID: u32 = 10;
+    const ID: u64 = 10;
     type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = X::Outputs;
@@ -808,10 +798,8 @@ where
         parallel_latency(self.x.latency(), self.y.latency())
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
-        let hash = hashw(Self::ID ^ hash);
-        let hash = self.x.ping(probe, hash);
-        self.y.ping(probe, hash)
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 }
 
@@ -844,7 +832,7 @@ where
             x,
             value: Frame::default(),
         };
-        let hash = node.ping(true, Self::ID);
+        let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -858,7 +846,7 @@ where
     X::Outputs: Size<T>,
     N: Size<T>,
 {
-    const ID: u32 = 11;
+    const ID: u64 = 11;
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
@@ -884,9 +872,8 @@ where
     }
 
     #[inline]
-    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
-        let hash = hashw(Self::ID ^ hash);
-        self.x.ping(probe, hash)
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.x.ping(probe, hash.hash(Self::ID))
     }
 }
 
@@ -899,14 +886,14 @@ pub struct FitNode<X> {
 impl<X: AudioNode> FitNode<X> {
     pub fn new(x: X) -> Self {
         let mut node = FitNode { x };
-        let hash = node.ping(true, Self::ID);
+        let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
     }
 }
 
 impl<X: AudioNode> AudioNode for FitNode<X> {
-    const ID: u32 = 12;
+    const ID: u64 = 12;
     type Sample = X::Sample;
     type Inputs = X::Inputs;
     type Outputs = X::Inputs;
@@ -936,8 +923,7 @@ impl<X: AudioNode> AudioNode for FitNode<X> {
     }
 
     #[inline]
-    fn ping(&mut self, probe: bool, hash: u32) -> u32 {
-        let hash = hashw(Self::ID ^ hash);
-        self.x.ping(probe, hash)
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.x.ping(probe, hash.hash(Self::ID))
     }
 }

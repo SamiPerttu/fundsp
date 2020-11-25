@@ -367,8 +367,8 @@ pub const fn hashw(x: u32) -> u32 {
 /// SplitMix hash as an indexed RNG.
 /// Returns pseudorandom f64 in range [0, 1[.
 #[inline]
-pub fn rnd(x: u64) -> f64 {
-    let x = x.wrapping_mul(0x9e3779b97f4a7c15);
+pub fn rnd(x: i64) -> f64 {
+    let x = (x as u64).wrapping_mul(0x9e3779b97f4a7c15);
     let x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
     let x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
     let x = x ^ (x >> 31);
@@ -384,20 +384,41 @@ pub fn midi_hz(x: f64) -> f64 {
 }
 
 #[derive(Default, Clone)]
-pub struct NanoRand {
+pub struct AttoRand {
     state: u64,
 }
 
-impl NanoRand {
-    pub fn new(seed: u64) -> NanoRand {
-        NanoRand { state: seed }
+/// Pico sized RNG.
+impl AttoRand {
+    #[inline]
+    pub fn new(seed: u64) -> AttoRand {
+        AttoRand { state: seed }
     }
-    pub fn gen(&mut self) -> u32 {
-        self.state = self.state.wrapping_mul(0xaf251af3b0f025b5).wrapping_add(1);
+    #[inline]
+    pub fn hash(self, data: u64) -> Self {
+        // 64-bit hash by degski.
+        let x = (data ^ self.state ^ (self.state >> 32)).wrapping_mul(0xd6e8feb86659fd93);
+        AttoRand {
+            state: (x ^ (x >> 32)).wrapping_mul(0xd6e8feb86659fd93),
+        }
+    }
+    #[inline]
+    pub fn value(&self) -> u32 {
         hashw((self.state >> 32) as u32)
     }
+    #[inline]
+    pub fn gen(&mut self) -> u32 {
+        self.state = self.state.wrapping_mul(0xaf251af3b0f025b5).wrapping_add(1);
+        self.value()
+    }
+    #[inline]
     pub fn gen_01<T: Float>(&mut self) -> T {
         let x = self.gen();
         T::new(x as i64) / T::new(1i64 << 32)
+    }
+    #[inline]
+    pub fn gen_01_closed<T: Float>(&mut self) -> T {
+        let x = self.gen();
+        T::new(x as i64) / T::new((1i64 << 32) - 1)
     }
 }

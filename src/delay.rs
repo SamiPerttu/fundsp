@@ -24,7 +24,7 @@ impl<T: Float> DelayNode<T> {
 }
 
 impl<T: Float> AudioNode for DelayNode<T> {
-    const ID: u32 = 13;
+    const ID: u64 = 13;
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;

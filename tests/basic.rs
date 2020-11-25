@@ -21,7 +21,7 @@ fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
 }
 
 // Attempt to test two nodes for equality.
-fn is_equal<X, Y>(rnd: &mut NanoRand, x: &mut An<X>, y: &mut An<Y>) -> bool
+fn is_equal<X, Y>(rnd: &mut AttoRand, x: &mut An<X>, y: &mut An<Y>) -> bool
 where
     X: AudioNode,
     Y: AudioNode<Sample = X::Sample, Inputs = X::Inputs, Outputs = X::Outputs>,
@@ -40,7 +40,7 @@ where
 }
 
 // Check if the outputs of a node are all unique.
-fn outputs_diverge<X>(rnd: &mut NanoRand, x: &mut An<X>) -> bool
+fn outputs_diverge<X>(rnd: &mut AttoRand, x: &mut An<X>) -> bool
 where
     X: AudioNode,
 {
@@ -94,14 +94,29 @@ fn test() {
     }
 
     // Equivalent networks.
-    let mut rnd = NanoRand::new(0);
-    let x = 1.0;
-    let y = 2.0;
-    let z = 3.0;
+    let mut rnd = AttoRand::new(0);
+    let v = 1.0;
+    let w = -2.0;
+    let x = 3.0;
+    let y = -4.0;
+    let z = 5.0;
+    assert!(is_equal(&mut rnd, &mut split_quad(), &mut split_quad()));
+    // Test bus vs. branch equivalence.
     assert!(is_equal(
         &mut rnd,
         &mut ((pass() ^ mul(y)) >> add(z) + sub(x)),
         &mut (add(z) & mul(y) >> sub(x))
+    ));
+    assert!(is_equal(
+        &mut rnd,
+        &mut ((pass() ^ mul(y) ^ add(w)) >> add(z) + sub(x) + mul(y)),
+        &mut (add(z) & mul(y) >> sub(x) & add(w) >> mul(y))
+    ));
+    // Test multichannel constants vs. stacked constants.
+    assert!(is_equal(
+        &mut rnd,
+        &mut (dc(w) | dc(x)),
+        &mut (constant((w, x)))
     ));
     assert!(is_equal(
         &mut rnd,
@@ -110,22 +125,72 @@ fn test() {
     ));
     assert!(is_equal(
         &mut rnd,
+        &mut (dc(x) | dc(y) | dc(z) | dc(w)),
+        &mut (constant((x, y, z, w)))
+    ));
+    assert!(is_equal(
+        &mut rnd,
+        &mut (dc(w) | dc(v) | dc(x) | dc(y) | dc(z)),
+        &mut (constant((w, v, x, y, z)))
+    ));
+    // Test sinks and zeros.
+    assert!(is_equal(
+        &mut rnd,
         &mut (sink() | sink() | zero() | zero()),
         &mut (zero() | zero() | sink() | sink())
     ));
+    assert!(is_equal(
+        &mut rnd,
+        &mut (sink() | zero() | sink() | zero() | zero() | sink() | zero()),
+        &mut (zero() | zero() | zero() | sink() | sink() | zero() | sink())
+    ));
 
-    // Test pseudorandom phase: stacked generator outputs should diverge.
+    // Test pseudorandom phase: generator outputs should diverge.
     assert!(outputs_diverge(
         &mut rnd,
-        &mut (noise() | noise() | noise() | noise() | noise() | noise())
+        &mut (noise() | noise() | noise() | noise() | noise() | noise() | noise())
     ));
     assert!(outputs_diverge(
         &mut rnd,
-        &mut (mls() | mls() | mls() | mls() | mls())
+        &mut (noise() ^ noise() ^ noise() ^ noise() ^ (noise() >> pass()) ^ noise() ^ noise())
     ));
     assert!(outputs_diverge(
         &mut rnd,
-        &mut (sine_hz(1.0) | sine_hz(1.0) | sine_hz(1.0) | sine_hz(1.0))
+        &mut (mls() | mls() | mls() | (mls() >> pass() >> pass()) | (mls() >> pass()) | mls())
+    ));
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut (mls() ^ (mls() >> pass()) | (mls() >> pass()) ^ mls() | mls() | mls())
+    ));
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut ((sine_hz(1.0) >> pass())
+            | sine_hz(1.0)
+            | (sine_hz(1.0) >> pass() >> pass())
+            | sine_hz(1.0)
+            | sine_hz(1.0))
+    ));
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut (sine_hz(1.0) ^ sine_hz(1.0) ^ sine_hz(1.0) | sine_hz(1.0) | sine_hz(1.0))
+    ));
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut (noise() | noise() | noise() | noise())
+    ));
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut (noise() ^ noise() ^ noise() ^ noise())
+    ));
+    assert!(outputs_diverge(&mut rnd, &mut (mls() | mls() | mls())));
+    assert!(outputs_diverge(&mut rnd, &mut (mls() ^ mls() ^ mls())));
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut (sine_hz(1.0) | sine_hz(1.0))
+    ));
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut (sine_hz(1.0) ^ sine_hz(1.0))
     ));
 
     // No-ops with sinks.
