@@ -382,7 +382,6 @@ impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
 }
 
 /// Smoothing filter with adjustable edge response time.
-/// As an interpolator, monotonic with no overshoot.
 #[derive(Default, Clone)]
 pub struct Follower<T: Float, F: Real> {
     v3: F,
