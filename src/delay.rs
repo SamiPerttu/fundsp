@@ -8,18 +8,20 @@ use numeric_array::typenum::*;
 pub struct DelayNode<T: Float> {
     buffer: Vec<T>,
     i: usize,
-    delay_time: f64,
+    sample_rate: f64,
+    length: f64,
 }
 
 impl<T: Float> DelayNode<T> {
-    pub fn new(delay_time: f64, sample_rate: f64) -> DelayNode<T> {
-        let mut ac = DelayNode {
+    pub fn new(length: f64, sample_rate: f64) -> DelayNode<T> {
+        let mut node = DelayNode {
             buffer: vec![],
             i: 0,
-            delay_time,
+            sample_rate,
+            length,
         };
-        ac.reset(Some(sample_rate));
-        ac
+        node.reset(Some(sample_rate));
+        node
     }
 }
 
@@ -32,7 +34,8 @@ impl<T: Float> AudioNode for DelayNode<T> {
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
-            let buffer_length = ceil(self.delay_time * sample_rate);
+            let buffer_length = ceil(self.length * sample_rate);
+            self.sample_rate = sample_rate;
             self.buffer
                 .resize(max(1, buffer_length as usize), T::zero());
         }
@@ -54,5 +57,9 @@ impl<T: Float> AudioNode for DelayNode<T> {
             self.i = 0;
         }
         [output].into()
+    }
+
+    fn latency(&self) -> Option<f64> {
+        Some(self.buffer.len() as f64 / self.sample_rate)
     }
 }

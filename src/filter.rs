@@ -3,6 +3,7 @@ use super::lti::*;
 use super::math::*;
 use super::*;
 use num_complex::Complex64;
+use numeric_array::typenum::*;
 use numeric_array::*;
 
 /// Complex64 with real component `x` and imaginary component zero.
@@ -352,7 +353,7 @@ impl<T: Float, F: Real> Declicker<T, F> {
 }
 
 impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
-    const ID: u64 = 22;
+    const ID: u64 = 23;
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
@@ -377,5 +378,88 @@ impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
         } else {
             [input[0]].into()
         }
+    }
+}
+
+/// Smoothing filter with adjustable edge response time.
+/// As an interpolator, monotonic with no overshoot.
+#[derive(Default, Clone)]
+pub struct Follower<T: Float, F: Real> {
+    v3: F,
+    v2: F,
+    v1: F,
+    coeff: F,
+    /// Halfway response time.
+    response_time: F,
+    sample_rate: F,
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T: Float, F: Real> Follower<T, F> {
+    /// Create new smoothing filter.
+    /// Response time is how long it takes for the follower to reach halfway to the new value.
+    pub fn new(sample_rate: f64, response_time: F) -> Self {
+        let mut node = Follower::default();
+        node.response_time = response_time;
+        node.reset(Some(sample_rate));
+        node
+    }
+
+    /// Response time in seconds.
+    pub fn response_time(&self) -> F {
+        self.response_time
+    }
+
+    /// Set response time in seconds.
+    pub fn set_response_time(&mut self, response_time: F) {
+        self.response_time = response_time;
+        let response_samples = response_time * self.sample_rate;
+        // This approximation is accurate to 0.5% when 1 <= response_samples <= 1.0e5.
+        let r0 = log(max(F::one(), response_samples)) - F::from_f64(0.861624594696583);
+        let r1 = logistic(r0);
+        let r2 = r1 * F::from_f64(1.13228543863477) - F::from_f64(0.1322853859);
+        self.coeff = min(F::one(), r2);
+    }
+
+    /// Current response.
+    pub fn value(&self) -> F {
+        self.v3
+    }
+
+    /// Jump to `x` immediately.
+    pub fn set_value(&mut self, x: F) {
+        self.v3 = x;
+        self.v2 = x;
+        self.v1 = x;
+    }
+}
+
+impl<T: Float, F: Real> AudioNode for Follower<T, F> {
+    const ID: u64 = 24;
+    type Sample = T;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.v3 = F::zero();
+        self.v2 = F::zero();
+        self.v1 = F::zero();
+        if let Some(sample_rate) = sample_rate {
+            self.sample_rate = F::from_f64(sample_rate);
+            self.set_response_time(self.response_time);
+        }
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        // Three 1-pole filters in series.
+        let hcoeff = F::one() - self.coeff;
+        self.v1 = hcoeff * convert(input[0]) + self.coeff * self.v1;
+        self.v2 = hcoeff * self.v1 + self.coeff * self.v2;
+        self.v3 = hcoeff * self.v2 + self.coeff * self.v3;
+        [convert(self.v3)].into()
     }
 }

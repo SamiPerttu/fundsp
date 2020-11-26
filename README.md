@@ -321,7 +321,9 @@ These free functions are available in the environment.
 | `delay(t)`             |    1   |    1     | Fixed delay of `t` seconds. |
 | `envelope(f)`          |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `feedback(x)`          |    x   |    x     | Encloses feedback circuit x (with equal number of inputs and outputs). |
+| `follow(t)`            |    1   |    1     | Smoothing filter with halfway response time `t` seconds. |
 | `lfo(f)`               |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
+| `limiter(t)`           |    1   |    1     | Look-ahead limiter with `t` seconds of look-ahead. |
 | `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
 | `lowpass_hz(c)`        |    1   |    1     | Butterworth lowpass filter (2nd order) with fixed cutoff frequency `c` Hz. |
 | `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
@@ -361,7 +363,7 @@ These free functions are available in the environment.
 | `cos(x)`               | cos |
 | `cos_bpm(f, t)`        | cosine that oscillates at `f` BPM at time `t` seconds |
 | `cos_hz(f, t)`         | cosine that oscillates at `f` Hz at time `t` seconds |
-| `db_gain(x)`           | convert `x` dB to amplitude (gain amount) |
+| `db_amp(x)`            | convert `x` dB to amplitude (or gain) with 0 dB = 1.0 |
 | `delerp(x0, x1, x)`    | recover linear interpolation amount `t` from interpolated value |
 | `dexerp(x0, x1, x)`    | recover exponential interpolation amount `t` from interpolated value (`x0`, `x1`, `x` > 0) |
 | `dissonance(f0, f1)`   | dissonance amount in 0...1 between pure tones at `f0` and `f1` Hz |
@@ -416,7 +418,7 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `pass() ^ pass() ^ pass()`               |   1    |    3    | mono-to-trio splitter                         |
 | `sink() \| zero()`                       |   1    |    1    | replace signal with silence                   |
 | `mul(0.0)`                               |   1    |    1    | -..-                                          |
-| `mul(db_gain(3.0))`                      |   1    |    1    | amplify signal by 3 dB                        |
+| `mul(db_amp(3.0))`                       |   1    |    1    | amplify signal by 3 dB                        |
 | `sink() \| pass()`                       |   2    |    1    | extract right channel                         |
 | `pass() \| sink()`                       |   2    |    1    | extract left channel                          |
 | `sink() \| zero() \| pass()`             |   2    |    2    | replace left channel with silence             |
@@ -431,7 +433,7 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
 | `sine() & mul(2.0) >> sine()`            |   1    |    1    | frequency doubled dual sine oscillator        |
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
-| `feedback(delay(1.0) * db_gain(-3.0))`   |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
+| `feedback(delay(1.0) * db_amp(-3.0))`    |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 | `sine() & mul(semitone(4.0)) >> sine() & mul(semitone(7.0)) >> sine()` | 1 | 1 | major chord |
 | `dc(midi_hz(72.0)) >> sine() & dc(midi_hz(76.0)) >> sine() & dc(midi_hz(79.0)) >> sine()` | 0 | 1 | C major chord generator |
 | `!zero()`                                |   0    |    0    | A null node. Stacking it with another node modifies its sound subtly, as the hash is altered. |
@@ -524,7 +526,6 @@ MIT or Apache-2.0.
 ### TODO: Standard Components
 
 - Rest of the basic first order and biquad filters. `bandpass`, `highpass`, `highpole`, `allpass`
-- `dcblock`, `declick` (the latter should include the former)
 - `pink`, `brown`, `pinkpass` (pinking filter). Define `pink()` as `white() >> pinkpass()`.
   Define `brown()` as `white() >> pinkpass() >> pinkpass()`.
 - FIR filters.

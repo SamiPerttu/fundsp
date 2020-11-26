@@ -73,7 +73,9 @@ where
 }
 
 #[test]
-fn test() {
+fn test_basic() {
+    let mut rnd = AttoRand::new(0);
+
     // Constants.
     let mut d = constant(1.0);
     assert!(d.inputs() == 0 && d.outputs() == 1);
@@ -94,13 +96,13 @@ fn test() {
     }
 
     // Equivalent networks.
-    let mut rnd = AttoRand::new(0);
     let v = 1.0;
     let w = -2.0;
     let x = 3.0;
     let y = -4.0;
     let z = 5.0;
     assert!(is_equal(&mut rnd, &mut split_quad(), &mut split_quad()));
+
     // Test bus vs. branch equivalence.
     assert!(is_equal(
         &mut rnd,
@@ -112,6 +114,12 @@ fn test() {
         &mut ((pass() ^ mul(y) ^ add(w)) >> add(z) + sub(x) + mul(y)),
         &mut (add(z) & mul(y) >> sub(x) & add(w) >> mul(y))
     ));
+    assert!(is_equal(
+        &mut rnd,
+        &mut ((pass() ^ mul(y) ^ add(w) ^ sub(x)) >> add(z) + sub(x) + mul(y) + add(z)),
+        &mut (add(z) & mul(y) >> sub(x) & add(w) >> mul(y) & sub(x) >> add(z))
+    ));
+
     // Test multichannel constants vs. stacked constants.
     assert!(is_equal(
         &mut rnd,
@@ -133,6 +141,12 @@ fn test() {
         &mut (dc(w) | dc(v) | dc(x) | dc(y) | dc(z)),
         &mut (constant((w, v, x, y, z)))
     ));
+    assert!(is_equal(
+        &mut rnd,
+        &mut (dc((w, x)) | dc((y, z, w))),
+        &mut (constant((w, x, y, z, w)))
+    ));
+
     // Test sinks and zeros.
     assert!(is_equal(
         &mut rnd,
@@ -148,19 +162,39 @@ fn test() {
     // Test pseudorandom phase: generator outputs should diverge.
     assert!(outputs_diverge(
         &mut rnd,
-        &mut (noise() | noise() | noise() | noise() | noise() | noise() | noise())
+        &mut (noise()
+            | (!zero() >> noise())
+            | noise()
+            | (!zero() >> noise())
+            | noise()
+            | noise()
+            | noise())
     ));
     assert!(outputs_diverge(
         &mut rnd,
-        &mut (noise() ^ noise() ^ noise() ^ noise() ^ (noise() >> pass()) ^ noise() ^ noise())
+        &mut (noise()
+            ^ noise()
+            ^ noise() & zero()
+            ^ noise()
+            ^ (noise() >> pass())
+            ^ noise()
+            ^ noise())
     ));
     assert!(outputs_diverge(
         &mut rnd,
-        &mut (mls() | mls() | mls() | (mls() >> pass() >> pass()) | (mls() >> pass()) | mls())
+        &mut (mls()
+            | (!zero() >> mls())
+            | (!zero() >> !zero() >> mls())
+            | (mls() >> pass() >> pass())
+            | (mls() >> pass())
+            | mls())
     ));
     assert!(outputs_diverge(
         &mut rnd,
-        &mut (mls() ^ (mls() >> pass()) | (mls() >> pass()) ^ mls() | mls() | mls())
+        &mut (mls() + zero() ^ (mls() >> pass())
+            | (mls() >> pass()) ^ mls()
+            | mls() & zero() & zero()
+            | mls())
     ));
     assert!(outputs_diverge(
         &mut rnd,
@@ -176,22 +210,27 @@ fn test() {
     ));
     assert!(outputs_diverge(
         &mut rnd,
-        &mut (noise() | noise() | noise() | noise())
+        &mut (noise() | noise() & zero() | noise() & zero() | noise())
     ));
     assert!(outputs_diverge(
         &mut rnd,
-        &mut (noise() ^ noise() ^ noise() ^ noise())
+        &mut (noise() ^ (!zero() >> noise()) ^ (!zero() >> noise()) ^ noise())
     ));
-    assert!(outputs_diverge(&mut rnd, &mut (mls() | mls() | mls())));
+    assert!(outputs_diverge(
+        &mut rnd,
+        &mut (mls() + zero() | mls() + zero() | mls() + zero())
+    ));
     assert!(outputs_diverge(&mut rnd, &mut (mls() ^ mls() ^ mls())));
     assert!(outputs_diverge(
         &mut rnd,
-        &mut (sine_hz(1.0) | sine_hz(1.0))
+        &mut (sine_hz(1.0) - zero() | sine_hz(1.0) - zero())
     ));
     assert!(outputs_diverge(
         &mut rnd,
         &mut (sine_hz(1.0) ^ sine_hz(1.0))
     ));
+    assert!(outputs_diverge(&mut rnd, &mut (noise() | noise())));
+    assert!(outputs_diverge(&mut rnd, &mut (mls() | mls())));
 
     // No-ops with sinks.
     assert_eq!(inouts(--sink() - 42.0 ^ sink() & ---sink() * 3.15), (1, 0));
@@ -203,7 +242,7 @@ fn test() {
     assert_eq!(inouts(pass() ^ pass() ^ pass()), (1, 3)); // mono-to-trio splitter
     assert_eq!(inouts(sink() | zero()), (1, 1)); // replace signal with silence
     assert_eq!(inouts(mul(0.0)), (1, 1)); // -..-
-    assert_eq!(inouts(mul(db_gain(3.0))), (1, 1)); // amplify signal by +3 dB
+    assert_eq!(inouts(mul(db_amp(3.0))), (1, 1)); // amplify signal by +3 dB
     assert_eq!(inouts(sink() | pass()), (2, 1)); // extract right channel
     assert_eq!(inouts(pass() | sink()), (2, 1)); // extract left channel
     assert_eq!(inouts(sink() | zero() | pass()), (2, 2)); // replace left channel with silence

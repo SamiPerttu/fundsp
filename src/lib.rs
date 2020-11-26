@@ -14,6 +14,7 @@ pub const DEFAULT_SR: f64 = 44_100.0;
 
 pub trait Num:
     Copy
+    + Default
     + Add<Output = Self>
     + Sub<Output = Self>
     + Mul<Output = Self>
@@ -126,7 +127,7 @@ macro_rules! impl_int {
 }
 impl_int! { i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize }
 
-pub trait Float: Num + Default + Neg<Output = Self> {
+pub trait Float: Num + Neg<Output = Self> {
     fn from_float<T: Float>(x: T) -> Self;
     fn to_f64(self) -> f64;
     fn to_f32(self) -> f32;
@@ -232,6 +233,7 @@ pub mod audionode;
 pub mod audiounit;
 pub mod combinator;
 pub mod delay;
+pub mod dynamics;
 pub mod envelope;
 pub mod filter;
 pub mod hacker;

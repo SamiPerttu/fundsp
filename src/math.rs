@@ -175,7 +175,7 @@ pub fn dexerp<T: Num + Real>(a: T, b: T, x: T) -> T {
 
 /// Returns a gain amount from a decibel argument.
 #[inline]
-pub fn db_gain<T: Num + Real>(db: T) -> T {
+pub fn db_amp<T: Num + Real>(db: T) -> T {
     exp10(db / T::new(20))
 }
 

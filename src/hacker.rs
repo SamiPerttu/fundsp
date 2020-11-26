@@ -4,6 +4,7 @@ pub use super::math::*;
 pub use super::*;
 
 use super::delay::*;
+use super::dynamics::*;
 use super::envelope::*;
 use super::filter::*;
 use super::noise::*;
@@ -280,4 +281,14 @@ pub fn shape<S: Fn(f64) -> f64 + Clone>(
     An(MapNode::new(move |input: &Frame<f64, U1>| {
         [f(input[0])].into()
     }))
+}
+
+/// Parameter follower filter with fixed halfway response time `t` seconds.
+pub fn follow(t: f64) -> An<Follower<f64, f64>> {
+    An(Follower::new(DEFAULT_SR, t))
+}
+
+/// Look-ahead limiter with `lookahead` in seconds.
+pub fn limiter(lookahead: f64) -> An<Limiter<f64, U1>> {
+    An(Limiter::new(DEFAULT_SR, lookahead))
 }
