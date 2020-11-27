@@ -235,6 +235,7 @@ pub mod combinator;
 pub mod delay;
 pub mod dynamics;
 pub mod envelope;
+pub mod feedback;
 pub mod filter;
 pub mod hacker;
 pub mod lti;

@@ -6,6 +6,7 @@ pub use super::*;
 use super::delay::*;
 use super::dynamics::*;
 use super::envelope::*;
+use super::feedback::*;
 use super::filter::*;
 use super::noise::*;
 use super::oscillator::*;
@@ -248,14 +249,14 @@ pub fn delay(t: f64) -> An<DelayNode<f64>> {
 /// Feedback circuit `x` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
-pub fn feedback<X, N>(x: An<X>) -> An<FeedbackNode<f64, X, N>>
+pub fn feedback<X, N>(x: An<X>) -> An<FeedbackNode<f64, X, N, FrameId<f64, N>>>
 where
     X: AudioNode<Sample = f64, Inputs = N, Outputs = N>,
     X::Inputs: Size<f64>,
     X::Outputs: Size<f64>,
     N: Size<f64>,
 {
-    An(FeedbackNode::new(x.0))
+    An(FeedbackNode::new(x.0, FrameId::new()))
 }
 
 /// Keeps a signal zero centered.
