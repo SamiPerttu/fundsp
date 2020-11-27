@@ -452,36 +452,81 @@ impl<X: AudioNode> Iterator for An<X> {
     }
 }
 
-impl<X: AudioNode<Sample = f32>> An<X>
+pub struct MonoIter<X>
 where
-    X::Inputs: Size<f32>,
-    X::Outputs: Size<f32>,
+    X: AudioNode<Outputs = U1>,
+    X::Sample: Float,
+    X::Inputs: Size<X::Sample>,
 {
+    node: X,
+}
+
+impl<X> MonoIter<X>
+where
+    X: AudioNode<Outputs = U1>,
+    X::Sample: Float,
+    X::Inputs: Size<X::Sample>,
+{
+    pub fn new(node: X) -> Self {
+        MonoIter { node }
+    }
+}
+
+impl<X> Iterator for MonoIter<X>
+where
+    X: AudioNode<Outputs = U1>,
+    X::Sample: Float,
+    X::Inputs: Size<X::Sample>,
+{
+    type Item = X::Sample;
+    /// Processes a sample from an all-zeros input.
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.node.tick(&Frame::default())[0])
+    }
+}
+
+impl<X: AudioNode> An<X> {
     /// Consumes and returns the component as an FnMut closure
     /// that yields mono samples via AudioNode::get_mono.
-    pub fn into_mono_fn(self) -> impl FnMut() -> f32 {
+    pub fn into_mono_fn(self) -> impl FnMut() -> X::Sample {
         let mut c = self;
         move || c.get_mono()
     }
 
     /// Consumes and returns the component as an FnMut closure
     /// that filters mono samples via AudioNode::filter_mono.
-    pub fn into_mono_filter_fn(self) -> impl FnMut(f32) -> f32 {
+    pub fn into_mono_filter_fn(self) -> impl FnMut(X::Sample) -> X::Sample {
         let mut c = self;
         move |x| c.filter_mono(x)
     }
 
     /// Consumes and returns the component as an FnMut closure
     /// that yields stereo samples via AudioNode::get_stereo.
-    pub fn into_stereo_fn(self) -> impl FnMut() -> (f32, f32) {
+    pub fn into_stereo_fn(self) -> impl FnMut() -> (X::Sample, X::Sample) {
         let mut c = self;
         move || c.get_stereo()
     }
 
     /// Consumes and returns the component as an FnMut closure
     /// that filters stereo samples via AudioNode::filter_stereo.
-    pub fn into_stereo_filter_fn(self) -> impl FnMut(f32, f32) -> (f32, f32) {
+    pub fn into_stereo_filter_fn(
+        self,
+    ) -> impl FnMut(X::Sample, X::Sample) -> (X::Sample, X::Sample) {
         let mut c = self;
         move |x, y| c.filter_stereo(x, y)
+    }
+}
+
+// TODO: Constrain get_ and other into_ methods similarly.
+impl<X> An<X>
+where
+    X: AudioNode<Outputs = U1>,
+    X::Sample: Float,
+    X::Inputs: Size<X::Sample>,
+{
+    /// Return node as an iterator that returns mono samples directly.
+    pub fn into_mono_iter(self) -> MonoIter<X> {
+        MonoIter::new(self.0)
     }
 }

@@ -342,3 +342,31 @@ pub fn follow<T: Float, F: Real>(t: F) -> An<Follower<T, F>> {
 pub fn limiter<T: Float>(lookahead: f64) -> An<Limiter<T, U1>> {
     An(Limiter::new(DEFAULT_SR, lookahead))
 }
+
+/// Pinking filter.
+pub fn pinkpass<T: Float, F: Float>() -> An<PinkFilter<T, F>> {
+    An(PinkFilter::new())
+}
+
+/// Pink noise.
+pub fn pink<T: Float, F: Float>() -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+    white() >> pinkpass::<T, F>()
+}
+
+/// Brown noise.
+pub fn brown<T: Float, F: Real>() -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+    // Empirical normalization factor.
+    white() >> lowpole_hz::<T, F>(T::from_f64(10.0)) * dc(T::from_f64(13.7))
+}
+
+/// Frequency detector.
+pub fn goertzel<T: Float, F: Real>() -> An<GoertzelNode<T, F>> {
+    An(GoertzelNode::new(DEFAULT_SR))
+}
+
+/// Frequency detector of frequency `f` Hz.
+pub fn goertzel_hz<T: Float, F: Real>(
+    f: T,
+) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+    (pass() | constant(f)) >> goertzel::<T, F>()
+}

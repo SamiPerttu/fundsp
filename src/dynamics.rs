@@ -2,6 +2,7 @@ use super::audionode::*;
 use super::filter::*;
 use super::math::*;
 use super::*;
+use numeric_array::typenum::*;
 
 pub trait Binop<T>: Clone {
     fn binop(&self, x: T, y: T) -> T;
@@ -152,7 +153,7 @@ where
     T: Float,
     N: Size<T>,
 {
-    const ID: u64 = 24;
+    const ID: u64 = 25;
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
@@ -202,5 +203,77 @@ where
 
     fn latency(&self) -> Option<f64> {
         Some(self.reducer.length() as f64 / self.sample_rate)
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct Goertzel<F: Real> {
+    y1: F,
+    y2: F,
+    ccoeff: F,
+    scoeff: F,
+}
+impl<F: Real> Goertzel<F> {
+    pub fn reset(&mut self) {
+        self.y1 = F::zero();
+        self.y2 = F::zero();
+    }
+    pub fn set_frequency(&mut self, sample_rate: F, frequency: F) {
+        let f = F::from_f64(TAU) * frequency / sample_rate;
+        self.ccoeff = F::new(2) * cos(f);
+        self.scoeff = sin(f);
+    }
+    pub fn tick(&mut self, x: F) {
+        let y0 = x + self.ccoeff * self.y1 - self.y2;
+        self.y2 = self.y1;
+        self.y1 = y0;
+    }
+    pub fn power(&self) -> F {
+        square(self.y2) + square(self.y1) - self.ccoeff * self.y2 * self.y1
+    }
+}
+
+/// Goertzel filter. Detects the presence of a frequency. Outputs DFT power at the selected frequency.
+#[derive(Clone, Default)]
+pub struct GoertzelNode<T: Float, F: Real> {
+    filter: Goertzel<F>,
+    sample_rate: F,
+    frequency: F,
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T: Float, F: Real> GoertzelNode<T, F> {
+    pub fn new(sample_rate: f64) -> Self {
+        let mut node = GoertzelNode::default();
+        node.reset(Some(sample_rate));
+        node
+    }
+}
+
+impl<T: Float, F: Real> AudioNode for GoertzelNode<T, F> {
+    const ID: u64 = 27;
+    type Sample = T;
+    type Inputs = U2;
+    type Outputs = U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.filter.reset();
+        if let Some(sample_rate) = sample_rate {
+            self.sample_rate = F::from_f64(sample_rate);
+            self.frequency = F::zero();
+        }
+    }
+
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let f: F = convert(input[1]);
+        if f != self.frequency {
+            self.frequency = f;
+            self.filter.set_frequency(self.sample_rate, f);
+        }
+        self.filter.tick(convert(input[0]));
+        [convert(self.filter.power())].into()
     }
 }

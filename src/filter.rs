@@ -462,3 +462,67 @@ impl<T: Float, F: Real> AudioNode for Follower<T, F> {
         [convert(self.v3)].into()
     }
 }
+
+/// Pinking filter.
+#[derive(Clone, Default)]
+pub struct PinkFilter<T: Float, F: Float> {
+    // Algorithm by Paul Kellett. +-0.05 dB accuracy above 9.2 Hz @ 44.1 kHz.
+    b0: F,
+    b1: F,
+    b2: F,
+    b3: F,
+    b4: F,
+    b5: F,
+    b6: F,
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T: Float, F: Float> PinkFilter<T, F> {
+    /// Create filter. The pinking filter is sample rate independent.
+    pub fn new() -> Self {
+        PinkFilter::default()
+    }
+}
+
+impl<T: Float, F: Float> AudioNode for PinkFilter<T, F> {
+    const ID: u64 = 26;
+    type Sample = T;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    #[inline]
+    fn reset(&mut self, _sample_rate: Option<f64>) {
+        self.b0 = F::zero();
+        self.b1 = F::zero();
+        self.b2 = F::zero();
+        self.b3 = F::zero();
+        self.b4 = F::zero();
+        self.b5 = F::zero();
+        self.b6 = F::zero();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let x: F = convert(input[0]);
+        self.b0 = F::from_f64(0.99886) * self.b0 + x * F::from_f64(0.0555179);
+        self.b1 = F::from_f64(0.99332) * self.b1 + x * F::from_f64(0.0750759);
+        self.b2 = F::from_f64(0.96900) * self.b2 + x * F::from_f64(0.1538520);
+        self.b3 = F::from_f64(0.86650) * self.b3 + x * F::from_f64(0.3104856);
+        self.b4 = F::from_f64(0.55000) * self.b4 + x * F::from_f64(0.5329522);
+        self.b5 = F::from_f64(-0.7616) * self.b5 - x * F::from_f64(0.0168980);
+        let out = (self.b0
+            + self.b1
+            + self.b2
+            + self.b3
+            + self.b4
+            + self.b5
+            + self.b6
+            + x * F::from_f64(0.5362))
+            * F::from_f64(0.115830421);
+        self.b6 = x * F::from_f64(0.115926);
+        [convert(out)].into()
+    }
+}

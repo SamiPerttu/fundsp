@@ -313,31 +313,36 @@ These free functions are available in the environment.
 | Function               | Inputs | Outputs  | Explanation                                    |
 | ---------------------- |:------:|:--------:| ---------------------------------------------- |
 | `add(x)`               |    x   |    x     | Adds constant `x` to signal. |
+| `brown()`              |    -   |    1     | Brown noise. |
 | `constant(x)`          |    -   |    x     | Constant signal `x`. Synonymous with `dc`. |
 | `dc(x)`                |    -   |    x     | Constant signal `x`. Synonymous with `constant`. |
 | `dcblock()`            |    1   |    1     | Zero centers signal with cutoff frequency 10 Hz. |
 | `dcblock_hz(c)`        |    1   |    1     | Zero centers signal with cutoff frequency `c`. |
 | `declick()`            |    1   |    1     | Apply 10 ms of fade-in to signal. |
-| `delay(t)`             |    1   |    1     | Fixed delay of `t` seconds. |
+| `delay(t)`             |    1   |    1     | Delay of `t` seconds. |
 | `envelope(f)`          |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `feedback(x)`          |    x   |    x     | Encloses feedback circuit x (with equal number of inputs and outputs). |
 | `follow(t)`            |    1   |    1     | Smoothing filter with halfway response time `t` seconds. |
+| `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
+| `goertzel_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
 | `lfo(f)`               |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
 | `limiter(t)`           |    1   |    1     | Look-ahead limiter with `t` seconds of look-ahead. |
 | `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
-| `lowpass_hz(c)`        |    1   |    1     | Butterworth lowpass filter (2nd order) with fixed cutoff frequency `c` Hz. |
+| `lowpass_hz(c)`        |    1   |    1     | Butterworth lowpass filter (2nd order) with cutoff frequency `c` Hz. |
 | `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
-| `lowpole_hz(c)`        |    1   |    1     | 1-pole lowpass filter (1st order) with fixed cutoff frequency `c` Hz. |
+| `lowpole_hz(c)`        |    1   |    1     | 1-pole lowpass filter (1st order) with cutoff frequency `c` Hz. |
 | `mls()`                |    -   |    1     | White MLS noise source. |
 | `mls_bits(n)`          |    -   |    1     | White MLS noise source from `n`-bit MLS sequence. |
 | `mul(x)`               |    x   |    x     | Multiplies signal with constant `x`. |
 | `noise()`              |    -   |    1     | White noise source. Synonymous with `white`. |
 | `pass()`               |    1   |    1     | Passes signal through. |
+| `pink()`               |    -   |    1     | Pink noise. |
+| `pinkpass()`           |    1   |    1     | Pinking filter (3 dB/octave). |
 | `resonator()`          | 3 (audio, center, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
-| `resonator_hz(c, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with fixed center frequency `c` Hz and bandwidth `bw` Hz. |
+| `resonator_hz(c, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with center frequency `c` Hz and bandwidth `bw` Hz. |
 | `shape(f)`             |    1   |    1     | Shape signal with waveshaper `f`, e.g., `tanh`. |
 | `sine()`               | 1 (pitch) | 1     | Sine oscillator. |
-| `sine_hz(f)`           |    -   |    1     | Sine oscillator at fixed frequency `f` Hz. |
+| `sine_hz(f)`           |    -   |    1     | Sine oscillator at frequency `f` Hz. |
 | `sink()`               |    1   |    -     | Consumes signal. |
 | `sub(x)`               |    x   |    x     | Subtracts constant `x` from signal. |
 | `tick()`               |    1   |    1     | Single sample delay. |
@@ -449,9 +454,11 @@ Many functions in the prelude itself are defined as graph expressions.
 
 | Function                                 | Inputs | Outputs | Definition                                     |
 | ---------------------------------------- |:------:|:-------:| ---------------------------------------------- |
+| `goertzel_hz(f)`                         |   1    |    1    | `(pass() \| constant(f)) >> goertzel()`        |
 | `lowpass_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpass()`         |
 | `lowpole_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpole()`         |
 | `mls()`                                  |   -    |    1    | `mls_bits(29)`                                 |
+| `pink()`                                 |   -    |    1    | `white() >> pinkpass()`                        |
 | `resonator_hz(c, bw)`                    |   1    |    1    | `(pass() \| constant((c, bw))) >> resonator()` |
 | `sine_hz(f)`                             |   -    |    1    | `constant(f) >> sine()`                        |
 | `zero()`                                 |   -    |    1    | `constant(0.0)`                                |
@@ -511,10 +518,6 @@ MIT or Apache-2.0.
 ## Future
 
 - Overload division operator as an arithmetic operator once foundational overhaul is complete.
-- Develop an equivalent combinator environment for `AudioUnit`s so the user can
-  decide when and where to lift components to block processing. `AudioUnit` combinators would operate
-  at runtime and thus connectivity checks would be deferred to runtime, too.
-  Ideally, we would like SIMD optimization to happen automatically during lifting, but this is a lofty goal.
 - Investigate whether adding more checking at compile time is possible by introducing
   opt-in signal units/modalities for `AudioNode` inputs and outputs.
   So if the user sends a constant marked `Hz` to an audio input, then that would fail at compile time.
@@ -526,8 +529,6 @@ MIT or Apache-2.0.
 ### TODO: Standard Components
 
 - Rest of the basic first order and biquad filters. `bandpass`, `highpass`, `highpole`, `allpass`
-- `pink`, `brown`, `pinkpass` (pinking filter). Define `pink()` as `white() >> pinkpass()`.
-  Define `brown()` as `white() >> pinkpass() >> pinkpass()`.
 - FIR filters.
 - `pluck`
 - Fractional delay line using an allpass filter (the standard delay should remain sample accurate only to not introduce extra
