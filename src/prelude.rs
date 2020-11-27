@@ -371,3 +371,20 @@ pub fn goertzel_hz<T: Float, F: Real>(
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
     (pass() | constant(f)) >> goertzel::<T, F>()
 }
+
+/// Feedback delay network.
+/// Mix output of enclosed circuit `x` back to its input.
+/// The output is diffused with a Hadamard matrix for feedback.
+/// Feedback circuit `x` must have an equal number of inputs and outputs.
+/// - Inputs: input signal.
+/// - Outputs: `x` output signal.
+pub fn fdn<T, X, N>(x: An<X>) -> An<FeedbackNode<T, X, N, FrameHadamard<T, N>>>
+where
+    T: Float,
+    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+    N: Size<T>,
+{
+    An(FeedbackNode::new(x.0, FrameHadamard::new()))
+}
