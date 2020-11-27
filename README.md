@@ -322,7 +322,7 @@ These free functions are available in the environment.
 | `delay(t)`             |    1   |    1     | Delay of `t` seconds. |
 | `envelope(f)`          |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `feedback(x)`          |    x   |    x     | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
-| `fdn(x)`               |    x   |    x     | Encloses feedback circuit `x` (with equal number of inputs and outputs) with diffusive Hadamard feedback. |
+| `fdn(x)`               |    x   |    x     | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
 | `follow(t)`            |    1   |    1     | Smoothing filter with halfway response time `t` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
 | `goertzel_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
