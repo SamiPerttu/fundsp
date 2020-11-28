@@ -334,14 +334,19 @@ pub fn shape<T: Float, S: Fn(T) -> T + Clone>(
     }))
 }
 
-/// Parameter follower filter with fixed halfway response time `t` seconds.
+/// Parameter follower filter with halfway response time `t` seconds.
 pub fn follow<T: Float, F: Real>(t: F) -> An<Follower<T, F>> {
     An(Follower::new(DEFAULT_SR, t))
 }
 
-/// Look-ahead limiter with `lookahead` in seconds.
-pub fn limiter<T: Float>(lookahead: f64) -> An<Limiter<T, U1>> {
-    An(Limiter::new(DEFAULT_SR, lookahead))
+/// Asymmetric parameter follower filter with halfway `attack` time in seconds and halfway `release` time in seconds.
+pub fn followa<T: Float, F: Real>(attack: F, release: F) -> An<AFollower<T, F>> {
+    An(AFollower::new(DEFAULT_SR, attack, release))
+}
+
+/// Look-ahead limiter with `attack` and `release` time in seconds. Look-ahead is equal to the attack time.
+pub fn limiter<T: Float>(attack: f64, release: f64) -> An<Limiter<T, U1>> {
+    An(Limiter::new(DEFAULT_SR, attack, release))
 }
 
 /// Pinking filter.

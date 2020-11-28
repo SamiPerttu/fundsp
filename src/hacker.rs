@@ -284,14 +284,19 @@ pub fn shape<S: Fn(f64) -> f64 + Clone>(
     }))
 }
 
-/// Parameter follower filter with fixed halfway response time `t` seconds.
+/// Parameter follower filter with halfway response time `t` seconds.
 pub fn follow(t: f64) -> An<Follower<f64, f64>> {
     An(Follower::new(DEFAULT_SR, t))
 }
 
-/// Look-ahead limiter with `lookahead` in seconds.
-pub fn limiter(lookahead: f64) -> An<Limiter<f64, U1>> {
-    An(Limiter::new(DEFAULT_SR, lookahead))
+/// Asymmetric parameter follower filter with halfway `attack` time in seconds and halfway `release` time in seconds.
+pub fn followa(attack: f64, release: f64) -> An<AFollower<f64, f64>> {
+    An(AFollower::new(DEFAULT_SR, attack, release))
+}
+
+/// Look-ahead limiter with `attack` and `release` time in seconds. Look-ahead is equal to the attack time.
+pub fn limiter(attack: f64, release: f64) -> An<Limiter<f64, U1>> {
+    An(Limiter::new(DEFAULT_SR, attack, release))
 }
 
 /// Pinking filter.
@@ -334,4 +339,27 @@ where
     N: Size<f64>,
 {
     An(FeedbackNode::new(x.0, FrameHadamard::new()))
+}
+
+/// Create bus with `n` nodes from a fractional generator,
+/// which is given uniformly divided values in 0...1.
+pub fn busf<X, F>(n: i64, f: F) -> An<MultiBusNode<f64, X>>
+where
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64>,
+    X::Outputs: Size<f64>,
+    F: Fn(f64) -> An<X>,
+{
+    let mut bus = MultiBusNode::<f64, X>::new();
+    for i in 0..n {
+        bus.add(
+            f(if n > 1 {
+                i as f64 / (n - 1) as f64
+            } else {
+                0.5
+            })
+            .0,
+        )
+    }
+    An(bus)
 }

@@ -67,7 +67,7 @@ where
     //let c = sine_hz(f) * f * m + f >> sine();
     let c = c >> feedback(lowpass_hz(1000.0) >> delay(1.0) * 0.9);
     //let c = white() >> lowpole_hz(10.0); // brown(); // pink() >> pinkpass();
-    let mut c = c >> declick() >> dcblock() >> limiter(0.5);
+    let mut c = c >> declick() >> dcblock() >> limiter(0.2, 1.0);
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));
 

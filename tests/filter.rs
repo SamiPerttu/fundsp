@@ -31,4 +31,26 @@ fn test_filter() {
         let response = x.value() / goal;
         assert!(response >= 0.495 && response <= 0.505);
     }
+
+    // Test afollow().
+    for _ in 0..200 {
+        // Bias testing toward smaller lengths to cut testing time shorter.
+        let attack_samples = round(xerp(1.0, 100_000.0, square(rnd.gen_01::<f64>())));
+        let release_samples = round(xerp(1.0, 100_000.0, square(rnd.gen_01::<f64>())));
+        let sample_rate = xerp(10.0, 100_000.0, rnd.gen_01::<f64>());
+        let goal = lerp(-100.0, 100.0, rnd.gen_01::<f64>());
+        let mut x = followa(attack_samples / sample_rate, release_samples / sample_rate);
+        x.reset(Some(sample_rate));
+        for _ in 0..(if goal > 0.0 {
+            attack_samples
+        } else {
+            release_samples
+        }) as usize
+        {
+            x.filter_mono(goal);
+        }
+        // Promise was 0.5% accuracy between 1 and 100k samples.
+        let response = x.value() / goal;
+        assert!(response >= 0.495 && response <= 0.505);
+    }
 }

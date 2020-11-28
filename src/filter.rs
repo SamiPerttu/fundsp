@@ -381,6 +381,14 @@ impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
     }
 }
 
+fn halfway_coeff<F: Real>(samples: F) -> F {
+    // This approximation is accurate to 0.5% when 1 <= response_samples <= 1.0e5.
+    let r0 = log(max(F::one(), samples)) - F::from_f64(0.861624594696583);
+    let r1 = logistic(r0);
+    let r2 = r1 * F::from_f64(1.13228543863477) - F::from_f64(0.1322853859);
+    min(F::one(), r2)
+}
+
 /// Smoothing filter with adjustable edge response time.
 #[derive(Default, Clone)]
 pub struct Follower<T: Float, F: Real> {
@@ -412,12 +420,7 @@ impl<T: Float, F: Real> Follower<T, F> {
     /// Set response time in seconds.
     pub fn set_response_time(&mut self, response_time: F) {
         self.response_time = response_time;
-        let response_samples = response_time * self.sample_rate;
-        // This approximation is accurate to 0.5% when 1 <= response_samples <= 1.0e5.
-        let r0 = log(max(F::one(), response_samples)) - F::from_f64(0.861624594696583);
-        let r1 = logistic(r0);
-        let r2 = r1 * F::from_f64(1.13228543863477) - F::from_f64(0.1322853859);
-        self.coeff = min(F::one(), r2);
+        self.coeff = halfway_coeff(response_time * self.sample_rate);
     }
 
     /// Current response.
@@ -455,10 +458,10 @@ impl<T: Float, F: Real> AudioNode for Follower<T, F> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         // Three 1-pole filters in series.
-        let hcoeff = F::one() - self.coeff;
-        self.v1 = hcoeff * convert(input[0]) + self.coeff * self.v1;
-        self.v2 = hcoeff * self.v1 + self.coeff * self.v2;
-        self.v3 = hcoeff * self.v2 + self.coeff * self.v3;
+        let rcoeff = F::one() - self.coeff;
+        self.v1 = rcoeff * convert(input[0]) + self.coeff * self.v1;
+        self.v2 = rcoeff * self.v1 + self.coeff * self.v2;
+        self.v3 = rcoeff * self.v2 + self.coeff * self.v3;
         [convert(self.v3)].into()
     }
 }
@@ -524,5 +527,104 @@ impl<T: Float, F: Float> AudioNode for PinkFilter<T, F> {
             * F::from_f64(0.115830421);
         self.b6 = x * F::from_f64(0.115926);
         [convert(out)].into()
+    }
+}
+
+/// Smoothing filter with adjustable edge response time.
+#[derive(Default, Clone)]
+pub struct AFollower<T: Float, F: Real> {
+    v3: F,
+    v2: F,
+    v1: F,
+    acoeff: F,
+    rcoeff: F,
+    /// Halfway attack time.
+    attack_time: F,
+    /// Halfway release time.
+    release_time: F,
+    sample_rate: F,
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T: Float, F: Real> AFollower<T, F> {
+    /// Create new smoothing filter.
+    /// Response time is how long it takes for the follower to reach halfway to the new value.
+    pub fn new(sample_rate: f64, attack_time: F, release_time: F) -> Self {
+        let mut node = AFollower::default();
+        node.attack_time = attack_time;
+        node.release_time = release_time;
+        node.reset(Some(sample_rate));
+        node
+    }
+
+    /// Attack time in seconds.
+    pub fn attack_time(&self) -> F {
+        self.attack_time
+    }
+
+    /// Release time in seconds.
+    pub fn release_time(&self) -> F {
+        self.release_time
+    }
+
+    /// Set attack time in seconds.
+    pub fn set_attack_time(&mut self, attack_time: F) {
+        self.attack_time = attack_time;
+        self.acoeff = halfway_coeff(attack_time * self.sample_rate);
+    }
+
+    /// Set release time in seconds.
+    pub fn set_release_time(&mut self, release_time: F) {
+        self.release_time = release_time;
+        self.rcoeff = halfway_coeff(release_time * self.sample_rate);
+    }
+
+    /// Current response.
+    pub fn value(&self) -> F {
+        self.v3
+    }
+
+    /// Jump to `x` immediately.
+    pub fn set_value(&mut self, x: F) {
+        self.v3 = x;
+        self.v2 = x;
+        self.v1 = x;
+    }
+}
+
+impl<T: Float, F: Real> AudioNode for AFollower<T, F> {
+    const ID: u64 = 29;
+    type Sample = T;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.v3 = F::zero();
+        self.v2 = F::zero();
+        self.v1 = F::zero();
+        if let Some(sample_rate) = sample_rate {
+            self.sample_rate = F::from_f64(sample_rate);
+            // Recalculate coefficients.
+            self.set_attack_time(self.attack_time);
+            self.set_release_time(self.release_time);
+        }
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        // Three 1-pole filters in series.
+        let afactor = F::one() - self.acoeff;
+        let rfactor = F::one() - self.rcoeff;
+        let v0: F = convert(input[0]);
+        self.v1 = self.v1 + max(F::zero(), v0 - self.v1) * afactor
+            - max(F::zero(), self.v1 - v0) * rfactor;
+        self.v2 = self.v2 + max(F::zero(), self.v1 - self.v2) * afactor
+            - max(F::zero(), self.v2 - self.v1) * rfactor;
+        self.v3 = self.v3 + max(F::zero(), self.v2 - self.v3) * afactor
+            - max(F::zero(), self.v3 - self.v2) * rfactor;
+        [convert(self.v3)].into()
     }
 }

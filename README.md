@@ -324,10 +324,11 @@ These free functions are available in the environment.
 | `feedback(x)`          |    x   |    x     | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
 | `fdn(x)`               |    x   |    x     | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
 | `follow(t)`            |    1   |    1     | Smoothing filter with halfway response time `t` seconds. |
+| `followa(a, r)`        |    1   |    1     | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
 | `goertzel_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
 | `lfo(f)`               |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
-| `limiter(t)`           |    1   |    1     | Look-ahead limiter with `t` seconds of look-ahead. |
+| `limiter(a, r)`        |    1   |    1     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
 | `lowpass_hz(c)`        |    1   |    1     | Butterworth lowpass filter (2nd order) with cutoff frequency `c` Hz. |
 | `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
@@ -542,12 +543,9 @@ MIT or Apache-2.0.
 - `wave(table)`. Wavetable synthesizer. Add a set of standard wavetables behind `lazy_static`s (or similar) so they are shared
   and can be given concise names.
 - `saw`, `square` (syntactic sugar for `wave` initially)
-- `fdn4`, `fdn8`, `fdn16`
 - `oversample(n, x)`. Oversample enclosed circuit `x` by `n`.
   Impose a default maximum sample rate to keep nested oversampling sensible.
 - Standard mono and stereo reverbs using a 16x FDN.
-- Operators as functions. For example, `pipe(n, f)` where `n` is const (for stack allocation)
-  and `f` is an indexed generator function.
 
 ### TODO: Prelude
 

@@ -853,3 +853,73 @@ impl<X: AudioNode> AudioNode for FitNode<X> {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 }
+
+/// Mix together a bunch of similar nodes sourcing from the same inputs.
+#[derive(Clone, Default)]
+pub struct MultiBusNode<T, X> {
+    _marker: PhantomData<T>,
+    x: Vec<X>,
+}
+
+impl<T, X> MultiBusNode<T, X>
+where
+    T: Float,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+{
+    pub fn new() -> Self {
+        MultiBusNode {
+            _marker: PhantomData::default(),
+            x: vec![],
+        }
+    }
+
+    pub fn add(&mut self, x: X) {
+        self.x.push(x);
+    }
+}
+
+impl<T, X> AudioNode for MultiBusNode<T, X>
+where
+    T: Float,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+{
+    const ID: u64 = 28;
+    type Sample = T;
+    type Inputs = X::Inputs;
+    type Outputs = X::Outputs;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        for x in &mut self.x {
+            x.reset(sample_rate);
+        }
+    }
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        self.x
+            .iter_mut()
+            .fold(Frame::splat(T::zero()), |acc, x| acc + x.tick(&input))
+    }
+    fn latency(&self) -> Option<f64> {
+        if self.x.is_empty() {
+            return None;
+        }
+        self.x
+            .iter()
+            .fold(Some(0.0), |acc, node| parallel_latency(acc, node.latency()))
+    }
+    #[inline]
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        let mut hash = hash.hash(Self::ID);
+        for x in &mut self.x {
+            hash = x.ping(probe, hash);
+        }
+        hash
+    }
+}

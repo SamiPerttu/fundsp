@@ -34,7 +34,7 @@ impl<T: Float> AudioNode for DelayNode<T> {
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
-            let buffer_length = ceil(self.length * sample_rate);
+            let buffer_length = round(self.length * sample_rate);
             self.sample_rate = sample_rate;
             self.buffer
                 .resize(max(1, buffer_length as usize), T::zero());

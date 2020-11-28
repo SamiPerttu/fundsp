@@ -109,9 +109,10 @@ where
     N: Size<T>,
 {
     lookahead: f64,
+    release: f64,
     sample_rate: f64,
     reducer: ReduceBuffer<T, Maximum<T>>,
-    follower: Follower<T, f64>,
+    follower: AFollower<T, f64>,
     buffer: Vec<Frame<T, N>>,
     index: usize,
 }
@@ -129,18 +130,19 @@ where
     }
 
     fn buffer_length(sample_rate: f64, lookahead: f64) -> usize {
-        ceil(sample_rate * lookahead) as usize
+        max(1, round(sample_rate * lookahead) as usize)
     }
 
     fn new_buffer(sample_rate: f64, lookahead: f64) -> ReduceBuffer<T, Maximum<T>> {
         ReduceBuffer::new(Self::buffer_length(sample_rate, lookahead), Maximum::new())
     }
 
-    pub fn new(sample_rate: f64, lookahead: f64) -> Self {
+    pub fn new(sample_rate: f64, lookahead: f64, release: f64) -> Self {
         Limiter {
             lookahead,
+            release,
             sample_rate,
-            follower: Follower::new(sample_rate, lookahead * 0.4),
+            follower: AFollower::new(sample_rate, lookahead * 0.4, release * 0.4),
             buffer: vec![],
             reducer: Self::new_buffer(sample_rate, lookahead),
             index: 0,
