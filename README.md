@@ -312,21 +312,24 @@ These free functions are available in the environment.
 
 | Function               | Inputs | Outputs  | Explanation                                    |
 | ---------------------- |:------:|:--------:| ---------------------------------------------- |
-| `add(x)`               |    x   |    x     | Adds constant `x` to signal. |
+| `add(x)`               |   `x`  |   `x`    | Adds constant `x` to signal. |
 | `brown()`              |    -   |    1     | Brown noise. |
-| `constant(x)`          |    -   |    x     | Constant signal `x`. Synonymous with `dc`. |
-| `dc(x)`                |    -   |    x     | Constant signal `x`. Synonymous with `constant`. |
+| `branchf::<U, _, _>(f)` |  `f`  | `U * f`  | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))` |
+| `busi::<U, _, _>(f)`   |   `f`  |   `f`    | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f64 + 1.0) >> sine()`
+| `constant(x)`          |    -   |   `x`    | Constant signal `x`. Synonymous with `dc`. |
+| `dc(x)`                |    -   |   `x`    | Constant signal `x`. Synonymous with `constant`. |
 | `dcblock()`            |    1   |    1     | Zero centers signal with cutoff frequency 10 Hz. |
 | `dcblock_hz(c)`        |    1   |    1     | Zero centers signal with cutoff frequency `c`. |
 | `declick()`            |    1   |    1     | Apply 10 ms of fade-in to signal. |
 | `delay(t)`             |    1   |    1     | Delay of `t` seconds. |
 | `envelope(f)`          |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
-| `feedback(x)`          |    x   |    x     | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
-| `fdn(x)`               |    x   |    x     | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
+| `feedback(x)`          |   `x`  |   `x`    | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
+| `fdn(x)`               |   `x`  |   `x`    | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
 | `follow(t)`            |    1   |    1     | Smoothing filter with halfway response time `t` seconds. |
 | `followa(a, r)`        |    1   |    1     | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
 | `goertzel_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
+| `join::<U>()`          |   `U`  |    1     | Sum together `U` channels. |
 | `lfo(f)`               |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
 | `limiter(a, r)`        |    1   |    1     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
@@ -335,7 +338,7 @@ These free functions are available in the environment.
 | `lowpole_hz(c)`        |    1   |    1     | 1-pole lowpass filter (1st order) with cutoff frequency `c` Hz. |
 | `mls()`                |    -   |    1     | White MLS noise source. |
 | `mls_bits(n)`          |    -   |    1     | White MLS noise source from `n`-bit MLS sequence. |
-| `mul(x)`               |    x   |    x     | Multiplies signal with constant `x`. |
+| `mul(x)`               |   `x`  |   `x`    | Multiplies signal with constant `x`. |
 | `noise()`              |    -   |    1     | White noise source. Synonymous with `white`. |
 | `pass()`               |    1   |    1     | Passes signal through. |
 | `pink()`               |    -   |    1     | Pink noise. |
@@ -346,10 +349,14 @@ These free functions are available in the environment.
 | `sine()`               | 1 (pitch) | 1     | Sine oscillator. |
 | `sine_hz(f)`           |    -   |    1     | Sine oscillator at frequency `f` Hz. |
 | `sink()`               |    1   |    -     | Consumes signal. |
-| `sub(x)`               |    x   |    x     | Subtracts constant `x` from signal. |
+| `split::<U>()`         |    1   |   `U`    | Split signal into `U` channels. |
+| `stackf::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))` |
+| `sub(x)`               |   `x`  |   `x`    | Subtracts constant `x` from signal. |
 | `tick()`               |    1   |    1     | Single sample delay. |
 | `white()`              |    -   |    1     | White noise source. Synonymous with `noise`. |
 | `zero()`               |    -   |    1     | Zero signal. |
+
+`U` is a type-level integer. They are `U1`, `U2`...
 
 ---
 
@@ -421,6 +428,7 @@ For the practice of *graph fu*, some examples of graph expressions.
 | Expression                               | Inputs | Outputs | Meaning                                       |
 | ---------------------------------------- |:------:|:-------:| --------------------------------------------- |
 | `pass() ^ pass()`                        |   1    |    2    | mono-to-stereo splitter                       |
+| `split::<U2>()`                          |   1    |    2    | -..-                                          |
 | `mul(0.5) + mul(0.5)`                    |   2    |    1    | stereo-to-mono mixdown (inverse of mono-to-stereo splitter) |
 | `pass() ^ pass() ^ pass()`               |   1    |    3    | mono-to-trio splitter                         |
 | `sink() \| zero()`                       |   1    |    1    | replace signal with silence                   |

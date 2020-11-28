@@ -61,13 +61,22 @@ where
     //let c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
     //let c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator() * 0.1;
     //let c = (((mls() | dc(400.0) | dc(50.0)) >> resonator()) | dc(400.0) | dc(50.0)) >> resonator() >> mul(0.1);
-    let c = (white() & white()) * 0.5 * envelope(|t| exp(-t * 0.5) * sin_bpm(128.0, t));
+    let c = pink()
+        * envelope(|t| {
+            exp(-t * 0.5) * square(sin_bpm(60.0, t) * (if t > 4.0 { 0.0 } else { 1.0 }))
+        });
+    let reverb = split::<U16>()
+        >> fdn(stackf::<U16, _, _>(|x| {
+            delay(xerp(0.05, 0.09, x)) >> dcblock() >> lowpole_hz(xerp(1000.0, 4000.0, x))
+        }))
+        >> join::<U16>();
+    let reverb = pass() & reverb * 0.1;
     //let f = 110.0;
     //let m = 2.0;
     //let c = sine_hz(f) * f * m + f >> sine();
-    let c = c >> feedback(lowpass_hz(1000.0) >> delay(1.0) * 0.9);
+    //let c = c >> feedback(lowpass_hz(1000.0) >> delay(1.0) * 0.9);
     //let c = white() >> lowpole_hz(10.0); // brown(); // pink() >> pinkpass();
-    let mut c = c >> declick() >> dcblock() >> limiter(0.2, 1.0);
+    let mut c = c >> declick() >> dcblock() >> reverb >> limiter(0.5, 1.0);
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));
 
@@ -86,7 +95,7 @@ where
     )?;
     stream.play()?;
 
-    std::thread::sleep(std::time::Duration::from_millis(10000));
+    std::thread::sleep(std::time::Duration::from_millis(50000));
 
     Ok(())
 }

@@ -540,7 +540,7 @@ where
     }
 }
 
-//// Stack `X` and `Y` in parallel.
+/// Stack `X` and `Y` in parallel.
 #[derive(Clone)]
 pub struct StackNode<T, X, Y> {
     _marker: PhantomData<T>,
@@ -856,33 +856,44 @@ impl<X: AudioNode> AudioNode for FitNode<X> {
 
 /// Mix together a bunch of similar nodes sourcing from the same inputs.
 #[derive(Clone, Default)]
-pub struct MultiBusNode<T, X> {
-    _marker: PhantomData<T>,
-    x: Vec<X>,
-}
-
-impl<T, X> MultiBusNode<T, X>
+pub struct MultiBusNode<T, N, X>
 where
     T: Float,
+    N: Size<T>,
+    N: Size<X>,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
 {
-    pub fn new() -> Self {
-        MultiBusNode {
-            _marker: PhantomData::default(),
-            x: vec![],
-        }
-    }
+    _marker: PhantomData<T>,
+    x: Frame<X, N>,
+}
 
-    pub fn add(&mut self, x: X) {
-        self.x.push(x);
+impl<T, N, X> MultiBusNode<T, N, X>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+{
+    pub fn new(x: Frame<X, N>) -> Self {
+        let mut node = MultiBusNode {
+            _marker: PhantomData::default(),
+            x,
+        };
+        let hash = node.ping(true, AttoRand::new(Self::ID));
+        node.ping(false, hash);
+        node
     }
 }
 
-impl<T, X> AudioNode for MultiBusNode<T, X>
+impl<T, N, X> AudioNode for MultiBusNode<T, N, X>
 where
     T: Float,
+    N: Size<T>,
+    N: Size<X>,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
@@ -893,9 +904,7 @@ where
     type Outputs = X::Outputs;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
-        for x in &mut self.x {
-            x.reset(sample_rate);
-        }
+        self.x.iter_mut().for_each(|node| node.reset(sample_rate));
     }
     #[inline]
     fn tick(
@@ -918,6 +927,275 @@ where
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         let mut hash = hash.hash(Self::ID);
         for x in &mut self.x {
+            hash = x.ping(probe, hash);
+        }
+        hash
+    }
+}
+
+/// Stack a bunch of similar nodes in parallel.
+#[derive(Clone)]
+pub struct MultiStackNode<T, N, X>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T> + Mul<N>,
+    X::Outputs: Size<T> + Mul<N>,
+    <X::Inputs as Mul<N>>::Output: Size<T>,
+    <X::Outputs as Mul<N>>::Output: Size<T>,
+{
+    _marker: PhantomData<(T, N)>,
+    x: Frame<X, N>,
+}
+
+impl<T, N, X> MultiStackNode<T, N, X>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T> + Mul<N>,
+    X::Outputs: Size<T> + Mul<N>,
+    <X::Inputs as Mul<N>>::Output: Size<T>,
+    <X::Outputs as Mul<N>>::Output: Size<T>,
+{
+    pub fn new(x: Frame<X, N>) -> Self {
+        let mut node = MultiStackNode {
+            _marker: PhantomData,
+            x,
+        };
+        let hash = node.ping(true, AttoRand::new(Self::ID));
+        node.ping(false, hash);
+        node
+    }
+}
+
+impl<T, N, X> AudioNode for MultiStackNode<T, N, X>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T> + Mul<N>,
+    X::Outputs: Size<T> + Mul<N>,
+    <X::Inputs as Mul<N>>::Output: Size<T>,
+    <X::Outputs as Mul<N>>::Output: Size<T>,
+{
+    const ID: u64 = 30;
+    type Sample = T;
+    type Inputs = Prod<X::Inputs, N>;
+    type Outputs = Prod<X::Outputs, N>;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.x.iter_mut().for_each(|node| node.reset(sample_rate));
+    }
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let mut output: Frame<Self::Sample, Self::Outputs> = Frame::splat(T::zero());
+        for (i, node) in self.x.iter_mut().enumerate() {
+            let node_input = &input[i * X::Inputs::USIZE..(i + 1) * X::Inputs::USIZE];
+            let node_output = node.tick(node_input.into());
+            output[i * X::Outputs::USIZE..(i + 1) * X::Outputs::USIZE]
+                .copy_from_slice(node_output.as_slice());
+        }
+        output
+    }
+    fn latency(&self) -> Option<f64> {
+        if Self::Inputs::USIZE == 0 || Self::Outputs::USIZE == 0 {
+            return None;
+        }
+        self.x
+            .iter()
+            .fold(Some(0.0), |acc, node| parallel_latency(acc, node.latency()))
+    }
+    #[inline]
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        let mut hash = hash.hash(Self::ID);
+        for x in self.x.iter_mut() {
+            hash = x.ping(probe, hash);
+        }
+        hash
+    }
+}
+
+/// Combine outputs of a bunch of similar nodes with a binary operation.
+/// Inputs are disjoint.
+/// Outputs are combined channel-wise.
+#[derive(Clone)]
+pub struct ReduceNode<T, N, X, B>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T> + Mul<N>,
+    X::Outputs: Size<T>,
+    <X::Inputs as Mul<N>>::Output: Size<T>,
+    B: FrameBinop<T, X::Outputs>,
+{
+    x: Frame<X, N>,
+    b: B,
+    _marker: PhantomData<T>,
+}
+
+impl<T, N, X, B> ReduceNode<T, N, X, B>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T> + Mul<N>,
+    X::Outputs: Size<T>,
+    <X::Inputs as Mul<N>>::Output: Size<T>,
+    B: FrameBinop<T, X::Outputs>,
+{
+    pub fn new(x: Frame<X, N>, b: B) -> Self {
+        let mut node = ReduceNode {
+            x,
+            b,
+            _marker: PhantomData,
+        };
+        let hash = node.ping(true, AttoRand::new(Self::ID));
+        node.ping(false, hash);
+        node
+    }
+}
+
+impl<T, N, X, B> AudioNode for ReduceNode<T, N, X, B>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T> + Mul<N>,
+    X::Outputs: Size<T>,
+    <X::Inputs as Mul<N>>::Output: Size<T>,
+    B: FrameBinop<T, X::Outputs>,
+{
+    const ID: u64 = 32;
+    type Sample = T;
+    type Inputs = Prod<X::Inputs, N>;
+    type Outputs = X::Outputs;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.x.iter_mut().for_each(|node| node.reset(sample_rate));
+    }
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let mut output: Frame<Self::Sample, Self::Outputs> = Frame::splat(T::zero());
+        for (i, node) in self.x.iter_mut().enumerate() {
+            let node_input = &input[i * X::Inputs::USIZE..(i + 1) * X::Inputs::USIZE];
+            let node_output = node.tick(node_input.into());
+            output = B::binop(&output, &node_output);
+        }
+        output
+    }
+    fn latency(&self) -> Option<f64> {
+        if Self::Inputs::USIZE == 0 || Self::Outputs::USIZE == 0 {
+            return None;
+        }
+        self.x
+            .iter()
+            .fold(Some(0.0), |acc, node| parallel_latency(acc, node.latency()))
+    }
+    #[inline]
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        let mut hash = hash.hash(Self::ID);
+        for x in self.x.iter_mut() {
+            hash = x.ping(probe, hash);
+        }
+        hash
+    }
+}
+
+/// Branch into a bunch of similar nodes in parallel.
+#[derive(Clone)]
+pub struct MultiBranchNode<T, N, X>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T> + Mul<N>,
+    <X::Outputs as Mul<N>>::Output: Size<T>,
+{
+    _marker: PhantomData<(T, N)>,
+    x: Frame<X, N>,
+}
+
+impl<T, N, X> MultiBranchNode<T, N, X>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T> + Mul<N>,
+    <X::Outputs as Mul<N>>::Output: Size<T>,
+{
+    pub fn new(x: Frame<X, N>) -> Self {
+        let mut node = MultiBranchNode {
+            _marker: PhantomData,
+            x,
+        };
+        let hash = node.ping(true, AttoRand::new(Self::ID));
+        node.ping(false, hash);
+        node
+    }
+}
+
+impl<T, N, X> AudioNode for MultiBranchNode<T, N, X>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T> + Mul<N>,
+    <X::Outputs as Mul<N>>::Output: Size<T>,
+{
+    const ID: u64 = 33;
+    type Sample = T;
+    type Inputs = X::Inputs;
+    type Outputs = Prod<X::Outputs, N>;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.x.iter_mut().for_each(|node| node.reset(sample_rate));
+    }
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let mut output: Frame<Self::Sample, Self::Outputs> = Frame::splat(T::zero());
+        for (i, node) in self.x.iter_mut().enumerate() {
+            let node_output = node.tick(&input);
+            output[i * X::Outputs::USIZE..(i + 1) * X::Outputs::USIZE]
+                .copy_from_slice(node_output.as_slice());
+        }
+        output
+    }
+    fn latency(&self) -> Option<f64> {
+        if Self::Inputs::USIZE == 0 || Self::Outputs::USIZE == 0 {
+            return None;
+        }
+        self.x
+            .iter()
+            .fold(Some(0.0), |acc, node| parallel_latency(acc, node.latency()))
+    }
+    #[inline]
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        let mut hash = hash.hash(Self::ID);
+        for x in self.x.iter_mut() {
             hash = x.ping(probe, hash);
         }
         hash

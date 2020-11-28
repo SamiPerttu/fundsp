@@ -36,6 +36,50 @@ pub type U17 = numeric_array::typenum::U17;
 pub type U18 = numeric_array::typenum::U18;
 pub type U19 = numeric_array::typenum::U19;
 pub type U20 = numeric_array::typenum::U20;
+pub type U21 = numeric_array::typenum::U21;
+pub type U22 = numeric_array::typenum::U22;
+pub type U23 = numeric_array::typenum::U23;
+pub type U24 = numeric_array::typenum::U24;
+pub type U25 = numeric_array::typenum::U25;
+pub type U26 = numeric_array::typenum::U26;
+pub type U27 = numeric_array::typenum::U27;
+pub type U28 = numeric_array::typenum::U28;
+pub type U29 = numeric_array::typenum::U29;
+pub type U30 = numeric_array::typenum::U30;
+pub type U31 = numeric_array::typenum::U31;
+pub type U32 = numeric_array::typenum::U32;
+pub type U33 = numeric_array::typenum::U33;
+pub type U34 = numeric_array::typenum::U34;
+pub type U35 = numeric_array::typenum::U35;
+pub type U36 = numeric_array::typenum::U36;
+pub type U37 = numeric_array::typenum::U37;
+pub type U38 = numeric_array::typenum::U38;
+pub type U39 = numeric_array::typenum::U39;
+pub type U40 = numeric_array::typenum::U40;
+pub type U41 = numeric_array::typenum::U41;
+pub type U42 = numeric_array::typenum::U42;
+pub type U43 = numeric_array::typenum::U43;
+pub type U44 = numeric_array::typenum::U44;
+pub type U45 = numeric_array::typenum::U45;
+pub type U46 = numeric_array::typenum::U46;
+pub type U47 = numeric_array::typenum::U47;
+pub type U48 = numeric_array::typenum::U48;
+pub type U49 = numeric_array::typenum::U49;
+pub type U50 = numeric_array::typenum::U50;
+pub type U51 = numeric_array::typenum::U51;
+pub type U52 = numeric_array::typenum::U52;
+pub type U53 = numeric_array::typenum::U53;
+pub type U54 = numeric_array::typenum::U54;
+pub type U55 = numeric_array::typenum::U55;
+pub type U56 = numeric_array::typenum::U56;
+pub type U57 = numeric_array::typenum::U57;
+pub type U58 = numeric_array::typenum::U58;
+pub type U59 = numeric_array::typenum::U59;
+pub type U60 = numeric_array::typenum::U60;
+pub type U61 = numeric_array::typenum::U61;
+pub type U62 = numeric_array::typenum::U62;
+pub type U63 = numeric_array::typenum::U63;
+pub type U64 = numeric_array::typenum::U64;
 
 /// Constant node.
 /// Synonymous with `[dc]`.
@@ -341,25 +385,103 @@ where
     An(FeedbackNode::new(x.0, FrameHadamard::new()))
 }
 
-/// Create bus with `n` nodes from a fractional generator,
-/// which is given uniformly divided values in 0...1.
-pub fn busf<X, F>(n: i64, f: F) -> An<MultiBusNode<f64, X>>
+/// Create bus with `n` nodes from indexed generator `f`.
+pub fn busi<N, X, F>(f: F) -> An<MultiBusNode<f64, N, X>>
 where
+    N: Size<f64>,
+    N: Size<X>,
     X: AudioNode<Sample = f64>,
     X::Inputs: Size<f64>,
     X::Outputs: Size<f64>,
+    F: Fn(i64) -> An<X>,
+{
+    let nodes = Frame::generate(|i| f(i as i64).0);
+    An(MultiBusNode::<f64, N, X>::new(nodes))
+}
+
+/// Stacks `n` nodes from a fractional generator,
+/// which is given uniformly divided values in 0...1.
+pub fn stackf<N, X, F>(f: F) -> An<MultiStackNode<f64, N, X>>
+where
+    N: Size<f64>,
+    N: Size<X>,
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64> + Mul<N>,
+    X::Outputs: Size<f64> + Mul<N>,
+    <X::Inputs as Mul<N>>::Output: Size<f64>,
+    <X::Outputs as Mul<N>>::Output: Size<f64>,
     F: Fn(f64) -> An<X>,
 {
-    let mut bus = MultiBusNode::<f64, X>::new();
-    for i in 0..n {
-        bus.add(
-            f(if n > 1 {
-                i as f64 / (n - 1) as f64
-            } else {
-                0.5
-            })
-            .0,
-        )
-    }
-    An(bus)
+    let nodes = Frame::generate(|i| {
+        f(lerp(
+            i as f64 / N::USIZE as f64,
+            (i + 1) as f64 / N::USIZE as f64,
+            0.5,
+        ))
+        .0
+    });
+    An(MultiStackNode::new(nodes))
+}
+
+/// Branches into `n` nodes from a fractional generator,
+/// which is given uniformly divided values in 0...1.
+pub fn branchf<N, X, F>(f: F) -> An<MultiBranchNode<f64, N, X>>
+where
+    N: Size<f64>,
+    N: Size<X>,
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64>,
+    X::Outputs: Size<f64> + Mul<N>,
+    <X::Outputs as Mul<N>>::Output: Size<f64>,
+    F: Fn(f64) -> An<X>,
+{
+    let nodes = Frame::generate(|i| {
+        f(lerp(
+            i as f64 / N::USIZE as f64,
+            (i + 1) as f64 / N::USIZE as f64,
+            0.5,
+        ))
+        .0
+    });
+    An(MultiBranchNode::new(nodes))
+}
+
+/// Mixes together a bunch of similar nodes sourcing from disjoint inputs.
+pub fn sumf<N, X, F>(f: F) -> An<ReduceNode<f64, N, X, FrameAdd<f64, X::Outputs>>>
+where
+    N: Size<f64>,
+    N: Size<X>,
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64> + Mul<N>,
+    X::Outputs: Size<f64>,
+    <X::Inputs as Mul<N>>::Output: Size<f64>,
+    F: Fn(f64) -> An<X>,
+{
+    let nodes = Frame::generate(|i| {
+        f(lerp(
+            i as f64 / N::USIZE as f64,
+            (i + 1) as f64 / N::USIZE as f64,
+            0.5,
+        ))
+        .0
+    });
+    An(ReduceNode::new(nodes, FrameAdd::new()))
+}
+
+/// Mix N channels into one mono signal.
+pub fn join<N>() -> An<impl AudioNode<Sample = f64, Inputs = N, Outputs = U1>>
+where
+    N: Size<f64>,
+{
+    An(MapNode::new(|x| {
+        [x.iter().fold(0.0, |acc, &x| acc + x)].into()
+    }))
+}
+
+/// Split mono signal into N channels.
+pub fn split<N>() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = N>>
+where
+    N: Size<f64>,
+{
+    An(MapNode::new(|x| Frame::splat(x[0])))
 }
