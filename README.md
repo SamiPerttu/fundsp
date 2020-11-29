@@ -329,7 +329,7 @@ These free functions are available in the environment.
 | `followa(a, r)`        |    1   |    1     | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
 | `goertzel_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
-| `join::<U>()`          |   `U`  |    1     | Sum together `U` channels. |
+| `join::<U>()`          |   `U`  |    1     | Average together `U` channels. Inverse of `split`. |
 | `lfo(f)`               |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
 | `limiter(a, r)`        |    1   |    1     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
@@ -350,13 +350,16 @@ These free functions are available in the environment.
 | `sine_hz(f)`           |    -   |    1     | Sine oscillator at frequency `f` Hz. |
 | `sink()`               |    1   |    -     | Consumes signal. |
 | `split::<U>()`         |    1   |   `U`    | Split signal into `U` channels. |
-| `stackf::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))` |
+| `stackf::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
+| `stacki::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from indexed generator `i`. |
+| `stereo_limiter(a, r)` |    2   |    2     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
+| `stereo_reverb(wet, t)` |   2   |    2     | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
 | `sub(x)`               |   `x`  |   `x`    | Subtracts constant `x` from signal. |
 | `tick()`               |    1   |    1     | Single sample delay. |
 | `white()`              |    -   |    1     | White noise source. Synonymous with `noise`. |
 | `zero()`               |    -   |    1     | Zero signal. |
 
-`U` is a type-level integer. They are `U1`, `U2`...
+`U` is a type-level integer. They are `U0`, `U1`, `U2`...
 
 ---
 
@@ -430,7 +433,9 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `pass() ^ pass()`                        |   1    |    2    | mono-to-stereo splitter                       |
 | `split::<U2>()`                          |   1    |    2    | -..-                                          |
 | `mul(0.5) + mul(0.5)`                    |   2    |    1    | stereo-to-mono mixdown (inverse of mono-to-stereo splitter) |
+| `join::<U2>()`                           |   2    |    1    | -..-                                          |
 | `pass() ^ pass() ^ pass()`               |   1    |    3    | mono-to-trio splitter                         |
+| `split::<U3>()`                          |   1    |    3    | -..-                                          |
 | `sink() \| zero()`                       |   1    |    1    | replace signal with silence                   |
 | `mul(0.0)`                               |   1    |    1    | -..-                                          |
 | `mul(db_amp(3.0))`                       |   1    |    1    | amplify signal by 3 dB                        |

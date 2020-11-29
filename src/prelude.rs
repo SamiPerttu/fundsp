@@ -494,19 +494,7 @@ where
     An(ReduceNode::new(x, FrameAdd::new()))
 }
 
-/// Mix N channels into one mono signal.
-pub fn join<T, N>() -> An<impl AudioNode<Sample = T, Inputs = N, Outputs = U1>>
-where
-    T: Float,
-    N: Size<T>,
-    U1: Size<T>,
-{
-    An(MapNode::new(|x| {
-        [x.iter().fold(T::zero(), |acc, &x| acc + x)].into()
-    }))
-}
-
-/// Split mono signal into N channels.
+/// Split signal into N channels.
 pub fn split<T, N>() -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = N>>
 where
     T: Float,
@@ -514,4 +502,16 @@ where
     U1: Size<T>,
 {
     An(MapNode::new(|x| Frame::splat(x[0])))
+}
+
+/// Average N channels into one. Inverse of `split`.
+pub fn join<T, N>() -> An<impl AudioNode<Sample = T, Inputs = N, Outputs = U1>>
+where
+    T: Float,
+    N: Size<T>,
+    U1: Size<T>,
+{
+    An(MapNode::new(|x| {
+        [x.iter().fold(T::zero(), |acc, &x| acc + x) / T::new(N::I64)].into()
+    }))
 }

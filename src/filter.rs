@@ -530,7 +530,7 @@ impl<T: Float, F: Float> AudioNode for PinkFilter<T, F> {
     }
 }
 
-/// Smoothing filter with adjustable edge response time.
+/// Smoothing filter with adjustable edge response times for attack and release.
 #[derive(Default, Clone)]
 pub struct AFollower<T: Float, F: Real> {
     v3: F,

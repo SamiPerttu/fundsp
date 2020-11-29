@@ -59,29 +59,30 @@ where
     //let c = mls() >> lowpole_hz(400.0) >> lowpole_hz(400.0);
     //let c = (mls() | dc(500.0)) >> lowpass();
     //let c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
-    //let c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator() * 0.1;
-    //let c = (((mls() | dc(400.0) | dc(50.0)) >> resonator()) | dc(400.0) | dc(50.0)) >> resonator() >> mul(0.1);
-    let c = pink()
-        * envelope(|t| {
-            exp(-t * 0.5) * square(sin_bpm(60.0, t) * (if t > 4.0 { 0.0 } else { 1.0 }))
-        });
-    let reverb = split::<U16>()
-        >> fdn(stackf::<U16, _, _>(|x| {
-            delay(xerp(0.05, 0.09, x)) >> dcblock() >> lowpole_hz(xerp(1000.0, 4000.0, x))
-        }))
-        >> join::<U16>();
-    let reverb = pass() & reverb * 0.1;
-    //let f = 110.0;
-    //let m = 2.0;
-    //let c = sine_hz(f) * f * m + f >> sine();
+    //let c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator();
+    //let c = (mls() | dc((200.0, 10.0))) >> resonator() & (mls() | dc((400.0, 20.0))) >> resonator() & (mls() | dc((800.0, 30.0))) >> resonator();
+    //let c = pink();
+    let f = 110.0;
+    let m = 5.0;
+    let c = sine_hz(f) * f * m + f >> sine();
+    //let c = c * envelope(|t| {
+    //    exp(-t * 0.5) * square(sin_bpm(60.0, t) * (if t > 2.0 { 0.0 } else { 1.0 }))
+    //});
+    let c = c * envelope(|t| clamp01(delerp(2.1, 2.0, t)));
+    //    exp(-t * 0.5) * square(sin_bpm(60.0, t) * (if t > 2.0 { 0.0 } else { 1.0 }))
+    //});
     //let c = c >> feedback(lowpass_hz(1000.0) >> delay(1.0) * 0.9);
-    //let c = white() >> lowpole_hz(10.0); // brown(); // pink() >> pinkpass();
-    let mut c = c >> declick() >> dcblock() >> reverb >> limiter(0.5, 1.0);
+    let mut c = c
+        >> declick()
+        >> dcblock()
+        >> split::<U2>()
+        >> stereo_reverb(0.5, 3.0)
+        >> stereo_limiter(0.5, 5.0);
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));
 
     //let mut next_value = move || { let v = c.get_mono(); assert!(v.is_nan() == false && abs(v) < 1.0e6); v };
-    let mut next_value = move || c.get_mono() as f32;
+    let mut next_value = move || c.get_stereo();
     //let mut next_value = c.as_mono_fn();
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
@@ -100,14 +101,21 @@ where
     Ok(())
 }
 
-fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> f32)
+fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f64, f64))
 where
     T: cpal::Sample,
 {
     for frame in output.chunks_mut(channels) {
-        let value: T = cpal::Sample::from::<f32>(&next_sample());
-        for sample in frame.iter_mut() {
-            *sample = value;
+        let sample = next_sample();
+        let left: T = cpal::Sample::from::<f32>(&(sample.0 as f32));
+        let right: T = cpal::Sample::from::<f32>(&(sample.1 as f32));
+
+        for (channel, sample) in frame.iter_mut().enumerate() {
+            if channel & 1 == 0 {
+                *sample = left;
+            } else {
+                *sample = right;
+            }
         }
     }
 }
