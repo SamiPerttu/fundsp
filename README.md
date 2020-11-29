@@ -558,7 +558,6 @@ MIT or Apache-2.0.
 - `saw`, `square` (syntactic sugar for `wave` initially)
 - `oversample(n, x)`. Oversample enclosed circuit `x` by `n`.
   Impose a default maximum sample rate to keep nested oversampling sensible.
-- Standard mono and stereo reverbs using a 16x FDN.
 
 ### TODO: Prelude
 
