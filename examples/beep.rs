@@ -62,22 +62,44 @@ where
     //let c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator();
     //let c = (mls() | dc((200.0, 10.0))) >> resonator() & (mls() | dc((400.0, 20.0))) >> resonator() & (mls() | dc((800.0, 30.0))) >> resonator();
     //let c = pink();
-    let f = 110.0;
-    let m = 5.0;
-    let c = sine_hz(f) * f * m + f >> sine();
+    //let f = 110.0;
+    //let m = 5.0;
+    //let c = sine_hz(f) * f * m + f >> sine();
     //let c = c * envelope(|t| {
-    //    exp(-t * 0.5) * square(sin_bpm(60.0, t) * (if t > 2.0 { 0.0 } else { 1.0 }))
+    //    exp(-t * 0.5) * squared(sin_bpm(60.0, t) * (if t > 2.0 { 0.0 } else { 1.0 }))
     //});
-    let c = c * envelope(|t| clamp01(delerp(2.1, 2.0, t)));
-    //    exp(-t * 0.5) * square(sin_bpm(60.0, t) * (if t > 2.0 { 0.0 } else { 1.0 }))
+    //let c = c * envelope(|t| clamp01(delerp(2.1, 2.0, t)));
+    //    exp(-t * 0.5) * squared(sin_bpm(60.0, t) * (if t > 2.0 { 0.0 } else { 1.0 }))
     //});
     //let c = c >> feedback(lowpass_hz(1000.0) >> delay(1.0) * 0.9);
+
+    /*
+    // Risset glissando.
+    let c = stacki::<U20, _, _>(|i| {
+        let f = lfo(move |t| {
+            lerp(-0.5, 0.5, rnd(i)) + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0)
+        });
+        let a = lfo(move |t| {
+            smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0))
+                * xerp(1.0, 0.1, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0)
+        });
+        f >> sine() * a
+    }) >> multijoin::<U1, U20>();
+    */
+
+    //let c = dc(110.0) >> triangle();
+    //let c = lfo(|t| xerp(200.0, 2000.0, sin_hz(0.1, t))) >> square() >> lowpole_hz(1000.0);
+    let c = dc(110.0)
+        >> sawx()
+        >> (pass() + (pass() + lfo(|t| lerp(0.5, 0.99, sin_hz(0.05, t))) >> sawp()));
+
     let mut c = c
-        >> declick()
-        >> dcblock()
+        >> declick() >> dcblock()
+        //>> (declick() | declick())
+        //>> (dcblock() | dcblock())
         >> split::<U2>()
-        >> stereo_reverb(0.5, 3.0)
-        >> stereo_limiter(0.5, 5.0);
+        >> stereo_reverb(0.2, 10.0)
+        >> stereo_limiter(0.5, 10.0);
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));
 

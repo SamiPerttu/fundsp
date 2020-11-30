@@ -10,6 +10,7 @@ use super::feedback::*;
 use super::filter::*;
 use super::noise::*;
 use super::oscillator::*;
+use super::wavetable::*;
 
 // Combinator environment.
 // We like to define all kinds of useful functions here.
@@ -80,9 +81,46 @@ pub type U61 = numeric_array::typenum::U61;
 pub type U62 = numeric_array::typenum::U62;
 pub type U63 = numeric_array::typenum::U63;
 pub type U64 = numeric_array::typenum::U64;
+pub type U65 = numeric_array::typenum::U65;
+pub type U66 = numeric_array::typenum::U66;
+pub type U67 = numeric_array::typenum::U67;
+pub type U68 = numeric_array::typenum::U68;
+pub type U69 = numeric_array::typenum::U69;
+pub type U70 = numeric_array::typenum::U70;
+pub type U71 = numeric_array::typenum::U71;
+pub type U72 = numeric_array::typenum::U72;
+pub type U73 = numeric_array::typenum::U73;
+pub type U74 = numeric_array::typenum::U74;
+pub type U75 = numeric_array::typenum::U75;
+pub type U76 = numeric_array::typenum::U76;
+pub type U77 = numeric_array::typenum::U77;
+pub type U78 = numeric_array::typenum::U78;
+pub type U79 = numeric_array::typenum::U79;
+pub type U80 = numeric_array::typenum::U80;
+pub type U81 = numeric_array::typenum::U81;
+pub type U82 = numeric_array::typenum::U82;
+pub type U83 = numeric_array::typenum::U83;
+pub type U84 = numeric_array::typenum::U84;
+pub type U85 = numeric_array::typenum::U85;
+pub type U86 = numeric_array::typenum::U86;
+pub type U87 = numeric_array::typenum::U87;
+pub type U88 = numeric_array::typenum::U88;
+pub type U89 = numeric_array::typenum::U89;
+pub type U90 = numeric_array::typenum::U80;
+pub type U91 = numeric_array::typenum::U91;
+pub type U92 = numeric_array::typenum::U92;
+pub type U93 = numeric_array::typenum::U93;
+pub type U94 = numeric_array::typenum::U94;
+pub type U95 = numeric_array::typenum::U95;
+pub type U96 = numeric_array::typenum::U96;
+pub type U97 = numeric_array::typenum::U97;
+pub type U98 = numeric_array::typenum::U98;
+pub type U99 = numeric_array::typenum::U99;
+pub type U100 = numeric_array::typenum::U100;
 
 /// Constant node.
 /// Synonymous with `[dc]`.
+#[inline]
 pub fn constant<X: ConstantFrame<Sample = f64>>(x: X) -> An<ConstantNode<f64, X::Size>>
 where
     X::Size: Size<f64>,
@@ -93,6 +131,7 @@ where
 /// Constant node.
 /// Synonymous with `constant`.
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
+#[inline]
 pub fn dc<X: ConstantFrame<Sample = f64>>(x: X) -> An<ConstantNode<f64, X::Size>>
 where
     X::Size: Size<f64>,
@@ -229,6 +268,7 @@ pub fn resonator_hz(
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `lfo`.
 /// - Output 0: envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
 pub fn envelope(
     f: impl Fn(f64) -> f64 + Clone,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
@@ -243,6 +283,7 @@ pub fn envelope(
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `envelope`.
 /// - Output 0: envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
 pub fn lfo(
     f: impl Fn(f64) -> f64 + Clone,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
@@ -251,12 +292,14 @@ pub fn lfo(
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
+#[inline]
 pub fn mls_bits(n: i64) -> An<MlsNoise<f64>> {
     An(MlsNoise::new(Mls::new(n as u32)))
 }
 
 /// Default Maximum Length Sequence noise generator.
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
+#[inline]
 pub fn mls() -> An<MlsNoise<f64>> {
     mls_bits(29)
 }
@@ -264,6 +307,7 @@ pub fn mls() -> An<MlsNoise<f64>> {
 /// White noise generator.
 /// Synonymous with `white`.
 /// - Output 0: white noise.
+#[inline]
 pub fn noise() -> An<NoiseNode<f64>> {
     An(NoiseNode::new())
 }
@@ -271,6 +315,7 @@ pub fn noise() -> An<NoiseNode<f64>> {
 /// White noise generator.
 /// Synonymous with `noise`.
 /// - Output 0: white noise.
+#[inline]
 pub fn white() -> An<NoiseNode<f64>> {
     An(NoiseNode::new())
 }
@@ -278,6 +323,7 @@ pub fn white() -> An<NoiseNode<f64>> {
 /// Single sample delay.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
+#[inline]
 pub fn tick() -> An<TickNode<f64, U1>> {
     An(TickNode::new(DEFAULT_SR))
 }
@@ -285,6 +331,7 @@ pub fn tick() -> An<TickNode<f64, U1>> {
 /// Fixed delay of `t` seconds.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
+#[inline]
 pub fn delay(t: f64) -> An<DelayNode<f64>> {
     An(DelayNode::new(t, DEFAULT_SR))
 }
@@ -293,6 +340,7 @@ pub fn delay(t: f64) -> An<DelayNode<f64>> {
 /// Feedback circuit `x` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
+#[inline]
 pub fn feedback<X, N>(x: An<X>) -> An<FeedbackNode<f64, X, N, FrameId<f64, N>>>
 where
     X: AudioNode<Sample = f64, Inputs = N, Outputs = N>,
@@ -306,20 +354,24 @@ where
 /// Keeps a signal zero centered.
 /// Filter cutoff `c` is usually somewhere below the audible range.
 /// The default blocker cutoff is 10 Hz.
+#[inline]
 pub fn dcblock_hz(c: f64) -> An<DCBlocker<f64, f64>> {
     An(DCBlocker::new(DEFAULT_SR, c))
 }
 
 /// Keeps a signal zero centered.
+#[inline]
 pub fn dcblock() -> An<DCBlocker<f64, f64>> {
     dcblock_hz(10.0)
 }
 
+#[inline]
 pub fn declick() -> An<Declicker<f64, f64>> {
     An(Declicker::new(DEFAULT_SR, 0.010))
 }
 
 /// Shape signal with a waveshaper.
+#[inline]
 pub fn shape<S: Fn(f64) -> f64 + Clone>(
     f: S,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
@@ -329,47 +381,56 @@ pub fn shape<S: Fn(f64) -> f64 + Clone>(
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.
+#[inline]
 pub fn follow(t: f64) -> An<Follower<f64, f64>> {
     An(Follower::new(DEFAULT_SR, t))
 }
 
 /// Asymmetric parameter follower filter with halfway `attack` time in seconds and halfway `release` time in seconds.
+#[inline]
 pub fn followa(attack: f64, release: f64) -> An<AFollower<f64, f64>> {
     An(AFollower::new(DEFAULT_SR, attack, release))
 }
 
 /// Look-ahead limiter with `attack` and `release` time in seconds. Look-ahead is equal to the attack time.
+#[inline]
 pub fn limiter(attack: f64, release: f64) -> An<Limiter<f64, U1>> {
     An(Limiter::new(DEFAULT_SR, attack, release))
 }
 
 /// Look-ahead stereo limiter with `attack` and `release` time in seconds. Look-ahead is equal to the attack time.
+#[inline]
 pub fn stereo_limiter(attack: f64, release: f64) -> An<Limiter<f64, U2>> {
     An(Limiter::new(DEFAULT_SR, attack, release))
 }
 
 /// Pinking filter.
+#[inline]
 pub fn pinkpass() -> An<PinkFilter<f64, f64>> {
     An(PinkFilter::new())
 }
 
 /// Pink noise.
+#[inline]
 pub fn pink() -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
     white() >> pinkpass()
 }
 
 /// Brown noise.
+#[inline]
 pub fn brown() -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
     // Empirical normalization factor.
     white() >> lowpole_hz(10.0) * dc(13.7)
 }
 
 /// Frequency detector.
+#[inline]
 pub fn goertzel() -> An<GoertzelNode<f64, f64>> {
     An(GoertzelNode::new(DEFAULT_SR))
 }
 
 /// Frequency detector of frequency `f` Hz.
+#[inline]
 pub fn goertzel_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
     (pass() | constant(f)) >> goertzel()
 }
@@ -380,6 +441,7 @@ pub fn goertzel_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outpu
 /// Feedback circuit `x` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
+#[inline]
 pub fn fdn<X, N>(x: An<X>) -> An<FeedbackNode<f64, X, N, FrameHadamard<f64, N>>>
 where
     X: AudioNode<Sample = f64, Inputs = N, Outputs = N>,
@@ -391,6 +453,7 @@ where
 }
 
 /// Create bus with `n` nodes from indexed generator `f`.
+#[inline]
 pub fn busi<N, X, F>(f: F) -> An<MultiBusNode<f64, N, X>>
 where
     N: Size<f64>,
@@ -406,6 +469,7 @@ where
 
 /// Stacks `n` nodes from a fractional generator,
 /// which is given uniformly divided values in 0...1.
+#[inline]
 pub fn stackf<N, X, F>(f: F) -> An<MultiStackNode<f64, N, X>>
 where
     N: Size<f64>,
@@ -430,6 +494,7 @@ where
 
 /// Branches into `n` nodes from a fractional generator,
 /// which is given uniformly divided values in 0...1.
+#[inline]
 pub fn branchf<N, X, F>(f: F) -> An<MultiBranchNode<f64, N, X>>
 where
     N: Size<f64>,
@@ -452,6 +517,7 @@ where
 }
 
 /// Mixes together a bunch of similar nodes sourcing from disjoint inputs.
+#[inline]
 pub fn sumf<N, X, F>(f: F) -> An<ReduceNode<f64, N, X, FrameAdd<f64, X::Outputs>>>
 where
     N: Size<f64>,
@@ -474,6 +540,7 @@ where
 }
 
 /// Split signal into N channels.
+#[inline]
 pub fn split<N>() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = N>>
 where
     N: Size<f64>,
@@ -482,6 +549,7 @@ where
 }
 
 /// Splits M channels into N branches. The output has M * N channels.
+#[inline]
 pub fn multisplit<M, N>(
 ) -> An<impl AudioNode<Sample = f64, Inputs = M, Outputs = numeric_array::typenum::Prod<M, N>>>
 where
@@ -493,6 +561,7 @@ where
 }
 
 /// Average N channels into one. Inverse of `split`.
+#[inline]
 pub fn join<N>() -> An<impl AudioNode<Sample = f64, Inputs = N, Outputs = U1>>
 where
     N: Size<f64>,
@@ -504,6 +573,7 @@ where
 }
 
 /// Average N branches of M channels into one branch with M channels. The input has M * N channels. Inverse of `multisplit`.
+#[inline]
 pub fn multijoin<M, N>(
 ) -> An<impl AudioNode<Sample = f64, Inputs = numeric_array::typenum::Prod<M, N>, Outputs = M>>
 where
@@ -523,6 +593,7 @@ where
 }
 
 /// Stacks `n` nodes from an indexed generator.
+#[inline]
 pub fn stacki<N, X, F>(f: F) -> An<MultiStackNode<f64, N, X>>
 where
     N: Size<f64>,
@@ -561,10 +632,85 @@ pub fn stereo_reverb(
     let reverb = fdn(stacki::<U32, _, _>(|i| {
         // Index is i64 because of hacker prelude rules.
         // In the standard prelude, the index type would be usize.
-        delay(DELAYS[i as usize]) >> lowpole_hz(800.0) >> dcblock() * a
+        delay(DELAYS[i as usize]) >> lowpole_hz(1600.0) >> dcblock_hz(5.0) * a
     }));
 
     // Multiplex stereo into 32 channels, reverberate, then average them back.
     // Bus the reverb with the dry signal. Operator precedences work perfectly for us here.
     multisplit::<U2, U16>() >> reverb >> multijoin::<U2, U16>() * wet & mul((1.0 - wet, 1.0 - wet))
+}
+
+/// Saw wave oscillator.
+#[inline]
+pub fn saw() -> An<WaveSynth<'static, f64, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
+}
+
+/// Saw wave oscillator with phase input.
+#[inline]
+pub fn sawp() -> An<PhaseSynth<'static, f64, U1>> {
+    An(PhaseSynth::new(DEFAULT_SR, &SAW_TABLE))
+}
+
+/// Saw wave oscillator with extra phase output.
+#[inline]
+pub fn sawx() -> An<WaveSynth<'static, f64, U2>> {
+    An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
+}
+
+/// Square wave oscillator.
+#[inline]
+pub fn square() -> An<WaveSynth<'static, f64, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
+}
+
+/// Square wave oscillator with phase input.
+#[inline]
+pub fn squarep() -> An<PhaseSynth<'static, f64, U1>> {
+    An(PhaseSynth::new(DEFAULT_SR, &SQUARE_TABLE))
+}
+
+/// Square wave oscillator with extra phase output.
+#[inline]
+pub fn squarex() -> An<WaveSynth<'static, f64, U2>> {
+    An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
+}
+
+/// Triangle wave oscillator.
+#[inline]
+pub fn triangle() -> An<WaveSynth<'static, f64, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
+}
+
+/// Triangle wave oscillator with phase input.
+#[inline]
+pub fn trianglep() -> An<PhaseSynth<'static, f64, U1>> {
+    An(PhaseSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
+}
+
+/// Triangle wave oscillator with extra phase output.
+#[inline]
+pub fn trianglex() -> An<WaveSynth<'static, f64, U2>> {
+    An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
+}
+
+/// Fixed saw wave oscillator at `f` Hz.
+/// - Output 0: saw wave
+#[inline]
+pub fn saw_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+    constant(f) >> saw()
+}
+
+/// Fixed square wave oscillator at `f` Hz.
+/// - Output 0: square wave
+#[inline]
+pub fn square_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+    constant(f) >> square()
+}
+
+/// Fixed triangle wave oscillator at `f` Hz.
+/// - Output 0: triangle wave
+#[inline]
+pub fn triangle_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+    constant(f) >> triangle()
 }

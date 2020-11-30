@@ -12,6 +12,8 @@ edition = "2018"
 generic-array = "0.14.4"
 numeric-array = "0.5.2"
 num-complex = "0.3"
+rustfft = "4.0"
+lazy_static = "1.4"
 
 [dev-dependencies]
 cpal = "0.13"

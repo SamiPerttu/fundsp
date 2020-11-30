@@ -19,7 +19,7 @@ fn test_filter() {
     // Test follow().
     for _ in 0..200 {
         // Bias testing toward smaller lengths to cut testing time shorter.
-        let samples = round(xerp(1.0, 100_000.0, square(rnd.gen_01::<f64>())));
+        let samples = round(xerp(1.0, 100_000.0, squared(rnd.gen_01::<f64>())));
         let sample_rate = xerp(10.0, 100_000.0, rnd.gen_01::<f64>());
         let mut x = follow(samples / sample_rate);
         x.reset(Some(sample_rate));
@@ -35,8 +35,8 @@ fn test_filter() {
     // Test afollow().
     for _ in 0..200 {
         // Bias testing toward smaller lengths to cut testing time shorter.
-        let attack_samples = round(xerp(1.0, 100_000.0, square(rnd.gen_01::<f64>())));
-        let release_samples = round(xerp(1.0, 100_000.0, square(rnd.gen_01::<f64>())));
+        let attack_samples = round(xerp(1.0, 100_000.0, squared(rnd.gen_01::<f64>())));
+        let release_samples = round(xerp(1.0, 100_000.0, squared(rnd.gen_01::<f64>())));
         let sample_rate = xerp(10.0, 100_000.0, rnd.gen_01::<f64>());
         let goal = lerp(-100.0, 100.0, rnd.gen_01::<f64>());
         let mut x = followa(attack_samples / sample_rate, release_samples / sample_rate);

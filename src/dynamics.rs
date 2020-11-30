@@ -231,7 +231,7 @@ impl<F: Real> Goertzel<F> {
         self.y1 = y0;
     }
     pub fn power(&self) -> F {
-        square(self.y2) + square(self.y1) - self.ccoeff * self.y2 * self.y1
+        squared(self.y2) + squared(self.y1) - self.ccoeff * self.y2 * self.y1
     }
 }
 

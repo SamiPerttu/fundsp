@@ -1,12 +1,15 @@
 # FunDSP
 
-## Audio DSP Library for Rust
+## Audio Synthesis and Processing Library for Rust
 
 [FunDSP](https://github.com/SamiPerttu/fundsp)
 is an audio DSP (digital dignal processing) library with a focus on usability.
 
 It features a powerful inline graph notation that
 empowers users to accomplish diverse audio processing tasks with ease and elegance.
+
+The custom notation taps into composable, zero-cost abstractions
+that express audio processing networks as [Rust](https://www.rust-lang.org/) types.
 
 FunDSP comes with a combinator environment containing
 a suite of audio components, math and utility functions and procedural generation tools.
@@ -54,7 +57,8 @@ work in harmony with the notation, minimizing
 the number of parentheses needed.
 
 FunDSP graph expressions offer even more economy in being generic
-over the number of channels. A mono network can be expressed
+over channel arities, which are encoded at the type level.
+A mono network can be expressed
 as a stereo network simply by replacing its mono generators and
 filters with stereo ones, the graph notation remaining the same.
 
@@ -72,10 +76,10 @@ Both systems operate on audio signals synchronously as an infinite stream.
 
 ---
 
-| Trait            | Sample Type | Dispatch             | Allocation Strategy | Operation    | Connectivity |
-| ---------------- | ----------- | -------------------- | --------------- | ---------------- | ------------ |
-| `AudioNode`      | generic     | static, inlined      | stack           | sample by sample | input and output arity fixed at compile time |
-| `AudioUnit`      | `f32`       | dynamic, object safe | heap            | block by block   | input and output arity fixed after construction |
+| Trait         | Sample Type | Dispatch             | Allocation Strategy | Connectivity |
+| ------------- | ----------- | -------------------- | --------------- | ---------------- |
+| `AudioNode`   | generic     | static, inlined      | stack           | input and output arity fixed at compile time |
+| `AudioUnit`   | generic     | dynamic, object safe | heap            | input and output arity fixed after construction |
 
 ---
 
@@ -123,9 +127,14 @@ The aims of the environments are:
 - Keep the syntax clean so that a subset of the hacker environment
   can be parsed straightforwardly as a high-level DSL for quick prototyping.
 - Make the syntax usable even to people with no prior exposure to programming.
+- Exemplify an effective procedural style.
 
-In the environment, applicable generators are deterministic pseudorandom phase.
-Two identical networks sound identical on their own but different when combined.
+### Deterministic Pseudorandom Phase
+
+FunDSP uses a deterministic pseudorandom phase system for generators.
+Generator phases are seeded from network structure and node location.
+
+Thus, two identical networks sound identical separately but different when combined.
 This means that `noise() | noise()` is a stereo noise source, for example.
 
 
@@ -294,8 +303,9 @@ Some signals found flowing in audio networks.
 | Modality       | Preferred Units/Range  | Notes                                      |
 | -------------- | ---------------------- | ------------------------------------------ |
 | frequency      | Hz                     | |
+| phase          | 0...1                  | The wavetable oscillator uses this range. |
 | time           | s                      | |
-| audio data     | -1...1                 | Only special output formats can store audio data outside this range. |
+| audio data     | -1...1                 | Inner processing may use any range that is convenient. However, only special output formats can store audio data outside this range. |
 | stereo pan     | -1...1 (left to right) | For ergonomy, consider clamping any pan input to this range. |
 | control amount | 0...1                  | If there is no natural interpretation of the parameter. |
 
@@ -339,27 +349,41 @@ These free functions are available in the environment.
 | `mls()`                |    -   |    1     | White MLS noise source. |
 | `mls_bits(n)`          |    -   |    1     | White MLS noise source from `n`-bit MLS sequence. |
 | `mul(x)`               |   `x`  |   `x`    | Multiplies signal with constant `x`. |
+| `multijoin::<M, N>()`  | `M * N`|   `M`    | Joins `N` branches of `M` channels into one. Inverse of `multisplit`. |
+| `multisplit::<M, N>()` |   `M`  | `M * N`  | Splits `M` channels into `N` branches. |
 | `noise()`              |    -   |    1     | White noise source. Synonymous with `white`. |
 | `pass()`               |    1   |    1     | Passes signal through. |
 | `pink()`               |    -   |    1     | Pink noise. |
 | `pinkpass()`           |    1   |    1     | Pinking filter (3 dB/octave). |
 | `resonator()`          | 3 (audio, center, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(c, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with center frequency `c` Hz and bandwidth `bw` Hz. |
+| `saw()`                | 1 (pitch) | 1     | Saw wave oscillator. |
+| `saw_hz()`             |    -   |    1     | Saw wave oscillator at `f` Hz. |
+| `sawp()`               | 1 (phase) | 1     | Saw wave oscillator with phase input in 0...1. |
+| `sawx()`               | 1 (pitch) | 2 (audio, phase) | Saw wave oscillator with phase output in 0...1. |
 | `shape(f)`             |    1   |    1     | Shape signal with waveshaper `f`, e.g., `tanh`. |
 | `sine()`               | 1 (pitch) | 1     | Sine oscillator. |
-| `sine_hz(f)`           |    -   |    1     | Sine oscillator at frequency `f` Hz. |
+| `sine_hz(f)`           |    -   |    1     | Sine oscillator at `f` Hz. |
 | `sink()`               |    1   |    -     | Consumes signal. |
 | `split::<U>()`         |    1   |   `U`    | Split signal into `U` channels. |
+| `square()`             | 1 (pitch) | 1     | Square wave oscillator. |
+| `square_hz()`          |    -   |    1     | Square wave oscillator at frequency `f` Hz. |
+| `squarep()`            | 1 (phase) | 1     | Square wave oscillator with phase input in 0...1. |
+| `squarex()`            | 1 (pitch) | 2 (audio, phase) | Square wave oscillator with phase output in 0...1. |
 | `stackf::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `stacki::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from indexed generator `i`. |
 | `stereo_limiter(a, r)` |    2   |    2     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `stereo_reverb(wet, t)` |   2   |    2     | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
 | `sub(x)`               |   `x`  |   `x`    | Subtracts constant `x` from signal. |
 | `tick()`               |    1   |    1     | Single sample delay. |
+| `triangle()`           | 1 (pitch) | 1     | Triangle wave oscillator. |
+| `triangle_hz(f)`       |    -   |    1     | Triangle wave oscillator at `f` Hz. |
+| `trianglep()`          | 1 (phase) | 1     | Triangle wave oscillator with phase input in 0...1. |
+| `trianglex()`          | 1 (pitch) | 2 (audio, phase) | Triangle wave oscillator with phase output in 0...1. |
 | `white()`              |    -   |    1     | White noise source. Synonymous with `noise`. |
 | `zero()`               |    -   |    1     | Zero signal. |
 
-`U` is a type-level integer. They are `U0`, `U1`, `U2`...
+`M`, `N`, `U` are type-level integers. They are `U0`, `U1`, `U2`...
 
 ---
 
@@ -370,8 +394,6 @@ These free functions are available in the environment.
 | Function               | Explanation                                    |
 | ---------------------- | ---------------------------------------------- |
 | `abs(x)`               | absolute value of `x` |
-| `arcdown(x)`           | concave quarter circle easing curve (inverse of `arcup`) |
-| `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
 | `a_weight(f)`          | A-weighted amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `ceil(x)`              | ceiling function |
 | `clamp(min, max, x)`   | clamp `x` between `min` and `max` |
@@ -407,18 +429,32 @@ These free functions are available in the environment.
 | `sin(x)`               | sin |
 | `sin_bpm(f, t)`        | sine that oscillates at `f` BPM at time `t` seconds |
 | `sin_hz(f, t)`         | sine that oscillates at `f` Hz at time `t` seconds |
-| `smooth3(x)`           | smooth cubic easing polynomial |
-| `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
-| `smooth7(x)`           | smooth 7th degree easing polynomial |
-| `smooth9(x)`           | smooth 9th degree easing polynomial |
 | `softmix(x, y, bias)`  | weighted average of `x` and `y` according to `bias`: polynomial softmin when `bias` < 0, average when `bias` = 0, polynomial softmax when `bias` > 0 |
 | `softsign(x)`          | softsign function, a polynomial alternative to `tanh` |
 | `spline(x0, x1, x2, x3, t)` | Catmull-Rom cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `splinem(x0, x1, x2, x3, t)` | monotonic cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
-| `sqrt(x)`              | square root of `x` |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
 | `xerp(x0, x1, t)`      | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) |
+
+---
+
+### Easing Functions
+
+*Easing functions* are interpolation curves that remap the range 0...1.
+These math functions have the shape of an easing function.
+
+| Function               | Explanation                                    |
+| ---------------------- | ---------------------------------------------- |
+| `arcdown(x)`           | concave quarter circle easing curve (inverse of `arcup`) |
+| `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
+| `cubed(x)`             | cube of `x` |
+| `smooth3(x)`           | smooth cubic easing polynomial |
+| `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
+| `smooth7(x)`           | smooth 7th degree easing polynomial |
+| `smooth9(x)`           | smooth 9th degree easing polynomial |
+| `squared(x)`           | square of `x` |
+| `sqrt(x)`              | square root of `x` |
 
 ---
 
@@ -553,9 +589,6 @@ MIT or Apache-2.0.
   Tag is an arbitrary tag type. Tag can include metainformation about parameter.
   Add `AudioNode` interfaces: `gather()` and `set(tag, value)`.
   The former returns all information about enclosed parameters and their current values.
-- `wave(table)`. Wavetable synthesizer. Add a set of standard wavetables behind `lazy_static`s (or similar) so they are shared
-  and can be given concise names.
-- `saw`, `square` (syntactic sugar for `wave` initially)
 - `oversample(n, x)`. Oversample enclosed circuit `x` by `n`.
   Impose a default maximum sample rate to keep nested oversampling sensible.
 

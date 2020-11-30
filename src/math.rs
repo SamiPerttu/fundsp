@@ -110,12 +110,12 @@ pub fn clamp11<T: Num>(x: T) -> T {
 }
 
 #[inline]
-pub fn square<T: Num>(x: T) -> T {
+pub fn squared<T: Num>(x: T) -> T {
     x * x
 }
 
 #[inline]
-pub fn cube<T: Num>(x: T) -> T {
+pub fn cubed<T: Num>(x: T) -> T {
     x * x * x
 }
 
@@ -184,11 +184,11 @@ pub fn db_amp<T: Num + Real>(db: T) -> T {
 /// Normalized to 1.0 at 1 kHz.
 #[inline]
 pub fn a_weight<T: Real>(f: T) -> T {
-    let f2 = square(f);
-    let c0 = square(T::from_f64(12194.0));
-    let c1 = square(T::from_f64(20.6));
-    let c2 = square(T::from_f64(107.7));
-    let c3 = square(T::from_f64(737.9));
+    let f2 = squared(f);
+    let c0 = squared(T::from_f64(12194.0));
+    let c1 = squared(T::from_f64(20.6));
+    let c2 = squared(T::from_f64(107.7));
+    let c3 = squared(T::from_f64(737.9));
     let c4 = T::from_f64(1.2589048990582914);
     c4 * c0 * f2 * f2 / ((f2 + c1) * sqrt((f2 + c2) * (f2 + c3)) * (f2 + c0))
 }
@@ -212,8 +212,8 @@ pub fn m_weight<T: Real>(f: T) -> T {
     let f4 = f2 * f2;
     c7 * c0 * f
         / sqrt(
-            square(c1 * f4 * f2 + c2 * f4 + c3 * f2 + T::one())
-                + square(c4 * f4 * f + c5 * f2 * f + c6 * f),
+            squared(c1 * f4 * f2 + c2 * f4 + c3 * f2 + T::one())
+                + squared(c4 * f4 * f + c5 * f2 * f + c6 * f),
         )
 }
 

@@ -10,6 +10,7 @@ use super::feedback::*;
 use super::filter::*;
 use super::noise::*;
 use super::oscillator::*;
+use super::wavetable::*;
 
 // Combinator environment.
 // We like to define all kinds of useful functions here.
@@ -80,9 +81,46 @@ pub type U61 = numeric_array::typenum::U61;
 pub type U62 = numeric_array::typenum::U62;
 pub type U63 = numeric_array::typenum::U63;
 pub type U64 = numeric_array::typenum::U64;
+pub type U65 = numeric_array::typenum::U65;
+pub type U66 = numeric_array::typenum::U66;
+pub type U67 = numeric_array::typenum::U67;
+pub type U68 = numeric_array::typenum::U68;
+pub type U69 = numeric_array::typenum::U69;
+pub type U70 = numeric_array::typenum::U70;
+pub type U71 = numeric_array::typenum::U71;
+pub type U72 = numeric_array::typenum::U72;
+pub type U73 = numeric_array::typenum::U73;
+pub type U74 = numeric_array::typenum::U74;
+pub type U75 = numeric_array::typenum::U75;
+pub type U76 = numeric_array::typenum::U76;
+pub type U77 = numeric_array::typenum::U77;
+pub type U78 = numeric_array::typenum::U78;
+pub type U79 = numeric_array::typenum::U79;
+pub type U80 = numeric_array::typenum::U80;
+pub type U81 = numeric_array::typenum::U81;
+pub type U82 = numeric_array::typenum::U82;
+pub type U83 = numeric_array::typenum::U83;
+pub type U84 = numeric_array::typenum::U84;
+pub type U85 = numeric_array::typenum::U85;
+pub type U86 = numeric_array::typenum::U86;
+pub type U87 = numeric_array::typenum::U87;
+pub type U88 = numeric_array::typenum::U88;
+pub type U89 = numeric_array::typenum::U89;
+pub type U90 = numeric_array::typenum::U80;
+pub type U91 = numeric_array::typenum::U91;
+pub type U92 = numeric_array::typenum::U92;
+pub type U93 = numeric_array::typenum::U93;
+pub type U94 = numeric_array::typenum::U94;
+pub type U95 = numeric_array::typenum::U95;
+pub type U96 = numeric_array::typenum::U96;
+pub type U97 = numeric_array::typenum::U97;
+pub type U98 = numeric_array::typenum::U98;
+pub type U99 = numeric_array::typenum::U99;
+pub type U100 = numeric_array::typenum::U100;
 
 /// Constant node.
 /// Synonymous with `[dc]`.
+#[inline]
 pub fn constant<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<ConstantNode<T, X::Size>>
 where
     X::Size: Size<T>,
@@ -93,6 +131,7 @@ where
 /// Constant node.
 /// Synonymous with `constant`.
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
+#[inline]
 pub fn dc<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<ConstantNode<T, X::Size>>
 where
     X::Size: Size<T>,
@@ -255,6 +294,7 @@ pub fn resonator_hz<T: Float, F: Real>(
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `lfo`.
 /// - Output 0: envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
 pub fn envelope<T: Float, F: Real>(
     f: impl Fn(F) -> F + Clone,
 ) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
@@ -269,6 +309,7 @@ pub fn envelope<T: Float, F: Real>(
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `envelope`.
 /// - Output 0: envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
 pub fn lfo<T: Float, F: Real>(
     f: impl Fn(F) -> F + Clone,
 ) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
@@ -277,12 +318,14 @@ pub fn lfo<T: Float, F: Real>(
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
+#[inline]
 pub fn mls_bits<T: Float>(n: u32) -> An<MlsNoise<T>> {
     An(MlsNoise::new(Mls::new(n)))
 }
 
 /// Default Maximum Length Sequence noise generator.
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
+#[inline]
 pub fn mls<T: Float>() -> An<MlsNoise<T>> {
     mls_bits(29)
 }
@@ -290,6 +333,7 @@ pub fn mls<T: Float>() -> An<MlsNoise<T>> {
 /// White noise generator.
 /// Synonymous with `white`.
 /// - Output 0: white noise.
+#[inline]
 pub fn noise<T: Float>() -> An<NoiseNode<T>> {
     An(NoiseNode::new())
 }
@@ -297,6 +341,7 @@ pub fn noise<T: Float>() -> An<NoiseNode<T>> {
 /// White noise generator.
 /// Synonymous with `noise`.
 /// - Output 0: white noise.
+#[inline]
 pub fn white<T: Float>() -> An<NoiseNode<T>> {
     An(NoiseNode::new())
 }
@@ -304,6 +349,7 @@ pub fn white<T: Float>() -> An<NoiseNode<T>> {
 /// Single sample delay.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
+#[inline]
 pub fn tick<T: Float>() -> An<TickNode<T, U1>> {
     An(TickNode::new(convert(DEFAULT_SR)))
 }
@@ -311,6 +357,7 @@ pub fn tick<T: Float>() -> An<TickNode<T, U1>> {
 /// Fixed delay of `t` seconds.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
+#[inline]
 pub fn delay<T: Float>(t: f64) -> An<DelayNode<T>> {
     An(DelayNode::new(t, DEFAULT_SR))
 }
@@ -319,6 +366,7 @@ pub fn delay<T: Float>(t: f64) -> An<DelayNode<T>> {
 /// Feedback circuit `x` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
+#[inline]
 pub fn feedback<T, X, N>(x: An<X>) -> An<FeedbackNode<T, X, N, FrameId<T, N>>>
 where
     T: Float,
@@ -338,6 +386,7 @@ where
 /// let my_sum = map(|i: &Frame<f64, U2>| Frame::<f64, U1>::splat(i[0] + i[1]));
 /// ```
 // TODO: ConstantFrame (?) based version for prelude.
+#[inline]
 pub fn map<T, M, I, O>(f: M) -> MapNode<T, M, I, O>
 where
     T: Float,
@@ -351,15 +400,18 @@ where
 /// Keeps a signal zero centered.
 /// Filter cutoff `c` is usually somewhere below the audible range.
 /// The default blocker cutoff is 10 Hz.
+#[inline]
 pub fn dcblock_hz<T: Float, F: Real>(c: F) -> An<DCBlocker<T, F>> {
     An(DCBlocker::new(DEFAULT_SR, c))
 }
 
 /// Keeps a signal zero centered.
+#[inline]
 pub fn dcblock<T: Float, F: Real>() -> An<DCBlocker<T, F>> {
     An(DCBlocker::new(DEFAULT_SR, F::new(10)))
 }
 
+#[inline]
 pub fn declick<T: Float, F: Real>() -> An<Declicker<T, F>> {
     An(Declicker::new(DEFAULT_SR, F::from_f64(0.010)))
 }
@@ -370,6 +422,7 @@ pub fn declick<T: Float, F: Real>() -> An<Declicker<T, F>> {
 //}
 
 /// Shape signal with a waveshaper.
+#[inline]
 pub fn shape<T: Float, S: Fn(T) -> T + Clone>(
     f: S,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
@@ -379,42 +432,50 @@ pub fn shape<T: Float, S: Fn(T) -> T + Clone>(
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.
+#[inline]
 pub fn follow<T: Float, F: Real>(t: F) -> An<Follower<T, F>> {
     An(Follower::new(DEFAULT_SR, t))
 }
 
 /// Asymmetric parameter follower filter with halfway `attack` time in seconds and halfway `release` time in seconds.
+#[inline]
 pub fn followa<T: Float, F: Real>(attack: F, release: F) -> An<AFollower<T, F>> {
     An(AFollower::new(DEFAULT_SR, attack, release))
 }
 
 /// Look-ahead limiter with `attack` and `release` time in seconds. Look-ahead is equal to the attack time.
+#[inline]
 pub fn limiter<T: Float>(attack: f64, release: f64) -> An<Limiter<T, U1>> {
     An(Limiter::new(DEFAULT_SR, attack, release))
 }
 
 /// Pinking filter.
+#[inline]
 pub fn pinkpass<T: Float, F: Float>() -> An<PinkFilter<T, F>> {
     An(PinkFilter::new())
 }
 
 /// Pink noise.
+#[inline]
 pub fn pink<T: Float, F: Float>() -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
     white() >> pinkpass::<T, F>()
 }
 
 /// Brown noise.
+#[inline]
 pub fn brown<T: Float, F: Real>() -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
     // Empirical normalization factor.
     white() >> lowpole_hz::<T, F>(T::from_f64(10.0)) * dc(T::from_f64(13.7))
 }
 
 /// Frequency detector.
+#[inline]
 pub fn goertzel<T: Float, F: Real>() -> An<GoertzelNode<T, F>> {
     An(GoertzelNode::new(DEFAULT_SR))
 }
 
 /// Frequency detector of frequency `f` Hz.
+#[inline]
 pub fn goertzel_hz<T: Float, F: Real>(
     f: T,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
@@ -427,6 +488,7 @@ pub fn goertzel_hz<T: Float, F: Real>(
 /// Feedback circuit `x` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
+#[inline]
 pub fn fdn<T, X, N>(x: An<X>) -> An<FeedbackNode<T, X, N, FrameHadamard<T, N>>>
 where
     T: Float,
@@ -439,6 +501,7 @@ where
 }
 
 /// Buses a bunch of similar nodes.
+#[inline]
 pub fn bus<T, N, X>(x: Frame<X, N>) -> An<MultiBusNode<T, N, X>>
 where
     T: Float,
@@ -452,6 +515,7 @@ where
 }
 
 /// Stacks a bunch of similar nodes.
+#[inline]
 pub fn stack<T, N, X>(x: Frame<X, N>) -> An<MultiStackNode<T, N, X>>
 where
     T: Float,
@@ -467,6 +531,7 @@ where
 }
 
 /// Branches into a bunch of similar nodes.
+#[inline]
 pub fn branch<T, N, X>(x: Frame<X, N>) -> An<MultiBranchNode<T, N, X>>
 where
     T: Float,
@@ -481,6 +546,7 @@ where
 }
 
 /// Mixes together a bunch of similar nodes sourcing from disjoint inputs.
+#[inline]
 pub fn sum<T, N, X>(x: Frame<X, N>) -> An<ReduceNode<T, N, X, FrameAdd<T, X::Outputs>>>
 where
     T: Float,
@@ -495,6 +561,7 @@ where
 }
 
 /// Split signal into N channels.
+#[inline]
 pub fn split<T, N>() -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = N>>
 where
     T: Float,
@@ -505,6 +572,7 @@ where
 }
 
 /// Average N channels into one. Inverse of `split`.
+#[inline]
 pub fn join<T, N>() -> An<impl AudioNode<Sample = T, Inputs = N, Outputs = U1>>
 where
     T: Float,
@@ -514,4 +582,79 @@ where
     An(MapNode::new(|x| {
         [x.iter().fold(T::zero(), |acc, &x| acc + x) / T::new(N::I64)].into()
     }))
+}
+
+/// Saw wave oscillator.
+#[inline]
+pub fn saw<T: Float>() -> An<WaveSynth<'static, T, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
+}
+
+/// Saw wave oscillator with phase input.
+#[inline]
+pub fn sawp<T: Float>() -> An<PhaseSynth<'static, T, U1>> {
+    An(PhaseSynth::new(DEFAULT_SR, &SAW_TABLE))
+}
+
+/// Saw wave oscillator with extra phase output.
+#[inline]
+pub fn sawx<T: Float>() -> An<WaveSynth<'static, T, U2>> {
+    An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
+}
+
+/// Square wave oscillator.
+#[inline]
+pub fn square<T: Float>() -> An<WaveSynth<'static, T, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
+}
+
+/// Square wave oscillator with phase input.
+#[inline]
+pub fn squarep<T: Float>() -> An<PhaseSynth<'static, T, U1>> {
+    An(PhaseSynth::new(DEFAULT_SR, &SQUARE_TABLE))
+}
+
+/// Square wave oscillator with extra phase output.
+#[inline]
+pub fn squarex<T: Float>() -> An<WaveSynth<'static, T, U2>> {
+    An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
+}
+
+/// Triangle wave oscillator.
+#[inline]
+pub fn triangle<T: Float>() -> An<WaveSynth<'static, T, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
+}
+
+/// Triangle wave oscillator with phase input.
+#[inline]
+pub fn trianglep<T: Float>() -> An<PhaseSynth<'static, T, U1>> {
+    An(PhaseSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
+}
+
+/// Triangle wave oscillator with extra phase output.
+#[inline]
+pub fn trianglex<T: Float>() -> An<WaveSynth<'static, T, U2>> {
+    An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
+}
+
+/// Fixed saw wave oscillator at `f` Hz.
+/// - Output 0: saw wave
+#[inline]
+pub fn saw_hz<T: Float>(f: T) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+    constant(f) >> saw()
+}
+
+/// Fixed square wave oscillator at `f` Hz.
+/// - Output 0: square wave
+#[inline]
+pub fn square_hz<T: Float>(f: T) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+    constant(f) >> square()
+}
+
+/// Fixed triangle wave oscillator at `f` Hz.
+/// - Output 0: triangle wave
+#[inline]
+pub fn triangle_hz<T: Float>(f: T) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+    constant(f) >> triangle()
 }
