@@ -335,12 +335,12 @@ These free functions are available in the environment.
 | `brown()`              |    -   |    1     | Brown noise. |
 | `branchf::<U, _, _>(f)` |  `f`  | `U * f`  | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))` |
 | `busi::<U, _, _>(f)`   |   `f`  |   `f`    | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f64 + 1.0) >> sine()`
-| `butterpass()`         | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
-| `butterpass_hz(c)`     |    1   |    1     | Butterworth lowpass filter (2nd order) with cutoff frequency `c` Hz. |
+| `butterpass()`         | 2 (audio, frequency) | 1 | Butterworth lowpass filter (2nd order). |
+| `butterpass_hz(f)`     |    1   |    1     | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
 | `constant(x)`          |    -   |   `x`    | Constant signal `x`. Synonymous with `dc`. |
 | `dc(x)`                |    -   |   `x`    | Constant signal `x`. Synonymous with `constant`. |
 | `dcblock()`            |    1   |    1     | Zero centers signal with cutoff frequency 10 Hz. |
-| `dcblock_hz(c)`        |    1   |    1     | Zero centers signal with cutoff frequency `c`. |
+| `dcblock_hz(f)`        |    1   |    1     | Zero centers signal with cutoff frequency `f`. |
 | `declick()`            |    1   |    1     | Apply 10 ms of fade-in to signal. |
 | `delay(t)`             |    1   |    1     | Delay of `t` seconds. |
 | `envelope(f)`          |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
@@ -362,8 +362,8 @@ These free functions are available in the environment.
 | `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
 | `lowpass_hz(f, q)`     |    1   |    1     | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `lowpass_q(q)`         | 2 (audio, frequency) | 1 | Lowpass filter (2nd order) with Q `q`. |
-| `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
-| `lowpole_hz(c)`        |    1   |    1     | 1-pole lowpass filter (1st order) with cutoff frequency `c` Hz. |
+| `lowpole()`            | 2 (audio, frequency) | 1 | 1-pole lowpass filter (1st order). |
+| `lowpole_hz(f)`        |    1   |    1     | 1-pole lowpass filter (1st order) with cutoff frequency `f` Hz. |
 | `lowshelf()`           | 4 (audio, frequency, Q, gain) | 1 | Low shelving filter (2nd order) with adjustable amplitude gain. |
 | `lowshelf_eq(f, q)`    | 2 (audio, gain) | 1 | Low shelving filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
 | `lowshelf_hz(f, q, gain)` | 1   |    1     | Low shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
@@ -382,8 +382,8 @@ These free functions are available in the environment.
 | `peak_q(q)`            | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q`. |
 | `pink()`               |    -   |    1     | Pink noise. |
 | `pinkpass()`           |    1   |    1     | Pinking filter (3 dB/octave). |
-| `resonator()`          | 3 (audio, center, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
-| `resonator_hz(c, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with center frequency `c` Hz and bandwidth `bw` Hz. |
+| `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
+| `resonator_hz(f, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `saw()`                | 1 (pitch) | 1     | Saw wave oscillator. |
 | `saw_hz()`             |    -   |    1     | Saw wave oscillator at `f` Hz. |
 | `sawp()`               | 1 (phase) | 1     | Saw wave oscillator with phase input in 0...1. |
