@@ -10,6 +10,7 @@ use super::feedback::*;
 use super::filter::*;
 use super::noise::*;
 use super::oscillator::*;
+use super::svf::*;
 use super::wavetable::*;
 
 // Combinator environment.
@@ -214,7 +215,7 @@ where
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpass() -> An<ButterLowpass<f64, f64>> {
+pub fn butterpass() -> An<ButterLowpass<f64, f64>> {
     An(ButterLowpass::new(DEFAULT_SR))
 }
 
@@ -222,8 +223,8 @@ pub fn lowpass() -> An<ButterLowpass<f64, f64>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpass_hz(cutoff: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    (pass() | constant(cutoff)) >> lowpass()
+pub fn butterpass_hz(cutoff: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | constant(cutoff)) >> butterpass()
 }
 
 /// One-pole lowpass filter (1st order).
@@ -713,4 +714,334 @@ pub fn square_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs
 #[inline]
 pub fn triangle_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
     constant(f) >> triangle()
+}
+
+/// Lowpass filter.
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Input 2: Q
+/// - Output 0: filtered audio
+#[inline]
+pub fn lowpass() -> An<Svf<f64, f64, LowpassMode<f64>>> {
+    An(Svf::new(
+        LowpassMode::default(),
+        &SvfParams {
+            sample_rate: DEFAULT_SR,
+            cutoff: 440.0,
+            q: 1.0,
+            gain: 1.0,
+        },
+    ))
+}
+
+/// Lowpass filter with cutoff frequency `f` Hz with Q value `q`.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn lowpass_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | dc((f, q))) >> lowpass()
+}
+
+/// Lowpass filter with Q value `q`.
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Output 0: filtered audio
+#[inline]
+pub fn lowpass_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+    (pass() | pass() | dc(q)) >> lowpass()
+}
+
+/// Highpass filter.
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Input 2: Q
+/// - Output 0: filtered audio
+#[inline]
+pub fn highpass() -> An<Svf<f64, f64, HighpassMode<f64>>> {
+    An(Svf::new(
+        HighpassMode::default(),
+        &SvfParams {
+            sample_rate: DEFAULT_SR,
+            cutoff: 440.0,
+            q: 1.0,
+            gain: 1.0,
+        },
+    ))
+}
+
+/// Highpass filter with cutoff frequency `f` Hz with Q value `q`.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn highpass_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | dc((f, q))) >> highpass()
+}
+
+/// Highpass filter with Q value `q`.
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Output 0: filtered audio
+#[inline]
+pub fn highpass_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+    (pass() | pass() | dc(q)) >> highpass()
+}
+
+/// Bandpass filter.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Output 0: filtered audio
+#[inline]
+pub fn bandpass() -> An<Svf<f64, f64, BandpassMode<f64>>> {
+    An(Svf::new(
+        BandpassMode::default(),
+        &SvfParams {
+            sample_rate: DEFAULT_SR,
+            cutoff: 440.0,
+            q: 1.0,
+            gain: 1.0,
+        },
+    ))
+}
+
+/// Bandpass filter centered at `f` Hz with Q value `q`.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn bandpass_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | dc((f, q))) >> bandpass()
+}
+
+/// Bandpass filter with Q value `q`.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Output 0: filtered audio
+#[inline]
+pub fn bandpass_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+    (pass() | pass() | dc(q)) >> bandpass()
+}
+
+/// Notch filter.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Output 0: filtered audio
+#[inline]
+pub fn notch() -> An<Svf<f64, f64, NotchMode<f64>>> {
+    An(Svf::new(
+        NotchMode::default(),
+        &SvfParams {
+            sample_rate: DEFAULT_SR,
+            cutoff: 440.0,
+            q: 1.0,
+            gain: 1.0,
+        },
+    ))
+}
+
+/// Notch filter centered at `f` Hz with Q value `q`.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn notch_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | dc((f, q))) >> notch()
+}
+
+/// Notch filter with Q value `q`.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Output 0: filtered audio
+#[inline]
+pub fn notch_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+    (pass() | pass() | dc(q)) >> notch()
+}
+
+/// Peaking filter.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Output 0: filtered audio
+#[inline]
+pub fn peak() -> An<Svf<f64, f64, PeakMode<f64>>> {
+    An(Svf::new(
+        PeakMode::default(),
+        &SvfParams {
+            sample_rate: DEFAULT_SR,
+            cutoff: 440.0,
+            q: 1.0,
+            gain: 1.0,
+        },
+    ))
+}
+
+/// Peaking filter centered at `f` Hz with Q value `q`.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn peak_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | dc((f, q))) >> peak()
+}
+
+/// Peaking filter with Q value `q`.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Output 0: filtered audio
+#[inline]
+pub fn peak_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+    (pass() | pass() | dc(q)) >> peak()
+}
+
+/// Allpass filter.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Output 0: filtered audio
+#[inline]
+pub fn allpass() -> An<Svf<f64, f64, AllpassMode<f64>>> {
+    An(Svf::new(
+        AllpassMode::default(),
+        &SvfParams {
+            sample_rate: DEFAULT_SR,
+            cutoff: 440.0,
+            q: 1.0,
+            gain: 1.0,
+        },
+    ))
+}
+
+/// Allpass filter centered at `f` Hz with Q value `q`.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn allpass_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | dc((f, q))) >> allpass()
+}
+
+/// Allpass filter with Q value `q`.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Output 0: filtered audio
+#[inline]
+pub fn allpass_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+    (pass() | pass() | dc(q)) >> allpass()
+}
+
+/// Peaking bell filter with adjustable gain.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Input 3: amplitude gain
+/// - Output 0: filtered audio
+#[inline]
+pub fn bell() -> An<Svf<f64, f64, BellMode<f64>>> {
+    An(Svf::new(
+        BellMode::default(),
+        &SvfParams {
+            sample_rate: DEFAULT_SR,
+            cutoff: 440.0,
+            q: 1.0,
+            gain: 1.0,
+        },
+    ))
+}
+
+/// Peaking bell filter centered at `f` Hz with Q value `q` and amplitude gain `gain`.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn bell_hz(
+    f: f64,
+    q: f64,
+    gain: f64,
+) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | dc((f, q, gain))) >> bell()
+}
+
+/// Peaking bell filter with adjustable gain centered at `f` Hz with Q value `q`.
+/// - Input 0: audio
+/// - Input 1: amplitude gain
+/// - Output 0: filtered audio
+#[inline]
+pub fn bell_eq(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+    (pass() | dc((f, q)) | pass()) >> bell()
+}
+
+/// Low shelf filter with adjustable gain.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Input 3: amplitude gain
+/// - Output 0: filtered audio
+#[inline]
+pub fn lowshelf() -> An<Svf<f64, f64, LowshelfMode<f64>>> {
+    An(Svf::new(
+        LowshelfMode::default(),
+        &SvfParams {
+            sample_rate: DEFAULT_SR,
+            cutoff: 440.0,
+            q: 1.0,
+            gain: 1.0,
+        },
+    ))
+}
+
+/// Low shelf filter centered at `f` Hz with Q value `q` and amplitude gain `gain`.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn lowshelf_hz(
+    f: f64,
+    q: f64,
+    gain: f64,
+) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | dc((f, q, gain))) >> lowshelf()
+}
+
+/// Low shelf filter with adjustable gain centered at `f` Hz with Q value `q`.
+/// - Input 0: audio
+/// - Input 1: amplitude gain
+/// - Output 0: filtered audio
+#[inline]
+pub fn lowshelf_eq(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+    (pass() | dc((f, q)) | pass()) >> lowshelf()
+}
+
+/// High shelf filter with adjustable gain.
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Input 3: amplitude gain
+/// - Output 0: filtered audio
+#[inline]
+pub fn highshelf() -> An<Svf<f64, f64, HighshelfMode<f64>>> {
+    An(Svf::new(
+        HighshelfMode::default(),
+        &SvfParams {
+            sample_rate: DEFAULT_SR,
+            cutoff: 440.0,
+            q: 1.0,
+            gain: 1.0,
+        },
+    ))
+}
+
+/// High shelf filter centered at `f` Hz with Q value `q` and amplitude gain `gain`.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn highshelf_hz(
+    f: f64,
+    q: f64,
+    gain: f64,
+) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+    (pass() | dc((f, q, gain))) >> highshelf()
+}
+
+/// High shelf filter with adjustable gain centered at `f` Hz with Q value `q`.
+/// - Input 0: audio
+/// - Input 1: amplitude gain
+/// - Output 0: filtered audio
+#[inline]
+pub fn highshelf_eq(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+    (pass() | dc((f, q)) | pass()) >> highshelf()
 }

@@ -251,8 +251,11 @@ fn test_basic() {
     assert_eq!(inouts(pass() | sink() | zero()), (2, 2)); // replace right channel with silence
     assert_eq!(inouts(pass() | mul(0.0)), (2, 2)); // -..-
     assert_eq!(inouts(mul((1.0, 0.0))), (2, 2)); // -..-
-    assert_eq!(inouts(!lowpass() >> lowpole()), (2, 1)); // 2nd order and 1-pole lowpass filters in series (3rd order)
-    assert_eq!(inouts(!lowpass() >> !lowpass() >> lowpass()), (2, 1)); // triple lowpass filter in series (6th order)
+    assert_eq!(inouts(!butterpass() >> lowpole()), (2, 1)); // 2nd order and 1-pole lowpass filters in series (3rd order)
+    assert_eq!(
+        inouts(!butterpass() >> !butterpass() >> butterpass()),
+        (2, 1)
+    ); // triple lowpass filter in series (6th order)
     assert_eq!(inouts(!resonator() >> resonator()), (3, 1)); // double resonator in series (4th order)
     assert_eq!(inouts(sine_hz(2.0) * 2.0 * 1.0 + 2.0 >> sine()), (0, 1)); // PM (phase modulation) oscillator at `f` Hz with modulation index `m`
     assert_eq!(inouts((pass() ^ mul(2.0)) >> sine() + sine()), (1, 1)); // frequency doubled dual sine oscillator

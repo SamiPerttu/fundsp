@@ -323,9 +323,20 @@ These free functions are available in the environment.
 | Function               | Inputs | Outputs  | Explanation                                    |
 | ---------------------- |:------:|:--------:| ---------------------------------------------- |
 | `add(x)`               |   `x`  |   `x`    | Adds constant `x` to signal. |
+| `allpass()`            | 3 (audio, frequency, Q) | 1 | Allpass filter (2nd order). |
+| `allpass_hz(f, q)`     |    1   |    1     | Allpass filter (2nd order) centered at `f` Hz with Q `q`. |
+| `allpass_q(q)`         | 2 (audio, frequency) | 1 | Allpass filter (2nd order) with Q `q`. |
+| `bandpass()`           | 3 (audio, frequency, Q) | 1 | Bandpass filter (2nd order). |
+| `bandpass_hz(f, q)`    |    1   |    1     | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
+| `bandpass_q(q)`        | 2 (audio, frequency) | 1 | Bandpass filter (2nd order) with Q `q`. |
+| `bell()`               | 4 (audio, frequency, Q, gain) | 1 | Peaking bell filter (2nd order) with adjustable amplitude gain. |
+| `bell_eq(f, q)`        | 2 (audio, gain) | 1 | Peaking bell filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
+| `bell_hz(f, q, gain)`  |    1   |    1     | Peaking bell filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `brown()`              |    -   |    1     | Brown noise. |
 | `branchf::<U, _, _>(f)` |  `f`  | `U * f`  | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))` |
 | `busi::<U, _, _>(f)`   |   `f`  |   `f`    | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f64 + 1.0) >> sine()`
+| `butterpass()`         | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
+| `butterpass_hz(c)`     |    1   |    1     | Butterworth lowpass filter (2nd order) with cutoff frequency `c` Hz. |
 | `constant(x)`          |    -   |   `x`    | Constant signal `x`. Synonymous with `dc`. |
 | `dc(x)`                |    -   |   `x`    | Constant signal `x`. Synonymous with `constant`. |
 | `dcblock()`            |    1   |    1     | Zero centers signal with cutoff frequency 10 Hz. |
@@ -339,20 +350,36 @@ These free functions are available in the environment.
 | `followa(a, r)`        |    1   |    1     | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
 | `goertzel_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
+| `highpass()`           | 3 (audio, frequency, Q) | 1 | Highpass filter (2nd order). |
+| `highpass_hz(f, q)`    |    1   |    1     | Highpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
+| `highpass_q(q)`        | 2 (audio, frequency) | 1 | Highpass filter (2nd order) with Q `q`. |
+| `highshelf()`          | 4 (audio, frequency, Q, gain) | 1 | High shelving filter (2nd order) with adjustable amplitude gain. |
+| `highshelf_eq(f, q)`   | 2 (audio, gain) | 1 | High shelving filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
+| `highshelf_hz(f, q, gain)` | 1   |    1    | High shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `join::<U>()`          |   `U`  |    1     | Average together `U` channels. Inverse of `split`. |
 | `lfo(f)`               |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
 | `limiter(a, r)`        |    1   |    1     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
-| `lowpass()`            | 2 (audio, cutoff) | 1 | Butterworth lowpass filter (2nd order). |
-| `lowpass_hz(c)`        |    1   |    1     | Butterworth lowpass filter (2nd order) with cutoff frequency `c` Hz. |
+| `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
+| `lowpass_hz(f, q)`     |    1   |    1     | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
+| `lowpass_q(q)`         | 2 (audio, frequency) | 1 | Lowpass filter (2nd order) with Q `q`. |
 | `lowpole()`            | 2 (audio, cutoff) | 1 | 1-pole lowpass filter (1st order). |
 | `lowpole_hz(c)`        |    1   |    1     | 1-pole lowpass filter (1st order) with cutoff frequency `c` Hz. |
+| `lowshelf()`           | 4 (audio, frequency, Q, gain) | 1 | Low shelving filter (2nd order) with adjustable amplitude gain. |
+| `lowshelf_eq(f, q)`    | 2 (audio, gain) | 1 | Low shelving filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
+| `lowshelf_hz(f, q, gain)` | 1   |    1     | Low shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `mls()`                |    -   |    1     | White MLS noise source. |
 | `mls_bits(n)`          |    -   |    1     | White MLS noise source from `n`-bit MLS sequence. |
 | `mul(x)`               |   `x`  |   `x`    | Multiplies signal with constant `x`. |
 | `multijoin::<M, N>()`  | `M * N`|   `M`    | Joins `N` branches of `M` channels into one. Inverse of `multisplit`. |
 | `multisplit::<M, N>()` |   `M`  | `M * N`  | Splits `M` channels into `N` branches. |
 | `noise()`              |    -   |    1     | White noise source. Synonymous with `white`. |
+| `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
+| `notch_hz(f, q)`       |    1   |    1     | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
+| `notch_q(q)`           | 2 (audio, frequency) | 1 | Notch filter (2nd order) with Q `q`. |
 | `pass()`               |    1   |    1     | Passes signal through. |
+| `peak()`               | 3 (audio, frequency, Q) | 1 | Peaking filter (2nd order). |
+| `peak_hz(f, q)`        |    1   |    1     | Peaking filter (2nd order) centered at `f` Hz with Q `q`. |
+| `peak_q(q)`            | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q`. |
 | `pink()`               |    -   |    1     | Pink noise. |
 | `pinkpass()`           |    1   |    1     | Pinking filter (3 dB/octave). |
 | `resonator()`          | 3 (audio, center, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
@@ -483,8 +510,8 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `pass() \| sink() \| zero()`             |   2    |    2    | replace right channel with silence            |
 | `pass() \| mul(0.0)`                     |   2    |    2    | -..-                                          |
 | `mul((1.0, 0.0))`                        |   2    |    2    | -..-                                          |
-| `!lowpass() >> lowpole()`                |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
-| `!lowpass() >> !lowpass() >> lowpass()`  |   2    |    1    | triple lowpass filter in series (6th order)   |
+| `!butterpass() >> lowpole()`                |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
+| `!butterpass() >> !butterpass() >> butterpass()`  |   2    |    1    | triple lowpass filter in series (6th order)   |
 | `!resonator() >> resonator()`            |   3    |    1    | double resonator in series (4th order)        |
 | `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
 | `sine() & mul(2.0) >> sine()`            |   1    |    1    | frequency doubled dual sine oscillator        |
@@ -506,7 +533,7 @@ Many functions in the prelude itself are defined as graph expressions.
 | Function                                 | Inputs | Outputs | Definition                                     |
 | ---------------------------------------- |:------:|:-------:| ---------------------------------------------- |
 | `goertzel_hz(f)`                         |   1    |    1    | `(pass() \| constant(f)) >> goertzel()`        |
-| `lowpass_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpass()`         |
+| `butterpass_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> butterpass()`         |
 | `lowpole_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpole()`         |
 | `mls()`                                  |   -    |    1    | `mls_bits(29)`                                 |
 | `pink()`                                 |   -    |    1    | `white() >> pinkpass()`                        |
@@ -528,7 +555,7 @@ There are usually many ways to express a particular graph. The following express
 | `--sink()-42.0^sink()&---sink()*3.14`      | `sink()`                        | Branching, busing, monitoring and arithmetic on sinks are no-ops. |
 | `constant(0.0) \| dc(1.0)`                 | `constant((0.0, 1.0))`          | Stacking concatenates channels. |
 | `sink() \| zero()`                         | `zero() \| sink()`              | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
-| `(lowpass() ^ (sink() \| pass())) >> lowpass()` | `!lowpass() >> lowpass()`  | Running a manual bypass. |
+| `(butterpass() ^ (sink() \| pass())) >> butterpass()` | `!butterpass() >> butterpass()`  | Running a manual bypass. |
 | `!(noise() \| noise())`                    | `!noise()`                      | The fit operator nullifies any generator. |
 
 ---

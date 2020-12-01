@@ -57,7 +57,7 @@ where
 
     //let c = mls();
     //let c = mls() >> lowpole_hz(400.0) >> lowpole_hz(400.0);
-    //let c = (mls() | dc(500.0)) >> lowpass();
+    //let c = (mls() | dc(500.0)) >> butterpass();
     //let c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
     //let c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator();
     //let c = (mls() | dc((200.0, 10.0))) >> resonator() & (mls() | dc((400.0, 20.0))) >> resonator() & (mls() | dc((800.0, 30.0))) >> resonator();
@@ -71,7 +71,7 @@ where
     //let c = c * envelope(|t| clamp01(delerp(2.1, 2.0, t)));
     //    exp(-t * 0.5) * squared(sin_bpm(60.0, t) * (if t > 2.0 { 0.0 } else { 1.0 }))
     //});
-    //let c = c >> feedback(lowpass_hz(1000.0) >> delay(1.0) * 0.9);
+    //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.9);
 
     /*
     // Risset glissando.
@@ -89,9 +89,14 @@ where
 
     //let c = dc(110.0) >> triangle();
     //let c = lfo(|t| xerp(200.0, 2000.0, sin_hz(0.1, t))) >> square() >> lowpole_hz(1000.0);
-    let c = dc(110.0)
-        >> sawx()
-        >> (pass() - (pass() + lfo(|t| lerp(0.5, 0.995, sin_hz(0.04, t))) >> sawp()));
+    //let c = dc(110.0)
+    //    >> sawx()
+    //    >> (pass() - (pass() + lfo(|t| lerp(0.5, 0.995, sin_hz(0.04, t))) >> sawp()));
+    let c = dc(110.0) >> square();
+
+    let c = c
+        >> (pass() | envelope(|t| xerp(1000.0, 20000.0, sin_hz(0.0666, t))) | dc(10.0))
+        >> bandpass();
 
     let mut c = c
         >> declick() >> dcblock()

@@ -246,6 +246,7 @@ pub mod math;
 pub mod noise;
 pub mod oscillator;
 pub mod prelude;
+pub mod svf;
 pub mod wavetable;
 
 pub use audionode::{AudioNode, Frame, Size};
