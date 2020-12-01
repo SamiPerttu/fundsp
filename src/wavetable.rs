@@ -10,6 +10,7 @@ type C32 = Complex32;
 /// Interpolates between a1 and a2 taking previous (a0) and next (a3) points into account.
 /// Employs an optimal 4-point, 4th order interpolating polynomial for 4x oversampled signals.
 /// The SNR of the interpolator for pink noise is 101.1 dB.
+#[inline]
 fn optimal4x44<T: Float>(a0: T, a1: T, a2: T, a3: T, x: T) -> T {
     // Interpolator sourced from:
     // Niemitalo, Olli, Polynomial Interpolators for High-Quality Resampling of Oversampled Audio, 2001.
@@ -27,11 +28,13 @@ fn optimal4x44<T: Float>(a0: T, a1: T, a2: T, a3: T, x: T) -> T {
 }
 
 /// Complex64 with real component `x` and imaginary component zero.
+#[inline]
 fn re<T: Float>(x: T) -> C32 {
     C32::new(x.to_f32(), 0.0)
 }
 
 /// Create a single cycle wave into a power-of-two table, unnormalized.
+/// Assume sample rate is at least 44.1 kHz.
 /// `phase(i)` is phase in 0...1 for partial `i` (1, 2, ...).
 /// `amplitude(p, i)` is amplitude for fundamental `p` Hz partial `i` (with frequency `p * i`).
 pub fn make_wave<P, A>(pitch: f64, phase: &P, amplitude: &A) -> Vec<f32>
@@ -39,9 +42,9 @@ where
     P: Fn(u32) -> f64,
     A: Fn(f64, u32) -> f64,
 {
-    // Fade out upper harmonics starting from 15 kHz.
-    const MAX_F: f64 = 20_000.0;
-    const FADE_F: f64 = 15_000.0;
+    // Fade out upper harmonics starting from 18 kHz.
+    const MAX_F: f64 = 22_000.0;
+    const FADE_F: f64 = 18_000.0;
 
     let harmonics = floor(MAX_F / pitch) as usize;
 
@@ -66,6 +69,8 @@ where
     }
 
     let mut ia = vec![re(0.0); length];
+
+    // TODO. Are we supposed to cache these.
     let fft = Radix4::new(length, true);
     fft.process(&mut a, &mut ia);
 
@@ -120,6 +125,7 @@ impl Wavetable {
     }
 
     /// Read wave at the given phase (in 0...1).
+    #[inline]
     pub fn at(&self, i: usize, phase: f64) -> f32 {
         let table: &Vec<f32> = &self.table[i].1;
         let p = table.len() as f64 * phase;
@@ -133,6 +139,7 @@ impl Wavetable {
     }
 
     /// Read wavetable.
+    #[inline]
     pub fn read(&self, table_hint: usize, frequency: f64, phase: f64) -> (f32, usize) {
         let table =
             if frequency >= self.table[table_hint].0 && frequency <= self.table[table_hint + 1].0 {
@@ -209,6 +216,7 @@ where
     type Inputs = numeric_array::typenum::U1;
     type Outputs = N;
 
+    #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
             self.sample_rate = sample_rate;
@@ -216,10 +224,12 @@ where
         self.phase = self.initial_phase;
     }
 
+    #[inline]
     fn set_hash(&mut self, hash: u32) {
         self.initial_phase = super::hacker::rnd(hash as i64);
     }
 
+    #[inline]
     fn tick(
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
@@ -228,7 +238,7 @@ where
         let delta = frequency / self.sample_rate;
         self.phase += delta;
         self.phase -= floor(self.phase);
-        let (output, hint) = self.table.read(self.table_hint, frequency, self.phase);
+        let (output, hint) = self.table.read(self.table_hint, abs(frequency), self.phase);
         self.table_hint = hint;
         Frame::generate(|i| {
             if i == 0 {
@@ -285,6 +295,7 @@ where
     type Inputs = numeric_array::typenum::U1;
     type Outputs = N;
 
+    #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
             self.sample_rate = sample_rate;
@@ -292,6 +303,7 @@ where
         self.phase_ready = false;
     }
 
+    #[inline]
     fn tick(
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
@@ -300,7 +312,11 @@ where
         let phase = phase - floor(phase);
         let delta = if self.phase_ready {
             // Interpret frequency from phase so it's always at or below Nyquist.
-            min(abs(phase - self.phase), abs(phase + 1.0 - self.phase))
+            // Support negative frequencies as well.
+            min(
+                abs(phase - self.phase),
+                min(abs(phase - 1.0 - self.phase), abs(phase + 1.0 - self.phase)),
+            )
         } else {
             // For the first sample, we don't have previous phase, so set frequency pessimistically to Nyquist.
             self.phase_ready = true;

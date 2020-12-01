@@ -91,7 +91,7 @@ where
     //let c = lfo(|t| xerp(200.0, 2000.0, sin_hz(0.1, t))) >> square() >> lowpole_hz(1000.0);
     let c = dc(110.0)
         >> sawx()
-        >> (pass() + (pass() + lfo(|t| lerp(0.5, 0.99, sin_hz(0.05, t))) >> sawp()));
+        >> (pass() - (pass() + lfo(|t| lerp(0.5, 0.995, sin_hz(0.04, t))) >> sawp()));
 
     let mut c = c
         >> declick() >> dcblock()
