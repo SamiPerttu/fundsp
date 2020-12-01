@@ -606,7 +606,6 @@ MIT or Apache-2.0.
 
 ### TODO: Standard Components
 
-- Rest of the basic first order and biquad filters. `bandpass`, `highpass`, `highpole`, `allpass`
 - FIR filters.
 - `pluck`
 - Fractional delay line using an allpass filter (the standard delay should remain sample accurate only to not introduce extra
