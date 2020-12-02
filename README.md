@@ -416,13 +416,14 @@ These free functions are available in the environment.
 #### Subsampled Controls
 
 `envelope(f)` is a node that samples a time varying control function `f`.
-For example, `envelope(|t| exp(-t))` is an exponentially decaying envelope.
+For example, `envelope(|t| exp(-t))` is an exponentially decaying [envelope](https://en.wikipedia.org/wiki/Envelope_(music)).
 A control function is something that is expected to change relatively slowly.
 Therefore, we can save time by not calling it at every sample.
 
 The argument to the function is time in seconds.
-Whenever the node is reset, time is reset to zero.
+Whenever the node is reset, time resets to zero.
 
+`envelope` is generic over channel arity:
 The return type of the function - scalar or tuple - determines the number of outputs.
 
 The samples are spaced at an average of 2 ms apart, jittered by noise derived from pseudorandom phase.
@@ -461,6 +462,8 @@ The values in between are linearly interpolated.
 | Function               | Explanation                                    |
 | ---------------------- | ---------------------------------------------- |
 | `abs(x)`               | absolute value of `x` |
+| `arcdown(x)`           | concave quarter circle easing curve (inverse of `arcup`) |
+| `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
 | `a_weight(f)`          | [A-weighted](https://en.wikipedia.org/wiki/A-weighting) amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `ceil(x)`              | ceiling function |
 | `clamp(min, max, x)`   | clamp `x` between `min` and `max` |
@@ -469,6 +472,7 @@ The values in between are linearly interpolated.
 | `cos(x)`               | cos |
 | `cos_bpm(f, t)`        | cosine that oscillates at `f` BPM at time `t` seconds |
 | `cos_hz(f, t)`         | cosine that oscillates at `f` Hz at time `t` seconds |
+| `cubed(x)`             | cube of `x` |
 | `db_amp(x)`            | convert `x` dB to amplitude (or gain) with 0 dB = 1.0 |
 | `delerp(x0, x1, x)`    | recover linear interpolation amount `t` from interpolated value |
 | `dexerp(x0, x1, x)`    | recover exponential interpolation amount `t` from interpolated value (`x0`, `x1`, `x` > 0) |
@@ -496,8 +500,14 @@ The values in between are linearly interpolated.
 | `sin(x)`               | sin |
 | `sin_bpm(f, t)`        | sine that oscillates at `f` BPM at time `t` seconds |
 | `sin_hz(f, t)`         | sine that oscillates at `f` Hz at time `t` seconds |
+| `smooth3(x)`           | smooth cubic easing polynomial |
+| `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
+| `smooth7(x)`           | smooth 7th degree easing polynomial |
+| `smooth9(x)`           | smooth 9th degree easing polynomial |
 | `softmix(x, y, bias)`  | weighted average of `x` and `y` according to `bias`: polynomial softmin when `bias` < 0, average when `bias` = 0, polynomial softmax when `bias` > 0 |
 | `softsign(x)`          | softsign function, a polynomial alternative to `tanh` |
+| `squared(x)`           | square of `x` |
+| `sqrt(x)`              | square root of `x` |
 | `spline(x0, x1, x2, x3, t)` | [Catmull-Rom](https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Catmull%E2%80%93Rom_spline) cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `splinem(x0, x1, x2, x3, t)` | [monotonic cubic interpolation](https://en.wikipedia.org/wiki/Monotone_cubic_interpolation) between `x1` and `x2`, taking `x0` and `x3` into account |
 | `tan(x)`               | tan |
