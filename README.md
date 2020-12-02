@@ -343,7 +343,7 @@ These free functions are available in the environment.
 | `dcblock_hz(f)`        |    1   |    1     | Zero centers signal with cutoff frequency `f`. |
 | `declick()`            |    1   |    1     | Apply 10 ms of fade-in to signal. |
 | `delay(t)`             |    1   |    1     | Delay of `t` seconds. |
-| `envelope(f)`          |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
+| `envelope(f)`          |    -   |   `f`    | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `feedback(x)`          |   `x`  |   `x`    | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
 | `fdn(x)`               |   `x`  |   `x`    | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
 | `follow(t)`            |    1   |    1     | Smoothing filter with halfway response time `t` seconds. |
@@ -355,9 +355,9 @@ These free functions are available in the environment.
 | `highpass_q(q)`        | 2 (audio, frequency) | 1 | Highpass filter (2nd order) with Q `q`. |
 | `highshelf()`          | 4 (audio, frequency, Q, gain) | 1 | High shelving filter (2nd order) with adjustable amplitude gain. |
 | `highshelf_eq(f, q)`   | 2 (audio, gain) | 1 | High shelving filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
-| `highshelf_hz(f, q, gain)` | 1   |    1    | High shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `highshelf_hz(f, q, gain)` | 1  |    1     | High shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `join::<U>()`          |   `U`  |    1     | Average together `U` channels. Inverse of `split`. |
-| `lfo(f)`               |    -   |    1     | Time-varying control `f`, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
+| `lfo(f)`               |    -   |   `f`    | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
 | `limiter(a, r)`        |    1   |    1     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
 | `lowpass_hz(f, q)`     |    1   |    1     | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
@@ -387,7 +387,7 @@ These free functions are available in the environment.
 | `saw()`                | 1 (pitch) | 1     | Saw wave oscillator. |
 | `saw_hz()`             |    -   |    1     | Saw wave oscillator at `f` Hz. |
 | `sawp()`               | 1 (phase) | 1     | Saw wave oscillator with phase input in 0...1. |
-| `sawx()`               | 1 (pitch) | 2 (audio, phase) | Saw wave oscillator with phase output in 0...1. |
+| `sawx()`               | 1 (pitch) | 2 (audio, phase) | Saw wave oscillator with extra phase output in 0...1. |
 | `shape(f)`             |    1   |    1     | Shape signal with waveshaper `f`, e.g., `tanh`. |
 | `sine()`               | 1 (pitch) | 1     | Sine oscillator. |
 | `sine_hz(f)`           |    -   |    1     | Sine oscillator at `f` Hz. |
@@ -396,7 +396,7 @@ These free functions are available in the environment.
 | `square()`             | 1 (pitch) | 1     | Square wave oscillator. |
 | `square_hz()`          |    -   |    1     | Square wave oscillator at frequency `f` Hz. |
 | `squarep()`            | 1 (phase) | 1     | Square wave oscillator with phase input in 0...1. |
-| `squarex()`            | 1 (pitch) | 2 (audio, phase) | Square wave oscillator with phase output in 0...1. |
+| `squarex()`            | 1 (pitch) | 2 (audio, phase) | Square wave oscillator with extra phase output in 0...1. |
 | `stackf::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `stacki::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from indexed generator `i`. |
 | `stereo_limiter(a, r)` |    2   |    2     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
@@ -406,11 +406,29 @@ These free functions are available in the environment.
 | `triangle()`           | 1 (pitch) | 1     | Triangle wave oscillator. |
 | `triangle_hz(f)`       |    -   |    1     | Triangle wave oscillator at `f` Hz. |
 | `trianglep()`          | 1 (phase) | 1     | Triangle wave oscillator with phase input in 0...1. |
-| `trianglex()`          | 1 (pitch) | 2 (audio, phase) | Triangle wave oscillator with phase output in 0...1. |
+| `trianglex()`          | 1 (pitch) | 2 (audio, phase) | Triangle wave oscillator with extra phase output in 0...1. |
 | `white()`              |    -   |    1     | White noise source. Synonymous with `noise`. |
 | `zero()`               |    -   |    1     | Zero signal. |
 
+
 `M`, `N`, `U` are type-level integers. They are `U0`, `U1`, `U2`...
+
+#### Subsampled Controls
+
+`envelope(f)` is a node that samples a time varying control function `f`.
+For example, `envelope(|t| exp(-t))` is an exponentially decaying envelope.
+A control function is something that is expected to change relatively slowly.
+Therefore, we can save time by not calling it at every sample.
+
+The argument to the function is time in seconds.
+Whenever the node is reset, time is reset to zero.
+
+The return type of the function - scalar or tuple - determines the number of outputs.
+
+The samples are spaced at an average of 2 ms apart, jittered by noise derived from pseudorandom phase.
+The values in between are linearly interpolated.
+
+`lfo` (Low Frequency Oscillator) is another name for `envelope`.
 
 ---
 

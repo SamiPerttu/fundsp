@@ -294,11 +294,17 @@ pub fn resonator_hz<T: Float, F: Real>(
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `lfo`.
-/// - Output 0: envelope linearly interpolated from samples at 2 ms intervals (average).
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn envelope<T: Float, F: Real>(
-    f: impl Fn(F) -> F + Clone,
-) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+pub fn envelope<T, F, E, R>(f: E) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = R::Size>>
+where
+    T: Float,
+    F: Float,
+    E: Fn(F) -> R + Clone,
+    R: ConstantFrame<Sample = F>,
+    R::Size: Size<F>,
+    R::Size: Size<T>,
+{
     // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
     // Therefore, sampling at 500 Hz means these signals are fairly well represented.
     // While we represent time in double precision internally, it is often okay to use single precision
@@ -309,11 +315,21 @@ pub fn envelope<T: Float, F: Real>(
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `envelope`.
-/// - Output 0: envelope linearly interpolated from samples at 2 ms intervals (average).
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn lfo<T: Float, F: Real>(
-    f: impl Fn(F) -> F + Clone,
-) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+pub fn lfo<T, F, E, R>(f: E) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = R::Size>>
+where
+    T: Float,
+    F: Float,
+    E: Fn(F) -> R + Clone,
+    R: ConstantFrame<Sample = F>,
+    R::Size: Size<F>,
+    R::Size: Size<T>,
+{
+    // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
+    // Therefore, sampling at 500 Hz means these signals are fairly well represented.
+    // While we represent time in double precision internally, it is often okay to use single precision
+    // in envelopes, as local component time typically does not get far from origin.
     An(EnvelopeNode::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 

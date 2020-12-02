@@ -268,11 +268,14 @@ pub fn resonator_hz(
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `lfo`.
-/// - Output 0: envelope linearly interpolated from samples at 2 ms intervals (average).
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn envelope(
-    f: impl Fn(f64) -> f64 + Clone,
-) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+pub fn envelope<E, R>(f: E) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = R::Size>>
+where
+    E: Fn(f64) -> R + Clone,
+    R: ConstantFrame<Sample = f64>,
+    R::Size: Size<f64>,
+{
     // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
     // Therefore, sampling at 500 Hz means these signals are fairly well represented.
     // While we represent time in double precision internally, it is often okay to use single precision
@@ -283,11 +286,14 @@ pub fn envelope(
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `envelope`.
-/// - Output 0: envelope linearly interpolated from samples at 2 ms intervals (average).
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn lfo(
-    f: impl Fn(f64) -> f64 + Clone,
-) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+pub fn lfo<E, R>(f: E) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = R::Size>>
+where
+    E: Fn(f64) -> R + Clone,
+    R: ConstantFrame<Sample = f64>,
+    R::Size: Size<f64>,
+{
     An(EnvelopeNode::new(0.002, DEFAULT_SR, f))
 }
 

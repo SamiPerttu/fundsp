@@ -3,7 +3,7 @@ use super::*;
 use numeric_array::typenum::*;
 
 /// Trait for multi-channel constants.
-pub trait ConstantFrame {
+pub trait ConstantFrame: Clone {
     type Sample: Float;
     type Size: Size<Self::Sample>;
     fn convert(self) -> Frame<Self::Sample, Self::Size>;
