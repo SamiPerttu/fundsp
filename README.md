@@ -439,7 +439,7 @@ The values in between are linearly interpolated.
 | `allpass`    | allpass (2nd order)    | [Simper SVF](https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf) | |
 | `bandpass`   | bandpass (2nd order)   | Simper SVF   | |
 | `bell`       | peaking (2nd order)    | Simper SVF   | Adjustable gain. |
-| `butterpass` | lowpass (2nd order)    | biquad       | Butterworth lowpass has a maximally flat passband and monotonic frequency response. |
+| `butterpass` | lowpass (2nd order)    | biquad       | [Butterworth](https://en.wikipedia.org/wiki/Butterworth_filter) lowpass has a maximally flat passband and monotonic frequency response. |
 | `dcblock`    | DC blocker (1st order) | 1st order    | Zero centers signal, countering any constant offset ("direct current"). |
 | `follow`     | lowpass (3rd order)    | nested 1st order | Smoothing filter with adjustable edge response time. |
 | `highpass`   | highpass (2nd order)   | Simper SVF   | |
@@ -461,7 +461,7 @@ The values in between are linearly interpolated.
 | Function               | Explanation                                    |
 | ---------------------- | ---------------------------------------------- |
 | `abs(x)`               | absolute value of `x` |
-| `a_weight(f)`          | A-weighted amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
+| `a_weight(f)`          | [A-weighted](https://en.wikipedia.org/wiki/A-weighting) amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `ceil(x)`              | ceiling function |
 | `clamp(min, max, x)`   | clamp `x` between `min` and `max` |
 | `clamp01(x)`           | clamp `x` between 0 and 1 |
@@ -487,7 +487,7 @@ The values in between are linearly interpolated.
 | `midi_hz(x)`           | convert [MIDI](https://en.wikipedia.org/wiki/MIDI) note number `x` to Hz (69.0 = *A4* = 440 Hz) |
 | `min(x, y)`            | minimum of `x` and `y` |
 | `max(x, y)`            | maximum of `x` and `y` |
-| `m_weight(f)`          | M-weighted amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
+| `m_weight(f)`          | [M-weighted](https://en.wikipedia.org/wiki/ITU-R_468_noise_weighting) amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `pow(x, y)`            | `x` raised to the power `y` |
 | `rnd(i)`               | pseudorandom number in 0...1 from integer `i` |
 | `round(x)`             | round `x` to nearest integer |
@@ -498,8 +498,8 @@ The values in between are linearly interpolated.
 | `sin_hz(f, t)`         | sine that oscillates at `f` Hz at time `t` seconds |
 | `softmix(x, y, bias)`  | weighted average of `x` and `y` according to `bias`: polynomial softmin when `bias` < 0, average when `bias` = 0, polynomial softmax when `bias` > 0 |
 | `softsign(x)`          | softsign function, a polynomial alternative to `tanh` |
-| `spline(x0, x1, x2, x3, t)` | Catmull-Rom cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
-| `splinem(x0, x1, x2, x3, t)` | monotonic cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
+| `spline(x0, x1, x2, x3, t)` | [Catmull-Rom](https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Catmull%E2%80%93Rom_spline) cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
+| `splinem(x0, x1, x2, x3, t)` | [monotonic cubic interpolation](https://en.wikipedia.org/wiki/Monotone_cubic_interpolation) between `x1` and `x2`, taking `x0` and `x3` into account |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
 | `xerp(x0, x1, t)`      | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) |
@@ -550,10 +550,10 @@ For the practice of *graph fu*, some examples of graph expressions.
 | `pass() \| sink() \| zero()`             |   2    |    2    | replace right channel with silence            |
 | `pass() \| mul(0.0)`                     |   2    |    2    | -..-                                          |
 | `mul((1.0, 0.0))`                        |   2    |    2    | -..-                                          |
-| `!butterpass() >> lowpole()`                |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
-| `!butterpass() >> !butterpass() >> butterpass()`  |   2    |    1    | triple lowpass filter in series (6th order)   |
+| `!butterpass() >> lowpole()`             |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
+| `!butterpass() >> !butterpass() >> butterpass()`  | 2 | 1   | triple lowpass filter in series (6th order)   |
 | `!resonator() >> resonator()`            |   3    |    1    | double resonator in series (4th order)        |
-| `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | PM (phase modulation) oscillator at `f` Hz with modulation index `m` |
+| `sine_hz(f) * f * m + f >> sine()`       |   -    |    1    | [PM (phase modulation)](https://ccrma.stanford.edu/~jos/sasp/Frequency_Modulation_FM_Synthesis.html) oscillator at `f` Hz with modulation index `m` |
 | `sine() & mul(2.0) >> sine()`            |   1    |    1    | frequency doubled dual sine oscillator        |
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
 | `feedback(delay(1.0) * db_amp(-3.0))`    |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
@@ -573,7 +573,7 @@ Many functions in the prelude itself are defined as graph expressions.
 | Function                                 | Inputs | Outputs | Definition                                     |
 | ---------------------------------------- |:------:|:-------:| ---------------------------------------------- |
 | `goertzel_hz(f)`                         |   1    |    1    | `(pass() \| constant(f)) >> goertzel()`        |
-| `butterpass_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> butterpass()`         |
+| `butterpass_hz(c)`                       |   1    |    1    | `(pass() \| constant(c)) >> butterpass()`         |
 | `lowpole_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpole()`         |
 | `mls()`                                  |   -    |    1    | `mls_bits(29)`                                 |
 | `pink()`                                 |   -    |    1    | `white() >> pinkpass()`                        |
