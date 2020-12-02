@@ -331,56 +331,6 @@ impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
     }
 }
 
-/// Transient filter. Multiply the signal with a fade-in curve.
-/// After fade-in, pass signal through.
-/// - Input 0: input signal
-/// - Output 0: filtered signal
-#[derive(Copy, Clone, Default)]
-pub struct Declicker<T: Float, F: Real> {
-    _marker: std::marker::PhantomData<T>,
-    t: F,
-    duration: F,
-    sample_duration: F,
-}
-
-impl<T: Float, F: Real> Declicker<T, F> {
-    pub fn new(sample_rate: f64, duration: F) -> Self {
-        let mut node = Declicker::default();
-        node.duration = duration;
-        node.reset(Some(sample_rate));
-        node
-    }
-}
-
-impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
-    const ID: u64 = 23;
-    type Sample = T;
-    type Inputs = typenum::U1;
-    type Outputs = typenum::U1;
-
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_duration = F::from_f64(1.0 / sample_rate);
-        }
-        self.t = F::zero();
-    }
-
-    #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        if self.t < self.duration {
-            let phase = delerp(F::zero(), self.duration, self.t);
-            let value = smooth9(phase);
-            self.t = self.t + self.sample_duration;
-            [input[0] * convert(value)].into()
-        } else {
-            [input[0]].into()
-        }
-    }
-}
-
 fn halfway_coeff<F: Real>(samples: F) -> F {
     // This approximation is accurate to 0.5% when 1 <= response_samples <= 1.0e5.
     let r0 = log(max(F::one(), samples)) - F::from_f64(0.861624594696583);

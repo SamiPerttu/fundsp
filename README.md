@@ -1,6 +1,6 @@
 # FunDSP
 
-## Audio Synthesis and Processing Library for Rust
+## Audio Processing and Synthesis Library for Rust
 
 [FunDSP](https://github.com/SamiPerttu/fundsp)
 is an audio DSP (digital dignal processing) library with a focus on usability.
@@ -316,7 +316,7 @@ These free functions are available in the environment.
 
 ---
 
-### Component Functions
+### Component Opcodes
 
 ---
 
@@ -429,6 +429,28 @@ The samples are spaced at an average of 2 ms apart, jittered by noise derived fr
 The values in between are linearly interpolated.
 
 `lfo` (Low Frequency Oscillator) is another name for `envelope`.
+
+---
+
+### List of Filters
+
+| Opcode       | Type                   | Family       | Notes     |
+| ------------ | ---------------------- | ------------ | --------- |
+| `allpass`    | allpass (2nd order)    | [Simper SVF](https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf) | |
+| `bandpass`   | bandpass (2nd order)   | Simper SVF   | |
+| `bell`       | peaking (2nd order)    | Simper SVF   | Adjustable gain. |
+| `butterpass` | lowpass (2nd order)    | biquad       | Butterworth lowpass has a maximally flat passband and monotonic frequency response. |
+| `dcblock`    | DC blocker (1st order) | 1st order    | Zero centers signal, countering any constant offset ("direct current"). |
+| `follow`     | lowpass (3rd order)    | nested 1st order | Smoothing filter with adjustable edge response time. |
+| `highpass`   | highpass (2nd order)   | Simper SVF   | |
+| `highshelf`  | high shelf (2nd order) | Simper SVF   | |
+| `lowpass`    | lowpass (2nd order)    | Simper SVF   | |
+| `lowpole`    | lowpass (1st order)    | 1st order    | |
+| `lowshelf`   | low shelf (2nd order)  | Simper SVF   | |
+| `notch`      | notch (2nd order)      | Simper SVF   | |
+| `peak`       | peaking (2nd order)    | Simper SVF   | |
+| `pinkpass`   | lowpass (3 dB/octave)  | 1st order    | Turns white noise into pink noise. |
+| `resonator`  | bandpass (2nd order)   | biquad       | Gain stays constant as bandwidth is varied. |
 
 ---
 

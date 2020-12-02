@@ -1,6 +1,6 @@
 [package]
 name = "fundsp"
-description = "Audio DSP library featuring an inline graph notation for audio processing."
+description = "Audio processing and synthesis library with compact syntax."
 keywords = ["dsp", "audio"]
 license = "MIT OR Apache-2.0"
 version = "0.1.0"
