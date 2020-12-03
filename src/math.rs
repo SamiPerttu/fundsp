@@ -110,6 +110,11 @@ pub fn clamp11<T: Num>(x: T) -> T {
 }
 
 #[inline]
+pub fn id<T>(x: T) -> T {
+    x
+}
+
+#[inline]
 pub fn squared<T: Num>(x: T) -> T {
     x * x
 }
@@ -141,16 +146,38 @@ pub fn lerp<U: Lerp<T>, T>(a: U, b: U, t: T) -> U {
     a.lerp(b, t)
 }
 
+/// Linear interpolation with t in -1...1.
+#[inline]
+pub fn lerp11<U: Lerp<T>, T: Num>(a: U, b: U, t: T) -> U {
+    a.lerp(b, t * T::from_f32(0.5) + T::from_f32(0.5))
+}
+
 /// Linear de-interpolation. Recovers t from interpolated x.
 #[inline]
 pub fn delerp<T: Num>(a: T, b: T, x: T) -> T {
     (x - a) / (b - a)
 }
 
+/// Linear de-interpolation. Recovers t in -1...1 from interpolated x.
+#[inline]
+pub fn delerp11<T: Num>(a: T, b: T, x: T) -> T {
+    (x - a) / (b - a) * T::new(2) - T::new(1)
+}
+
 /// Exponential interpolation. a, b > 0.
 #[inline]
 pub fn xerp<U: Lerp<T> + Real, T>(a: U, b: U, t: T) -> U {
     exp(lerp(log(a), log(b), t))
+}
+
+/// Exponential interpolation with t in -1...1. a, b > 0.
+#[inline]
+pub fn xerp11<U: Lerp<T> + Real, T: Num>(a: U, b: U, t: T) -> U {
+    exp(lerp(
+        log(a),
+        log(b),
+        t * T::from_f32(0.5) + T::from_f32(0.5),
+    ))
 }
 
 /// Returns a dissonance amount between pure tones at f0 and f1 Hz.
@@ -171,6 +198,12 @@ pub fn dissonance_max<T: Num>(f: T) -> T {
 #[inline]
 pub fn dexerp<T: Num + Real>(a: T, b: T, x: T) -> T {
     log(x / a) / log(b / a)
+}
+
+/// Exponential de-interpolation. a, b, x > 0. Recovers t in -1...1 from interpolated x.
+#[inline]
+pub fn dexerp11<T: Num + Real>(a: T, b: T, x: T) -> T {
+    log(x / a) / log(b / a) * T::new(2) - T::new(1)
 }
 
 /// Returns a gain amount from a decibel argument.
@@ -241,12 +274,6 @@ pub fn splinem<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
         + x * x * (T::new(-3) * y1 + T::new(3) * y2 - T::new(2) * d1d - d2d)
         + x * d1d
         + y1
-}
-
-/// Logistic sigmoid.
-#[inline]
-pub fn logistic<T: Num + Real>(x: T) -> T {
-    T::one() / (T::one() + exp(T::zero() - x))
 }
 
 /// Softsign function.
@@ -420,5 +447,57 @@ impl AttoRand {
     pub fn gen_01_closed<T: Float>(&mut self) -> T {
         let x = self.gen();
         T::new(x as i64) / T::new((1i64 << 32) - 1)
+    }
+}
+
+/// Yet another 64-bit hash function.
+#[inline]
+pub fn hashk(x: i64) -> i64 {
+    let x = x as u64;
+    let x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+    let x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
+    let x = (x ^ (x >> 31)).wrapping_mul(0xd6e8feb86659fd93);
+    (x ^ (x >> 32)) as i64
+}
+
+/// 1-D easing noise in -1...1.
+/// Value noise interpolated with an easing function.
+/// Each integer cell contains an interpolation point.
+pub fn enoise(ease: impl Fn(f64) -> f64, seed: i64, x: f64) -> f64 {
+    let x = x + rnd(seed);
+    let ix = floor(x);
+    let dx = x - ix;
+    let ix = ix as i64;
+
+    fn get_point(seed: i64, i: i64) -> (f64, f64) {
+        let h = hashw((seed ^ i) as u32);
+        (
+            (h >> 16) as f64 / 131070.0 + 0.25,
+            (h & 0xffff) as f64 / 32767.5 - 1.0,
+        )
+    }
+
+    let (x1, y1) = get_point(seed, ix);
+
+    if dx < x1 {
+        let (x0, y0) = get_point(seed, ix.wrapping_sub(1));
+        let t = delerp(x0 - 1.0, x1, dx);
+        lerp(y0, y1, ease(t))
+    } else {
+        let (x2, y2) = get_point(seed, ix.wrapping_add(1));
+        let t = delerp(x1, x2 + 1.0, dx);
+        lerp(y1, y2, ease(t))
+    }
+}
+
+/// Smooth sigmoidal easing function with `sharpness` in 0...1.
+/// At sharpness 0 it is linear (the identity function),
+/// while at sharpness 1 it is nearly a step fade.
+pub fn sigmoid<T: Num>(sharpness: T, x: T) -> T {
+    let power = squared(sharpness) * (T::new(100) + T::new(900) * cubed(sharpness));
+    if x < T::from_f32(0.5) {
+        T::from_f32(0.5) * pow(x * T::new(2), power)
+    } else {
+        T::one() - T::from_f32(0.5) * pow((T::one() - x) * T::new(2), power)
     }
 }

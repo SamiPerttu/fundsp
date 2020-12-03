@@ -331,6 +331,12 @@ impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
     }
 }
 
+/// Logistic sigmoid.
+#[inline]
+fn logistic<T: Num + Real>(x: T) -> T {
+    T::one() / (T::one() + exp(T::zero() - x))
+}
+
 fn halfway_coeff<F: Real>(samples: F) -> F {
     // This approximation is accurate to 0.5% when 1 <= response_samples <= 1.0e5.
     let r0 = log(max(F::one(), samples)) - F::from_f64(0.861624594696583);

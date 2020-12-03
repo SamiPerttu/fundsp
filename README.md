@@ -474,8 +474,10 @@ The values in between are linearly interpolated.
 | `cos_hz(f, t)`         | cosine that oscillates at `f` Hz at time `t` seconds |
 | `cubed(x)`             | cube of `x` |
 | `db_amp(x)`            | convert `x` dB to amplitude (or gain) with 0 dB = 1.0 |
-| `delerp(x0, x1, x)`    | recover linear interpolation amount `t` from interpolated value |
-| `dexerp(x0, x1, x)`    | recover exponential interpolation amount `t` from interpolated value (`x0`, `x1`, `x` > 0) |
+| `delerp(x0, x1, x)`    | recover linear interpolation amount `t` in 0...1 from interpolated value |
+| `delerp11(x0, x1, x)`  | recover linear interpolation amount `t` in -1...1 from interpolated value |
+| `dexerp(x0, x1, x)`    | recover exponential interpolation amount `t` in 0...1 from interpolated value (`x0`, `x1`, `x` > 0) |
+| `dexerp11(x0, x1, x)`  | recover exponential interpolation amount `t` in -1...1 from interpolated value (`x0`, `x1`, `x` > 0) |
 | `dissonance(f0, f1)`   | dissonance amount in 0...1 between pure tones at `f0` and `f1` Hz |
 | `dissonance_max(f)`    | maximally dissonant pure frequency above `f` Hz |
 | `exp(x)`               | exp |
@@ -483,11 +485,12 @@ The values in between are linearly interpolated.
 | `exp2(x)`              | 2 to the power of `x` |
 | `exq(x)`               | polynomial alternative to `exp` |
 | `floor(x)`             | floor function |
-| `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` |
+| `id(x)`                | identity function (linear easing function) |
+| `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` with `t` in 0...1. |
+| `lerp11(x0, x1, t)`    | linear interpolation between `x0` and `x1` with `t` in -1...1. |
 | `log(x)`               | natural logarithm |
 | `log10(x)`             | base 10 logarithm |
 | `log2(x)`              | binary logarithm |
-| `logistic(x)`          | logistic function |
 | `midi_hz(x)`           | convert [MIDI](https://en.wikipedia.org/wiki/MIDI) note number `x` to Hz (69.0 = *A4* = 440 Hz) |
 | `min(x, y)`            | minimum of `x` and `y` |
 | `max(x, y)`            | maximum of `x` and `y` |
@@ -496,6 +499,7 @@ The values in between are linearly interpolated.
 | `rnd(i)`               | pseudorandom number in 0...1 from integer `i` |
 | `round(x)`             | round `x` to nearest integer |
 | `semitone(x)`          | convert interval `x` semitones to frequency ratio |
+| `sigmoid(sharpness, x)`| smooth sigmoidal easing function with shape parameter `sharpness` in 0...1. |
 | `signum(x)`            | sign of `x` |
 | `sin(x)`               | sin |
 | `sin_bpm(f, t)`        | sine that oscillates at `f` BPM at time `t` seconds |
@@ -512,7 +516,8 @@ The values in between are linearly interpolated.
 | `splinem(x0, x1, x2, x3, t)` | [monotonic cubic interpolation](https://en.wikipedia.org/wiki/Monotone_cubic_interpolation) between `x1` and `x2`, taking `x0` and `x3` into account |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
-| `xerp(x0, x1, t)`      | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) |
+| `xerp(x0, x1, t)`      | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) with `t` in 0...1 |
+| `xerp11(x0, x1, t)`    | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) with `t` in -1...1 |
 
 ---
 
@@ -526,6 +531,9 @@ These math functions have the shape of an easing function.
 | `arcdown(x)`           | concave quarter circle easing curve (inverse of `arcup`) |
 | `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
 | `cubed(x)`             | cube of `x` |
+| `id(x)`                | identity function (linear easing function) |
+| `pow(x, y)`            | `x` raised to the power `y` |
+| `sigmoid(sharpness, x)`| smooth sigmoidal easing function with shape parameter `sharpness` in 0...1. |
 | `smooth3(x)`           | smooth cubic easing polynomial |
 | `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
 | `smooth7(x)`           | smooth 7th degree easing polynomial |

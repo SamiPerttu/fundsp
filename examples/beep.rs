@@ -74,17 +74,17 @@ where
     //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.9);
 
     // Risset glissando.
-    let c = stacki::<U20, _, _>(|i| {
-        lfo(move |t| {
-            let f = lerp(-0.5, 0.5, rnd(i))
-                + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0);
-            let a = smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0));
-            (a, f)
-        }) >> pass() * sine()
-    }) >> multijoin::<U1, U20>()
-        >> pinkpass();
+    //let c = stacki::<U20, _, _>(|i| {
+    //    lfo(move |t| {
+    //        let f = lerp(-0.5, 0.5, rnd(i))
+    //            + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0);
+    //        let a = smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0));
+    //        (a, f)
+    //    }) >> pass() * sine()
+    //}) >> multijoin::<U1, U20>()
+    //    >> pinkpass();
 
-    //let c = dc(110.0) >> triangle();
+    let c = dc(110.0) >> triangle();
     //let c = lfo(|t| xerp(200.0, 2000.0, sin_hz(0.1, t))) >> square() >> lowpole_hz(1000.0);
     //let c = dc(110.0)
     //    >> sawx()
@@ -94,6 +94,18 @@ where
     //let c = c
     //    >> (pass() | envelope(|t| xerp(1000.0, 20000.0, sin_hz(0.0666, t))) | dc(10.0))
     //    >> bandpass();
+
+    let c = c
+        >> (pass()
+            | lfo(|t| {
+                xerp11(
+                    50.0,
+                    5000.0,
+                    enoise(arcup, 0, t) * 0.67 + enoise(arcup, 1, t) * 0.43,
+                )
+            })
+            | dc(10.0))
+        >> bandpass();
 
     let mut c = c
         >> declick() >> dcblock()
