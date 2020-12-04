@@ -113,7 +113,7 @@ where
         //>> (dcblock() | dcblock())
         >> split::<U2>()
         >> stereo_reverb(0.2, 10.0)
-        >> stereo_limiter(0.5, 10.0);
+        >> stereo_limiter((0.5, 10.0));
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));
 

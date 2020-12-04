@@ -1,4 +1,5 @@
 use super::audionode::*;
+use super::math::*;
 use super::*;
 use numeric_array::typenum::*;
 
@@ -46,6 +47,112 @@ impl<T: Float> ConstantFrame for (T, T, T, T, T) {
     type Size = U5;
     fn convert(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1, self.2, self.3, self.4].into()
+    }
+}
+
+impl<T: Float> ConstantFrame for (T, T, T, T, T, T) {
+    type Sample = T;
+    type Size = U6;
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        [self.0, self.1, self.2, self.3, self.4, self.5].into()
+    }
+}
+
+impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T) {
+    type Sample = T;
+    type Size = U7;
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        [self.0, self.1, self.2, self.3, self.4, self.5, self.6].into()
+    }
+}
+
+impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T, T) {
+    type Sample = T;
+    type Size = U8;
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        [
+            self.0, self.1, self.2, self.3, self.4, self.5, self.6, self.7,
+        ]
+        .into()
+    }
+}
+
+impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T, T, T) {
+    type Sample = T;
+    type Size = U9;
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        [
+            self.0, self.1, self.2, self.3, self.4, self.5, self.6, self.7, self.8,
+        ]
+        .into()
+    }
+}
+
+impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T, T, T, T) {
+    type Sample = T;
+    type Size = U10;
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        [
+            self.0, self.1, self.2, self.3, self.4, self.5, self.6, self.7, self.8, self.9,
+        ]
+        .into()
+    }
+}
+
+/// Trait for 1-way/2-way distinctions, such as symmetric/asymmetric response times.
+pub trait ScalarOrPair: Clone + Default {
+    type Sample: Float;
+    /// Construct new item from broadcast pair.
+    fn construct(x: Self::Sample, y: Self::Sample) -> Self;
+    /// Return pair, broadcasting scalar into pair if needed.
+    fn broadcast(&self) -> (Self::Sample, Self::Sample);
+    /// Symmetric or asymmetric 1-pole filter where factors are derived from the broadcast pair.
+    fn filter_pole(
+        &self,
+        input: Self::Sample,
+        current: Self::Sample,
+        afactor: Self::Sample,
+        rfactor: Self::Sample,
+    ) -> Self::Sample;
+}
+
+impl<T: Float> ScalarOrPair for T {
+    type Sample = T;
+    fn construct(x: Self::Sample, _y: Self::Sample) -> Self {
+        x
+    }
+    fn broadcast(&self) -> (Self::Sample, Self::Sample) {
+        (*self, *self)
+    }
+    fn filter_pole(
+        &self,
+        input: Self::Sample,
+        current: Self::Sample,
+        afactor: Self::Sample,
+        _rfactor: Self::Sample,
+    ) -> Self::Sample {
+        // We know afactor == rfactor.
+        current + (input - current) * afactor
+    }
+}
+
+impl<T: Float> ScalarOrPair for (T, T) {
+    type Sample = T;
+    fn construct(x: Self::Sample, y: Self::Sample) -> Self {
+        (x, y)
+    }
+    fn broadcast(&self) -> (Self::Sample, Self::Sample) {
+        *self
+    }
+    fn filter_pole(
+        &self,
+        input: Self::Sample,
+        current: Self::Sample,
+        afactor: Self::Sample,
+        rfactor: Self::Sample,
+    ) -> Self::Sample {
+        current + max(T::zero(), input - current) * afactor
+            - max(T::zero(), current - input) * rfactor
     }
 }
 

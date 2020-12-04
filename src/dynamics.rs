@@ -1,4 +1,5 @@
 use super::audionode::*;
+use super::combinator::*;
 use super::filter::*;
 use super::math::*;
 use super::*;
@@ -103,24 +104,26 @@ where
 
 /// Look-ahead limiter.
 #[derive(Clone)]
-pub struct Limiter<T, N>
+pub struct Limiter<T, N, S>
 where
     T: Float,
     N: Size<T>,
+    S: ScalarOrPair<Sample = f64>,
 {
     lookahead: f64,
     release: f64,
     sample_rate: f64,
     reducer: ReduceBuffer<T, Maximum<T>>,
-    follower: AFollower<T, f64>,
+    follower: AFollower<T, f64, S>,
     buffer: Vec<Frame<T, N>>,
     index: usize,
 }
 
-impl<T, N> Limiter<T, N>
+impl<T, N, S> Limiter<T, N, S>
 where
     T: Float,
     N: Size<T>,
+    S: ScalarOrPair<Sample = f64>,
 {
     fn advance(&mut self) {
         self.index += 1;
@@ -137,12 +140,13 @@ where
         ReduceBuffer::new(Self::buffer_length(sample_rate, lookahead), Maximum::new())
     }
 
-    pub fn new(sample_rate: f64, lookahead: f64, release: f64) -> Self {
+    pub fn new(sample_rate: f64, time: S) -> Self {
+        let (lookahead, release) = time.broadcast();
         Limiter {
             lookahead,
             release,
             sample_rate,
-            follower: AFollower::new(sample_rate, lookahead * 0.4, release * 0.4),
+            follower: AFollower::new(sample_rate, S::construct(lookahead * 0.4, release * 0.4)),
             buffer: vec![],
             reducer: Self::new_buffer(sample_rate, lookahead),
             index: 0,
@@ -150,10 +154,11 @@ where
     }
 }
 
-impl<T, N> AudioNode for Limiter<T, N>
+impl<T, N, S> AudioNode for Limiter<T, N, S>
 where
     T: Float,
     N: Size<T>,
+    S: ScalarOrPair<Sample = f64>,
 {
     const ID: u64 = 25;
     type Sample = T;

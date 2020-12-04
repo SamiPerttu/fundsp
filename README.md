@@ -347,7 +347,7 @@ These free functions are available in the environment.
 | `feedback(x)`          |   `x`  |   `x`    | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
 | `fdn(x)`               |   `x`  |   `x`    | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
 | `follow(t)`            |    1   |    1     | Smoothing filter with halfway response time `t` seconds. |
-| `followa(a, r)`        |    1   |    1     | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
+| `follow((a, r))`       |    1   |    1     | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
 | `goertzel_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
 | `highpass()`           | 3 (audio, frequency, Q) | 1 | Highpass filter (2nd order). |
@@ -480,6 +480,7 @@ The values in between are linearly interpolated.
 | `dexerp11(x0, x1, x)`  | recover exponential interpolation amount `t` in -1...1 from interpolated value (`x0`, `x1`, `x` > 0) |
 | `dissonance(f0, f1)`   | dissonance amount in 0...1 between pure tones at `f0` and `f1` Hz |
 | `dissonance_max(f)`    | maximally dissonant pure frequency above `f` Hz |
+| `enoise(ease, seed, x)`| value noise in -1...1 interpolated with easing function `ease`, e.g., `smooth3` |
 | `exp(x)`               | exp |
 | `exp10(x)`             | 10 to the power of `x` |
 | `exp2(x)`              | 2 to the power of `x` |

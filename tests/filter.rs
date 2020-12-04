@@ -39,7 +39,7 @@ fn test_filter() {
         let release_samples = round(xerp(1.0, 100_000.0, squared(rnd.gen_01::<f64>())));
         let sample_rate = xerp(10.0, 100_000.0, rnd.gen_01::<f64>());
         let goal = lerp(-100.0, 100.0, rnd.gen_01::<f64>());
-        let mut x = followa(attack_samples / sample_rate, release_samples / sample_rate);
+        let mut x = follow((attack_samples / sample_rate, release_samples / sample_rate));
         x.reset(Some(sample_rate));
         for _ in 0..(if goal > 0.0 {
             attack_samples

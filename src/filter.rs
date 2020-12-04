@@ -1,4 +1,5 @@
 use super::audionode::*;
+use super::combinator::*;
 use super::lti::*;
 use super::math::*;
 use super::*;
@@ -488,51 +489,43 @@ impl<T: Float, F: Float> AudioNode for PinkFilter<T, F> {
 
 /// Smoothing filter with adjustable edge response times for attack and release.
 #[derive(Default, Clone)]
-pub struct AFollower<T: Float, F: Real> {
+pub struct AFollower<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
     v3: F,
     v2: F,
     v1: F,
     acoeff: F,
     rcoeff: F,
-    /// Halfway attack time.
-    attack_time: F,
-    /// Halfway release time.
-    release_time: F,
+    /// Response times.
+    time: S,
     sample_rate: F,
     _marker: std::marker::PhantomData<T>,
 }
 
-impl<T: Float, F: Real> AFollower<T, F> {
+impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollower<T, F, S> {
     /// Create new smoothing filter.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
-    pub fn new(sample_rate: f64, attack_time: F, release_time: F) -> Self {
+    pub fn new(sample_rate: f64, time: S) -> Self {
         let mut node = AFollower::default();
-        node.attack_time = attack_time;
-        node.release_time = release_time;
+        node.time = time;
         node.reset(Some(sample_rate));
         node
     }
 
     /// Attack time in seconds.
     pub fn attack_time(&self) -> F {
-        self.attack_time
+        self.time.broadcast().0
     }
 
     /// Release time in seconds.
     pub fn release_time(&self) -> F {
-        self.release_time
+        self.time.broadcast().1
     }
 
-    /// Set attack time in seconds.
-    pub fn set_attack_time(&mut self, attack_time: F) {
-        self.attack_time = attack_time;
-        self.acoeff = halfway_coeff(attack_time * self.sample_rate);
-    }
-
-    /// Set release time in seconds.
-    pub fn set_release_time(&mut self, release_time: F) {
-        self.release_time = release_time;
-        self.rcoeff = halfway_coeff(release_time * self.sample_rate);
+    /// Set attack/release time in seconds.
+    pub fn set_time(&mut self, time: S) {
+        self.time = time;
+        self.acoeff = halfway_coeff(self.attack_time() * self.sample_rate);
+        self.rcoeff = halfway_coeff(self.release_time() * self.sample_rate);
     }
 
     /// Current response.
@@ -548,7 +541,7 @@ impl<T: Float, F: Real> AFollower<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for AFollower<T, F> {
+impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollower<T, F, S> {
     const ID: u64 = 29;
     type Sample = T;
     type Inputs = U1;
@@ -561,8 +554,7 @@ impl<T: Float, F: Real> AudioNode for AFollower<T, F> {
         if let Some(sample_rate) = sample_rate {
             self.sample_rate = F::from_f64(sample_rate);
             // Recalculate coefficients.
-            self.set_attack_time(self.attack_time);
-            self.set_release_time(self.release_time);
+            self.set_time(self.time.clone());
         }
     }
 
@@ -575,12 +567,9 @@ impl<T: Float, F: Real> AudioNode for AFollower<T, F> {
         let afactor = F::one() - self.acoeff;
         let rfactor = F::one() - self.rcoeff;
         let v0: F = convert(input[0]);
-        self.v1 = self.v1 + max(F::zero(), v0 - self.v1) * afactor
-            - max(F::zero(), self.v1 - v0) * rfactor;
-        self.v2 = self.v2 + max(F::zero(), self.v1 - self.v2) * afactor
-            - max(F::zero(), self.v2 - self.v1) * rfactor;
-        self.v3 = self.v3 + max(F::zero(), self.v2 - self.v3) * afactor
-            - max(F::zero(), self.v3 - self.v2) * rfactor;
+        self.v1 = self.time.filter_pole(v0, self.v1, afactor, rfactor);
+        self.v2 = self.time.filter_pole(self.v1, self.v2, afactor, rfactor);
+        self.v3 = self.time.filter_pole(self.v2, self.v3, afactor, rfactor);
         [convert(self.v3)].into()
     }
 }

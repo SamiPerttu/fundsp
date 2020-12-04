@@ -389,26 +389,20 @@ pub fn shape<S: Fn(f64) -> f64 + Clone>(
 
 /// Parameter follower filter with halfway response time `t` seconds.
 #[inline]
-pub fn follow(t: f64) -> An<Follower<f64, f64>> {
-    An(Follower::new(DEFAULT_SR, t))
-}
-
-/// Asymmetric parameter follower filter with halfway `attack` time in seconds and halfway `release` time in seconds.
-#[inline]
-pub fn followa(attack: f64, release: f64) -> An<AFollower<f64, f64>> {
-    An(AFollower::new(DEFAULT_SR, attack, release))
+pub fn follow<S: ScalarOrPair<Sample = f64>>(t: S) -> An<AFollower<f64, f64, S>> {
+    An(AFollower::new(DEFAULT_SR, t))
 }
 
 /// Look-ahead limiter with `attack` and `release` time in seconds. Look-ahead is equal to the attack time.
 #[inline]
-pub fn limiter(attack: f64, release: f64) -> An<Limiter<f64, U1>> {
-    An(Limiter::new(DEFAULT_SR, attack, release))
+pub fn limiter<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64, U1, S>> {
+    An(Limiter::new(DEFAULT_SR, time))
 }
 
 /// Look-ahead stereo limiter with `attack` and `release` time in seconds. Look-ahead is equal to the attack time.
 #[inline]
-pub fn stereo_limiter(attack: f64, release: f64) -> An<Limiter<f64, U2>> {
-    An(Limiter::new(DEFAULT_SR, attack, release))
+pub fn stereo_limiter<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64, U2, S>> {
+    An(Limiter::new(DEFAULT_SR, time))
 }
 
 /// Pinking filter.
