@@ -358,7 +358,8 @@ These free functions are available in the environment.
 | `highshelf_hz(f, q, gain)` | 1  |    1     | High shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `join::<U>()`          |   `U`  |    1     | Average together `U` channels. Inverse of `split`. |
 | `lfo(f)`               |    -   |   `f`    | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
-| `limiter(a, r)`        |    1   |    1     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
+| `limiter(t)`           |    1   |    1     | Look-ahead limiter with attack and release times `t` seconds. |
+| `limiter((a, r))`      |    1   |    1     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
 | `lowpass_hz(f, q)`     |    1   |    1     | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `lowpass_q(q)`         | 2 (audio, frequency) | 1 | Lowpass filter (2nd order) with Q `q`. |
@@ -399,7 +400,8 @@ These free functions are available in the environment.
 | `squarex()`            | 1 (pitch) | 2 (audio, phase) | Square wave oscillator with extra phase output in 0...1. |
 | `stackf::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `stacki::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from indexed generator `i`. |
-| `stereo_limiter(a, r)` |    2   |    2     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
+| `stereo_limiter(t)`    |    2   |    2     | Look-ahead limiter with attack and release times `t` seconds. |
+| `stereo_limiter((a, r))` |  2   |    2     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `stereo_reverb(wet, t)` |   2   |    2     | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
 | `sub(x)`               |   `x`  |   `x`    | Subtracts constant `x` from signal. |
 | `tick()`               |    1   |    1     | Single sample delay. |
