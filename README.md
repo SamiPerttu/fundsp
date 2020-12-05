@@ -489,7 +489,7 @@ The values in between are linearly interpolated.
 | `enoise(ease, seed, x)`| easing noise: value noise in -1...1 interpolated with easing function `ease`, e.g., `smooth3` |
 | `enoise((rise, fall), seed, x)` | asymmetric easing noise: value noise in -1...1 interpolated with easing function `rise` in rising segments and `fall` in falling segments, e.g., `(arcup, id)` |
 | `ewave(ease, x)`       | wave function shaped like `cos` built from two symmetric eases peaking at origin |
-| `ewave_hz(ease, f, x)` | wave function built from two symmetric eases that oscillates at `f` Hz at time `t` seconds |
+| `ewave_hz(ease, f, t)` | wave function built from two symmetric eases that oscillates at `f` Hz at time `t` seconds |
 | `exp(x)`               | exp |
 | `exp10(x)`             | 10 to the power of `x` |
 | `exp2(x)`              | 2 to the power of `x` |
