@@ -12,8 +12,7 @@ impl<T, A: numeric_array::ArrayLength<T>> Size<T> for A {}
 pub type Frame<T, Size> = numeric_array::NumericArray<T, Size>;
 
 /// An audio processor that processes audio data sample by sample.
-/// `AudioNode` has a static number of inputs (`AudioNode::Inputs`) and outputs (`AudioNode::Outputs`)
-/// known at compile time (they are encoded in the types as type-level integers).
+/// `AudioNode` has a static number of inputs (`AudioNode::Inputs`) and outputs (`AudioNode::Outputs`).
 /// `AudioNode` processes samples of type `AudioNode::Sample`, chosen statically.
 pub trait AudioNode: Clone {
     /// Unique ID for hashing.

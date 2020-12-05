@@ -183,7 +183,7 @@ pub fn xerp11<U: Lerp<T> + Real, T: Num>(a: U, b: U, t: T) -> U {
 /// Returns a dissonance amount between pure tones at f0 and f1 Hz.
 /// Dissonance amounts range between 0 and 1.
 #[inline]
-pub fn dissonance<T: Num + Real>(f0: T, f1: T) -> T {
+pub fn dissonance<T: Real>(f0: T, f1: T) -> T {
     let q = abs(f0 - f1) / (T::from_f64(0.021) * min(f0, f1) + T::from_f64(19.0));
     T::from_f64(5.531753) * (exp(T::from_f64(-0.84) * q) - exp(T::from_f64(-1.38) * q))
 }
@@ -196,19 +196,19 @@ pub fn dissonance_max<T: Num>(f: T) -> T {
 
 /// Exponential de-interpolation. a, b, x > 0. Recovers t from interpolated x.
 #[inline]
-pub fn dexerp<T: Num + Real>(a: T, b: T, x: T) -> T {
+pub fn dexerp<T: Real>(a: T, b: T, x: T) -> T {
     log(x / a) / log(b / a)
 }
 
 /// Exponential de-interpolation. a, b, x > 0. Recovers t in -1...1 from interpolated x.
 #[inline]
-pub fn dexerp11<T: Num + Real>(a: T, b: T, x: T) -> T {
+pub fn dexerp11<T: Real>(a: T, b: T, x: T) -> T {
     log(x / a) / log(b / a) * T::new(2) - T::new(1)
 }
 
 /// Returns a gain amount from a decibel argument.
 #[inline]
-pub fn db_amp<T: Num + Real>(db: T) -> T {
+pub fn db_amp<T: Real>(db: T) -> T {
     exp10(db / T::new(20))
 }
 
@@ -284,9 +284,9 @@ pub fn softsign<T: Num>(x: T) -> T {
 
 /// This exp-like response function is second order continuous.
 /// It has asymmetrical magnitude curves: (inverse) linear when x < 0 and quadratic when x > 0.
-/// f(x) >= 0 for all x. Like the exponential function, f(0) = f'(0) = 1.
+/// softexp(x) >= 0 for all x. Like the exponential function, softexp(0) = softexp'(0) = 1.
 #[inline]
-pub fn exq<T: Num>(x: T) -> T {
+pub fn softexp<T: Num>(x: T) -> T {
     // With a branch:
     // if x > 0 { x * x + x + 1 } else { 1 / (1 - x) }
     let p = max(x, T::zero());
@@ -296,8 +296,8 @@ pub fn exq<T: Num>(x: T) -> T {
 // Softmin function when bias < 0, softmax when bias > 0, and average when bias = 0.
 #[inline]
 pub fn softmix<T: Num>(x: T, y: T, bias: T) -> T {
-    let xw = exq(x * bias);
-    let yw = exq(y * bias);
+    let xw = softexp(x * bias);
+    let yw = softexp(y * bias);
     let epsilon = T::from_f32(1.0e-10);
     (x * xw + y * yw) / (xw + yw + epsilon)
 }
@@ -325,7 +325,7 @@ pub fn smooth7<T: Num>(x: T) -> T {
 #[inline]
 pub fn smooth9<T: Num>(x: T) -> T {
     let x2 = x * x;
-    ((((T::new(70) * x - T::new(315)) * x + T::new(540)) * x - T::new(420)) * x + T::new(125))
+    ((((T::new(70) * x - T::new(315)) * x + T::new(540)) * x - T::new(420)) * x + T::new(126))
         * x2
         * x2
         * x
@@ -333,19 +333,23 @@ pub fn smooth9<T: Num>(x: T) -> T {
 
 /// A quarter circle fade that slopes upwards. Inverse function of Fade.downarc.
 #[inline]
-pub fn arcup<T: Real + Num>(x: T) -> T {
+pub fn arcup<T: Real>(x: T) -> T {
     T::one() - sqrt(max(T::zero(), T::one() - x * x))
 }
 
 /// A quarter circle fade that slopes downwards. Inverse function of Fade.uparc.
 #[inline]
-pub fn arcdown<T: Real + Num>(x: T) -> T {
+pub fn arcdown<T: Real>(x: T) -> T {
     sqrt(max(T::new(0), (T::new(2) - x) * x))
 }
 
-/// Wave function stitched together from two symmetric pieces peaking at origin.
+/// Wave function, shaped similarly to `cos`, stitched together from two symmetric pieces peaking at origin.
 #[inline]
-pub fn easewave<T: Num, F: Fn(T) -> T>(f: F, x: T) -> T {
+pub fn ewave<T, F>(f: F, x: T) -> T
+where
+    T: Num,
+    F: Fn(T) -> T,
+{
     let u = (x - T::from_f64(PI)) / T::from_f64(4.0 * PI);
     let u = (u - u.floor()) * T::new(2);
     let w0 = u.min(T::one());
@@ -353,33 +357,44 @@ pub fn easewave<T: Num, F: Fn(T) -> T>(f: F, x: T) -> T {
     T::one() - (f(w0) - f(w1)) * T::new(2)
 }
 
+/// Wave function, shaped similarly to `cos`, stitched together from two symmetric pieces peaking at origin,
+/// that oscillates at the specified frequency (Hz). Time is input in seconds.
+#[inline]
+pub fn ewave_hz<T, F>(f: F, hz: T, t: T) -> T
+where
+    T: Num,
+    F: Fn(T) -> T,
+{
+    ewave(f, t * hz * T::from_f64(TAU))
+}
+
 /// Sine that oscillates at the specified beats per minute. Time is input in seconds.
 #[inline]
-pub fn sin_bpm<T: Num + Real>(bpm: T, t: T) -> T {
+pub fn sin_bpm<T: Real>(bpm: T, t: T) -> T {
     sin(t * bpm * T::from_f64(TAU / 60.0))
 }
 
 /// Cosine that oscillates at the specified beats per minute. Time is input in seconds.
 #[inline]
-pub fn cos_bpm<T: Num + Real>(bpm: T, t: T) -> T {
+pub fn cos_bpm<T: Real>(bpm: T, t: T) -> T {
     cos(t * bpm * T::from_f64(TAU / 60.0))
 }
 
 /// Sine that oscillates at the specified frequency (Hz). Time is input in seconds.
 #[inline]
-pub fn sin_hz<T: Num + Real>(hz: T, t: T) -> T {
+pub fn sin_hz<T: Real>(hz: T, t: T) -> T {
     sin(t * hz * T::from_f64(TAU))
 }
 
 /// Cosine that oscillates at the specified frequency (Hz). Time is input in seconds.
 #[inline]
-pub fn cos_hz<T: Num + Real>(hz: T, t: T) -> T {
+pub fn cos_hz<T: Real>(hz: T, t: T) -> T {
     cos(t * hz * T::from_f64(TAU))
 }
 
 /// Converts from semitone interval to frequency ratio.
 #[inline]
-pub fn semitone<T: Num + Real>(x: T) -> T {
+pub fn semitone<T: Real>(x: T) -> T {
     exp2(x / T::from_f64(12.0))
 }
 
@@ -460,44 +475,82 @@ pub fn hashk(x: i64) -> i64 {
     (x ^ (x >> 32)) as i64
 }
 
-/// 1-D easing noise in -1...1.
+/// Trait for symmetric/asymmetric interpolation in `enoise`.
+pub trait SegmentInterpolator<T: Float>: Clone {
+    /// Interpolate between `y1` and `y2` at relative position `t` in 0...1.
+    /// `x1` and `x2` are additional information.
+    fn interpolate(&self, x1: T, y1: T, x2: T, y2: T, t: T) -> T;
+}
+
+impl<T: Float, X> SegmentInterpolator<T> for X
+where
+    X: Fn(T) -> T + Clone,
+{
+    #[inline]
+    fn interpolate(&self, _x1: T, y1: T, _x2: T, y2: T, t: T) -> T {
+        lerp(y1, y2, (*self)(t))
+    }
+}
+
+impl<T: Float, X, Y> SegmentInterpolator<T> for (X, Y)
+where
+    X: SegmentInterpolator<T>,
+    Y: SegmentInterpolator<T>,
+{
+    #[inline]
+    fn interpolate(&self, x1: T, y1: T, x2: T, y2: T, t: T) -> T {
+        if y2 >= y1 {
+            self.0.interpolate(x1, y1, x2, y2, t)
+        } else {
+            self.1.interpolate(x1, y1, x2, y2, t)
+        }
+    }
+}
+
+/// 1-D easing noise in -1...1 with frequency of 1.
 /// Value noise interpolated with an easing function.
-/// Each integer cell contains an interpolation point.
-pub fn enoise(ease: impl Fn(f64) -> f64, seed: i64, x: f64) -> f64 {
-    let x = x + rnd(seed);
-    let ix = floor(x);
-    let dx = x - ix;
-    let ix = ix as i64;
+/// The noise follows a triangular distribution in -1...1.
+/// Each integer cell is an interpolation segment.
+/// Easing function `ease` (for example, `smooth3`) can be asymmetric:
+/// `(r, f)` employs `r` for rising and `f` for falling segments.
+pub fn enoise(ease: impl SegmentInterpolator<f64>, seed: i64, x: f64) -> f64 {
+    let fx = floor(x);
+    let dx = x - fx;
+    let ix = fx as i64;
 
-    fn get_point(seed: i64, i: i64) -> (f64, f64) {
+    fn get_point(seed: i64, i: i64) -> f64 {
         let h = hashw((seed ^ i) as u32);
-        (
-            (h >> 16) as f64 / 131070.0 + 0.25,
-            (h & 0xffff) as f64 / 32767.5 - 1.0,
-        )
+        h as f64 / 2147483647.5 - 1.0
     }
 
-    let (x1, y1) = get_point(seed, ix);
+    let y1 = get_point(seed, ix);
+    let y2 = get_point(seed, ix.wrapping_add(1));
 
-    if dx < x1 {
-        let (x0, y0) = get_point(seed, ix.wrapping_sub(1));
-        let t = delerp(x0 - 1.0, x1, dx);
-        lerp(y0, y1, ease(t))
-    } else {
-        let (x2, y2) = get_point(seed, ix.wrapping_add(1));
-        let t = delerp(x1, x2 + 1.0, dx);
-        lerp(y1, y2, ease(t))
-    }
+    ease.interpolate(fx, y1, fx + 1.0, y2, dx)
 }
 
 /// Smooth sigmoidal easing function with `sharpness` in 0...1.
 /// At sharpness 0 it is linear (the identity function),
 /// while at sharpness 1 it is nearly a step fade.
-pub fn sigmoid<T: Num>(sharpness: T, x: T) -> T {
+pub fn sigmoid<T: Float>(sharpness: T) -> impl Fn(T) -> T + Clone {
     let power = squared(sharpness) * (T::new(100) + T::new(900) * cubed(sharpness));
-    if x < T::from_f32(0.5) {
-        T::from_f32(0.5) * pow(x * T::new(2), power)
-    } else {
-        T::one() - T::from_f32(0.5) * pow((T::one() - x) * T::new(2), power)
+    move |x| {
+        if x < T::from_f32(0.5) {
+            T::from_f32(0.5) * pow(x * T::new(2), power)
+        } else {
+            T::one() - T::from_f32(0.5) * pow((T::one() - x) * T::new(2), power)
+        }
+    }
+}
+
+/// Creates a staircase function from easing function `f` with `n` copies per integer cell.
+/// The result is an easing function when `n` is integer.
+#[inline]
+pub fn staircase<T: Float, F: Fn(T) -> T + Clone>(n: T, f: F) -> impl Fn(T) -> T + Clone {
+    move |x| {
+        let x = x * n;
+        let ix = floor(x);
+        let fx = f(x - ix);
+        (fx + ix) / n
     }
 }

@@ -147,15 +147,34 @@ pub fn zero<T: Float>() -> An<ConstantNode<T, U1>> {
     dc(T::new(0))
 }
 
+/// Multichannel zero generator.
+/// - Output(s): zero
+#[inline]
+pub fn multizero<T: Float, U: Size<T>>() -> An<ConstantNode<T, U>> {
+    An(ConstantNode::new(Frame::splat(T::zero())))
+}
+
 /// Mono pass-through.
 #[inline]
 pub fn pass<T: Float>() -> An<PassNode<T, U1>> {
     An(PassNode::new())
 }
 
+/// Multichannel pass-through.
+#[inline]
+pub fn multipass<T: Float, U: Size<T>>() -> An<PassNode<T, U>> {
+    An(PassNode::new())
+}
+
 /// Mono sink.
 #[inline]
 pub fn sink<T: Float>() -> An<SinkNode<T, U1>> {
+    An(SinkNode::new())
+}
+
+/// Multichannel sink.
+#[inline]
+pub fn multisink<T: Float, U: Size<T>>() -> An<SinkNode<T, U>> {
     An(SinkNode::new())
 }
 
@@ -433,10 +452,10 @@ pub fn declick<T: Float, F: Real>() -> An<Declicker<T, F>> {
     An(Declicker::new(DEFAULT_SR, F::from_f64(0.010)))
 }
 
-// This alternative version includes a DC blocker.
-//pub fn declick<T: Float, F: Real>() -> An<PipeNode<T, Declicker<T, F>, DCBlocker<T, F>>> {
-//    An(Declicker::new(DEFAULT_SR, F::from_f64(0.010))) >> dcblock()
-//}
+#[inline]
+pub fn declick_s<T: Float, F: Real>(t: F) -> An<Declicker<T, F>> {
+    An(Declicker::new(DEFAULT_SR, t))
+}
 
 /// Shape signal with a waveshaper.
 #[inline]

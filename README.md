@@ -342,6 +342,7 @@ These free functions are available in the environment.
 | `dcblock()`            |    1   |    1     | Zero centers signal with cutoff frequency 10 Hz. |
 | `dcblock_hz(f)`        |    1   |    1     | Zero centers signal with cutoff frequency `f`. |
 | `declick()`            |    1   |    1     | Apply 10 ms of fade-in to signal. |
+| `declick_s(t)`         |    1   |    1     | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1   |    1     | Delay of `t` seconds. |
 | `envelope(f)`          |    -   |   `f`    | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `feedback(x)`          |   `x`  |   `x`    | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
@@ -372,7 +373,10 @@ These free functions are available in the environment.
 | `mls_bits(n)`          |    -   |    1     | White MLS noise source from `n`-bit MLS sequence. |
 | `mul(x)`               |   `x`  |   `x`    | Multiplies signal with constant `x`. |
 | `multijoin::<M, N>()`  | `M * N`|   `M`    | Joins `N` branches of `M` channels into one. Inverse of `multisplit`. |
+| `multipass::<U>()`     |   `U`  |   `U`    | Passes multichannel signal through. |
+| `multisink::<U>()`     |   `U`  |    -     | Consumes multichannel signal. |
 | `multisplit::<M, N>()` |   `M`  | `M * N`  | Splits `M` channels into `N` branches. |
+| `multizero::<U>()`     |    -   |   `U`    | Multichannel zero signal. |
 | `noise()`              |    -   |    1     | White noise source. Synonymous with `white`. |
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
 | `notch_hz(f, q)`       |    1   |    1     | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
@@ -482,11 +486,13 @@ The values in between are linearly interpolated.
 | `dexerp11(x0, x1, x)`  | recover exponential interpolation amount `t` in -1...1 from interpolated value (`x0`, `x1`, `x` > 0) |
 | `dissonance(f0, f1)`   | dissonance amount in 0...1 between pure tones at `f0` and `f1` Hz |
 | `dissonance_max(f)`    | maximally dissonant pure frequency above `f` Hz |
-| `enoise(ease, seed, x)`| value noise in -1...1 interpolated with easing function `ease`, e.g., `smooth3` |
+| `enoise(ease, seed, x)`| easing noise: value noise in -1...1 interpolated with easing function `ease`, e.g., `smooth3` |
+| `enoise((rise, fall), seed, x)` | asymmetric easing noise: value noise in -1...1 interpolated with easing function `rise` in rising segments and `fall` in falling segments, e.g., `(arcup, id)` |
+| `ewave(ease, x)`       | wave function shaped like `cos` built from two symmetric eases peaking at origin |
+| `ewave_hz(ease, f, x)` | wave function built from two symmetric eases that oscillates at `f` Hz at time `t` seconds |
 | `exp(x)`               | exp |
 | `exp10(x)`             | 10 to the power of `x` |
 | `exp2(x)`              | 2 to the power of `x` |
-| `exq(x)`               | polynomial alternative to `exp` |
 | `floor(x)`             | floor function |
 | `id(x)`                | identity function (linear easing function) |
 | `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` with `t` in 0...1. |
@@ -502,7 +508,7 @@ The values in between are linearly interpolated.
 | `rnd(i)`               | pseudorandom number in 0...1 from integer `i` |
 | `round(x)`             | round `x` to nearest integer |
 | `semitone(x)`          | convert interval `x` semitones to frequency ratio |
-| `sigmoid(sharpness, x)`| smooth sigmoidal easing function with shape parameter `sharpness` in 0...1. |
+| `sigmoid(sharpness)(x)`| smooth sigmoidal easing function with shape parameter `sharpness` in 0...1. |
 | `signum(x)`            | sign of `x` |
 | `sin(x)`               | sin |
 | `sin_bpm(f, t)`        | sine that oscillates at `f` BPM at time `t` seconds |
@@ -511,12 +517,14 @@ The values in between are linearly interpolated.
 | `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
 | `smooth7(x)`           | smooth 7th degree easing polynomial |
 | `smooth9(x)`           | smooth 9th degree easing polynomial |
+| `softexp(x)`           | polynomial alternative to `exp` |
 | `softmix(x, y, bias)`  | weighted average of `x` and `y` according to `bias`: polynomial softmin when `bias` < 0, average when `bias` = 0, polynomial softmax when `bias` > 0 |
 | `softsign(x)`          | softsign function, a polynomial alternative to `tanh` |
 | `squared(x)`           | square of `x` |
 | `sqrt(x)`              | square root of `x` |
 | `spline(x0, x1, x2, x3, t)` | [Catmull-Rom](https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Catmull%E2%80%93Rom_spline) cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `splinem(x0, x1, x2, x3, t)` | [monotonic cubic interpolation](https://en.wikipedia.org/wiki/Monotone_cubic_interpolation) between `x1` and `x2`, taking `x0` and `x3` into account |
+| `staircase(n, ease)(x)`| staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
 | `xerp(x0, x1, t)`      | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) with `t` in 0...1 |
@@ -535,14 +543,14 @@ These math functions have the shape of an easing function.
 | `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
 | `cubed(x)`             | cube of `x` |
 | `id(x)`                | identity function (linear easing function) |
-| `pow(x, y)`            | `x` raised to the power `y` |
-| `sigmoid(sharpness, x)`| smooth sigmoidal easing function with shape parameter `sharpness` in 0...1. |
+| `sigmoid(sharpness)(x)`| smooth sigmoidal easing function with shape parameter `sharpness` in 0...1. |
 | `smooth3(x)`           | smooth cubic easing polynomial |
 | `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
 | `smooth7(x)`           | smooth 7th degree easing polynomial |
 | `smooth9(x)`           | smooth 9th degree easing polynomial |
 | `squared(x)`           | square of `x` |
 | `sqrt(x)`              | square root of `x` |
+| `staircase(n, ease)(x)`| staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
 
 ---
 
@@ -594,7 +602,7 @@ Many functions in the prelude itself are defined as graph expressions.
 | Function                                 | Inputs | Outputs | Definition                                     |
 | ---------------------------------------- |:------:|:-------:| ---------------------------------------------- |
 | `goertzel_hz(f)`                         |   1    |    1    | `(pass() \| constant(f)) >> goertzel()`        |
-| `butterpass_hz(c)`                       |   1    |    1    | `(pass() \| constant(c)) >> butterpass()`         |
+| `butterpass_hz(c)`                       |   1    |    1    | `(pass() \| constant(c)) >> butterpass()`      |
 | `lowpole_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpole()`         |
 | `mls()`                                  |   -    |    1    | `mls_bits(29)`                                 |
 | `pink()`                                 |   -    |    1    | `white() >> pinkpass()`                        |

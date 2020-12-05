@@ -147,15 +147,34 @@ pub fn zero() -> An<ConstantNode<f64, U1>> {
     constant(0.0)
 }
 
+/// Multichannel zero generator.
+/// - Output(s): zero
+#[inline]
+pub fn multizero<U: Size<f64>>() -> An<ConstantNode<f64, U>> {
+    An(ConstantNode::new(Frame::splat(0.0)))
+}
+
 /// Mono pass-through.
 #[inline]
 pub fn pass() -> An<PassNode<f64, U1>> {
     An(PassNode::new())
 }
 
+/// Multichannel pass-through.
+#[inline]
+pub fn multipass<U: Size<f64>>() -> An<PassNode<f64, U>> {
+    An(PassNode::new())
+}
+
 /// Mono sink.
 #[inline]
 pub fn sink() -> An<SinkNode<f64, U1>> {
+    An(SinkNode::new())
+}
+
+/// Multichannel sink.
+#[inline]
+pub fn multisink<U: Size<f64>>() -> An<SinkNode<f64, U>> {
     An(SinkNode::new())
 }
 
@@ -375,6 +394,11 @@ pub fn dcblock() -> An<DCBlocker<f64, f64>> {
 #[inline]
 pub fn declick() -> An<Declicker<f64, f64>> {
     An(Declicker::new(DEFAULT_SR, 0.010))
+}
+
+#[inline]
+pub fn declick_s(t: f64) -> An<Declicker<f64, f64>> {
+    An(Declicker::new(DEFAULT_SR, t))
 }
 
 /// Shape signal with a waveshaper.

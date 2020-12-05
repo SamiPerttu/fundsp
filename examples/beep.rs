@@ -84,7 +84,7 @@ where
     //}) >> multijoin::<U1, U20>()
     //    >> pinkpass();
 
-    let c = dc(110.0) >> triangle();
+    //let c = dc(110.0) >> triangle();
     //let c = lfo(|t| xerp(200.0, 2000.0, sin_hz(0.1, t))) >> square() >> lowpole_hz(1000.0);
     //let c = dc(110.0)
     //    >> sawx()
@@ -95,17 +95,20 @@ where
     //    >> (pass() | envelope(|t| xerp(1000.0, 20000.0, sin_hz(0.0666, t))) | dc(10.0))
     //    >> bandpass();
 
-    let c = c
-        >> (pass()
-            | lfo(|t| {
-                xerp11(
-                    50.0,
-                    5000.0,
-                    enoise(arcup, 0, t) * 0.67 + enoise(arcup, 1, t) * 0.43,
-                )
-            })
-            | dc(10.0))
-        >> bandpass();
+    // Test enoise.
+    let c = lfo(|t| {
+        xerp11(
+            50.0,
+            5000.0,
+            //enoise(arcup, 0, t) * 0.67 + enoise(arcup, 1, t) * 0.43,
+            //enoise(smooth3, 0, t),
+            enoise((staircase(8.0, arcup), id), 0, t * 0.5),
+        ) * lerp11(0.5, 1.0, ewave_hz(sigmoid(1.0), 10.0, t))
+    }) >> triangle();
+
+    // Waveshapers.
+    let c = c >> shape(staircase(10.0, sigmoid(0.5)));
+    //let c = c >> shape(|x| tanh(x * 10.0));
 
     let mut c = c
         >> declick() >> dcblock()

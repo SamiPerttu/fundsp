@@ -334,7 +334,7 @@ impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
 
 /// Logistic sigmoid.
 #[inline]
-fn logistic<T: Num + Real>(x: T) -> T {
+fn logistic<T: Real>(x: T) -> T {
     T::one() / (T::one() + exp(T::zero() - x))
 }
 
