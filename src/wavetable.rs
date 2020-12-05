@@ -131,7 +131,7 @@ impl Wavetable {
         let p = table.len() as f64 * phase;
         let i1 = p as usize;
         let w = p as f32 - i1 as f32;
-        let i0 = (i1 - 1) & (table.len() - 1);
+        let i0 = i1.wrapping_sub(1) & (table.len() - 1);
         let i1 = i1 & (table.len() - 1);
         let i2 = (i1 + 1) & (table.len() - 1);
         let i3 = (i1 + 2) & (table.len() - 1);
