@@ -65,12 +65,6 @@ where
     //let f = 110.0;
     //let m = 5.0;
     //let c = sine_hz(f) * f * m + f >> sine();
-    //let c = c * envelope(|t| {
-    //    exp(-t * 0.5) * squared(sin_bpm(60.0, t) * (if t > 2.0 { 0.0 } else { 1.0 }))
-    //});
-    //let c = c * envelope(|t| clamp01(delerp(2.1, 2.0, t)));
-    //    exp(-t * 0.5) * squared(sin_bpm(60.0, t) * (if t > 2.0 { 0.0 } else { 1.0 }))
-    //});
     //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.9);
 
     // Risset glissando.
@@ -102,12 +96,13 @@ where
             5000.0,
             //enoise(arcup, 0, t) * 0.67 + enoise(arcup, 1, t) * 0.43,
             //enoise(smooth3, 0, t),
-            enoise((staircase(8.0, arcup), id), 0, t * 0.5),
-        ) * lerp11(0.5, 1.0, ewave_hz(sigmoid(1.0), 10.0, t))
+            //enoise((staircase(8.0, arcup), id), 0, t * 0.5),
+            snoise(0, t),
+        ) * lerp11(0.5, 1.0, ewave_hz(sigmoid(1.0), 8.0, t))
     }) >> triangle();
 
     // Waveshapers.
-    let c = c >> shape(staircase(10.0, sigmoid(0.5)));
+    //let c = c >> shape(staircase(10.0, sigmoid(0.5)));
     //let c = c >> shape(|x| tanh(x * 10.0));
 
     let mut c = c

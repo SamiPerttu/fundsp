@@ -368,18 +368,6 @@ where
     ewave(f, t * hz * T::from_f64(TAU))
 }
 
-/// Sine that oscillates at the specified beats per minute. Time is input in seconds.
-#[inline]
-pub fn sin_bpm<T: Real>(bpm: T, t: T) -> T {
-    sin(t * bpm * T::from_f64(TAU / 60.0))
-}
-
-/// Cosine that oscillates at the specified beats per minute. Time is input in seconds.
-#[inline]
-pub fn cos_bpm<T: Real>(bpm: T, t: T) -> T {
-    cos(t * bpm * T::from_f64(TAU / 60.0))
-}
-
 /// Sine that oscillates at the specified frequency (Hz). Time is input in seconds.
 #[inline]
 pub fn sin_hz<T: Real>(hz: T, t: T) -> T {
@@ -417,12 +405,18 @@ pub fn rnd(x: i64) -> f64 {
     (x >> 11) as f64 / (1u64 << 53) as f64
 }
 
-/// Converts MIDI note number to frequency in Hz. Returns 440 Hz for A_4 (note number 69).
+/// Convert MIDI note number to frequency in Hz. Returns 440 Hz for A_4 (note number 69).
 /// The lowest key on a grand piano is A_0 at 27.5 Hz (note number 21).
 /// Note number 0 is C_-1.
 #[inline]
-pub fn midi_hz(x: f64) -> f64 {
-    440.0 * exp2((x - 69.0) / 12.0)
+pub fn midi_hz<T: Real>(x: T) -> T {
+    T::new(440) * exp2((x - T::new(69)) / T::new(12))
+}
+
+/// Convert BPM to Hz.
+#[inline]
+pub fn bpm_hz<T: Real>(bpm: T) -> T {
+    bpm / T::new(60)
 }
 
 #[derive(Default, Clone)]
@@ -513,20 +507,20 @@ where
 /// Each integer cell is an interpolation segment.
 /// Easing function `ease` (for example, `smooth3`) can be asymmetric:
 /// `(r, f)` employs `r` for rising and `f` for falling segments.
-pub fn enoise(ease: impl SegmentInterpolator<f64>, seed: i64, x: f64) -> f64 {
+pub fn enoise<T: Float>(ease: impl SegmentInterpolator<T>, seed: i64, x: T) -> T {
     let fx = floor(x);
     let dx = x - fx;
-    let ix = fx as i64;
+    let ix = fx.to_i64();
 
-    fn get_point(seed: i64, i: i64) -> f64 {
+    fn get_point<T: Float>(seed: i64, i: i64) -> T {
         let h = hashw((seed ^ i) as u32);
-        h as f64 / 2147483647.5 - 1.0
+        T::new(h as i64) / T::from_f64(2147483647.5) - T::one()
     }
 
     let y1 = get_point(seed, ix);
     let y2 = get_point(seed, ix.wrapping_add(1));
 
-    ease.interpolate(fx, y1, fx + 1.0, y2, dx)
+    ease.interpolate(fx, y1, fx + T::one(), y2, dx)
 }
 
 /// Smooth sigmoidal easing function with `sharpness` in 0...1.
@@ -553,4 +547,26 @@ pub fn staircase<T: Float, F: Fn(T) -> T + Clone>(n: T, f: F) -> impl Fn(T) -> T
         let fx = f(x - ix);
         (fx + ix) / n
     }
+}
+
+/// 1-D spline noise in -1...1 with frequency of 1.
+/// Value noise interpolated with a cubic spline.
+/// The noise follows a triangular distribution in -1...1.
+/// Each integer cell is an interpolation segment.
+pub fn snoise<T: Float>(seed: i64, x: T) -> T {
+    let fx = floor(x);
+    let dx = x - fx;
+    let ix = fx.to_i64();
+
+    fn get_point<T: Float>(seed: i64, i: i64) -> T {
+        let h = hashw((seed ^ i) as u32);
+        T::new(h as i64) / T::from_f64(2147483647.5) - T::one()
+    }
+
+    let y0 = get_point(seed, ix.wrapping_sub(1));
+    let y1 = get_point(seed, ix);
+    let y2 = get_point(seed, ix.wrapping_add(1));
+    let y3 = get_point(seed, ix.wrapping_add(2));
+
+    spline(y0, y1, y2, y3, dx)
 }

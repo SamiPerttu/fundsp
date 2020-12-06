@@ -134,6 +134,7 @@ pub trait Float: Num + Neg<Output = Self> {
     fn from_float<T: Float>(x: T) -> Self;
     fn to_f64(self) -> f64;
     fn to_f32(self) -> f32;
+    fn to_i64(self) -> i64;
 }
 
 impl Float for f32 {
@@ -142,11 +143,15 @@ impl Float for f32 {
     }
 
     fn to_f64(self) -> f64 {
-        self.into()
+        self as f64
     }
 
     fn to_f32(self) -> f32 {
         self
+    }
+
+    fn to_i64(self) -> i64 {
+        self as i64
     }
 }
 
@@ -161,6 +166,10 @@ impl Float for f64 {
 
     fn to_f32(self) -> f32 {
         self as f32
+    }
+
+    fn to_i64(self) -> i64 {
+        self as i64
     }
 }
 

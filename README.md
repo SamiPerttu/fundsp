@@ -471,12 +471,12 @@ The values in between are linearly interpolated.
 | `arcdown(x)`           | concave quarter circle easing curve (inverse of `arcup`) |
 | `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
 | `a_weight(f)`          | [A-weighted](https://en.wikipedia.org/wiki/A-weighting) amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
+| `bpm_hz(bpm)`          | convert `bpm` BPM (beats per minute) to Hz |
 | `ceil(x)`              | ceiling function |
 | `clamp(min, max, x)`   | clamp `x` between `min` and `max` |
 | `clamp01(x)`           | clamp `x` between 0 and 1 |
 | `clamp11(x)`           | clamp `x` between -1 and 1 |
 | `cos(x)`               | cos |
-| `cos_bpm(f, t)`        | cosine that oscillates at `f` BPM at time `t` seconds |
 | `cos_hz(f, t)`         | cosine that oscillates at `f` Hz at time `t` seconds |
 | `cubed(x)`             | cube of `x` |
 | `db_amp(x)`            | convert `x` dB to amplitude (or gain) with 0 dB = 1.0 |
@@ -511,7 +511,6 @@ The values in between are linearly interpolated.
 | `sigmoid(sharpness)(x)`| smooth sigmoidal easing function with shape parameter `sharpness` in 0...1. |
 | `signum(x)`            | sign of `x` |
 | `sin(x)`               | sin |
-| `sin_bpm(f, t)`        | sine that oscillates at `f` BPM at time `t` seconds |
 | `sin_hz(f, t)`         | sine that oscillates at `f` Hz at time `t` seconds |
 | `smooth3(x)`           | smooth cubic easing polynomial |
 | `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
@@ -690,5 +689,3 @@ MIT or Apache-2.0.
 ### TODO: Prelude
 
 - `melody(f, string)`: melody generator.
-- `snoise(f, t)`: 1-D spline noise.
-- `enoise(ease, f, t)`, 1-D value noise interpolated with an easing function.
