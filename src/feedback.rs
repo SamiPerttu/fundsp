@@ -1,6 +1,7 @@
 use super::audionode::*;
 use super::math::*;
 use super::*;
+use num_complex::Complex64;
 use std::marker::PhantomData;
 
 /// Identity op.
@@ -19,6 +20,12 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameId<T, N> {
     #[inline]
     fn unop(x: &Frame<T, N>) -> Frame<T, N> {
         x.clone()
+    }
+    fn response(x: Complex64) -> Complex64 {
+        x
+    }
+    fn scalar(x: T) -> T {
+        x
     }
 }
 
@@ -78,6 +85,13 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameHadamard<T, N> {
             return output * Frame::splat(T::from_f64(1.0 / SQRT_2));
         }
         output
+    }
+    // Not implemented.
+    fn response(_x: Complex64) -> Complex64 {
+        panic!()
+    }
+    fn scalar(_x: T) -> T {
+        panic!()
     }
 }
 

@@ -3,7 +3,6 @@ use super::*;
 
 /// AudioUnit processes audio data block by block at a synchronous rate.
 /// Once constructed, it has a fixed number of inputs and outputs that can be queried.
-/// If not set otherwise, the sample rate is presumed the system default DEFAULT_SR.
 pub trait AudioUnit {
     /// Resets the input state of the unit to an initial state where it has not processed any data.
     /// In other words, resets time to zero.

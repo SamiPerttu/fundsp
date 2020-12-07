@@ -235,7 +235,7 @@ where
 /// - Output 0: filtered audio
 #[inline]
 pub fn butterpass() -> An<ButterLowpass<f64, f64>> {
-    An(ButterLowpass::new(DEFAULT_SR))
+    An(ButterLowpass::new(DEFAULT_SR, 440.0))
 }
 
 /// Butterworth lowpass filter (2nd order) with fixed `cutoff` frequency.
@@ -243,7 +243,7 @@ pub fn butterpass() -> An<ButterLowpass<f64, f64>> {
 /// - Output 0: filtered audio
 #[inline]
 pub fn butterpass_hz(cutoff: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    (pass() | constant(cutoff)) >> butterpass()
+    (pass() | constant(cutoff)) >> An(ButterLowpass::new(DEFAULT_SR, cutoff))
 }
 
 /// One-pole lowpass filter (1st order).

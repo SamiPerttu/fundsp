@@ -1,6 +1,5 @@
 use super::audionode::*;
 use super::combinator::*;
-use super::lti::*;
 use super::math::*;
 use super::*;
 use num_complex::Complex64;
@@ -12,13 +11,13 @@ fn re<T: Float>(x: T) -> Complex64 {
     Complex64::new(x.to_f64(), 0.0)
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct BiquadCoefs<F> {
-    a1: F,
-    a2: F,
-    b0: F,
-    b1: F,
-    b2: F,
+    pub a1: F,
+    pub a2: F,
+    pub b0: F,
+    pub b1: F,
+    pub b2: F,
 }
 
 impl<F: Real> BiquadCoefs<F> {
@@ -50,10 +49,9 @@ impl<F: Real> BiquadCoefs<F> {
         let b2: F = -b0;
         BiquadCoefs::<F> { a1, a2, b0, b1, b2 }
     }
-}
 
-impl<F: Real> Lti for BiquadCoefs<F> {
-    fn response(&self, omega: f64) -> Complex64 {
+    /// Frequency response at frequency `omega` expressed as fraction of sampling rate.
+    pub fn response(&self, omega: f64) -> Complex64 {
         let e1 = Complex64::from_polar(1.0, -TAU * omega);
         let e2 = Complex64::from_polar(1.0, -2.0 * TAU * omega);
         (re(self.b0) + re(self.b1) * e1 + re(self.b2) * e2)
@@ -65,11 +63,7 @@ impl<F: Real> Lti for BiquadCoefs<F> {
 #[derive(Copy, Clone, Default)]
 pub struct Biquad<T, F> {
     _marker: std::marker::PhantomData<T>,
-    a1: F,
-    a2: F,
-    b0: F,
-    b1: F,
-    b2: F,
+    coefs: BiquadCoefs<F>,
     x1: F,
     x2: F,
     y1: F,
@@ -80,12 +74,11 @@ impl<T: Float, F: Real> Biquad<T, F> {
     pub fn new() -> Self {
         Default::default()
     }
+    pub fn coefs(&self) -> &BiquadCoefs<F> {
+        &self.coefs
+    }
     pub fn set_coefs(&mut self, coefs: BiquadCoefs<F>) {
-        self.a1 = coefs.a1;
-        self.a2 = coefs.a2;
-        self.b0 = coefs.b0;
-        self.b1 = coefs.b1;
-        self.b2 = coefs.b2;
+        self.coefs = coefs;
     }
 }
 
@@ -108,9 +101,9 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         let x0 = convert(input[0]);
-        let y0 = self.b0 * x0 + self.b1 * self.x1 + self.b2 * self.x2
-            - self.a1 * self.y1
-            - self.a2 * self.y2;
+        let y0 = self.coefs.b0 * x0 + self.coefs.b1 * self.x1 + self.coefs.b2 * self.x2
+            - self.coefs.a1 * self.y1
+            - self.coefs.a2 * self.y2;
         self.x2 = self.x1;
         self.x1 = x0;
         self.y2 = self.y1;
@@ -136,13 +129,19 @@ pub struct ButterLowpass<T: Float, F: Real> {
 }
 
 impl<T: Float, F: Real> ButterLowpass<T, F> {
-    // TODO: f64 for sample_rate?
-    pub fn new(sample_rate: F) -> ButterLowpass<T, F> {
-        ButterLowpass {
+    pub fn new(sample_rate: f64, cutoff: F) -> Self {
+        let mut node = ButterLowpass {
             biquad: Biquad::new(),
-            sample_rate,
+            sample_rate: F::from_f64(sample_rate),
             cutoff: F::zero(),
-        }
+        };
+        node.set_cutoff(cutoff);
+        node
+    }
+    pub fn set_cutoff(&mut self, cutoff: F) {
+        self.biquad
+            .set_coefs(BiquadCoefs::butter_lowpass(self.sample_rate, cutoff));
+        self.cutoff = cutoff;
     }
 }
 
@@ -154,7 +153,10 @@ impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.biquad.reset(sample_rate);
-        self.cutoff = F::zero();
+        if let Some(sample_rate) = sample_rate {
+            self.sample_rate = convert(sample_rate);
+            self.set_cutoff(self.cutoff);
+        }
     }
 
     #[inline]
@@ -164,11 +166,18 @@ impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         let cutoff: F = convert(input[1]);
         if cutoff != self.cutoff {
-            self.biquad
-                .set_coefs(BiquadCoefs::butter_lowpass(self.sample_rate, cutoff));
-            self.cutoff = cutoff;
+            self.set_cutoff(cutoff);
         }
         self.biquad.tick(&[input[0]].into())
+    }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output == 0);
+        Some(
+            self.biquad
+                .coefs()
+                .response(frequency / self.sample_rate.to_f64()),
+        )
     }
 }
 

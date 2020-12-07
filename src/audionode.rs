@@ -1,5 +1,6 @@
 use super::math::*;
 use super::*;
+use num_complex::Complex64;
 use numeric_array::typenum::*;
 use std::marker::PhantomData;
 
@@ -63,6 +64,16 @@ pub trait AudioNode: Clone {
         hash.hash(Self::ID)
     }
 
+    /// Evaluate frequency response of `output` at `frequency` Hz. Return `None` if it does not exist or cannot be calculated.
+    fn response(&self, _output: usize, _frequency: f64) -> Option<Complex64> {
+        None
+    }
+
+    /// Evaluate whether `output` is constant. Return `None` if it is not constant or cannot be calculated.
+    fn constant_output(&self, _output: usize) -> Option<Self::Sample> {
+        None
+    }
+
     // End of interface. There is no need to override the following.
 
     /// Number of inputs.
@@ -109,14 +120,12 @@ pub trait AudioNode: Clone {
     }
 
     /// Filter the next stereo sample `(x, y)`.
-    /// The node must have exactly 2 inputs.
-    /// The node must have 1 or 2 outputs. If there is just one output, duplicate it.
+    /// The node must have exactly 2 inputs and 2 outputs.
     #[inline]
     fn filter_stereo(&mut self, x: Self::Sample, y: Self::Sample) -> (Self::Sample, Self::Sample) {
-        assert!(Self::Inputs::USIZE == 2);
-        assert!(Self::Outputs::USIZE == 1 || Self::Outputs::USIZE == 2);
-        let output = self.tick(&Frame::generate(|i| if i & 1 == 0 { x } else { y }));
-        (output[0], output[if self.outputs() > 1 { 1 } else { 0 }])
+        assert!(Self::Inputs::USIZE == 2 && Self::Outputs::USIZE == 2);
+        let output = self.tick(&Frame::generate(|i| if i == 0 { x } else { y }));
+        (output[0], output[1])
     }
 }
 
@@ -162,6 +171,11 @@ impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         input.clone()
+    }
+
+    fn response(&self, output: usize, _frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        Some(Complex64::new(1.0, 0.0))
     }
 }
 
@@ -217,10 +231,18 @@ impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.output.clone()
     }
+
+    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
+        assert!(output < N::USIZE);
+        Some(self.output[output])
+    }
 }
 
 pub trait FrameBinop<T: Float, N: Size<T>>: Clone {
+    const IS_MULTIPLY: bool;
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
+    fn response(x: Complex64, y: Complex64) -> Complex64;
+    fn scalar(x: T, y: T) -> T;
 }
 #[derive(Clone, Default)]
 pub struct FrameAdd<T: Float, N: Size<T>> {
@@ -234,8 +256,15 @@ impl<T: Float, N: Size<T>> FrameAdd<T, N> {
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
+    const IS_MULTIPLY: bool = false;
     #[inline]
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
+        x + y
+    }
+    fn response(x: Complex64, y: Complex64) -> Complex64 {
+        x + y
+    }
+    fn scalar(x: T, y: T) -> T {
         x + y
     }
 }
@@ -252,8 +281,15 @@ impl<T: Float, N: Size<T>> FrameSub<T, N> {
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
+    const IS_MULTIPLY: bool = false;
     #[inline]
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
+        x - y
+    }
+    fn response(x: Complex64, y: Complex64) -> Complex64 {
+        x - y
+    }
+    fn scalar(x: T, y: T) -> T {
         x - y
     }
 }
@@ -270,14 +306,23 @@ impl<T: Float, N: Size<T>> FrameMul<T, N> {
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
+    const IS_MULTIPLY: bool = true;
     #[inline]
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
+        x * y
+    }
+    fn response(x: Complex64, y: Complex64) -> Complex64 {
+        x * y
+    }
+    fn scalar(x: T, y: T) -> T {
         x * y
     }
 }
 
 pub trait FrameUnop<T: Float, N: Size<T>>: Clone {
     fn unop(x: &Frame<T, N>) -> Frame<T, N>;
+    fn response(x: Complex64) -> Complex64;
+    fn scalar(x: T) -> T;
 }
 #[derive(Clone, Default)]
 pub struct FrameNeg<T: Float, N: Size<T>> {
@@ -293,6 +338,12 @@ impl<T: Float, N: Size<T>> FrameNeg<T, N> {
 impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
     #[inline]
     fn unop(x: &Frame<T, N>) -> Frame<T, N> {
+        -x
+    }
+    fn response(x: Complex64) -> Complex64 {
+        -x
+    }
+    fn scalar(x: T) -> T {
         -x
     }
 }
@@ -371,6 +422,46 @@ where
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        let response_x = self.x.response(output, frequency);
+        let response_y = self.y.response(output, frequency);
+        if B::IS_MULTIPLY {
+            match (response_x, response_y) {
+                (Some(x), None) => {
+                    if let Some(value_y) = self.y.constant_output(output) {
+                        Some(B::response(x, Complex64::new(value_y.to_f64(), 0.0)))
+                    } else {
+                        None
+                    }
+                }
+                (None, Some(y)) => {
+                    if let Some(value_x) = self.x.constant_output(output) {
+                        Some(B::response(Complex64::new(value_x.to_f64(), 0.0), y))
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+        } else {
+            match (response_x, response_y) {
+                (Some(x), Some(y)) => Some(B::response(x, y)),
+                _ => None,
+            }
+        }
+    }
+
+    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
+        assert!(output < Self::Outputs::USIZE);
+        let constant_x = self.x.constant_output(output);
+        let constant_y = self.y.constant_output(output);
+        match (constant_x, constant_y) {
+            (Some(x), Some(y)) => Some(B::scalar(x, y)),
+            _ => None,
+        }
+    }
 }
 
 /// Apply a unary operation to output of contained node.
@@ -430,6 +521,23 @@ where
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.x.ping(probe, hash.hash(Self::ID))
+    }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        if let Some(response_x) = self.x.response(output, frequency) {
+            Some(U::response(response_x))
+        } else {
+            None
+        }
+    }
+
+    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
+        assert!(output < Self::Outputs::USIZE);
+        match self.x.constant_output(output) {
+            Some(x) => Some(U::scalar(x)),
+            None => None,
+        }
     }
 }
 
@@ -537,6 +645,18 @@ where
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        // TODO. This relies on a similar convention as the fit operator: audio inputs and outputs match.
+        // Do we need additional interfaces to connect outputs to inputs?
+        let response_x = self.x.response(output, frequency);
+        let response_y = self.y.response(output, frequency);
+        match (response_x, response_y) {
+            (Some(x), Some(y)) => Some(x * y),
+            _ => None,
+        }
+    }
 }
 
 /// Stack `X` and `Y` in parallel.
@@ -616,6 +736,24 @@ where
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        if output < X::Outputs::USIZE {
+            self.x.response(output, frequency)
+        } else {
+            self.y.response(output - X::Outputs::USIZE, frequency)
+        }
+    }
+
+    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
+        assert!(output < Self::Outputs::USIZE);
+        if output < X::Outputs::USIZE {
+            self.x.constant_output(output)
+        } else {
+            self.y.constant_output(output - X::Outputs::USIZE)
+        }
+    }
 }
 
 /// Send the same input to `X` and `Y`. Concatenate outputs.
@@ -689,6 +827,24 @@ where
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        if output < X::Outputs::USIZE {
+            self.x.response(output, frequency)
+        } else {
+            self.y.response(output - X::Outputs::USIZE, frequency)
+        }
+    }
+
+    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
+        assert!(output < Self::Outputs::USIZE);
+        if output < X::Outputs::USIZE {
+            self.x.constant_output(output)
+        } else {
+            self.y.constant_output(output - X::Outputs::USIZE)
+        }
+    }
 }
 
 /// Single sample delay.
@@ -732,6 +888,13 @@ impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
     }
     fn latency(&self) -> Option<f64> {
         Some(1.0 / self.sample_rate)
+    }
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        Some(Complex64::from_polar(
+            1.0,
+            -TAU * frequency / self.sample_rate,
+        ))
     }
 }
 
@@ -800,6 +963,26 @@ where
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        let response_x = self.x.response(output, frequency);
+        let response_y = self.y.response(output, frequency);
+        match (response_x, response_y) {
+            (Some(x), Some(y)) => Some(x + y),
+            _ => None,
+        }
+    }
+
+    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
+        assert!(output < Self::Outputs::USIZE);
+        let constant_x = self.x.constant_output(output);
+        let constant_y = self.y.constant_output(output);
+        match (constant_x, constant_y) {
+            (Some(x), Some(y)) => Some(x + y),
+            _ => None,
+        }
+    }
 }
 
 /// Adapt a filter to a pipeline.
@@ -850,6 +1033,16 @@ impl<X: AudioNode> AudioNode for FitNode<X> {
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.x.ping(probe, hash.hash(Self::ID))
+    }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        self.x.response(output, frequency)
+    }
+
+    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
+        assert!(output < Self::Outputs::USIZE);
+        self.x.constant_output(output)
     }
 }
 
@@ -930,6 +1123,24 @@ where
         }
         hash
     }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        let mut cumulative = Complex64::new(0.0, 0.0);
+        for i in 0..self.x.len() {
+            match self.x[i].response(output, frequency) {
+                None => {
+                    return None;
+                }
+                Some(x) => {
+                    cumulative += x;
+                }
+            }
+        }
+        Some(cumulative)
+    }
+
+    // TODO: constant_output.
 }
 
 /// Stack a bunch of similar nodes in parallel.
@@ -1019,6 +1230,16 @@ where
             hash = x.ping(probe, hash);
         }
         hash
+    }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        self.x[output / X::Outputs::USIZE].response(output % X::Outputs::USIZE, frequency)
+    }
+
+    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
+        assert!(output < Self::Outputs::USIZE);
+        self.x[output / X::Outputs::USIZE].constant_output(output % X::Outputs::USIZE)
     }
 }
 
@@ -1113,6 +1334,8 @@ where
         }
         hash
     }
+
+    // TODO: response & constant_output.
 }
 
 /// Branch into a bunch of similar nodes in parallel.
@@ -1198,5 +1421,15 @@ where
             hash = x.ping(probe, hash);
         }
         hash
+    }
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        self.x[output / X::Outputs::USIZE].response(output % X::Outputs::USIZE, frequency)
+    }
+
+    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
+        assert!(output < Self::Outputs::USIZE);
+        self.x[output / X::Outputs::USIZE].constant_output(output % X::Outputs::USIZE)
     }
 }

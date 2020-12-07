@@ -250,7 +250,6 @@ pub mod envelope;
 pub mod feedback;
 pub mod filter;
 pub mod hacker;
-pub mod lti;
 pub mod math;
 pub mod noise;
 pub mod oscillator;
