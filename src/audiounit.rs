@@ -22,19 +22,6 @@ pub trait AudioUnit {
     /// Number of outputs from this unit. Size of the output argument in compute().
     /// This should be fixed after construction.
     fn outputs(&self) -> usize;
-
-    /// Causal latency from input to output, in (fractional) samples.
-    /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
-    /// This applies only to components that have both inputs and outputs. Others should return None.
-    /// The latency can depend on the sample rate and is allowed to change after a reset.
-    fn latency(&self) -> Option<f64> {
-        // Default latency is zero.
-        if self.inputs() > 0 && self.outputs() > 0 {
-            Some(0.0)
-        } else {
-            None
-        }
-    }
 }
 
 /// Adapts an AudioNode into an AudioUnit.
@@ -67,8 +54,5 @@ impl<X: AudioNode> AudioUnit for AnUnit<X> {
     }
     fn outputs(&self) -> usize {
         self.0.outputs()
-    }
-    fn latency(&self) -> Option<f64> {
-        self.0.latency()
     }
 }

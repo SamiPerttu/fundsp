@@ -1,6 +1,7 @@
 use super::audionode::*;
 use super::combinator::*;
 use super::math::*;
+use super::signal::*;
 use super::*;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
@@ -171,13 +172,15 @@ impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
         self.biquad.tick(&[input[0]].into())
     }
 
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output == 0);
-        Some(
-            self.biquad
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = filter_signal(input[0], 0.0, |r| {
+            r * self
+                .biquad
                 .coefs()
-                .response(frequency / self.sample_rate.to_f64()),
-        )
+                .response(frequency / self.sample_rate.to_f64())
+        });
+        output
     }
 }
 

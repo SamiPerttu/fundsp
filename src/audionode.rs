@@ -1,4 +1,5 @@
 use super::math::*;
+use super::signal::*;
 use super::*;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
@@ -12,7 +13,7 @@ impl<T, A: numeric_array::ArrayLength<T>> Size<T> for A {}
 /// Transports audio data between `AudioNode` instances.
 pub type Frame<T, Size> = numeric_array::NumericArray<T, Size>;
 
-/// An audio processor that processes audio data sample by sample.
+/// Generic audio processor.
 /// `AudioNode` has a static number of inputs (`AudioNode::Inputs`) and outputs (`AudioNode::Outputs`).
 /// `AudioNode` processes samples of type `AudioNode::Sample`, chosen statically.
 pub trait AudioNode: Clone {
@@ -35,19 +36,6 @@ pub trait AudioNode: Clone {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs>;
 
-    /// Causal latency from input to output, in (fractional) samples.
-    /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
-    /// This applies only to nodes that have both inputs and outputs; others should return `None`.
-    /// The latency can depend on the sample rate and is allowed to change after `reset`.
-    fn latency(&self) -> Option<f64> {
-        // Default latency is zero.
-        if self.inputs() > 0 && self.outputs() > 0 {
-            Some(0.0)
-        } else {
-            None
-        }
-    }
-
     /// Set node hash. Override this to use the hash.
     /// This is called from `ping`. It should not be called by users.
     fn set_hash(&mut self, _hash: u32) {}
@@ -64,17 +52,42 @@ pub trait AudioNode: Clone {
         hash.hash(Self::ID)
     }
 
-    /// Evaluate frequency response of `output` at `frequency` Hz. Return `None` if it does not exist or cannot be calculated.
-    fn response(&self, _output: usize, _frequency: f64) -> Option<Complex64> {
-        None
-    }
-
-    /// Evaluate whether `output` is constant. Return `None` if it is not constant or cannot be calculated.
-    fn constant_output(&self, _output: usize) -> Option<Self::Sample> {
-        None
+    /// Propagate constants, latencies and frequency responses at `frequency`. Return output signal.
+    /// Default implementation marks all outputs unknown.
+    fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        new_signal_frame()
     }
 
     // End of interface. There is no need to override the following.
+
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < Self::Outputs::USIZE);
+        let mut input = new_signal_frame();
+        for i in 0..Self::Inputs::USIZE {
+            input[i] = Signal::Response(Complex64::new(1.0, 0.0), 0.0);
+        }
+        let response = self.propagate(&input, frequency);
+        match response[output] {
+            Signal::Response(rx, _) => Some(rx),
+            _ => None,
+        }
+    }
+
+    /// Causal latency at `output`, in (fractional) samples.
+    /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
+    /// The latency can depend on the sample rate and is allowed to change after `reset`.
+    fn latency(&self, output: usize) -> Option<f64> {
+        assert!(output < Self::Outputs::USIZE);
+        let mut input = new_signal_frame();
+        for i in 0..Self::Inputs::USIZE {
+            input[i] = Signal::Latency(0.0);
+        }
+        let response = self.propagate(&input, 1.0);
+        match response[output] {
+            Signal::Latency(latency) => Some(latency),
+            _ => None,
+        }
+    }
 
     /// Number of inputs.
     #[inline]
@@ -129,24 +142,6 @@ pub trait AudioNode: Clone {
     }
 }
 
-/// Combined latency of parallel components `a` and `b`.
-fn parallel_latency(a: Option<f64>, b: Option<f64>) -> Option<f64> {
-    match (a, b) {
-        (Some(x), Some(y)) => Some(min(x, y)),
-        (Some(x), None) => Some(x),
-        (None, Some(y)) => Some(y),
-        _ => None,
-    }
-}
-
-/// Combined latency of serial components `a` and `b`.
-fn serial_latency(a: Option<f64>, b: Option<f64>) -> Option<f64> {
-    match (a, b) {
-        (Some(x), Some(y)) => Some(x + y),
-        _ => None,
-    }
-}
-
 /// Pass through inputs unchanged.
 #[derive(Clone, Default)]
 pub struct PassNode<T, N> {
@@ -173,9 +168,8 @@ impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
         input.clone()
     }
 
-    fn response(&self, output: usize, _frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        Some(Complex64::new(1.0, 0.0))
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        *input
     }
 }
 
@@ -232,17 +226,18 @@ impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
         self.output.clone()
     }
 
-    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
-        assert!(output < N::USIZE);
-        Some(self.output[output])
+    fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        for i in 0..N::USIZE {
+            output[i] = Signal::Value(self.output[i].to_f64());
+        }
+        output
     }
 }
 
 pub trait FrameBinop<T: Float, N: Size<T>>: Clone {
-    const IS_MULTIPLY: bool;
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
-    fn response(x: Complex64, y: Complex64) -> Complex64;
-    fn scalar(x: T, y: T) -> T;
+    fn propagate(x: Signal, y: Signal) -> Signal;
 }
 #[derive(Clone, Default)]
 pub struct FrameAdd<T: Float, N: Size<T>> {
@@ -256,16 +251,13 @@ impl<T: Float, N: Size<T>> FrameAdd<T, N> {
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
-    const IS_MULTIPLY: bool = false;
     #[inline]
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
         x + y
     }
-    fn response(x: Complex64, y: Complex64) -> Complex64 {
-        x + y
-    }
-    fn scalar(x: T, y: T) -> T {
-        x + y
+    #[inline]
+    fn propagate(x: Signal, y: Signal) -> Signal {
+        combine_signals(x, y, 0.0, |x, y| x + y, |x, y| x + y)
     }
 }
 
@@ -281,16 +273,13 @@ impl<T: Float, N: Size<T>> FrameSub<T, N> {
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
-    const IS_MULTIPLY: bool = false;
     #[inline]
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
         x - y
     }
-    fn response(x: Complex64, y: Complex64) -> Complex64 {
-        x - y
-    }
-    fn scalar(x: T, y: T) -> T {
-        x - y
+    #[inline]
+    fn propagate(x: Signal, y: Signal) -> Signal {
+        combine_signals(x, y, 0.0, |x, y| x - y, |x, y| x - y)
     }
 }
 
@@ -306,23 +295,36 @@ impl<T: Float, N: Size<T>> FrameMul<T, N> {
 }
 
 impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
-    const IS_MULTIPLY: bool = true;
     #[inline]
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
         x * y
     }
-    fn response(x: Complex64, y: Complex64) -> Complex64 {
-        x * y
-    }
-    fn scalar(x: T, y: T) -> T {
-        x * y
+    #[inline]
+    fn propagate(x: Signal, y: Signal) -> Signal {
+        match (x, y) {
+            (Signal::Value(vx), Signal::Value(vy)) => Signal::Value(vx * vy),
+            (Signal::Latency(lx), Signal::Latency(ly)) => Signal::Latency(min(lx, ly)),
+            (Signal::Response(_, lx), Signal::Response(_, ly)) => Signal::Latency(min(lx, ly)),
+            (Signal::Response(_, lx), Signal::Latency(ly)) => Signal::Latency(min(lx, ly)),
+            (Signal::Latency(lx), Signal::Response(_, ly)) => Signal::Latency(min(lx, ly)),
+            (Signal::Response(rx, lx), Signal::Value(vy)) => {
+                Signal::Response(rx * Complex64::new(vy, 0.0), lx)
+            }
+            (Signal::Value(vx), Signal::Response(ry, ly)) => {
+                Signal::Response(ry * Complex64::new(vx, 0.0), ly)
+            }
+            (Signal::Latency(lx), _) => Signal::Latency(lx),
+            (Signal::Response(_, lx), _) => Signal::Latency(lx),
+            (_, Signal::Latency(ly)) => Signal::Latency(ly),
+            (_, Signal::Response(_, ly)) => Signal::Latency(ly),
+            _ => Signal::Unknown,
+        }
     }
 }
 
 pub trait FrameUnop<T: Float, N: Size<T>>: Clone {
     fn unop(x: &Frame<T, N>) -> Frame<T, N>;
-    fn response(x: Complex64) -> Complex64;
-    fn scalar(x: T) -> T;
+    fn propagate(x: Signal) -> Signal;
 }
 #[derive(Clone, Default)]
 pub struct FrameNeg<T: Float, N: Size<T>> {
@@ -340,11 +342,12 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
     fn unop(x: &Frame<T, N>) -> Frame<T, N> {
         -x
     }
-    fn response(x: Complex64) -> Complex64 {
-        -x
-    }
-    fn scalar(x: T) -> T {
-        -x
+    fn propagate(x: Signal) -> Signal {
+        match x {
+            Signal::Value(vx) => Signal::Value(-vx),
+            Signal::Response(rx, lx) => Signal::Response(-rx, lx),
+            s => s,
+        }
     }
 }
 
@@ -415,52 +418,21 @@ where
         let y = self.y.tick(input_y.into());
         B::binop(&x, &y)
     }
-    fn latency(&self) -> Option<f64> {
-        parallel_latency(self.x.latency(), self.y.latency())
-    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        let response_x = self.x.response(output, frequency);
-        let response_y = self.y.response(output, frequency);
-        if B::IS_MULTIPLY {
-            match (response_x, response_y) {
-                (Some(x), None) => {
-                    if let Some(value_y) = self.y.constant_output(output) {
-                        Some(B::response(x, Complex64::new(value_y.to_f64(), 0.0)))
-                    } else {
-                        None
-                    }
-                }
-                (None, Some(y)) => {
-                    if let Some(value_x) = self.x.constant_output(output) {
-                        Some(B::response(Complex64::new(value_x.to_f64(), 0.0), y))
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            }
-        } else {
-            match (response_x, response_y) {
-                (Some(x), Some(y)) => Some(B::response(x, y)),
-                _ => None,
-            }
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut signal_x = self.x.propagate(input, frequency);
+        let signal_y = self.y.propagate(
+            &copy_signal_frame(input, X::Inputs::USIZE, Y::Inputs::USIZE),
+            frequency,
+        );
+        for i in 0..Self::Outputs::USIZE {
+            signal_x[i] = B::propagate(signal_x[i], signal_y[i]);
         }
-    }
-
-    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
-        assert!(output < Self::Outputs::USIZE);
-        let constant_x = self.x.constant_output(output);
-        let constant_y = self.y.constant_output(output);
-        match (constant_x, constant_y) {
-            (Some(x), Some(y)) => Some(B::scalar(x, y)),
-            _ => None,
-        }
+        signal_x
     }
 }
 
@@ -515,29 +487,17 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         U::unop(&self.x.tick(input))
     }
-    fn latency(&self) -> Option<f64> {
-        self.x.latency()
-    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        if let Some(response_x) = self.x.response(output, frequency) {
-            Some(U::response(response_x))
-        } else {
-            None
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut signal_x = self.x.propagate(input, frequency);
+        for i in 0..Self::Outputs::USIZE {
+            signal_x[i] = U::propagate(signal_x[i]);
         }
-    }
-
-    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
-        assert!(output < Self::Outputs::USIZE);
-        match self.x.constant_output(output) {
-            Some(x) => Some(U::scalar(x)),
-            None => None,
-        }
+        signal_x
     }
 }
 
@@ -638,24 +598,13 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.y.tick(&self.x.tick(input))
     }
-    fn latency(&self) -> Option<f64> {
-        serial_latency(self.x.latency(), self.y.latency())
-    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
-
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        // TODO. This relies on a similar convention as the fit operator: audio inputs and outputs match.
-        // Do we need additional interfaces to connect outputs to inputs?
-        let response_x = self.x.response(output, frequency);
-        let response_y = self.y.response(output, frequency);
-        match (response_x, response_y) {
-            (Some(x), Some(y)) => Some(x * y),
-            _ => None,
-        }
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.y
+            .propagate(&self.x.propagate(input, frequency), frequency)
     }
 }
 
@@ -729,30 +678,20 @@ where
             }
         })
     }
-    fn latency(&self) -> Option<f64> {
-        parallel_latency(self.x.latency(), self.y.latency())
-    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        if output < X::Outputs::USIZE {
-            self.x.response(output, frequency)
-        } else {
-            self.y.response(output - X::Outputs::USIZE, frequency)
-        }
-    }
-
-    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
-        assert!(output < Self::Outputs::USIZE);
-        if output < X::Outputs::USIZE {
-            self.x.constant_output(output)
-        } else {
-            self.y.constant_output(output - X::Outputs::USIZE)
-        }
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut signal_x = self.x.propagate(input, frequency);
+        let signal_y = self.y.propagate(
+            &copy_signal_frame(input, X::Inputs::USIZE, Y::Inputs::USIZE),
+            frequency,
+        );
+        signal_x[X::Outputs::USIZE..Self::Outputs::USIZE]
+            .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
+        signal_x
     }
 }
 
@@ -820,30 +759,17 @@ where
             }
         })
     }
-    fn latency(&self) -> Option<f64> {
-        parallel_latency(self.x.latency(), self.y.latency())
-    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        if output < X::Outputs::USIZE {
-            self.x.response(output, frequency)
-        } else {
-            self.y.response(output - X::Outputs::USIZE, frequency)
-        }
-    }
-
-    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
-        assert!(output < Self::Outputs::USIZE);
-        if output < X::Outputs::USIZE {
-            self.x.constant_output(output)
-        } else {
-            self.y.constant_output(output - X::Outputs::USIZE)
-        }
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut signal_x = self.x.propagate(input, frequency);
+        let signal_y = self.y.propagate(input, frequency);
+        signal_x[X::Outputs::USIZE..Self::Outputs::USIZE]
+            .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
+        signal_x
     }
 }
 
@@ -886,15 +812,12 @@ impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
         self.buffer = input.clone();
         output
     }
-    fn latency(&self) -> Option<f64> {
-        Some(1.0 / self.sample_rate)
-    }
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        Some(Complex64::from_polar(
-            1.0,
-            -TAU * frequency / self.sample_rate,
-        ))
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = filter_signal(input[0], 1.0, |r| {
+            r * Complex64::from_polar(1.0, -TAU * frequency / self.sample_rate)
+        });
+        output
     }
 }
 
@@ -956,32 +879,19 @@ where
         let output_y = self.y.tick(input);
         output_x + output_y
     }
-    fn latency(&self) -> Option<f64> {
-        parallel_latency(self.x.latency(), self.y.latency())
-    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        let response_x = self.x.response(output, frequency);
-        let response_y = self.y.response(output, frequency);
-        match (response_x, response_y) {
-            (Some(x), Some(y)) => Some(x + y),
-            _ => None,
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut signal_x = self.x.propagate(input, frequency);
+        let signal_y = self.y.propagate(input, frequency);
+        for i in 0..Self::Outputs::USIZE {
+            signal_x[i] =
+                combine_signals(signal_x[i], signal_y[i], 0.0, |x, y| x + y, |x, y| x + y);
         }
-    }
-
-    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
-        assert!(output < Self::Outputs::USIZE);
-        let constant_x = self.x.constant_output(output);
-        let constant_y = self.y.constant_output(output);
-        match (constant_x, constant_y) {
-            (Some(x), Some(y)) => Some(x + y),
-            _ => None,
-        }
+        signal_x
     }
 }
 
@@ -1026,23 +936,16 @@ impl<X: AudioNode> AudioNode for FitNode<X> {
         })
     }
 
-    fn latency(&self) -> Option<f64> {
-        self.x.latency()
-    }
-
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        self.x.response(output, frequency)
-    }
-
-    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
-        assert!(output < Self::Outputs::USIZE);
-        self.x.constant_output(output)
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = self.x.propagate(input, frequency);
+        output[X::Outputs::USIZE..Self::Outputs::USIZE]
+            .copy_from_slice(&input[X::Outputs::USIZE..Self::Outputs::USIZE]);
+        output
     }
 }
 
@@ -1107,14 +1010,6 @@ where
             .iter_mut()
             .fold(Frame::splat(T::zero()), |acc, x| acc + x.tick(&input))
     }
-    fn latency(&self) -> Option<f64> {
-        if self.x.is_empty() {
-            return None;
-        }
-        self.x
-            .iter()
-            .fold(Some(0.0), |acc, node| parallel_latency(acc, node.latency()))
-    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         let mut hash = hash.hash(Self::ID);
@@ -1124,23 +1019,20 @@ where
         hash
     }
 
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        let mut cumulative = Complex64::new(0.0, 0.0);
-        for i in 0..self.x.len() {
-            match self.x[i].response(output, frequency) {
-                None => {
-                    return None;
-                }
-                Some(x) => {
-                    cumulative += x;
-                }
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        if self.x.is_empty() {
+            return new_signal_frame();
+        }
+        let mut output = self.x[0].propagate(input, frequency);
+        for j in 1..self.x.len() {
+            let output_j = self.x[j].propagate(input, frequency);
+            for i in 0..Self::Outputs::USIZE {
+                output[i] =
+                    combine_signals(output[i], output_j[i], 0.0, |x, y| x + y, |x, y| x + y);
             }
         }
-        Some(cumulative)
+        output
     }
-
-    // TODO: constant_output.
 }
 
 /// Stack a bunch of similar nodes in parallel.
@@ -1215,14 +1107,6 @@ where
         }
         output
     }
-    fn latency(&self) -> Option<f64> {
-        if Self::Inputs::USIZE == 0 || Self::Outputs::USIZE == 0 {
-            return None;
-        }
-        self.x
-            .iter()
-            .fold(Some(0.0), |acc, node| parallel_latency(acc, node.latency()))
-    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         let mut hash = hash.hash(Self::ID);
@@ -1232,15 +1116,7 @@ where
         hash
     }
 
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        self.x[output / X::Outputs::USIZE].response(output % X::Outputs::USIZE, frequency)
-    }
-
-    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
-        assert!(output < Self::Outputs::USIZE);
-        self.x[output / X::Outputs::USIZE].constant_output(output % X::Outputs::USIZE)
-    }
+    // TODO: propagate().
 }
 
 /// Combine outputs of a bunch of similar nodes with a binary operation.
@@ -1318,14 +1194,6 @@ where
         }
         output
     }
-    fn latency(&self) -> Option<f64> {
-        if Self::Inputs::USIZE == 0 || Self::Outputs::USIZE == 0 {
-            return None;
-        }
-        self.x
-            .iter()
-            .fold(Some(0.0), |acc, node| parallel_latency(acc, node.latency()))
-    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         let mut hash = hash.hash(Self::ID);
@@ -1335,7 +1203,7 @@ where
         hash
     }
 
-    // TODO: response & constant_output.
+    // TODO: propagate().
 }
 
 /// Branch into a bunch of similar nodes in parallel.
@@ -1406,14 +1274,6 @@ where
         }
         output
     }
-    fn latency(&self) -> Option<f64> {
-        if Self::Inputs::USIZE == 0 || Self::Outputs::USIZE == 0 {
-            return None;
-        }
-        self.x
-            .iter()
-            .fold(Some(0.0), |acc, node| parallel_latency(acc, node.latency()))
-    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         let mut hash = hash.hash(Self::ID);
@@ -1423,13 +1283,5 @@ where
         hash
     }
 
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        self.x[output / X::Outputs::USIZE].response(output % X::Outputs::USIZE, frequency)
-    }
-
-    fn constant_output(&self, output: usize) -> Option<Self::Sample> {
-        assert!(output < Self::Outputs::USIZE);
-        self.x[output / X::Outputs::USIZE].constant_output(output % X::Outputs::USIZE)
-    }
+    // TODO: propagate().
 }

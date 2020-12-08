@@ -48,7 +48,7 @@ where
             value_0: Frame::default(),
             value_1: Frame::default(),
             interval,
-            sample_duration: convert(1.0 / sample_rate),
+            sample_duration: F::zero(),
             hash: 0,
         };
         node.reset(Some(sample_rate));
@@ -77,7 +77,7 @@ where
         self.t_hash = self.hash;
         let value_0: Frame<_, _> = (self.envelope)(self.t_0).convert();
         self.value_0 = Frame::generate(|i| convert(value_0[i]));
-        self.value_1 = Frame::default();
+        self.value_1 = self.value_0.clone();
         if let Some(sr) = sample_rate {
             self.sample_duration = convert(1.0 / sr)
         };
@@ -101,7 +101,7 @@ where
                     );
             let value_1: Frame<_, _> = (self.envelope)(self.t_1).convert();
             self.value_1 = Frame::generate(|i| convert(value_1[i]));
-            self.t_hash = hashw(self.t_hash);
+            self.t_hash = self.t_hash.wrapping_mul(1664525).wrapping_add(1);
         }
         let u = delerp(self.t_0, self.t_1, self.t);
         self.t = self.t + self.sample_duration;

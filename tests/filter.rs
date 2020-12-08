@@ -135,6 +135,11 @@ fn test_responses() {
     test_response(butterpass_hz(200.0) * 0.5);
     test_response(butterpass_hz(6000.0) >> butterpass_hz(600.0));
     test_response(pass() & tick());
+    test_response(pass() * 0.25 & tick() * 0.5);
     test_response(pass() * 0.25 & tick() * 0.5 & tick() >> tick() * 0.25);
     test_response(tick() & butterpass_hz(20000.0));
+    test_response((butterpass_hz(15000.0) ^ butterpass_hz(5000.0)) >> pass() + pass());
+    test_response(
+        (butterpass_hz(12000.0) ^ butterpass_hz(8000.0)) >> pass() + butterpass_hz(1200.0),
+    );
 }

@@ -2,6 +2,7 @@ use super::audionode::*;
 use super::combinator::*;
 use super::filter::*;
 use super::math::*;
+use super::signal::*;
 use super::*;
 use numeric_array::typenum::*;
 
@@ -208,8 +209,18 @@ where
         }
     }
 
-    fn latency(&self) -> Option<f64> {
-        Some(self.reducer.length() as f64 / self.sample_rate)
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        for i in 0..N::USIZE {
+            output[i] = match input[i] {
+                Signal::Latency(latency) => Signal::Latency(latency + self.reducer.length() as f64),
+                Signal::Response(_, latency) => {
+                    Signal::Latency(latency + self.reducer.length() as f64)
+                }
+                _ => Signal::Unknown,
+            }
+        }
+        output
     }
 }
 

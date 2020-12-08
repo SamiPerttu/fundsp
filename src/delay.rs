@@ -1,6 +1,8 @@
 use super::audionode::*;
 use super::math::*;
+use super::signal::*;
 use super::*;
+use num_complex::Complex64;
 use numeric_array::typenum::*;
 
 /// Fixed delay.
@@ -59,7 +61,14 @@ impl<T: Float> AudioNode for DelayNode<T> {
         [output].into()
     }
 
-    fn latency(&self) -> Option<f64> {
-        Some(self.buffer.len() as f64 / self.sample_rate)
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = filter_signal(input[0], self.buffer.len() as f64, |r| {
+            r * Complex64::from_polar(
+                1.0,
+                -TAU * self.buffer.len() as f64 * frequency / self.sample_rate,
+            )
+        });
+        output
     }
 }

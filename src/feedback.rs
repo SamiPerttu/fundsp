@@ -1,7 +1,7 @@
 use super::audionode::*;
 use super::math::*;
+use super::signal::*;
 use super::*;
-use num_complex::Complex64;
 use std::marker::PhantomData;
 
 /// Identity op.
@@ -21,10 +21,8 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameId<T, N> {
     fn unop(x: &Frame<T, N>) -> Frame<T, N> {
         x.clone()
     }
-    fn response(x: Complex64) -> Complex64 {
-        x
-    }
-    fn scalar(x: T) -> T {
+    #[inline]
+    fn propagate(x: Signal) -> Signal {
         x
     }
 }
@@ -87,10 +85,8 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameHadamard<T, N> {
         output
     }
     // Not implemented.
-    fn response(_x: Complex64) -> Complex64 {
-        panic!()
-    }
-    fn scalar(_x: T) -> T {
+    #[inline]
+    fn propagate(_: Signal) -> Signal {
         panic!()
     }
 }
@@ -165,8 +161,16 @@ where
         output
     }
 
-    fn latency(&self) -> Option<f64> {
-        self.x.latency()
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = self.x.propagate(input, frequency);
+        for i in 0..N::USIZE {
+            output[i] = match output[i] {
+                Signal::Latency(latency) => Signal::Latency(latency),
+                Signal::Response(_, latency) => Signal::Latency(latency),
+                _ => Signal::Unknown,
+            }
+        }
+        output
     }
 
     #[inline]
