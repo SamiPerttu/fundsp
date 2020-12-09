@@ -107,7 +107,7 @@ where
         let reported = filter.response(0, f).unwrap();
         let i = round(f * length as f64 / sample_rate as f64) as usize;
         let response = spectrum[i];
-
+        /*
         println!(
             "{} Hz reported {} actual {} matches {}",
             f,
@@ -115,7 +115,7 @@ where
             response.norm(),
             is_equal_response(reported, response)
         );
-
+        */
         assert!(is_equal_response(reported, response));
         if f < 1000.0 {
             f += 10.0;
