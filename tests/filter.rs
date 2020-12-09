@@ -83,7 +83,7 @@ fn test_response<X>(mut filter: An<X>)
 where
     X: AudioNode<Sample = f64, Inputs = U1, Outputs = U1>,
 {
-    let length = 0x10000;
+    let length = 0x8000;
     let sample_rate = 44_100.0;
 
     filter.reset(Some(sample_rate));
@@ -104,8 +104,9 @@ where
 
     let mut f = 10.0;
     while f <= 22_000.0 {
-        let reported = filter.response(0, f).unwrap();
-        let i = round(f * length as f64 / sample_rate as f64) as usize;
+        let i = round(f * length as f64 / sample_rate) as usize;
+        let f_i = i as f64 / length as f64 * sample_rate;
+        let reported = filter.response(0, f_i).unwrap();
         let response = spectrum[i];
         /*
         println!(
@@ -128,19 +129,29 @@ where
 /// Test frequency response system.
 #[test]
 fn test_responses() {
-    test_response(resonator_hz(500.0, 20.0));
-    test_response(butterpass_hz(100.0));
+    test_response(pinkpass());
+    test_response(follow(0.0002));
+    test_response(follow(0.001));
+    test_response(follow(0.01));
+    test_response(dcblock());
+    test_response(dcblock_hz(20.0));
+    test_response(lowpole_hz(1000.0));
+    test_response(split() >> (lowpole_hz(100.0) + lowpole_hz(90.0)));
+    test_response(lowpole_hz(10000.0));
+    test_response(resonator_hz(200.0, 20.0));
+    test_response(resonator_hz(2000.0, 5000.0));
+    test_response(butterpass_hz(30.0));
     test_response(butterpass_hz(1000.0));
     test_response(butterpass_hz(10000.0));
     test_response(butterpass_hz(500.0) & butterpass_hz(5000.0));
     test_response(butterpass_hz(200.0) * 0.5);
-    test_response(butterpass_hz(6000.0) >> butterpass_hz(600.0));
+    test_response(butterpass_hz(6000.0) >> butterpass_hz(60.0));
     test_response(pass() & tick());
     test_response(pass() * 0.25 & tick() * 0.5 & tick() >> tick() * 0.25);
     test_response(tick() & resonator_hz(5000.0, 1000.0));
-    test_response((butterpass_hz(15000.0) ^ butterpass_hz(5000.0)) >> pass() + pass());
+    test_response((butterpass_hz(15000.0) ^ butterpass_hz(5000.0)) >> lowpole_hz(500.0) + pass());
     test_response(
-        (resonator_hz(12000.0, 500.0) ^ butterpass_hz(8000.0)) >> pass() + butterpass_hz(1200.0),
+        (resonator_hz(12000.0, 500.0) ^ butterpass_hz(800.0)) >> pass() + butterpass_hz(1200.0),
     );
     test_response(split() >> multipass::<U32>() >> join());
     test_response(
@@ -150,5 +161,5 @@ fn test_responses() {
             })
             >> join(),
     );
-    test_response(branchf::<U5, _, _>(|t| resonator_hz(xerp(1000.0, 2000.0, t), 100.0)) >> join());
+    test_response(branchf::<U5, _, _>(|t| resonator_hz(xerp(100.0, 20000.0, t), 10.0)) >> join());
 }

@@ -281,38 +281,52 @@ pub fn butterpass_hz<T: Float, F: Real>(
 /// - Output 0: filtered audio
 #[inline]
 pub fn lowpole<T: Float, F: Real>() -> An<OnePoleLowpass<T, F>> {
-    An(OnePoleLowpass::new(convert(DEFAULT_SR)))
+    An(OnePoleLowpass::new(convert(DEFAULT_SR), F::new(440)))
 }
 
 /// One-pole lowpass filter (1st order) with fixed `cutoff` frequency.
 /// - Input 0: audio
 /// - Output 0: filtered audio
+// TODO: should cutoff be T or F?
 #[inline]
 pub fn lowpole_hz<T: Float, F: Real>(
     cutoff: T,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    (pass::<T>() | constant(cutoff)) >> lowpole::<T, F>()
+    (pass::<T>() | constant(cutoff))
+        >> An(OnePoleLowpass::<T, F>::new(
+            convert(DEFAULT_SR),
+            convert(cutoff),
+        ))
 }
 
 /// Constant-gain bandpass resonator.
 /// - Input 0: audio
-/// - Input 1: cutoff frequency (Hz)
+/// - Input 1: center frequency (Hz)
 /// - Input 2: bandwidth (Hz)
 /// - Output 0: filtered audio
 #[inline]
 pub fn resonator<T: Float, F: Real>() -> An<Resonator<T, F>> {
-    An(Resonator::new(convert(DEFAULT_SR)))
+    An(Resonator::new(
+        convert(DEFAULT_SR),
+        F::new(440),
+        F::new(110),
+    ))
 }
 
-/// Constant-gain bandpass resonator with fixed `cutoff` frequency (Hz) and `bandwidth` (Hz).
+/// Constant-gain bandpass resonator with fixed `center` frequency (Hz) and `bandwidth` (Hz).
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
 pub fn resonator_hz<T: Float, F: Real>(
-    cutoff: T,
+    center: T,
     bandwidth: T,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    (pass::<T>() | constant((cutoff, bandwidth))) >> resonator::<T, F>()
+    (pass::<T>() | constant((center, bandwidth)))
+        >> An(Resonator::<T, F>::new(
+            convert(DEFAULT_SR),
+            convert(center),
+            convert(bandwidth),
+        ))
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
@@ -515,7 +529,7 @@ pub fn stereo_limiter<T: Float, S: ScalarOrPair<Sample = f64>>(time: S) -> An<Li
 /// Pinking filter.
 #[inline]
 pub fn pinkpass<T: Float, F: Float>() -> An<PinkFilter<T, F>> {
-    An(PinkFilter::new())
+    An(PinkFilter::new(DEFAULT_SR))
 }
 
 /// Pink noise.

@@ -252,7 +252,7 @@ pub fn butterpass_hz(cutoff: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1
 /// - Output 0: filtered audio
 #[inline]
 pub fn lowpole() -> An<OnePoleLowpass<f64, f64>> {
-    An(OnePoleLowpass::new(DEFAULT_SR))
+    An(OnePoleLowpass::new(DEFAULT_SR, 440.0))
 }
 
 /// One-pole lowpass filter (1st order) with fixed `cutoff` frequency.
@@ -260,7 +260,7 @@ pub fn lowpole() -> An<OnePoleLowpass<f64, f64>> {
 /// - Output 0: filtered audio
 #[inline]
 pub fn lowpole_hz(cutoff: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    (pass() | constant(cutoff)) >> lowpole()
+    (pass() | constant(cutoff)) >> An(OnePoleLowpass::new(DEFAULT_SR, cutoff))
 }
 
 /// Constant-gain bandpass resonator.
@@ -270,7 +270,7 @@ pub fn lowpole_hz(cutoff: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, O
 /// - Output 0: filtered audio
 #[inline]
 pub fn resonator() -> An<Resonator<f64, f64>> {
-    An(Resonator::new(DEFAULT_SR))
+    An(Resonator::new(DEFAULT_SR, 440.0, 110.0))
 }
 
 /// Constant-gain bandpass resonator with fixed `cutoff` frequency (Hz) and `bandwidth` (Hz).
@@ -281,7 +281,7 @@ pub fn resonator_hz(
     cutoff: f64,
     bandwidth: f64,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    (pass() | constant((cutoff, bandwidth))) >> resonator()
+    (pass() | constant((cutoff, bandwidth))) >> An(Resonator::new(DEFAULT_SR, cutoff, bandwidth))
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
@@ -430,7 +430,7 @@ pub fn stereo_limiter<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64,
 /// Pinking filter.
 #[inline]
 pub fn pinkpass() -> An<PinkFilter<f64, f64>> {
-    An(PinkFilter::new())
+    An(PinkFilter::new(DEFAULT_SR))
 }
 
 /// Pink noise.

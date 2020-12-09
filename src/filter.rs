@@ -53,10 +53,10 @@ impl<F: Real> BiquadCoefs<F> {
 
     /// Frequency response at frequency `omega` expressed as fraction of sampling rate.
     pub fn response(&self, omega: f64) -> Complex64 {
-        let e1 = Complex64::from_polar(1.0, -TAU * omega);
-        let e2 = Complex64::from_polar(1.0, -2.0 * TAU * omega);
-        (re(self.b0) + re(self.b1) * e1 + re(self.b2) * e2)
-            / (re(1.0) + re(self.a1) * e1 + re(self.a2) * e2)
+        let z1 = Complex64::from_polar(1.0, -TAU * omega);
+        let z2 = Complex64::from_polar(1.0, -2.0 * TAU * omega);
+        (re(self.b0) + re(self.b1) * z1 + re(self.b2) * z2)
+            / (re(1.0) + re(self.a1) * z1 + re(self.a2) * z2)
     }
 }
 
@@ -199,13 +199,21 @@ pub struct Resonator<T: Float, F: Real> {
 }
 
 impl<T: Float, F: Real> Resonator<T, F> {
-    pub fn new(sample_rate: F) -> Resonator<T, F> {
-        Resonator {
+    pub fn new(sample_rate: f64, center: F, bandwidth: F) -> Resonator<T, F> {
+        let mut node = Resonator {
             biquad: Biquad::new(),
-            sample_rate,
-            center: F::zero(),
-            bandwidth: F::zero(),
-        }
+            sample_rate: F::from_f64(sample_rate),
+            center,
+            bandwidth,
+        };
+        node.set_center_bandwidth(center, bandwidth);
+        node
+    }
+    pub fn set_center_bandwidth(&mut self, center: F, bandwidth: F) {
+        self.biquad
+            .set_coefs(BiquadCoefs::resonator(self.sample_rate, center, bandwidth));
+        self.center = center;
+        self.bandwidth = bandwidth;
     }
 }
 
@@ -219,9 +227,8 @@ impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
         self.biquad.reset(sample_rate);
         if let Some(sr) = sample_rate {
             self.sample_rate = convert(sr);
+            self.set_center_bandwidth(self.center, self.bandwidth);
         }
-        self.center = F::zero();
-        self.bandwidth = F::zero();
     }
 
     #[inline]
@@ -266,14 +273,20 @@ pub struct OnePoleLowpass<T: Float, F: Real> {
 }
 
 impl<T: Float, F: Real> OnePoleLowpass<T, F> {
-    pub fn new(sample_rate: f64) -> Self {
-        OnePoleLowpass {
+    pub fn new(sample_rate: f64, cutoff: F) -> Self {
+        let mut node = OnePoleLowpass {
             _marker: std::marker::PhantomData,
             value: F::zero(),
             coeff: F::zero(),
-            cutoff: F::zero(),
+            cutoff,
             sample_rate: convert(sample_rate),
-        }
+        };
+        node.set_cutoff(cutoff);
+        node
+    }
+    pub fn set_cutoff(&mut self, cutoff: F) {
+        self.cutoff = cutoff;
+        self.coeff = exp(F::from_f64(-TAU) * cutoff / self.sample_rate);
     }
 }
 
@@ -286,7 +299,7 @@ impl<T: Float, F: Real> AudioNode for OnePoleLowpass<T, F> {
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
             self.sample_rate = convert(sample_rate);
-            self.cutoff = F::zero();
+            self.set_cutoff(self.cutoff);
         }
         self.value = F::zero();
     }
@@ -298,12 +311,22 @@ impl<T: Float, F: Real> AudioNode for OnePoleLowpass<T, F> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         let cutoff: F = convert(input[1]);
         if cutoff != self.cutoff {
-            self.cutoff = cutoff;
-            self.coeff = exp(F::from_f64(-TAU) * cutoff / self.sample_rate);
+            self.set_cutoff(cutoff);
         }
         let x = convert(input[0]);
         self.value = (F::one() - self.coeff) * x + self.coeff * self.value;
         [convert(self.value)].into()
+    }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = filter_signal(input[0], 0.0, |r| {
+            let c = self.coeff.to_f64();
+            let f = frequency * TAU / self.sample_rate.to_f64();
+            let z1 = Complex64::from_polar(1.0, -f);
+            r * ((1.0 - c) / (1.0 - c * z1))
+        });
+        output
     }
 }
 
@@ -317,6 +340,7 @@ pub struct DCBlocker<T: Float, F: Real> {
     y1: F,
     cutoff: F,
     coeff: F,
+    sample_rate: F,
 }
 
 impl<T: Float, F: Real> DCBlocker<T, F> {
@@ -336,6 +360,7 @@ impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
+            self.sample_rate = convert(sample_rate);
             self.coeff = F::one() - (F::from_f64(TAU / sample_rate) * self.cutoff);
         }
         self.x1 = F::zero();
@@ -352,6 +377,17 @@ impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
         self.x1 = x;
         self.y1 = y0;
         [convert(y0)].into()
+    }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = filter_signal(input[0], 0.0, |r| {
+            let c = self.coeff.to_f64();
+            let f = frequency * TAU / self.sample_rate.to_f64();
+            let z1 = Complex64::from_polar(1.0, -f);
+            r * ((1.0 - z1) / (1.0 - c * z1))
+        });
+        output
     }
 }
 
@@ -444,6 +480,18 @@ impl<T: Float, F: Real> AudioNode for Follower<T, F> {
         self.v3 = rcoeff * self.v2 + self.coeff * self.v3;
         [convert(self.v3)].into()
     }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = filter_signal(input[0], 0.0, |r| {
+            let c = self.coeff.to_f64();
+            let f = frequency * TAU / self.sample_rate.to_f64();
+            let z1 = Complex64::from_polar(1.0, -f);
+            let pole = (1.0 - c) / (1.0 - c * z1);
+            r * pole * pole * pole
+        });
+        output
+    }
 }
 
 /// Pinking filter.
@@ -458,12 +506,15 @@ pub struct PinkFilter<T: Float, F: Float> {
     b5: F,
     b6: F,
     _marker: std::marker::PhantomData<T>,
+    sample_rate: F,
 }
 
 impl<T: Float, F: Float> PinkFilter<T, F> {
-    /// Create filter. The pinking filter is sample rate independent.
-    pub fn new() -> Self {
-        PinkFilter::default()
+    /// Create pinking filter.
+    pub fn new(sample_rate: f64) -> Self {
+        let mut node = PinkFilter::default();
+        node.sample_rate = convert(sample_rate);
+        node
     }
 }
 
@@ -507,6 +558,23 @@ impl<T: Float, F: Float> AudioNode for PinkFilter<T, F> {
             * F::from_f64(0.115830421);
         self.b6 = x * F::from_f64(0.115926);
         [convert(out)].into()
+    }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = filter_signal(input[0], 0.0, |r| {
+            let f = frequency * TAU / self.sample_rate.to_f64();
+            let z1 = Complex64::from_polar(1.0, -f);
+            let pole0 = 0.0555179 / (1.0 - 0.99886 * z1);
+            let pole1 = 0.0750759 / (1.0 - 0.99332 * z1);
+            let pole2 = 0.1538520 / (1.0 - 0.96900 * z1);
+            let pole3 = 0.3104856 / (1.0 - 0.86650 * z1);
+            let pole4 = 0.5329522 / (1.0 - 0.55000 * z1);
+            let pole5 = -0.016898 / (1.0 + 0.7616 * z1);
+            let pole6 = 0.115926 * z1;
+            r * (pole0 + pole1 + pole2 + pole3 + pole4 + pole5 + pole6 + 0.5362) * 0.115830421
+        });
+        output
     }
 }
 
@@ -594,5 +662,22 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollower<T, 
         self.v2 = self.time.filter_pole(self.v1, self.v2, afactor, rfactor);
         self.v3 = self.time.filter_pole(self.v2, self.v3, afactor, rfactor);
         [convert(self.v3)].into()
+    }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        // The frequency response exists only in symmetric mode, as the asymmetric mode is non-linear.
+        if self.acoeff == self.rcoeff {
+            output[0] = filter_signal(input[0], 0.0, |r| {
+                let c = self.acoeff.to_f64();
+                let f = frequency * TAU / self.sample_rate.to_f64();
+                let z1 = Complex64::from_polar(1.0, -f);
+                let pole = (1.0 - c) / (1.0 - c * z1);
+                r * pole * pole * pole
+            });
+        } else {
+            output[0] = distort_signal(input[0], 0.0);
+        }
+        output
     }
 }
