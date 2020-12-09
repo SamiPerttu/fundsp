@@ -1,5 +1,6 @@
 use super::audionode::*;
 use super::math::*;
+use super::signal::*;
 use super::*;
 use numeric_array::*;
 use std::marker::PhantomData;
@@ -51,5 +52,11 @@ impl<T: Float> AudioNode for SineNode<T> {
     fn set_hash(&mut self, hash: u32) {
         self.hash = hash;
         self.reset(None);
+    }
+
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = distort_signal(input[0], 0.0);
+        output
     }
 }

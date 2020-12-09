@@ -164,11 +164,7 @@ where
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = self.x.propagate(input, frequency);
         for i in 0..N::USIZE {
-            output[i] = match output[i] {
-                Signal::Latency(latency) => Signal::Latency(latency),
-                Signal::Response(_, latency) => Signal::Latency(latency),
-                _ => Signal::Unknown,
-            }
+            output[i] = distort_signal(input[i], 0.0);
         }
         output
     }

@@ -18,7 +18,7 @@ pub enum Signal {
 /// To avoid generics, we use fixed size arrays here.
 pub type SignalFrame = [Signal; 128];
 
-/// Create a new signal frame with all outputs marked unknown.
+/// Create a new signal frame with all channels marked unknown.
 pub fn new_signal_frame() -> SignalFrame {
     [Signal::Unknown; 128]
 }
@@ -43,8 +43,29 @@ pub fn filter_signal(
     }
 }
 
-/// Combine signals with given extra latency in samples and value and response processing as functions.
-/// Constant signals and responses are not combined.
+/// Apply non-linear filtering to signal with extra `latency`.
+/// Non-linear filtering erases constant values and frequency responses but maintains latency.
+pub fn distort_signal(signal: Signal, latency: f64) -> Signal {
+    match signal {
+        Signal::Latency(l) => Signal::Latency(l + latency),
+        Signal::Response(_, l) => Signal::Latency(l + latency),
+        _ => Signal::Unknown,
+    }
+}
+
+/// Combine signals nonlinearly. Non-linearity erases constant values and frequency responses but maintains latency.
+pub fn nonlinear_combine(x: Signal, y: Signal, latency: f64) -> Signal {
+    combine_signals(
+        distort_signal(x, 0.0),
+        distort_signal(y, 0.0),
+        latency,
+        |x, y| x + y,
+        |x, y| x + y,
+    )
+}
+
+/// Combine signals with extra `latency` in samples and `value` and `response` processing as functions.
+/// Constant signals and responses are not combined together.
 pub fn combine_signals(
     x: Signal,
     y: Signal,

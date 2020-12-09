@@ -239,6 +239,17 @@ impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
         }
         self.biquad.tick(&[input[0]].into())
     }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = filter_signal(input[0], 0.0, |r| {
+            r * self
+                .biquad
+                .coefs()
+                .response(frequency / self.sample_rate.to_f64())
+        });
+        output
+    }
 }
 
 /// One-pole lowpass filter.

@@ -10,8 +10,10 @@ use super::feedback::*;
 use super::filter::*;
 use super::noise::*;
 use super::oscillator::*;
+use super::signal::*;
 use super::svf::*;
 use super::wavetable::*;
+use num_complex::Complex64;
 
 // Combinator environment.
 // We like to define all kinds of useful functions here.
@@ -209,7 +211,6 @@ where
     X::Size: Size<X::Sample> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<X::Sample>,
 {
-    // TODO: Should we use MapNode in these?
     An(PassNode::<X::Sample, X::Size>::new()) + dc(x)
 }
 
@@ -418,7 +419,7 @@ where
     An(FeedbackNode::new(x.0, FrameId::new()))
 }
 
-/// Transform channels freely.
+/// Transform channels freely. Accounted as non-linear processing for signal flow.
 ///
 /// # Example
 /// ```
@@ -427,14 +428,30 @@ where
 /// ```
 // TODO: ConstantFrame (?) based version for prelude.
 #[inline]
-pub fn map<T, M, I, O>(f: M) -> MapNode<T, M, I, O>
+pub fn map<T, M, I, O>(f: M) -> An<impl AudioNode<Sample = T, Inputs = I, Outputs = O>>
 where
     T: Float,
     M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
     I: Size<T>,
     O: Size<T>,
 {
-    MapNode::new(f)
+    An(MapNode::new(f, |input, _| {
+        let mut output = new_signal_frame();
+        for j in 0..O::USIZE {
+            if j == 0 {
+                for i in 0..I::USIZE {
+                    if i == 0 {
+                        output[0] = distort_signal(input[0], 0.0);
+                    } else {
+                        output[0] = nonlinear_combine(output[0], input[i], 0.0);
+                    }
+                }
+            } else {
+                output[j] = output[0];
+            }
+        }
+        output
+    }))
 }
 
 /// Keeps a signal zero centered.
@@ -466,9 +483,15 @@ pub fn declick_s<T: Float, F: Real>(t: F) -> An<Declicker<T, F>> {
 pub fn shape<T: Float, S: Fn(T) -> T + Clone>(
     f: S,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    An(MapNode::new(move |input: &Frame<T, U1>| {
-        [f(input[0])].into()
-    }))
+    An(MapNode::new(
+        move |input: &Frame<T, U1>| [f(input[0])].into(),
+        |input, _| {
+            // Assume non-linear waveshaping.
+            let mut output = new_signal_frame();
+            output[0] = distort_signal(input[0], 0.0);
+            output
+        },
+    ))
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.
@@ -608,7 +631,38 @@ where
     N: Size<T>,
     U1: Size<T>,
 {
-    An(MapNode::new(|x| Frame::splat(x[0])))
+    An(MapNode::new(
+        |x| Frame::splat(x[0]),
+        |input, _| {
+            let mut output = new_signal_frame();
+            for i in 0..N::USIZE {
+                output[i] = input[0];
+            }
+            output
+        },
+    ))
+}
+
+/// Splits M channels into N branches. The output has M * N channels.
+#[inline]
+pub fn multisplit<T, M, N>(
+) -> An<impl AudioNode<Sample = T, Inputs = M, Outputs = numeric_array::typenum::Prod<M, N>>>
+where
+    T: Float,
+    M: Size<T> + Mul<N>,
+    N: Size<T>,
+    <M as Mul<N>>::Output: Size<T>,
+{
+    An(MapNode::new(
+        |x| Frame::generate(|i| x[i % M::USIZE]),
+        |input, _| {
+            let mut output = new_signal_frame();
+            for i in 0..M::USIZE * N::USIZE {
+                output[i] = input[i % M::USIZE];
+            }
+            output
+        },
+    ))
 }
 
 /// Average N channels into one. Inverse of `split`.
@@ -619,9 +673,70 @@ where
     N: Size<T>,
     U1: Size<T>,
 {
-    An(MapNode::new(|x| {
-        [x.iter().fold(T::zero(), |acc, &x| acc + x) / T::new(N::I64)].into()
-    }))
+    An(MapNode::new(
+        |x| [x.iter().fold(T::zero(), |acc, &x| acc + x) / T::new(N::I64)].into(),
+        |input, _| {
+            let mut output = new_signal_frame();
+            if N::USIZE > 0 {
+                output[0] = input[0];
+            }
+            for i in 1..N::USIZE {
+                output[0] = combine_signals(output[0], input[i], 0.0, |x, y| x + y, |x, y| x + y);
+            }
+            if N::USIZE > 1 {
+                output[0] = filter_signal(output[0], 0.0, |x| {
+                    x * Complex64::new(1.0 / N::USIZE as f64, 0.0)
+                });
+            }
+            output
+        },
+    ))
+}
+
+/// Average N branches of M channels into one branch with M channels. The input has M * N channels. Inverse of `multisplit`.
+#[inline]
+pub fn multijoin<T, M, N>(
+) -> An<impl AudioNode<Sample = T, Inputs = numeric_array::typenum::Prod<M, N>, Outputs = M>>
+where
+    T: Float,
+    M: Size<T> + Mul<N>,
+    N: Size<T>,
+    <M as Mul<N>>::Output: Size<T>,
+{
+    An(MapNode::new(
+        |x| {
+            Frame::generate(|j| {
+                let mut output = x[j];
+                for i in 1..N::USIZE {
+                    output = output + x[j + i * M::USIZE];
+                }
+                output / T::new(N::I64)
+            })
+        },
+        |input, _| {
+            let mut output = new_signal_frame();
+            for j in 0..M::USIZE {
+                if N::USIZE > 0 {
+                    output[j] = input[j];
+                }
+                for i in 1..N::USIZE {
+                    output[j] = combine_signals(
+                        output[j],
+                        input[j + i * M::USIZE],
+                        0.0,
+                        |x, y| x + y,
+                        |x, y| x + y,
+                    );
+                }
+                if N::USIZE > 1 {
+                    output[j] = filter_signal(output[j], 0.0, |x| {
+                        x * Complex64::new(1.0 / N::USIZE as f64, 0.0)
+                    });
+                }
+            }
+            output
+        },
+    ))
 }
 
 /// Saw wave oscillator.

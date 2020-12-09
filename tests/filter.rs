@@ -107,7 +107,7 @@ where
         let reported = filter.response(0, f).unwrap();
         let i = round(f * length as f64 / sample_rate as f64) as usize;
         let response = spectrum[i];
-        /*
+
         println!(
             "{} Hz reported {} actual {} matches {}",
             f,
@@ -115,7 +115,7 @@ where
             response.norm(),
             is_equal_response(reported, response)
         );
-        */
+
         assert!(is_equal_response(reported, response));
         if f < 1000.0 {
             f += 10.0;
@@ -128,6 +128,7 @@ where
 /// Test frequency response system.
 #[test]
 fn test_responses() {
+    test_response(resonator_hz(500.0, 20.0));
     test_response(butterpass_hz(100.0));
     test_response(butterpass_hz(1000.0));
     test_response(butterpass_hz(10000.0));
@@ -135,11 +136,19 @@ fn test_responses() {
     test_response(butterpass_hz(200.0) * 0.5);
     test_response(butterpass_hz(6000.0) >> butterpass_hz(600.0));
     test_response(pass() & tick());
-    test_response(pass() * 0.25 & tick() * 0.5);
     test_response(pass() * 0.25 & tick() * 0.5 & tick() >> tick() * 0.25);
-    test_response(tick() & butterpass_hz(20000.0));
+    test_response(tick() & resonator_hz(5000.0, 1000.0));
     test_response((butterpass_hz(15000.0) ^ butterpass_hz(5000.0)) >> pass() + pass());
     test_response(
-        (butterpass_hz(12000.0) ^ butterpass_hz(8000.0)) >> pass() + butterpass_hz(1200.0),
+        (resonator_hz(12000.0, 500.0) ^ butterpass_hz(8000.0)) >> pass() + butterpass_hz(1200.0),
     );
+    test_response(split() >> multipass::<U32>() >> join());
+    test_response(
+        split()
+            >> stacki::<U8, _, _>(|i| {
+                resonator_hz(1000.0 + 1000.0 * i as f64, 100.0 + 100.0 * i as f64)
+            })
+            >> join(),
+    );
+    test_response(branchf::<U5, _, _>(|t| resonator_hz(xerp(1000.0, 2000.0, t), 100.0)) >> join());
 }

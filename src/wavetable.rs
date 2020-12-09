@@ -1,5 +1,6 @@
 use super::audionode::*;
 use super::math::*;
+use super::signal::*;
 use super::*;
 use num_complex::Complex32;
 use rustfft::algorithm::Radix4;
@@ -248,6 +249,14 @@ where
             }
         })
     }
+
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        for i in 0..N::USIZE {
+            output[i] = distort_signal(input[0], 0.0);
+        }
+        output
+    }
 }
 
 /// Bandlimited wavetable synthesizer with `N` outputs (1 or 2) driven by a phase input.
@@ -334,6 +343,14 @@ where
                 convert(phase)
             }
         })
+    }
+
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        for i in 0..N::USIZE {
+            output[i] = distort_signal(input[0], 0.0);
+        }
+        output
     }
 }
 

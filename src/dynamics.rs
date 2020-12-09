@@ -212,13 +212,7 @@ where
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
         for i in 0..N::USIZE {
-            output[i] = match input[i] {
-                Signal::Latency(latency) => Signal::Latency(latency + self.reducer.length() as f64),
-                Signal::Response(_, latency) => {
-                    Signal::Latency(latency + self.reducer.length() as f64)
-                }
-                _ => Signal::Unknown,
-            }
+            output[i] = distort_signal(input[i], self.reducer.length() as f64);
         }
         output
     }
@@ -278,6 +272,7 @@ impl<T: Float, F: Real> AudioNode for GoertzelNode<T, F> {
         self.filter.reset();
         if let Some(sample_rate) = sample_rate {
             self.sample_rate = F::from_f64(sample_rate);
+            // TODO: Remain in a valid state?
             self.frequency = F::zero();
         }
     }
@@ -293,6 +288,12 @@ impl<T: Float, F: Real> AudioNode for GoertzelNode<T, F> {
         }
         self.filter.tick(convert(input[0]));
         [convert(self.filter.power())].into()
+    }
+
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = nonlinear_combine(input[0], input[1], 0.0);
+        output
     }
 }
 
@@ -343,5 +344,11 @@ impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
         } else {
             [input[0]].into()
         }
+    }
+
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = distort_signal(input[0], 0.0);
+        output
     }
 }

@@ -406,9 +406,7 @@ pub fn declick_s(t: f64) -> An<Declicker<f64, f64>> {
 pub fn shape<S: Fn(f64) -> f64 + Clone>(
     f: S,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    An(MapNode::new(move |input: &Frame<f64, U1>| {
-        [f(input[0])].into()
-    }))
+    super::prelude::shape::<f64, S>(f)
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.
@@ -570,7 +568,7 @@ pub fn split<N>() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = N>>
 where
     N: Size<f64>,
 {
-    An(MapNode::new(|x| Frame::splat(x[0])))
+    super::prelude::split::<f64, N>()
 }
 
 /// Splits M channels into N branches. The output has M * N channels.
@@ -582,7 +580,7 @@ where
     N: Size<f64>,
     <M as Mul<N>>::Output: Size<f64>,
 {
-    An(MapNode::new(|x| Frame::generate(|i| x[i % M::USIZE])))
+    super::prelude::multisplit::<f64, M, N>()
 }
 
 /// Average N channels into one. Inverse of `split`.
@@ -592,9 +590,7 @@ where
     N: Size<f64>,
     U1: Size<f64>,
 {
-    An(MapNode::new(|x| {
-        [x.iter().fold(0.0, |acc, &x| acc + x) / N::USIZE as f64].into()
-    }))
+    super::prelude::join::<f64, N>()
 }
 
 /// Average N branches of M channels into one branch with M channels. The input has M * N channels. Inverse of `multisplit`.
@@ -606,15 +602,7 @@ where
     N: Size<f64>,
     <M as Mul<N>>::Output: Size<f64>,
 {
-    An(MapNode::new(|x| {
-        Frame::generate(|i| {
-            let mut output = x[i];
-            for j in 1..N::USIZE {
-                output += x[i + j * M::USIZE];
-            }
-            output / N::USIZE as f64
-        })
-    }))
+    super::prelude::multijoin::<f64, M, N>()
 }
 
 /// Stacks `n` nodes from an indexed generator.

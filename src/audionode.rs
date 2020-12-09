@@ -60,6 +60,8 @@ pub trait AudioNode: Clone {
 
     // End of interface. There is no need to override the following.
 
+    /// Evaluate frequency response at `output`. Any linear response can be composed.
+    /// Return `None` if there is no response or it could not be calculated.
     fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
         assert!(output < Self::Outputs::USIZE);
         let mut input = new_signal_frame();
@@ -82,6 +84,7 @@ pub trait AudioNode: Clone {
         for i in 0..Self::Inputs::USIZE {
             input[i] = Signal::Latency(0.0);
         }
+        // The frequency argument can be anything as there are no responses to propagate, only latencies.
         let response = self.propagate(&input, 1.0);
         match response[output] {
             Signal::Latency(latency) => Some(latency),
@@ -502,31 +505,35 @@ where
 }
 
 #[derive(Clone)]
-pub struct MapNode<T, M, I, O> {
+pub struct MapNode<T, M, P, I, O> {
     f: M,
+    propagate: P,
     _marker: PhantomData<(T, I, O)>,
 }
 
 /// Map any number of channels.
-impl<T, M, I, O> MapNode<T, M, I, O>
+impl<T, M, P, I, O> MapNode<T, M, P, I, O>
 where
     T: Float,
     M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
+    P: Clone + Fn(&SignalFrame, f64) -> SignalFrame,
     I: Size<T>,
     O: Size<T>,
 {
-    pub fn new(f: M) -> Self {
+    pub fn new(f: M, propagate: P) -> Self {
         Self {
             f,
+            propagate,
             _marker: PhantomData,
         }
     }
 }
 
-impl<T, M, I, O> AudioNode for MapNode<T, M, I, O>
+impl<T, M, P, I, O> AudioNode for MapNode<T, M, P, I, O>
 where
     T: Float,
     M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
+    P: Clone + Fn(&SignalFrame, f64) -> SignalFrame,
     I: Size<T>,
     O: Size<T>,
 {
@@ -541,6 +548,10 @@ where
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         (self.f)(input)
+    }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        (self.propagate)(input, frequency)
     }
 }
 
@@ -1116,7 +1127,21 @@ where
         hash
     }
 
-    // TODO: propagate().
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        if self.x.is_empty() {
+            return new_signal_frame();
+        }
+        let mut output = self.x[0].propagate(input, frequency);
+        for i in 1..N::USIZE {
+            let output_i = self.x[i].propagate(
+                &copy_signal_frame(input, i * X::Inputs::USIZE, X::Inputs::USIZE),
+                frequency,
+            );
+            output[i * X::Outputs::USIZE..(i + 1) * X::Outputs::USIZE]
+                .copy_from_slice(&output_i[0..X::Outputs::USIZE]);
+        }
+        output
+    }
 }
 
 /// Combine outputs of a bunch of similar nodes with a binary operation.
@@ -1190,7 +1215,11 @@ where
         for (i, node) in self.x.iter_mut().enumerate() {
             let node_input = &input[i * X::Inputs::USIZE..(i + 1) * X::Inputs::USIZE];
             let node_output = node.tick(node_input.into());
-            output = B::binop(&output, &node_output);
+            if i > 0 {
+                output = B::binop(&output, &node_output);
+            } else {
+                output = node_output;
+            }
         }
         output
     }
@@ -1203,7 +1232,22 @@ where
         hash
     }
 
-    // TODO: propagate().
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        if self.x.is_empty() {
+            return new_signal_frame();
+        }
+        let mut output = self.x[0].propagate(input, frequency);
+        for j in 1..self.x.len() {
+            let output_j = self.x[j].propagate(
+                &copy_signal_frame(input, j * X::Inputs::USIZE, X::Inputs::USIZE),
+                frequency,
+            );
+            for i in 0..Self::Outputs::USIZE {
+                output[i] = B::propagate(output[i], output_j[i]);
+            }
+        }
+        output
+    }
 }
 
 /// Branch into a bunch of similar nodes in parallel.
@@ -1283,5 +1327,16 @@ where
         hash
     }
 
-    // TODO: propagate().
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        if self.x.is_empty() {
+            return new_signal_frame();
+        }
+        let mut output = self.x[0].propagate(input, frequency);
+        for i in 1..N::USIZE {
+            let output_i = self.x[i].propagate(input, frequency);
+            output[i * X::Outputs::USIZE..(i + 1) * X::Outputs::USIZE]
+                .copy_from_slice(&output_i[0..X::Outputs::USIZE]);
+        }
+        output
+    }
 }
