@@ -751,7 +751,16 @@ pub fn lowpass() -> An<Svf<f64, f64, LowpassMode<f64>>> {
 /// - Output 0: filtered audio
 #[inline]
 pub fn lowpass_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    (pass() | dc((f, q))) >> lowpass()
+    (pass() | dc((f, q)))
+        >> An(Svf::new(
+            LowpassMode::default(),
+            &SvfParams {
+                sample_rate: DEFAULT_SR,
+                cutoff: f,
+                q,
+                gain: 1.0,
+            },
+        ))
 }
 
 /// Lowpass filter with Q value `q`.
@@ -760,7 +769,16 @@ pub fn lowpass_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1
 /// - Output 0: filtered audio
 #[inline]
 pub fn lowpass_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
-    (pass() | pass() | dc(q)) >> lowpass()
+    (pass() | pass() | dc(q))
+        >> An(Svf::new(
+            LowpassMode::default(),
+            &SvfParams {
+                sample_rate: DEFAULT_SR,
+                cutoff: 440.0,
+                q,
+                gain: 1.0,
+            },
+        ))
 }
 
 /// Highpass filter.

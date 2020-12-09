@@ -1,6 +1,8 @@
 use super::audionode::*;
 use super::math::*;
+use super::signal::*;
 use super::*;
+use num_complex::Complex64;
 use numeric_array::typenum::*;
 use std::marker::PhantomData;
 
@@ -253,6 +255,9 @@ pub trait SvfMode<F: Real>: Clone + Default {
         _coeffs: &mut SvfCoeffs<F>,
     ) {
     }
+
+    /// Response function.
+    fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64;
 }
 
 #[derive(Clone, Default)]
@@ -399,6 +404,14 @@ where
         )]
         .into()
     }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        output[0] = filter_signal(input[0], 0.0, |r| {
+            r * self.mode.response(&self.params, frequency)
+        });
+        output
+    }
 }
 
 /// Lowpass filter with cutoff and Q inputs.
@@ -435,6 +448,15 @@ impl<F: Real> SvfMode<F> for LowpassMode<F> {
             params.q = q;
             self.update(&params, coeffs);
         }
+    }
+
+    fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
+        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let k = 1.0 / params.q.to_f64();
+        let f = frequency * TAU / params.sample_rate.to_f64();
+        let z = Complex64::from_polar(1.0, f);
+        (g * g * (1.0 + z) * (1.0 + z))
+            / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
     }
 }
 
@@ -473,6 +495,15 @@ impl<F: Real> SvfMode<F> for HighpassMode<F> {
             self.update(&params, coeffs);
         }
     }
+
+    fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
+        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let k = 1.0 / params.q.to_f64();
+        let f = frequency * TAU / params.sample_rate.to_f64();
+        let z = Complex64::from_polar(1.0, f);
+        ((z - 1.0) * (z - 1.0))
+            / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
+    }
 }
 
 /// Bandpass filter with center and Q inputs.
@@ -509,6 +540,15 @@ impl<F: Real> SvfMode<F> for BandpassMode<F> {
             params.q = q;
             self.update(&params, coeffs);
         }
+    }
+
+    fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
+        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let k = 1.0 / params.q.to_f64();
+        let f = frequency * TAU / params.sample_rate.to_f64();
+        let z = Complex64::from_polar(1.0, f);
+        (g * (z * z - 1.0))
+            / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
     }
 }
 
@@ -547,6 +587,15 @@ impl<F: Real> SvfMode<F> for NotchMode<F> {
             self.update(&params, coeffs);
         }
     }
+
+    fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
+        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let k = 1.0 / params.q.to_f64();
+        let f = frequency * TAU / params.sample_rate.to_f64();
+        let z = Complex64::from_polar(1.0, f);
+        ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z))
+            / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
+    }
 }
 
 /// Peak filter with center and Q inputs.
@@ -584,6 +633,16 @@ impl<F: Real> SvfMode<F> for PeakMode<F> {
             self.update(&params, coeffs);
         }
     }
+
+    fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
+        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let k = 1.0 / params.q.to_f64();
+        let f = frequency * TAU / params.sample_rate.to_f64();
+        let z = Complex64::from_polar(1.0, f);
+        // Note: this is the negation of the transfer function reported in the derivation.
+        -((1.0 + g + (g - 1.0) * z) * (-1.0 + g + z + g * z))
+            / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
+    }
 }
 
 /// Allpass filter with center and Q inputs.
@@ -620,6 +679,15 @@ impl<F: Real> SvfMode<F> for AllpassMode<F> {
             params.q = q;
             self.update(&params, coeffs);
         }
+    }
+
+    fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
+        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let k = 1.0 / params.q.to_f64();
+        let f = frequency * TAU / params.sample_rate.to_f64();
+        let z = Complex64::from_polar(1.0, f);
+        ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * (k - k * z * z))
+            / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
     }
 }
 
@@ -661,6 +729,11 @@ impl<F: Real> SvfMode<F> for BellMode<F> {
             self.update(&params, coeffs);
         }
     }
+
+    fn response(&self, _params: &SvfParams<F>, _frequency: f64) -> Complex64 {
+        // TODO.
+        Complex64::new(1.0, 0.0)
+    }
 }
 
 /// Low shelf filter with center, Q and gain inputs.
@@ -701,6 +774,11 @@ impl<F: Real> SvfMode<F> for LowshelfMode<F> {
             self.update(&params, coeffs);
         }
     }
+
+    fn response(&self, _params: &SvfParams<F>, _frequency: f64) -> Complex64 {
+        // TODO.
+        Complex64::new(1.0, 0.0)
+    }
 }
 
 /// High shelf filter with center, Q and gain inputs.
@@ -740,5 +818,10 @@ impl<F: Real> SvfMode<F> for HighshelfMode<F> {
             params.gain = gain;
             self.update(&params, coeffs);
         }
+    }
+
+    fn response(&self, _params: &SvfParams<F>, _frequency: f64) -> Complex64 {
+        // TODO.
+        Complex64::new(1.0, 0.0)
     }
 }

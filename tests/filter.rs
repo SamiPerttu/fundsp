@@ -75,7 +75,10 @@ fn is_equal_response(x: Complex64, y: Complex64) -> bool {
     let y_phase = y.arg();
     x_norm / amp_tolerance - abs_tolerance <= y_norm
         && x_norm * amp_tolerance + abs_tolerance >= y_norm
-        && x_phase - phase_tolerance <= y_phase
+        && min(
+            abs(x_phase - y_phase),
+            min(abs(x_phase - y_phase + TAU), abs(x_phase - y_phase - TAU)),
+        ) <= phase_tolerance
         && x_phase + phase_tolerance >= y_phase
 }
 
@@ -83,7 +86,7 @@ fn test_response<X>(mut filter: An<X>)
 where
     X: AudioNode<Sample = f64, Inputs = U1, Outputs = U1>,
 {
-    let length = 0x8000;
+    let length = 0x10000;
     let sample_rate = 44_100.0;
 
     filter.reset(Some(sample_rate));
@@ -110,10 +113,10 @@ where
         let response = spectrum[i];
         /*
         println!(
-            "{} Hz reported {} actual {} matches {}",
+            "{} Hz reported ({}, {}) actual ({}, {}) matches {}",
             f,
-            reported.norm(),
-            response.norm(),
+            reported.norm(), reported.arg(),
+            response.norm(), response.arg(),
             is_equal_response(reported, response)
         );
         */
@@ -124,17 +127,25 @@ where
             f += 100.0;
         }
     }
+    //assert!(false);
 }
 
 /// Test frequency response system.
 #[test]
 fn test_responses() {
+    test_response(peak_hz(5000.0, 1.0));
+    test_response(allpass_hz(500.0, 5.0));
+    test_response(notch_hz(1000.0, 1.0));
+    test_response(lowpass_hz(20.0, 1.0));
+    test_response(highpass_hz(5000.0, 1.0));
+    test_response(bandpass_hz(100.0, 1.0));
+    test_response(lowpass_hz(500.0, 3.0));
+    test_response(highpass_hz(500.0, 1.0) & bandpass_hz(500.0, 2.0));
     test_response(pinkpass());
     test_response(follow(0.0002));
-    test_response(follow(0.001));
     test_response(follow(0.01));
     test_response(dcblock());
-    test_response(dcblock_hz(20.0));
+    test_response(dcblock_hz(20.0) & follow(0.001));
     test_response(lowpole_hz(1000.0));
     test_response(split() >> (lowpole_hz(100.0) + lowpole_hz(90.0)));
     test_response(lowpole_hz(10000.0));
@@ -142,14 +153,14 @@ fn test_responses() {
     test_response(resonator_hz(2000.0, 5000.0));
     test_response(butterpass_hz(30.0));
     test_response(butterpass_hz(1000.0));
-    test_response(butterpass_hz(10000.0));
     test_response(butterpass_hz(500.0) & butterpass_hz(5000.0));
-    test_response(butterpass_hz(200.0) * 0.5);
     test_response(butterpass_hz(6000.0) >> butterpass_hz(60.0));
     test_response(pass() & tick());
     test_response(pass() * 0.25 & tick() * 0.5 & tick() >> tick() * 0.25);
     test_response(tick() & resonator_hz(5000.0, 1000.0));
-    test_response((butterpass_hz(15000.0) ^ butterpass_hz(5000.0)) >> lowpole_hz(500.0) + pass());
+    test_response(
+        (butterpass_hz(15000.0) ^ allpass_hz(10000.0, 10.0)) >> lowpole_hz(500.0) + pass(),
+    );
     test_response(
         (resonator_hz(12000.0, 500.0) ^ butterpass_hz(800.0)) >> pass() + butterpass_hz(1200.0),
     );
