@@ -14,6 +14,22 @@ pub enum Signal {
     Response(Complex64, f64),
 }
 
+/// Some components support different modes for signal flow analysis.
+#[derive(Copy, Clone)]
+pub enum AnalysisMode {
+    /// The component presents itself as a constant.
+    Constant,
+    /// The component presents itself as a bypass.
+    Bypass,
+    /// The component is a filter.
+    Filter,
+}
+impl Default for AnalysisMode {
+    fn default() -> Self {
+        AnalysisMode::Filter
+    }
+}
+
 /// Frame of input or output signals.
 /// To avoid generics, we use fixed size arrays here.
 pub type SignalFrame = [Signal; 128];

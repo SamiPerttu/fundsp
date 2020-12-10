@@ -416,6 +416,7 @@ pub struct Follower<T: Float, F: Real> {
     response_time: F,
     sample_rate: F,
     _marker: std::marker::PhantomData<T>,
+    analysis_mode: AnalysisMode,
 }
 
 impl<T: Float, F: Real> Follower<T, F> {
@@ -424,6 +425,27 @@ impl<T: Float, F: Real> Follower<T, F> {
     pub fn new(sample_rate: f64, response_time: F) -> Self {
         let mut node = Follower::default();
         node.response_time = response_time;
+        node.analysis_mode = AnalysisMode::Filter;
+        node.reset(Some(sample_rate));
+        node
+    }
+
+    /// Create new smoothing filter that presents itself as a constant for frequency response analysis purposes.
+    /// Response time is how long it takes for the follower to reach halfway to the new value.
+    pub fn new_constant(sample_rate: f64, response_time: F) -> Self {
+        let mut node = Follower::default();
+        node.response_time = response_time;
+        node.analysis_mode = AnalysisMode::Constant;
+        node.reset(Some(sample_rate));
+        node
+    }
+
+    /// Create new smoothing filter that presents itself as a bypass for frequency response analysis purposes.
+    /// Response time is how long it takes for the follower to reach halfway to the new value.
+    pub fn new_bypass(sample_rate: f64, response_time: F) -> Self {
+        let mut node = Follower::default();
+        node.response_time = response_time;
+        node.analysis_mode = AnalysisMode::Bypass;
         node.reset(Some(sample_rate));
         node
     }
@@ -483,13 +505,159 @@ impl<T: Float, F: Real> AudioNode for Follower<T, F> {
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
-        output[0] = filter_signal(input[0], 0.0, |r| {
-            let c = self.coeff.to_f64();
-            let f = frequency * TAU / self.sample_rate.to_f64();
-            let z1 = Complex64::from_polar(1.0, -f);
-            let pole = (1.0 - c) / (1.0 - c * z1);
-            r * pole * pole * pole
-        });
+        match self.analysis_mode {
+            AnalysisMode::Constant => {
+                output[0] = Signal::Value(convert(self.v3));
+            }
+            AnalysisMode::Bypass => {
+                output[0] = input[0];
+            }
+            AnalysisMode::Filter => {
+                output[0] = filter_signal(input[0], 0.0, |r| {
+                    let c = self.coeff.to_f64();
+                    let f = frequency * TAU / self.sample_rate.to_f64();
+                    let z1 = Complex64::from_polar(1.0, -f);
+                    let pole = (1.0 - c) / (1.0 - c * z1);
+                    r * pole * pole * pole
+                });
+            }
+        }
+        output
+    }
+}
+
+/// Smoothing filter with adjustable edge response times for attack and release.
+#[derive(Clone, Default)]
+pub struct AFollower<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
+    v3: F,
+    v2: F,
+    v1: F,
+    acoeff: F,
+    rcoeff: F,
+    /// Response times.
+    time: S,
+    sample_rate: F,
+    _marker: std::marker::PhantomData<T>,
+    analysis_mode: AnalysisMode,
+}
+
+impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollower<T, F, S> {
+    /// Create new smoothing filter.
+    /// Response time is how long it takes for the follower to reach halfway to the new value.
+    pub fn new(sample_rate: f64, time: S) -> Self {
+        let mut node = AFollower::default();
+        node.time = time;
+        node.analysis_mode = AnalysisMode::Filter;
+        node.reset(Some(sample_rate));
+        node
+    }
+
+    /// Create new smoothing filter that presents itself as a constant for frequency response analysis purposes.
+    /// Response time is how long it takes for the follower to reach halfway to the new value.
+    pub fn new_constant(sample_rate: f64, time: S) -> Self {
+        let mut node = AFollower::default();
+        node.time = time;
+        node.analysis_mode = AnalysisMode::Constant;
+        node.reset(Some(sample_rate));
+        node
+    }
+
+    /// Create new smoothing filter that presents itself as a bypass for frequency response analysis purposes.
+    /// Response time is how long it takes for the follower to reach halfway to the new value.
+    pub fn new_bypass(sample_rate: f64, time: S) -> Self {
+        let mut node = AFollower::default();
+        node.time = time;
+        node.analysis_mode = AnalysisMode::Bypass;
+        node.reset(Some(sample_rate));
+        node
+    }
+
+    /// Attack time in seconds.
+    pub fn attack_time(&self) -> F {
+        self.time.broadcast().0
+    }
+
+    /// Release time in seconds.
+    pub fn release_time(&self) -> F {
+        self.time.broadcast().1
+    }
+
+    /// Set attack/release time in seconds.
+    pub fn set_time(&mut self, time: S) {
+        self.time = time;
+        self.acoeff = halfway_coeff(self.attack_time() * self.sample_rate);
+        self.rcoeff = halfway_coeff(self.release_time() * self.sample_rate);
+    }
+
+    /// Current response.
+    pub fn value(&self) -> F {
+        self.v3
+    }
+
+    /// Jump to `x` immediately.
+    pub fn set_value(&mut self, x: F) {
+        self.v3 = x;
+        self.v2 = x;
+        self.v1 = x;
+    }
+}
+
+impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollower<T, F, S> {
+    const ID: u64 = 29;
+    type Sample = T;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.v3 = F::zero();
+        self.v2 = F::zero();
+        self.v1 = F::zero();
+        if let Some(sample_rate) = sample_rate {
+            self.sample_rate = F::from_f64(sample_rate);
+            // Recalculate coefficients.
+            self.set_time(self.time.clone());
+        }
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        // Three 1-pole filters in series.
+        let afactor = F::one() - self.acoeff;
+        let rfactor = F::one() - self.rcoeff;
+        let v0: F = convert(input[0]);
+        self.v1 = self.time.filter_pole(v0, self.v1, afactor, rfactor);
+        self.v2 = self.time.filter_pole(self.v1, self.v2, afactor, rfactor);
+        self.v3 = self.time.filter_pole(self.v2, self.v3, afactor, rfactor);
+        [convert(self.v3)].into()
+    }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame();
+        match self.analysis_mode {
+            AnalysisMode::Constant => {
+                output[0] = Signal::Value(convert(self.v3));
+            }
+            AnalysisMode::Bypass => {
+                output[0] = input[0];
+            }
+            AnalysisMode::Filter => {
+                // The frequency response exists only in symmetric mode, as the asymmetric mode is non-linear.
+                if self.acoeff == self.rcoeff {
+                    output[0] = filter_signal(input[0], 0.0, |r| {
+                        let c = self.acoeff.to_f64();
+                        let f = frequency * TAU / self.sample_rate.to_f64();
+                        let z1 = Complex64::from_polar(1.0, -f);
+                        let pole = (1.0 - c) / (1.0 - c * z1);
+                        r * pole * pole * pole
+                    });
+                } else {
+                    output[0] = distort_signal(input[0], 0.0);
+                }
+            }
+        }
         output
     }
 }
@@ -571,113 +739,9 @@ impl<T: Float, F: Float> AudioNode for PinkFilter<T, F> {
             let pole3 = 0.3104856 / (1.0 - 0.86650 * z1);
             let pole4 = 0.5329522 / (1.0 - 0.55000 * z1);
             let pole5 = -0.016898 / (1.0 + 0.7616 * z1);
-            let pole6 = 0.115926 * z1;
-            r * (pole0 + pole1 + pole2 + pole3 + pole4 + pole5 + pole6 + 0.5362) * 0.115830421
+            r * (pole0 + pole1 + pole2 + pole3 + pole4 + pole5 + 0.115926 * z1 + 0.5362)
+                * 0.115830421
         });
-        output
-    }
-}
-
-/// Smoothing filter with adjustable edge response times for attack and release.
-#[derive(Default, Clone)]
-pub struct AFollower<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
-    v3: F,
-    v2: F,
-    v1: F,
-    acoeff: F,
-    rcoeff: F,
-    /// Response times.
-    time: S,
-    sample_rate: F,
-    _marker: std::marker::PhantomData<T>,
-}
-
-impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollower<T, F, S> {
-    /// Create new smoothing filter.
-    /// Response time is how long it takes for the follower to reach halfway to the new value.
-    pub fn new(sample_rate: f64, time: S) -> Self {
-        let mut node = AFollower::default();
-        node.time = time;
-        node.reset(Some(sample_rate));
-        node
-    }
-
-    /// Attack time in seconds.
-    pub fn attack_time(&self) -> F {
-        self.time.broadcast().0
-    }
-
-    /// Release time in seconds.
-    pub fn release_time(&self) -> F {
-        self.time.broadcast().1
-    }
-
-    /// Set attack/release time in seconds.
-    pub fn set_time(&mut self, time: S) {
-        self.time = time;
-        self.acoeff = halfway_coeff(self.attack_time() * self.sample_rate);
-        self.rcoeff = halfway_coeff(self.release_time() * self.sample_rate);
-    }
-
-    /// Current response.
-    pub fn value(&self) -> F {
-        self.v3
-    }
-
-    /// Jump to `x` immediately.
-    pub fn set_value(&mut self, x: F) {
-        self.v3 = x;
-        self.v2 = x;
-        self.v1 = x;
-    }
-}
-
-impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollower<T, F, S> {
-    const ID: u64 = 29;
-    type Sample = T;
-    type Inputs = U1;
-    type Outputs = U1;
-
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.v3 = F::zero();
-        self.v2 = F::zero();
-        self.v1 = F::zero();
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = F::from_f64(sample_rate);
-            // Recalculate coefficients.
-            self.set_time(self.time.clone());
-        }
-    }
-
-    #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        // Three 1-pole filters in series.
-        let afactor = F::one() - self.acoeff;
-        let rfactor = F::one() - self.rcoeff;
-        let v0: F = convert(input[0]);
-        self.v1 = self.time.filter_pole(v0, self.v1, afactor, rfactor);
-        self.v2 = self.time.filter_pole(self.v1, self.v2, afactor, rfactor);
-        self.v3 = self.time.filter_pole(self.v2, self.v3, afactor, rfactor);
-        [convert(self.v3)].into()
-    }
-
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
-        // The frequency response exists only in symmetric mode, as the asymmetric mode is non-linear.
-        if self.acoeff == self.rcoeff {
-            output[0] = filter_signal(input[0], 0.0, |r| {
-                let c = self.acoeff.to_f64();
-                let f = frequency * TAU / self.sample_rate.to_f64();
-                let z1 = Complex64::from_polar(1.0, -f);
-                let pole = (1.0 - c) / (1.0 - c * z1);
-                r * pole * pole * pole
-            });
-        } else {
-            output[0] = distort_signal(input[0], 0.0);
-        }
         output
     }
 }

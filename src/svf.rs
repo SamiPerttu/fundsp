@@ -197,7 +197,7 @@ impl<F: Real> SvfCoeffs<F> {
     /// Gain is amplitude gain.
     pub fn highshelf(sample_rate: F, cutoff: F, q: F, gain: F) -> Self {
         let a = sqrt(gain);
-        let g = tan(F::from_f64(PI) * cutoff / sample_rate) / sqrt(a);
+        let g = tan(F::from_f64(PI) * cutoff / sample_rate) * sqrt(a);
         let k = F::one() / q;
         let a1 = F::one() / (F::one() + g * (g + k));
         let a2 = g * a1;
@@ -730,9 +730,15 @@ impl<F: Real> SvfMode<F> for BellMode<F> {
         }
     }
 
-    fn response(&self, _params: &SvfParams<F>, _frequency: f64) -> Complex64 {
-        // TODO.
-        Complex64::new(1.0, 0.0)
+    fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
+        let a = sqrt(params.gain.to_f64());
+        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let k = 1.0 / params.q.to_f64();
+        let z = Complex64::from_polar(1.0, frequency * TAU / params.sample_rate.to_f64());
+        (g * k * (z * z - 1.0)
+            + a * (g * (1.0 + z) * ((a * a - 1.0) * k / a * (z - 1.0))
+                + ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z))))
+            / (g * k * (z * z - 1.0) + a * ((z - 1.0) * (z - 1.0) + g * g * (z + 1.0) * (z + 1.0)))
     }
 }
 
@@ -775,9 +781,18 @@ impl<F: Real> SvfMode<F> for LowshelfMode<F> {
         }
     }
 
-    fn response(&self, _params: &SvfParams<F>, _frequency: f64) -> Complex64 {
-        // TODO.
-        Complex64::new(1.0, 0.0)
+    fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
+        let a = sqrt(params.gain.to_f64());
+        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let k = 1.0 / params.q.to_f64();
+        let z = Complex64::from_polar(1.0, frequency * TAU / params.sample_rate.to_f64());
+        let sqrt_a = sqrt(a);
+        (a * (z - 1.0) * (z - 1.0)
+            + g * g * a * a * (z + 1.0) * (z + 1.0)
+            + sqrt_a * g * a * k * (z * z - 1.0))
+            / (a * (z - 1.0) * (z - 1.0)
+                + g * g * (1.0 + z) * (1.0 + z)
+                + sqrt_a * g * k * (z * z - 1.0))
     }
 }
 
@@ -820,8 +835,22 @@ impl<F: Real> SvfMode<F> for HighshelfMode<F> {
         }
     }
 
-    fn response(&self, _params: &SvfParams<F>, _frequency: f64) -> Complex64 {
-        // TODO.
-        Complex64::new(1.0, 0.0)
+    fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
+        let a = sqrt(params.gain.to_f64());
+        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let k = 1.0 / params.q.to_f64();
+        let z = Complex64::from_polar(1.0, frequency * TAU / params.sample_rate.to_f64());
+        let sqrt_a = sqrt(a);
+        (sqrt_a
+            * g
+            * (1.0 + z)
+            * (-(a - 1.0) * a * k * (z - 1.0) + sqrt_a * g * (1.0 - a * a) * (1.0 + z))
+            + a * a
+                * ((z - 1.0) * (z - 1.0)
+                    + a * g * g * (1.0 + z) * (1.0 + z)
+                    + sqrt_a * g * k * (z * z - 1.0)))
+            / ((z - 1.0) * (z - 1.0)
+                + a * g * g * (1.0 + z) * (1.0 + z)
+                + sqrt_a * g * k * (z * z - 1.0))
     }
 }

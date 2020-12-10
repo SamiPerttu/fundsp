@@ -167,7 +167,7 @@ In the table, `constant` denotes an `f32` or `f64` value.
 All operators are associative, except the left associative `-`.
 
 
-## Operators Diagram
+### Operators Diagram
 
 ![](operators.png "FunDSP Graph Operators")
 
@@ -296,7 +296,7 @@ guiding toward efficient structuring of computation.
 Dataflow concerns are thus explicated in the graph notation itself.
 
 
-### Input Modalities And Ranges
+## Input Modalities And Ranges
 
 Some signals found flowing in audio networks.
 
@@ -308,6 +308,65 @@ Some signals found flowing in audio networks.
 | audio data     | -1...1                 | Inner processing may use any range that is convenient. However, only special output formats can store audio data outside this range. |
 | stereo pan     | -1...1 (left to right) | For ergonomy, consider clamping any pan input to this range. |
 | control amount | 0...1                  | If there is no natural interpretation of the parameter. |
+
+
+## Signal Flow Analysis
+
+FunDSP features a comprehensive signal flow system that analyzes causal latencies and frequency responses in audio networks.
+
+The system can calculate the frequency response of any *[linear network](https://en.wikipedia.org/wiki/Linear_filter)*
+analytically by composing [transfer functions](https://en.wikipedia.org/wiki/Transfer_function#Linear_time-invariant_systems)
+and folding constants. Linear networks are constructed from filters, delays, and the operations of:
+
+* Mixing.
+* Chaining. Chaining of filters and delays maintains linearity.
+* Constant scaling. Signals may be scaled by constant factors. Selected network inputs may also be marked constant for flow analysis.
+
+Signal latencies are similarly analyzed from input to output in detail,
+facilitating automatic removal of pre-delay from effects chains.
+
+For example,
+[FIR](https://en.wikipedia.org/wiki/Finite_impulse_response) filters can be composed inline from single sample delays (the `tick` opcode) and arithmetic.
+Signal flow analysis will readily reveal that a 2-point averaging filter has zero gain at the [Nyquist](https://en.wikipedia.org/wiki/Nyquist_frequency) frequency,
+while a 3-point averaging filter does not:
+
+```rust
+assert!((pass() & tick()).response(0, 22050.0).unwrap().norm() < 1.0e-9);
+assert!((pass() & tick() & tick() >> tick()).response(0, 22050.0).unwrap().norm() > 0.1);
+```
+
+However, with appropriate scaling a 3-point FIR can vanish, too:
+
+```rust
+assert!((0.5 * pass() & tick() & 0.5 * tick() >> tick()).response(0, 22050.0).unwrap().norm() < 1.0e-9);
+```
+
+### List of Filters
+
+All filters in the list are linear.
+Verified frequency responses are available for all filters.
+
+---
+
+| Opcode       | Type                   | Parameters   | Family       | Notes     |
+| ------------ | ---------------------- | ------------ | ------------ | --------- |
+| `allpass`    | allpass (2nd order)    | frequency, Q | [Simper SVF](https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf) | |
+| `bandpass`   | bandpass (2nd order)   | frequency, Q | Simper SVF   | |
+| `bell`       | peaking (2nd order)    | frequency, Q, gain | Simper SVF | Adjustable gain. |
+| `butterpass` | lowpass (2nd order)    | frequency    | [biquad](https://en.wikipedia.org/wiki/Digital_biquad_filter) | [Butterworth](https://en.wikipedia.org/wiki/Butterworth_filter) lowpass has a maximally flat passband and monotonic frequency response. |
+| `dcblock`    | DC blocker (1st order) | frequency    | 1st order    | Zero centers signal, countering any constant offset ("direct current"). |
+| `follow`     | lowpass (3rd order)    | response time | nested 1st order | Smoothing filter with adjustable edge response time. |
+| `highpass`   | highpass (2nd order)   | frequency, Q | Simper SVF   | |
+| `highshelf`  | high shelf (2nd order) | frequency, Q, gain | Simper SVF | Adjustable gain. |
+| `lowpass`    | lowpass (2nd order)    | frequency, Q | Simper SVF   | |
+| `lowpole`    | lowpass (1st order)    | frequency    | 1st order    | |
+| `lowshelf`   | low shelf (2nd order)  | frequency, Q, gain | Simper SVF | Adjustable gain. |
+| `notch`      | notch (2nd order)      | frequency, Q | Simper SVF   | |
+| `peak`       | peaking (2nd order)    | frequency, Q | Simper SVF   | |
+| `pinkpass`   | lowpass (3 dB/octave)  | -            | mixed FIR / 1st order | Turns white noise into pink noise. |
+| `resonator`  | bandpass (2nd order)   | frequency, bandwidth | biquad | Gain stays constant as bandwidth is varied. |
+
+---
 
 
 ## Free Functions
@@ -436,28 +495,6 @@ The samples are spaced at an average of 2 ms apart, jittered by noise derived fr
 The values in between are linearly interpolated.
 
 `lfo` (Low Frequency Oscillator) is another name for `envelope`.
-
----
-
-### List of Filters
-
-| Opcode       | Type                   | Family       | Notes     |
-| ------------ | ---------------------- | ------------ | --------- |
-| `allpass`    | allpass (2nd order)    | [Simper SVF](https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf) | |
-| `bandpass`   | bandpass (2nd order)   | Simper SVF   | |
-| `bell`       | peaking (2nd order)    | Simper SVF   | Adjustable gain. |
-| `butterpass` | lowpass (2nd order)    | biquad       | [Butterworth](https://en.wikipedia.org/wiki/Butterworth_filter) lowpass has a maximally flat passband and monotonic frequency response. |
-| `dcblock`    | DC blocker (1st order) | 1st order    | Zero centers signal, countering any constant offset ("direct current"). |
-| `follow`     | lowpass (3rd order)    | nested 1st order | Smoothing filter with adjustable edge response time. |
-| `highpass`   | highpass (2nd order)   | Simper SVF   | |
-| `highshelf`  | high shelf (2nd order) | Simper SVF   | |
-| `lowpass`    | lowpass (2nd order)    | Simper SVF   | |
-| `lowpole`    | lowpass (1st order)    | 1st order    | |
-| `lowshelf`   | low shelf (2nd order)  | Simper SVF   | |
-| `notch`      | notch (2nd order)      | Simper SVF   | |
-| `peak`       | peaking (2nd order)    | Simper SVF   | |
-| `pinkpass`   | lowpass (3 dB/octave)  | 1st order    | Turns white noise into pink noise. |
-| `resonator`  | bandpass (2nd order)   | biquad       | Gain stays constant as bandwidth is varied. |
 
 ---
 
