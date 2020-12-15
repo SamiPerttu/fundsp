@@ -25,3 +25,7 @@ default = []
 [[example]]
 name = "beep"
 path = "examples/beep.rs"
+
+[[example]]
+name = "peek"
+path = "examples/peek.rs"

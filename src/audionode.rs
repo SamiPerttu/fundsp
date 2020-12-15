@@ -75,6 +75,13 @@ pub trait AudioNode: Clone {
         }
     }
 
+    /// Evaluate frequency response at `output` in dB. Any linear response can be composed.
+    /// Return `None` if there is no response or it could not be calculated.
+    fn response_db(&self, output: usize, frequency: f64) -> Option<f64> {
+        assert!(output < Self::Outputs::USIZE);
+        self.response(output, frequency).map(|r| amp_db(r.norm()))
+    }
+
     /// Causal latency at `output`, in (fractional) samples.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
     /// The latency can depend on the sample rate and is allowed to change after `reset`.

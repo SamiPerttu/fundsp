@@ -206,10 +206,16 @@ pub fn dexerp11<T: Real>(a: T, b: T, x: T) -> T {
     log(x / a) / log(b / a) * T::new(2) - T::new(1)
 }
 
-/// Returns a gain amount from a decibel argument.
+/// Convert decibels to gain. 0 dB = 1.0.
 #[inline]
 pub fn db_amp<T: Real>(db: T) -> T {
     exp10(db / T::new(20))
+}
+
+/// Convert gain (gain > 0) to decibels. 1.0 = 0 dB.
+#[inline]
+pub fn amp_db<T: Real>(amp: T) -> T {
+    log10(amp) * T::new(20)
 }
 
 /// A-weighted response function.

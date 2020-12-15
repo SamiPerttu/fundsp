@@ -2,6 +2,7 @@
 
 extern crate anyhow;
 extern crate cpal;
+extern crate fundsp;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
