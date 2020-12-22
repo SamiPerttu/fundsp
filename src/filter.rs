@@ -174,7 +174,7 @@ impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
-        output[0] = filter_signal(input[0], 0.0, |r| {
+        output[0] = input[0].filter(0.0, |r| {
             r * self
                 .biquad
                 .coefs()
@@ -249,7 +249,7 @@ impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
-        output[0] = filter_signal(input[0], 0.0, |r| {
+        output[0] = input[0].filter(0.0, |r| {
             r * self
                 .biquad
                 .coefs()
@@ -320,7 +320,7 @@ impl<T: Float, F: Real> AudioNode for OnePoleLowpass<T, F> {
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
-        output[0] = filter_signal(input[0], 0.0, |r| {
+        output[0] = input[0].filter(0.0, |r| {
             let c = self.coeff.to_f64();
             let f = frequency * TAU / self.sample_rate.to_f64();
             let z1 = Complex64::from_polar(1.0, -f);
@@ -381,7 +381,7 @@ impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
-        output[0] = filter_signal(input[0], 0.0, |r| {
+        output[0] = input[0].filter(0.0, |r| {
             let c = self.coeff.to_f64();
             let f = frequency * TAU / self.sample_rate.to_f64();
             let z1 = Complex64::from_polar(1.0, -f);
@@ -513,7 +513,7 @@ impl<T: Float, F: Real> AudioNode for Follower<T, F> {
                 output[0] = input[0];
             }
             AnalysisMode::Filter => {
-                output[0] = filter_signal(input[0], 0.0, |r| {
+                output[0] = input[0].filter(0.0, |r| {
                     let c = self.coeff.to_f64();
                     let f = frequency * TAU / self.sample_rate.to_f64();
                     let z1 = Complex64::from_polar(1.0, -f);
@@ -644,9 +644,9 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollower<T, 
                 output[0] = input[0];
             }
             AnalysisMode::Filter => {
-                // The frequency response exists only in symmetric mode, as the asymmetric mode is non-linear.
+                // The frequency response exists only in symmetric mode, as the asymmetric mode is nonlinear.
                 if self.acoeff == self.rcoeff {
-                    output[0] = filter_signal(input[0], 0.0, |r| {
+                    output[0] = input[0].filter(0.0, |r| {
                         let c = self.acoeff.to_f64();
                         let f = frequency * TAU / self.sample_rate.to_f64();
                         let z1 = Complex64::from_polar(1.0, -f);
@@ -654,7 +654,7 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollower<T, 
                         r * pole * pole * pole
                     });
                 } else {
-                    output[0] = distort_signal(input[0], 0.0);
+                    output[0] = input[0].distort(0.0);
                 }
             }
         }
@@ -730,7 +730,7 @@ impl<T: Float, F: Float> AudioNode for PinkFilter<T, F> {
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
-        output[0] = filter_signal(input[0], 0.0, |r| {
+        output[0] = input[0].filter(0.0, |r| {
             let f = frequency * TAU / self.sample_rate.to_f64();
             let z1 = Complex64::from_polar(1.0, -f);
             let pole0 = 0.0555179 / (1.0 - 0.99886 * z1);

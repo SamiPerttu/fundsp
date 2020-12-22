@@ -164,7 +164,7 @@ where
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = self.x.propagate(input, frequency);
         for i in 0..N::USIZE {
-            output[i] = distort_signal(input[i], 0.0);
+            output[i] = input[i].distort(0.0);
         }
         output
     }

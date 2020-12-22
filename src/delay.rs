@@ -63,7 +63,7 @@ impl<T: Float> AudioNode for DelayNode<T> {
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
-        output[0] = filter_signal(input[0], self.buffer.len() as f64, |r| {
+        output[0] = input[0].filter(self.buffer.len() as f64, |r| {
             r * Complex64::from_polar(
                 1.0,
                 -TAU * self.buffer.len() as f64 * frequency / self.sample_rate,

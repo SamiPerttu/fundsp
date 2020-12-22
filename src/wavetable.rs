@@ -253,7 +253,7 @@ where
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
         for i in 0..N::USIZE {
-            output[i] = distort_signal(input[0], 0.0);
+            output[i] = input[0].distort(0.0);
         }
         output
     }
@@ -348,7 +348,7 @@ where
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
         for i in 0..N::USIZE {
-            output[i] = distort_signal(input[0], 0.0);
+            output[i] = input[0].distort(0.0);
         }
         output
     }

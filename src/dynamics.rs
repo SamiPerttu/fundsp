@@ -212,7 +212,7 @@ where
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
         for i in 0..N::USIZE {
-            output[i] = distort_signal(input[i], self.reducer.length() as f64);
+            output[i] = input[i].distort(self.reducer.length() as f64);
         }
         output
     }
@@ -292,7 +292,7 @@ impl<T: Float, F: Real> AudioNode for GoertzelNode<T, F> {
 
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
-        output[0] = nonlinear_combine(input[0], input[1], 0.0);
+        output[0] = combine_nonlinear(input[0], input[1], 0.0);
         output
     }
 }
@@ -348,7 +348,7 @@ impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
 
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
-        output[0] = distort_signal(input[0], 0.0);
+        output[0] = input[0].distort(0.0);
         output
     }
 }

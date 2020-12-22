@@ -267,7 +267,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
     }
     #[inline]
     fn propagate(x: Signal, y: Signal) -> Signal {
-        combine_signals(x, y, 0.0, |x, y| x + y, |x, y| x + y)
+        combine_linear(x, y, 0.0, |x, y| x + y, |x, y| x + y)
     }
 }
 
@@ -289,7 +289,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
     }
     #[inline]
     fn propagate(x: Signal, y: Signal) -> Signal {
-        combine_signals(x, y, 0.0, |x, y| x - y, |x, y| x - y)
+        combine_linear(x, y, 0.0, |x, y| x - y, |x, y| x - y)
     }
 }
 
@@ -832,7 +832,7 @@ impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
     }
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame();
-        output[0] = filter_signal(input[0], 1.0, |r| {
+        output[0] = input[0].filter(1.0, |r| {
             r * Complex64::from_polar(1.0, -TAU * frequency / self.sample_rate)
         });
         output
@@ -906,8 +906,7 @@ where
         let mut signal_x = self.x.propagate(input, frequency);
         let signal_y = self.y.propagate(input, frequency);
         for i in 0..Self::Outputs::USIZE {
-            signal_x[i] =
-                combine_signals(signal_x[i], signal_y[i], 0.0, |x, y| x + y, |x, y| x + y);
+            signal_x[i] = combine_linear(signal_x[i], signal_y[i], 0.0, |x, y| x + y, |x, y| x + y);
         }
         signal_x
     }
@@ -1045,8 +1044,7 @@ where
         for j in 1..self.x.len() {
             let output_j = self.x[j].propagate(input, frequency);
             for i in 0..Self::Outputs::USIZE {
-                output[i] =
-                    combine_signals(output[i], output_j[i], 0.0, |x, y| x + y, |x, y| x + y);
+                output[i] = combine_linear(output[i], output_j[i], 0.0, |x, y| x + y, |x, y| x + y);
             }
         }
         output

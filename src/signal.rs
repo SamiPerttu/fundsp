@@ -6,12 +6,37 @@ use num_complex::Complex64;
 pub enum Signal {
     /// Signal with unknown properties.
     Unknown,
-    /// Constant signal.
+    /// Constant signal with value.
     Value(f64),
     /// Input connected signal with latency in samples.
     Latency(f64),
     /// Input connected signal with complex frequency response and latency in samples.
     Response(Complex64, f64),
+}
+
+impl Signal {
+    /// Filter signal using the transfer function `filter` while adding extra `latency`.
+    /// Latency is measured in samples.
+    #[inline]
+    pub fn filter(&self, latency: f64, filter: impl Fn(Complex64) -> Complex64) -> Signal {
+        match self {
+            Signal::Latency(l) => Signal::Latency(l + latency),
+            Signal::Response(response, l) => Signal::Response(filter(*response), l + latency),
+            _ => Signal::Unknown,
+        }
+    }
+
+    /// Apply nonlinear processing to signal with extra `latency`.
+    /// Nonlinear processing erases constant values and frequency responses but maintains latency.
+    /// Latency is measured in samples.
+    #[inline]
+    pub fn distort(&self, latency: f64) -> Signal {
+        match self {
+            Signal::Latency(l) => Signal::Latency(l + latency),
+            Signal::Response(_, l) => Signal::Latency(l + latency),
+            _ => Signal::Unknown,
+        }
+    }
 }
 
 /// Some components support different modes for signal flow analysis.
@@ -46,43 +71,22 @@ pub fn copy_signal_frame(source: &SignalFrame, i: usize, n: usize) -> SignalFram
     frame
 }
 
-/// Filter signal using the transfer function `filter` while adding extra `latency`.
-pub fn filter_signal(
-    signal: Signal,
-    latency: f64,
-    filter: impl Fn(Complex64) -> Complex64,
-) -> Signal {
-    match signal {
-        Signal::Latency(l) => Signal::Latency(l + latency),
-        Signal::Response(response, l) => Signal::Response(filter(response), l + latency),
+/// Combine signals nonlinearly with extra `latency`.
+/// Nonlinear processing erases constant values and frequency responses but maintains latency.
+/// Latency is measured in samples.
+pub fn combine_nonlinear(x: Signal, y: Signal, latency: f64) -> Signal {
+    match (x.distort(0.0), y.distort(0.0)) {
+        (Signal::Latency(lx), Signal::Latency(ly)) => Signal::Latency(min(lx, ly) + latency),
+        (Signal::Latency(lx), _) => Signal::Latency(lx + latency),
+        (_, Signal::Latency(ly)) => Signal::Latency(ly + latency),
         _ => Signal::Unknown,
     }
 }
 
-/// Apply non-linear filtering to signal with extra `latency`.
-/// Non-linear filtering erases constant values and frequency responses but maintains latency.
-pub fn distort_signal(signal: Signal, latency: f64) -> Signal {
-    match signal {
-        Signal::Latency(l) => Signal::Latency(l + latency),
-        Signal::Response(_, l) => Signal::Latency(l + latency),
-        _ => Signal::Unknown,
-    }
-}
-
-/// Combine signals nonlinearly. Non-linearity erases constant values and frequency responses but maintains latency.
-pub fn nonlinear_combine(x: Signal, y: Signal, latency: f64) -> Signal {
-    combine_signals(
-        distort_signal(x, 0.0),
-        distort_signal(y, 0.0),
-        latency,
-        |x, y| x + y,
-        |x, y| x + y,
-    )
-}
-
-/// Combine signals with extra `latency` in samples and `value` and `response` processing as functions.
-/// Constant signals and responses are not combined together.
-pub fn combine_signals(
+/// Combine signals linearly with extra `latency` and `value` and `response` processing as functions.
+/// Constant signals are considered as zero responses.
+/// Latency is measured in samples.
+pub fn combine_linear(
     x: Signal,
     y: Signal,
     latency: f64,
@@ -94,6 +98,12 @@ pub fn combine_signals(
         (Signal::Latency(lx), Signal::Latency(ly)) => Signal::Latency(min(lx, ly) + latency),
         (Signal::Response(rx, lx), Signal::Response(ry, ly)) => {
             Signal::Response(response(rx, ry), min(lx, ly) + latency)
+        }
+        (Signal::Response(rx, lx), Signal::Value(_)) => {
+            Signal::Response(response(rx, Complex64::new(0.0, 0.0)), lx + latency)
+        }
+        (Signal::Value(_), Signal::Response(ry, ly)) => {
+            Signal::Response(response(Complex64::new(0.0, 0.0), ry), ly + latency)
         }
         (Signal::Response(_, lx), Signal::Latency(ly)) => Signal::Latency(min(lx, ly) + latency),
         (Signal::Latency(lx), Signal::Response(_, ly)) => Signal::Latency(min(lx, ly) + latency),
