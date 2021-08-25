@@ -196,6 +196,7 @@ where
             self.buffer.push(input.clone());
             if self.buffer.len() == self.reducer.length() {
                 // When the buffer is full, start following from its total peak.
+                // TODO: follow the log value instead.
                 self.follower.set_value(self.reducer.total().to_f64());
             }
             self.advance();
@@ -311,8 +312,10 @@ pub struct Declicker<T: Float, F: Real> {
 
 impl<T: Float, F: Real> Declicker<T, F> {
     pub fn new(sample_rate: f64, duration: F) -> Self {
-        let mut node = Declicker::default();
-        node.duration = duration;
+        let mut node = Declicker::<T, F> {
+            duration,
+            ..Default::default()
+        };
         node.reset(Some(sample_rate));
         node
     }

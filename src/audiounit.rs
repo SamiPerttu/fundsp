@@ -109,7 +109,7 @@ where
     fn tick64(&mut self, input: &[f64], output: &mut [f64]) {
         assert!(input.len() == self.inputs());
         assert!(output.len() == self.outputs());
-        output.copy_from_slice(self.0.tick(&Frame::from_slice(input)).as_slice());
+        output.copy_from_slice(self.0.tick(Frame::from_slice(input)).as_slice());
     }
     fn process32(&mut self, input: &[&[f32]], output: &mut [&mut [f32]]) {
         assert!(input.len() == self.inputs());

@@ -345,8 +345,10 @@ pub struct DCBlocker<T: Float, F: Real> {
 
 impl<T: Float, F: Real> DCBlocker<T, F> {
     pub fn new(sample_rate: f64, cutoff: F) -> Self {
-        let mut node = DCBlocker::default();
-        node.cutoff = cutoff;
+        let mut node = DCBlocker::<T, F> {
+            cutoff,
+            ..Default::default()
+        };
         node.reset(Some(sample_rate));
         node
     }
@@ -423,9 +425,11 @@ impl<T: Float, F: Real> Follower<T, F> {
     /// Create new smoothing filter.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new(sample_rate: f64, response_time: F) -> Self {
-        let mut node = Follower::default();
-        node.response_time = response_time;
-        node.analysis_mode = AnalysisMode::Filter;
+        let mut node = Follower::<T, F> {
+            response_time,
+            analysis_mode: AnalysisMode::Filter,
+            ..Follower::default()
+        };
         node.reset(Some(sample_rate));
         node
     }
@@ -433,9 +437,11 @@ impl<T: Float, F: Real> Follower<T, F> {
     /// Create new smoothing filter that presents itself as a constant for frequency response analysis purposes.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new_constant(sample_rate: f64, response_time: F) -> Self {
-        let mut node = Follower::default();
-        node.response_time = response_time;
-        node.analysis_mode = AnalysisMode::Constant;
+        let mut node = Follower::<T, F> {
+            response_time,
+            analysis_mode: AnalysisMode::Constant,
+            ..Follower::default()
+        };
         node.reset(Some(sample_rate));
         node
     }
@@ -443,9 +449,11 @@ impl<T: Float, F: Real> Follower<T, F> {
     /// Create new smoothing filter that presents itself as a bypass for frequency response analysis purposes.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new_bypass(sample_rate: f64, response_time: F) -> Self {
-        let mut node = Follower::default();
-        node.response_time = response_time;
-        node.analysis_mode = AnalysisMode::Bypass;
+        let mut node = Follower::<T, F> {
+            response_time,
+            analysis_mode: AnalysisMode::Bypass,
+            ..Follower::default()
+        };
         node.reset(Some(sample_rate));
         node
     }
@@ -545,9 +553,11 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollower<T, F, S> {
     /// Create new smoothing filter.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new(sample_rate: f64, time: S) -> Self {
-        let mut node = AFollower::default();
-        node.time = time;
-        node.analysis_mode = AnalysisMode::Filter;
+        let mut node = AFollower::<T, F, S> {
+            time,
+            analysis_mode: AnalysisMode::Filter,
+            ..AFollower::default()
+        };
         node.reset(Some(sample_rate));
         node
     }
@@ -555,9 +565,11 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollower<T, F, S> {
     /// Create new smoothing filter that presents itself as a constant for frequency response analysis purposes.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new_constant(sample_rate: f64, time: S) -> Self {
-        let mut node = AFollower::default();
-        node.time = time;
-        node.analysis_mode = AnalysisMode::Constant;
+        let mut node = AFollower::<T, F, S> {
+            time,
+            analysis_mode: AnalysisMode::Constant,
+            ..AFollower::default()
+        };
         node.reset(Some(sample_rate));
         node
     }
@@ -565,9 +577,11 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollower<T, F, S> {
     /// Create new smoothing filter that presents itself as a bypass for frequency response analysis purposes.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new_bypass(sample_rate: f64, time: S) -> Self {
-        let mut node = AFollower::default();
-        node.time = time;
-        node.analysis_mode = AnalysisMode::Bypass;
+        let mut node = AFollower::<T, F, S> {
+            time,
+            analysis_mode: AnalysisMode::Bypass,
+            ..AFollower::default()
+        };
         node.reset(Some(sample_rate));
         node
     }
@@ -680,9 +694,10 @@ pub struct PinkFilter<T: Float, F: Float> {
 impl<T: Float, F: Float> PinkFilter<T, F> {
     /// Create pinking filter.
     pub fn new(sample_rate: f64) -> Self {
-        let mut node = PinkFilter::default();
-        node.sample_rate = convert(sample_rate);
-        node
+        PinkFilter::<T, F> {
+            sample_rate: convert(sample_rate),
+            ..PinkFilter::default()
+        }
     }
 }
 

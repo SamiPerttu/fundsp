@@ -148,7 +148,7 @@ impl<F: Real> SvfCoeffs<F> {
     }
 
     /// Calculate coefficients for a bell filter.
-    /// Gain is amplitude gain.
+    /// Gain is amplitude gain (gain > 0).
     pub fn bell(sample_rate: F, cutoff: F, q: F, gain: F) -> Self {
         let a = sqrt(gain);
         let g = tan(F::from_f64(PI) * cutoff / sample_rate);
@@ -171,7 +171,7 @@ impl<F: Real> SvfCoeffs<F> {
     }
 
     /// Calculate coefficients for a low shelf filter.
-    /// Gain is amplitude gain.
+    /// Gain is amplitude gain (gain > 0).
     pub fn lowshelf(sample_rate: F, cutoff: F, q: F, gain: F) -> Self {
         let a = sqrt(gain);
         let g = tan(F::from_f64(PI) * cutoff / sample_rate) / sqrt(a);
@@ -194,7 +194,7 @@ impl<F: Real> SvfCoeffs<F> {
     }
 
     /// Calculate coefficients for a high shelf filter.
-    /// Gain is amplitude gain.
+    /// Gain is amplitude gain (gain > 0).
     pub fn highshelf(sample_rate: F, cutoff: F, q: F, gain: F) -> Self {
         let a = sqrt(gain);
         let g = tan(F::from_f64(PI) * cutoff / sample_rate) * sqrt(a);
@@ -444,7 +444,7 @@ impl<F: Real> SvfMode<F> for LowpassMode<F> {
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(&params, coeffs);
+            self.update(params, coeffs);
         }
     }
 
@@ -490,7 +490,7 @@ impl<F: Real> SvfMode<F> for HighpassMode<F> {
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(&params, coeffs);
+            self.update(params, coeffs);
         }
     }
 
@@ -536,7 +536,7 @@ impl<F: Real> SvfMode<F> for BandpassMode<F> {
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(&params, coeffs);
+            self.update(params, coeffs);
         }
     }
 
@@ -582,7 +582,7 @@ impl<F: Real> SvfMode<F> for NotchMode<F> {
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(&params, coeffs);
+            self.update(params, coeffs);
         }
     }
 
@@ -628,7 +628,7 @@ impl<F: Real> SvfMode<F> for PeakMode<F> {
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(&params, coeffs);
+            self.update(params, coeffs);
         }
     }
 
@@ -675,7 +675,7 @@ impl<F: Real> SvfMode<F> for AllpassMode<F> {
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(&params, coeffs);
+            self.update(params, coeffs);
         }
     }
 
@@ -693,7 +693,7 @@ impl<F: Real> SvfMode<F> for AllpassMode<F> {
 /// - Input 0: audio
 /// - Input 1: center in Hz
 /// - Input 2: Q
-/// - Input 3: amplitude gain
+/// - Input 3: amplitude gain (gain > 0)
 /// - Output 0: audio
 #[derive(Clone, Default)]
 pub struct BellMode<F: Real> {
@@ -724,7 +724,7 @@ impl<F: Real> SvfMode<F> for BellMode<F> {
             params.cutoff = cutoff;
             params.q = q;
             params.gain = gain;
-            self.update(&params, coeffs);
+            self.update(params, coeffs);
         }
     }
 
@@ -744,7 +744,7 @@ impl<F: Real> SvfMode<F> for BellMode<F> {
 /// - Input 0: audio
 /// - Input 1: center in Hz
 /// - Input 2: Q
-/// - Input 3: amplitude gain
+/// - Input 3: amplitude gain (gain > 0)
 /// - Output 0: audio
 #[derive(Clone, Default)]
 pub struct LowshelfMode<F: Real> {
@@ -775,7 +775,7 @@ impl<F: Real> SvfMode<F> for LowshelfMode<F> {
             params.cutoff = cutoff;
             params.q = q;
             params.gain = gain;
-            self.update(&params, coeffs);
+            self.update(params, coeffs);
         }
     }
 
@@ -798,7 +798,7 @@ impl<F: Real> SvfMode<F> for LowshelfMode<F> {
 /// - Input 0: audio
 /// - Input 1: center in Hz
 /// - Input 2: Q
-/// - Input 3: amplitude gain
+/// - Input 3: amplitude gain (gain > 0)
 /// - Output 0: audio
 #[derive(Clone, Default)]
 pub struct HighshelfMode<F: Real> {
@@ -829,7 +829,7 @@ impl<F: Real> SvfMode<F> for HighshelfMode<F> {
             params.cutoff = cutoff;
             params.q = q;
             params.gain = gain;
-            self.update(&params, coeffs);
+            self.update(params, coeffs);
         }
     }
 

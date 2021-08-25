@@ -912,7 +912,7 @@ where
     }
 }
 
-/// Adapt a filter to a pipeline.
+/// Pass through inputs without matching outputs. Adapts a filter to a pipeline.
 #[derive(Clone)]
 pub struct FitNode<X> {
     x: X,
@@ -1025,7 +1025,7 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.x
             .iter_mut()
-            .fold(Frame::splat(T::zero()), |acc, x| acc + x.tick(&input))
+            .fold(Frame::splat(T::zero()), |acc, x| acc + x.tick(input))
     }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
@@ -1317,7 +1317,7 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         let mut output: Frame<Self::Sample, Self::Outputs> = Frame::splat(T::zero());
         for (i, node) in self.x.iter_mut().enumerate() {
-            let node_output = node.tick(&input);
+            let node_output = node.tick(input);
             output[i * X::Outputs::USIZE..(i + 1) * X::Outputs::USIZE]
                 .copy_from_slice(node_output.as_slice());
         }

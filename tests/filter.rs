@@ -15,7 +15,8 @@ extern crate rustfft;
 use fundsp::hacker::*;
 use num_complex::Complex64;
 use rustfft::algorithm::Radix4;
-use rustfft::FFT;
+use rustfft::Fft;
+use rustfft::FftDirection;
 
 #[test]
 fn test_filter() {
@@ -99,17 +100,16 @@ where
         input = 0.0;
     }
 
-    let mut spectrum = vec![re(0.0); length];
-    let fft = Radix4::new(length, false);
+    let fft = Radix4::new(length, FftDirection::Forward);
     // Note. Output from process() appears normalized, contrary to documentation.
-    fft.process(&mut buffer, &mut spectrum);
+    fft.process(&mut buffer);
 
     let mut f = 10.0;
     while f <= 22_000.0 {
         let i = round(f * length as f64 / sample_rate) as usize;
         let f_i = i as f64 / length as f64 * sample_rate;
         let reported = filter.response(0, f_i).unwrap();
-        let response = spectrum[i];
+        let response = buffer[i];
         /*
         println!(
             "{} Hz reported ({}, {}) actual ({}, {}) matches {}",

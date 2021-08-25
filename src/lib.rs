@@ -4,7 +4,8 @@
     clippy::float_cmp,
     clippy::len_zero,
     clippy::double_neg,
-    clippy::needless_range_loop
+    clippy::needless_range_loop,
+    clippy::manual_range_contains
 )]
 #[macro_use]
 pub extern crate lazy_static;

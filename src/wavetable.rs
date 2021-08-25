@@ -4,7 +4,8 @@ use super::signal::*;
 use super::*;
 use num_complex::Complex32;
 use rustfft::algorithm::Radix4;
-use rustfft::FFT;
+use rustfft::Fft;
+use rustfft::FftDirection;
 
 type C32 = Complex32;
 
@@ -69,14 +70,14 @@ where
         }
     }
 
-    let mut ia = vec![re(0.0); length];
+    //let mut ia = vec![re(0.0); length];
 
     // TODO. Are we supposed to cache these.
-    let fft = Radix4::new(length, true);
-    fft.process(&mut a, &mut ia);
+    let fft = Radix4::new(length, FftDirection::Inverse);
+    fft.process(&mut a);
 
     let z = 1.0 / sqrt(length as f32);
-    ia.iter().map(|x| x.re * z).collect()
+    a.iter().map(|x| x.re * z).collect()
 }
 
 pub struct Wavetable {

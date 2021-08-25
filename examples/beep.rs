@@ -69,15 +69,15 @@ where
     //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.9);
 
     // Risset glissando.
-    //let c = stacki::<U20, _, _>(|i| {
-    //    lfo(move |t| {
-    //        let f = lerp(-0.5, 0.5, rnd(i))
-    //            + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0);
-    //        let a = smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0));
-    //        (a, f)
-    //    }) >> pass() * sine()
-    //}) >> multijoin::<U1, U20>()
-    //    >> pinkpass();
+    let c = stacki::<U20, _, _>(|i| {
+        lfo(move |t| {
+            let f = lerp(-0.5, 0.5, rnd(i))
+                + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0);
+            let a = smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0));
+            (a, f)
+        }) >> pass() * sine()
+    }) >> multijoin::<U1, U20>()
+        >> pinkpass();
 
     //let c = dc(110.0) >> triangle();
     //let c = lfo(|t| xerp(200.0, 2000.0, sin_hz(0.1, t))) >> square() >> lowpole_hz(1000.0);
@@ -91,7 +91,7 @@ where
     //    >> bandpass();
 
     // Test enoise.
-    let c = lfo(|t| {
+    /*let c = lfo(|t| {
         xerp11(
             50.0,
             5000.0,
@@ -100,7 +100,7 @@ where
             //enoise((staircase(8.0, arcup), id), 0, t * 0.5),
             snoise(0, t),
         ) * lerp11(0.5, 1.0, ewave_hz(sigmoid(1.0), 8.0, t))
-    }) >> triangle();
+    }) >> triangle();*/
 
     // Waveshapers.
     //let c = c >> shape(staircase(10.0, sigmoid(0.5)));

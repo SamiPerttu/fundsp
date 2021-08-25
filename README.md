@@ -698,13 +698,18 @@ containing operator overloads and other trait implementations.
 MIT or Apache-2.0.
 
 
+## Next Steps
+
+- See if `AudioNode::tick` can be made faster with, e.g., slice iterators.
+- Bring code up to date. Make use of the recently stabilized const generics.
+- Implement the block-based, dynamic `AudioUnit` system.
+
 ## Future
 
 - Overload division operator as an arithmetic operator once foundational overhaul is complete.
 - Investigate whether adding more checking at compile time is possible by introducing
   opt-in signal units/modalities for `AudioNode` inputs and outputs.
   So if the user sends a constant marked `Hz` to an audio input, then that would fail at compile time.
-- Examine and optimize performance.
 - Implement conversion of graph to diagram (normalize operators to associative form).
   Layout and display a graph as a diagram and show the signals flowing in it.
   Allow user to poke at `plug` nodes while audio is playing.
@@ -725,4 +730,5 @@ MIT or Apache-2.0.
 
 ### TODO: Prelude
 
+- Compartmentalize the preludes so the user can choose to include them in parts.
 - `melody(f, string)`: melody generator.
