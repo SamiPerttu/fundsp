@@ -3,9 +3,9 @@
 ## Audio Processing and Synthesis Library for Rust
 
 [FunDSP](https://github.com/SamiPerttu/fundsp)
-is an audio DSP (digital dignal processing) library with a focus on usability.
+is an audio DSP ([digital signal processing](https://en.wikipedia.org/wiki/Digital_signal_processing)) library with a focus on usability.
 
-It features a powerful inline graph notation that
+FunDSP features a powerful inline graph notation that
 empowers users to accomplish diverse audio processing tasks with ease and elegance.
 
 The custom notation taps into composable, zero-cost abstractions
@@ -45,7 +45,7 @@ sine_hz(f) * f * m + f >> sine()
 The above expression defines an audio graph that is
 compiled into a stack allocated, inlined form using
 the powerful generic abstractions built into [Rust](https://www.rust-lang.org/).
-Connectivity errors are detected at compile time, saving
+Connectivity errors are detected during compilation, saving
 development time.
 
 ### Audio DSP Becomes a First-Class Citizen
