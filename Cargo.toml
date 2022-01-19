@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 version = "0.0.9"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
 homepage = "https://github.com/SamiPerttu/fundsp"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 generic-array = "0.14.4"
@@ -14,6 +14,7 @@ numeric-array = "0.5.2"
 num-complex = "0.4.0"
 rustfft = "6.0.1"
 lazy_static = "1.4"
+tinyvec = { version = "1.5", features = ["alloc"] }
 
 [dev-dependencies]
 cpal = "0.13"

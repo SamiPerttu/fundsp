@@ -660,51 +660,15 @@ pub fn saw() -> An<WaveSynth<'static, f64, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
 }
 
-/// Saw wave oscillator with phase input.
-#[inline]
-pub fn sawp() -> An<PhaseSynth<'static, f64, U1>> {
-    An(PhaseSynth::new(DEFAULT_SR, &SAW_TABLE))
-}
-
-/// Saw wave oscillator with extra phase output.
-#[inline]
-pub fn sawx() -> An<WaveSynth<'static, f64, U2>> {
-    An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
-}
-
 /// Square wave oscillator.
 #[inline]
 pub fn square() -> An<WaveSynth<'static, f64, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
 }
 
-/// Square wave oscillator with phase input.
-#[inline]
-pub fn squarep() -> An<PhaseSynth<'static, f64, U1>> {
-    An(PhaseSynth::new(DEFAULT_SR, &SQUARE_TABLE))
-}
-
-/// Square wave oscillator with extra phase output.
-#[inline]
-pub fn squarex() -> An<WaveSynth<'static, f64, U2>> {
-    An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
-}
-
 /// Triangle wave oscillator.
 #[inline]
 pub fn triangle() -> An<WaveSynth<'static, f64, U1>> {
-    An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
-}
-
-/// Triangle wave oscillator with phase input.
-#[inline]
-pub fn trianglep() -> An<PhaseSynth<'static, f64, U1>> {
-    An(PhaseSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
-}
-
-/// Triangle wave oscillator with extra phase output.
-#[inline]
-pub fn trianglex() -> An<WaveSynth<'static, f64, U2>> {
     An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
 }
 

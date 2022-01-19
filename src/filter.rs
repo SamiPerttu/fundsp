@@ -173,7 +173,7 @@ impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
     }
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             r * self
                 .biquad
@@ -248,7 +248,7 @@ impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
     }
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             r * self
                 .biquad
@@ -319,7 +319,7 @@ impl<T: Float, F: Real> AudioNode for OnePoleLowpass<T, F> {
     }
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             let c = self.coeff.to_f64();
             let f = frequency * TAU / self.sample_rate.to_f64();
@@ -382,7 +382,7 @@ impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
     }
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             let c = self.coeff.to_f64();
             let f = frequency * TAU / self.sample_rate.to_f64();
@@ -512,7 +512,7 @@ impl<T: Float, F: Real> AudioNode for Follower<T, F> {
     }
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         match self.analysis_mode {
             AnalysisMode::Constant => {
                 output[0] = Signal::Value(convert(self.v3));
@@ -649,7 +649,7 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollower<T, 
     }
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         match self.analysis_mode {
             AnalysisMode::Constant => {
                 output[0] = Signal::Value(convert(self.v3));
@@ -744,7 +744,7 @@ impl<T: Float, F: Float> AudioNode for PinkFilter<T, F> {
     }
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             let f = frequency * TAU / self.sample_rate.to_f64();
             let z1 = Complex64::from_polar(1.0, -f);

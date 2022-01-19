@@ -4,7 +4,7 @@
     clippy::float_cmp,
     clippy::len_zero,
     clippy::double_neg,
-    clippy::clippy::many_single_char_names
+    clippy::many_single_char_names
 )]
 #![allow(dead_code)]
 

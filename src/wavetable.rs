@@ -252,7 +252,7 @@ where
     }
 
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             output[i] = input[0].distort(0.0);
         }
@@ -347,7 +347,7 @@ where
     }
 
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             output[i] = input[0].distort(0.0);
         }

@@ -112,6 +112,7 @@ where
     S: ScalarOrPair<Sample = f64>,
 {
     lookahead: f64,
+    #[allow(dead_code)]
     release: f64,
     sample_rate: f64,
     reducer: ReduceBuffer<T, Maximum<T>>,
@@ -211,7 +212,7 @@ where
     }
 
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             output[i] = input[i].distort(self.reducer.length() as f64);
         }
@@ -292,7 +293,7 @@ impl<T: Float, F: Real> AudioNode for GoertzelNode<T, F> {
     }
 
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         output[0] = combine_nonlinear(input[0], input[1], 0.0);
         output
     }
@@ -350,7 +351,7 @@ impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
     }
 
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].distort(0.0);
         output
     }

@@ -107,6 +107,7 @@ where
     // Current feedback value.
     value: Frame<T, N>,
     // Feedback operator.
+    #[allow(dead_code)]
     feedback: U,
 }
 

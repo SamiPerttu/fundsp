@@ -44,14 +44,14 @@ pub trait AudioUnit {
     /// Propagate constants, latencies and frequency responses at `frequency`. Return output signal.
     /// Default implementation marks all outputs unknown.
     fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        new_signal_frame()
+        new_signal_frame(self.outputs())
     }
 
     /// Evaluate frequency response at `output`. Any linear response can be composed.
     /// Return `None` if there is no response or it could not be calculated.
     fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
         assert!(output < self.outputs());
-        let mut input = new_signal_frame();
+        let mut input = new_signal_frame(self.inputs());
         for i in 0..self.inputs() {
             input[i] = Signal::Response(Complex64::new(1.0, 0.0), 0.0);
         }
@@ -74,7 +74,7 @@ pub trait AudioUnit {
     /// The latency can depend on the sample rate and is allowed to change after `reset`.
     fn latency(&self, output: usize) -> Option<f64> {
         assert!(output < self.outputs());
-        let mut input = new_signal_frame();
+        let mut input = new_signal_frame(self.inputs());
         for i in 0..self.inputs() {
             input[i] = Signal::Latency(0.0);
         }

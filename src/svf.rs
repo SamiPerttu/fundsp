@@ -406,7 +406,7 @@ where
     }
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| r * self.mode.response(&self.params, frequency));
         output
     }

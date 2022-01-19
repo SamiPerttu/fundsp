@@ -1,5 +1,6 @@
 use super::math::*;
 use num_complex::Complex64;
+use tinyvec::TinyVec;
 
 /// Contents of a mono signal. Used in latency and frequency response analysis.
 #[derive(Clone, Copy)]
@@ -12,6 +13,12 @@ pub enum Signal {
     Latency(f64),
     /// Input connected signal with complex frequency response and latency in samples.
     Response(Complex64, f64),
+}
+
+impl Default for Signal {
+    fn default() -> Signal {
+        Signal::Unknown
+    }
 }
 
 impl Signal {
@@ -40,6 +47,7 @@ impl Signal {
 }
 
 /// Some components support different modes for signal flow analysis.
+// TODO. This is too complex for the user. Remove this and only keep the Constant case?
 #[derive(Copy, Clone)]
 pub enum AnalysisMode {
     /// The component presents itself as a constant.
@@ -56,17 +64,18 @@ impl Default for AnalysisMode {
 }
 
 /// Frame of input or output signals.
-/// To avoid generics, we use fixed size arrays here.
-pub type SignalFrame = [Signal; 128];
+pub type SignalFrame = TinyVec<[Signal; 32]>;
 
 /// Create a new signal frame with all channels marked unknown.
-pub fn new_signal_frame() -> SignalFrame {
-    [Signal::Unknown; 128]
+pub fn new_signal_frame(size: usize) -> SignalFrame {
+    let mut frame = TinyVec::with_capacity(size);
+    frame.resize(size, Signal::Unknown);
+    frame
 }
 
 /// Create a new signal frame by copying from `source` `n` items starting from index `i`.
 pub fn copy_signal_frame(source: &SignalFrame, i: usize, n: usize) -> SignalFrame {
-    let mut frame = new_signal_frame();
+    let mut frame = new_signal_frame(n);
     frame[0..n].copy_from_slice(&source[i..i + n]);
     frame
 }

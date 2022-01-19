@@ -442,7 +442,7 @@ where
     O: Size<T>,
 {
     An(MapNode::new(f, |input, _| {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(O::USIZE);
         for j in 0..O::USIZE {
             if j == 0 {
                 for i in 0..I::USIZE {
@@ -493,7 +493,7 @@ pub fn shape<T: Float, S: Fn(T) -> T + Clone>(
         move |input: &Frame<T, U1>| [f(input[0])].into(),
         |input, _| {
             // Assume non-linear waveshaping.
-            let mut output = new_signal_frame();
+            let mut output = new_signal_frame(1);
             output[0] = input[0].distort(0.0);
             output
         },
@@ -640,7 +640,7 @@ where
     An(MapNode::new(
         |x| Frame::splat(x[0]),
         |input, _| {
-            let mut output = new_signal_frame();
+            let mut output = new_signal_frame(N::USIZE);
             for i in 0..N::USIZE {
                 output[i] = input[0];
             }
@@ -662,7 +662,7 @@ where
     An(MapNode::new(
         |x| Frame::generate(|i| x[i % M::USIZE]),
         |input, _| {
-            let mut output = new_signal_frame();
+            let mut output = new_signal_frame(M::USIZE * N::USIZE);
             for i in 0..M::USIZE * N::USIZE {
                 output[i] = input[i % M::USIZE];
             }
@@ -682,7 +682,7 @@ where
     An(MapNode::new(
         |x| [x.iter().fold(T::zero(), |acc, &x| acc + x) / T::new(N::I64)].into(),
         |input, _| {
-            let mut output = new_signal_frame();
+            let mut output = new_signal_frame(1);
             if N::USIZE > 0 {
                 output[0] = input[0];
             }
@@ -719,7 +719,7 @@ where
             })
         },
         |input, _| {
-            let mut output = new_signal_frame();
+            let mut output = new_signal_frame(M::USIZE);
             for j in 0..M::USIZE {
                 if N::USIZE > 0 {
                     output[j] = input[j];
@@ -749,51 +749,15 @@ pub fn saw<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
 }
 
-/// Saw wave oscillator with phase input.
-#[inline]
-pub fn sawp<T: Float>() -> An<PhaseSynth<'static, T, U1>> {
-    An(PhaseSynth::new(DEFAULT_SR, &SAW_TABLE))
-}
-
-/// Saw wave oscillator with extra phase output.
-#[inline]
-pub fn sawx<T: Float>() -> An<WaveSynth<'static, T, U2>> {
-    An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
-}
-
 /// Square wave oscillator.
 #[inline]
 pub fn square<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
 }
 
-/// Square wave oscillator with phase input.
-#[inline]
-pub fn squarep<T: Float>() -> An<PhaseSynth<'static, T, U1>> {
-    An(PhaseSynth::new(DEFAULT_SR, &SQUARE_TABLE))
-}
-
-/// Square wave oscillator with extra phase output.
-#[inline]
-pub fn squarex<T: Float>() -> An<WaveSynth<'static, T, U2>> {
-    An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
-}
-
 /// Triangle wave oscillator.
 #[inline]
 pub fn triangle<T: Float>() -> An<WaveSynth<'static, T, U1>> {
-    An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
-}
-
-/// Triangle wave oscillator with phase input.
-#[inline]
-pub fn trianglep<T: Float>() -> An<PhaseSynth<'static, T, U1>> {
-    An(PhaseSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
-}
-
-/// Triangle wave oscillator with extra phase output.
-#[inline]
-pub fn trianglex<T: Float>() -> An<WaveSynth<'static, T, U2>> {
     An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
 }
 

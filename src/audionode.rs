@@ -55,7 +55,7 @@ pub trait AudioNode: Clone {
     /// Propagate constants, latencies and frequency responses at `frequency`. Return output signal.
     /// Default implementation marks all outputs unknown.
     fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        new_signal_frame()
+        new_signal_frame(self.outputs())
     }
 
     // End of interface. There is no need to override the following.
@@ -64,7 +64,7 @@ pub trait AudioNode: Clone {
     /// Return `None` if there is no response or it could not be calculated.
     fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
         assert!(output < Self::Outputs::USIZE);
-        let mut input = new_signal_frame();
+        let mut input = new_signal_frame(self.inputs());
         for i in 0..Self::Inputs::USIZE {
             input[i] = Signal::Response(Complex64::new(1.0, 0.0), 0.0);
         }
@@ -87,7 +87,7 @@ pub trait AudioNode: Clone {
     /// The latency can depend on the sample rate and is allowed to change after `reset`.
     fn latency(&self, output: usize) -> Option<f64> {
         assert!(output < Self::Outputs::USIZE);
-        let mut input = new_signal_frame();
+        let mut input = new_signal_frame(self.inputs());
         for i in 0..Self::Inputs::USIZE {
             input[i] = Signal::Latency(0.0);
         }
@@ -179,7 +179,7 @@ impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
     }
 
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        *input
+        input.clone()
     }
 }
 
@@ -237,7 +237,7 @@ impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
     }
 
     fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
+        let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             output[i] = Signal::Value(self.output[i].to_f64());
         }
@@ -370,6 +370,7 @@ pub struct BinopNode<T, X, Y, B> {
     _marker: PhantomData<T>,
     x: X,
     y: Y,
+    #[allow(dead_code)]
     b: B,
 }
 
@@ -451,6 +452,7 @@ where
 pub struct UnopNode<T, X, U> {
     _marker: PhantomData<T>,
     x: X,
+    #[allow(dead_code)]
     u: U,
 }
 
@@ -514,7 +516,7 @@ where
 #[derive(Clone)]
 pub struct MapNode<T, M, P, I, O> {
     f: M,
-    propagate: P,
+    propagate_f: P,
     _marker: PhantomData<(T, I, O)>,
 }
 
@@ -527,10 +529,10 @@ where
     I: Size<T>,
     O: Size<T>,
 {
-    pub fn new(f: M, propagate: P) -> Self {
+    pub fn new(f: M, propagate_f: P) -> Self {
         Self {
             f,
-            propagate,
+            propagate_f,
             _marker: PhantomData,
         }
     }
@@ -558,7 +560,7 @@ where
     }
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        (self.propagate)(input, frequency)
+        (self.propagate_f)(input, frequency)
     }
 }
 
@@ -707,6 +709,7 @@ where
             &copy_signal_frame(input, X::Inputs::USIZE, Y::Inputs::USIZE),
             frequency,
         );
+        signal_x.resize(self.outputs(), Signal::Unknown);
         signal_x[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
         signal_x
@@ -785,6 +788,7 @@ where
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut signal_x = self.x.propagate(input, frequency);
         let signal_y = self.y.propagate(input, frequency);
+        signal_x.resize(self.outputs(), Signal::Unknown);
         signal_x[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
         signal_x
@@ -831,10 +835,12 @@ impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
         output
     }
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame();
-        output[0] = input[0].filter(1.0, |r| {
-            r * Complex64::from_polar(1.0, -TAU * frequency / self.sample_rate)
-        });
+        let mut output = new_signal_frame(self.outputs());
+        for i in 0..self.outputs() {
+            output[i] = input[i].filter(1.0, |r| {
+                r * Complex64::from_polar(1.0, -TAU * frequency / self.sample_rate)
+            });
+        }
         output
     }
 }
@@ -1038,7 +1044,7 @@ where
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
-            return new_signal_frame();
+            return new_signal_frame(self.outputs());
         }
         let mut output = self.x[0].propagate(input, frequency);
         for j in 1..self.x.len() {
@@ -1134,9 +1140,10 @@ where
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
-            return new_signal_frame();
+            return new_signal_frame(self.outputs());
         }
         let mut output = self.x[0].propagate(input, frequency);
+        output.resize(self.outputs(), Signal::Unknown);
         for i in 1..N::USIZE {
             let output_i = self.x[i].propagate(
                 &copy_signal_frame(input, i * X::Inputs::USIZE, X::Inputs::USIZE),
@@ -1165,6 +1172,7 @@ where
     B: FrameBinop<T, X::Outputs>,
 {
     x: Frame<X, N>,
+    #[allow(dead_code)]
     b: B,
     _marker: PhantomData<T>,
 }
@@ -1239,7 +1247,7 @@ where
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
-            return new_signal_frame();
+            return new_signal_frame(self.outputs());
         }
         let mut output = self.x[0].propagate(input, frequency);
         for j in 1..self.x.len() {
@@ -1334,9 +1342,10 @@ where
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
-            return new_signal_frame();
+            return new_signal_frame(self.outputs());
         }
         let mut output = self.x[0].propagate(input, frequency);
+        output.resize(self.outputs(), Signal::Unknown);
         for i in 1..N::USIZE {
             let output_i = self.x[i].propagate(input, frequency);
             output[i * X::Outputs::USIZE..(i + 1) * X::Outputs::USIZE]

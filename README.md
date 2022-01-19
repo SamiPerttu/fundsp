@@ -3,7 +3,7 @@
 ## Audio Processing and Synthesis Library for Rust
 
 [FunDSP](https://github.com/SamiPerttu/fundsp)
-is an audio DSP (digital dignal processing) library with a focus on usability.
+is an audio DSP ([digital dignal processing](https://en.wikipedia.org/wiki/Digital_signal_processing)) library with a focus on usability.
 
 It features a powerful inline graph notation that
 empowers users to accomplish diverse audio processing tasks with ease and elegance.
@@ -35,7 +35,7 @@ of typed characters needed to accomplish common audio tasks.
 
 Many common algorithms can be expressed in a natural form
 conducive to understanding, making FunDSP a superb platform for education.
-For example, a [FM oscillator](https://ccrma.stanford.edu/~jos/sasp/Frequency_Modulation_FM_Synthesis.html)
+For example, an [FM oscillator](https://ccrma.stanford.edu/~jos/sasp/Frequency_Modulation_FM_Synthesis.html)
 can be written simply as:
 
 ```rust
@@ -66,7 +66,7 @@ FunDSP Composable Graph Notation was developed by Sami Perttu,
 with contributions from Benjamin Saunders.
 
 
-## Principia
+## Basics
 
 ### Component Systems
 
@@ -101,6 +101,8 @@ In addition to sample rate adjustments, natural units enable support for
 selective oversampling in nested sections that are easy to configure and modify.
 
 Some low-level components ignore the sample rate by design, such as the single sample delay `tick()`.
+
+The default sample rate is 44.1 kHz.
 
 In both systems, a component `A` can be reinitialized with a new sample rate: `A.reset(Some(sr))`.
 
@@ -148,7 +150,7 @@ In order of precedence, from highest to lowest:
 | Expression     | Meaning                       | Inputs  | Outputs | Notes                                       |
 | -------------- | ----------------------------- |:-------:|:-------:| ------------------------------------------- |
 | `-A`           | negate `A`                    | `a`     | `a`     | Negates any number of outputs, even zero.   |
-| `!A`           | fit `A`                       | `a`     | same as inputs | Fits a filter into a pipeline.       |
+| `!A`           | thru `A`                      | `a`     | same as inputs | Passes through extra inputs. |
 | `A * B`        | multiply `A` with `B`         | `a`&#160;`+`&#160;`b` | `a`&#160;`=`&#160;`b` | Aka amplification, or ring modulation when both are audio signals. Number of outputs in `A` and `B` must match. |
 | `A`&#160;`*`&#160;`constant` | multiply `A`    | `a`     | `a`     | Broadcasts constant. Same applies to `constant * A`. |
 | `A + B`        | sum `A` and `B`               | `a`&#160;`+`&#160;`b` | `a`&#160;`=`&#160;`b` | Aka mixing. Number of outputs in `A` and `B` must match. |
@@ -184,9 +186,9 @@ The negation operator broadcasts also: `-A` is equivalent with `(0.0 - A)`.
 For example, `A * constant(2.0)` and `A >> mul(2.0)` are equivalent and expect `A` to have one output.
 On the other hand, `A * 2.0` works with any `A`, even *sinks*.
 
-#### Fit
+#### Thru
 
-The fit (`!`) operator is syntactic sugar for chaining filters with similar connectivity.
+The thru (`!`) operator is syntactic sugar for chaining filters with similar connectivity.
 
 It adjusts output arity to match input arity and passes through any missing outputs to the next node.
 The missing outputs are parameters to the filter.
@@ -450,8 +452,6 @@ These free functions are available in the environment.
 | `resonator_hz(f, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `saw()`                | 1 (pitch) | 1     | Saw wave oscillator. |
 | `saw_hz()`             |    -   |    1     | Saw wave oscillator at `f` Hz. |
-| `sawp()`               | 1 (phase) | 1     | Saw wave oscillator with phase input in 0...1. |
-| `sawx()`               | 1 (pitch) | 2 (audio, phase) | Saw wave oscillator with extra phase output in 0...1. |
 | `shape(f)`             |    1   |    1     | Shape signal with waveshaper `f`, e.g., `tanh`. |
 | `sine()`               | 1 (pitch) | 1     | Sine oscillator. |
 | `sine_hz(f)`           |    -   |    1     | Sine oscillator at `f` Hz. |
@@ -459,8 +459,6 @@ These free functions are available in the environment.
 | `split::<U>()`         |    1   |   `U`    | Split signal into `U` channels. |
 | `square()`             | 1 (pitch) | 1     | Square wave oscillator. |
 | `square_hz()`          |    -   |    1     | Square wave oscillator at frequency `f` Hz. |
-| `squarep()`            | 1 (phase) | 1     | Square wave oscillator with phase input in 0...1. |
-| `squarex()`            | 1 (pitch) | 2 (audio, phase) | Square wave oscillator with extra phase output in 0...1. |
 | `stackf::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `stacki::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from indexed generator `i`. |
 | `stereo_limiter(t)`    |    2   |    2     | Look-ahead limiter with attack and release times `t` seconds. |
@@ -470,8 +468,6 @@ These free functions are available in the environment.
 | `tick()`               |    1   |    1     | Single sample delay. |
 | `triangle()`           | 1 (pitch) | 1     | Triangle wave oscillator. |
 | `triangle_hz(f)`       |    -   |    1     | Triangle wave oscillator at `f` Hz. |
-| `trianglep()`          | 1 (phase) | 1     | Triangle wave oscillator with phase input in 0...1. |
-| `trianglex()`          | 1 (pitch) | 2 (audio, phase) | Triangle wave oscillator with extra phase output in 0...1. |
 | `white()`              |    -   |    1     | White noise source. Synonymous with `noise`. |
 | `zero()`               |    -   |    1     | Zero signal. |
 
@@ -592,7 +588,7 @@ These math functions have the shape of an easing function.
 
 ## Examples
 
-For the practice of *graph fu*, some examples of graph expressions.
+Some examples of graph expressions.
 
 ---
 
@@ -661,7 +657,7 @@ There are usually many ways to express a particular graph. The following express
 | `constant(0.0) \| dc(1.0)`                 | `constant((0.0, 1.0))`          | Stacking concatenates channels. |
 | `sink() \| zero()`                         | `zero() \| sink()`              | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
 | `(butterpass() ^ (sink() \| pass())) >> butterpass()` | `!butterpass() >> butterpass()`  | Running a manual bypass. |
-| `!(noise() \| noise())`                    | `!noise()`                      | The fit operator nullifies any generator. |
+| `!(noise() \| noise())`                    | `!noise()`                      | The thru operator nullifies any generator. |
 
 ---
 
@@ -701,8 +697,8 @@ MIT or Apache-2.0.
 ## Next Steps
 
 - See if `AudioNode::tick` can be made faster with, e.g., slice iterators.
-- Bring code up to date. Make use of the recently stabilized const generics.
-- Implement the block-based, dynamic `AudioUnit` system.
+- Implement the dynamic `AudioUnit` system. Complex graph expressions can get cumbersome,
+  so we'd like to have an explicit graph interface there for adding units to a graph and connecting them.
 
 ## Future
 
