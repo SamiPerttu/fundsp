@@ -9,9 +9,9 @@ pub enum Signal {
     Unknown,
     /// Constant signal with value.
     Value(f64),
-    /// Input connected signal with latency in samples.
+    /// Signal that is connected to input(s) with latency in samples.
     Latency(f64),
-    /// Input connected signal with complex frequency response and latency in samples.
+    /// Signal that is connected to input(s) with complex frequency response and latency in samples.
     Response(Complex64, f64),
 }
 

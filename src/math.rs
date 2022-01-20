@@ -270,7 +270,7 @@ pub fn spline<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
 /// Monotonic cubic interpolation via Steffen's method. The result never overshoots.
 /// It is first order continuous. Interpolates between y1 (at x = 0) and y2 (at x = 1)
 /// while using the previous (y0) and next (y3) values to influence slopes.
-pub fn splinem<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
+pub fn spline_mono<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
     let d0 = y1 - y0;
     let d1 = y2 - y1;
     let d2 = y3 - y2;

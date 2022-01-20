@@ -89,6 +89,7 @@ impl Mls {
 }
 
 /// MLS noise component.
+/// - Output 0: noise.
 #[derive(Clone)]
 pub struct MlsNoise<T> {
     _marker: std::marker::PhantomData<T>,
@@ -134,6 +135,7 @@ impl<T: Float> AudioNode for MlsNoise<T> {
 }
 
 /// White noise component.
+/// - Output 0: noise.
 #[derive(Clone, Default)]
 pub struct NoiseNode<T> {
     _marker: std::marker::PhantomData<T>,

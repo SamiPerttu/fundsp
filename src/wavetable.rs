@@ -70,8 +70,6 @@ where
         }
     }
 
-    //let mut ia = vec![re(0.0); length];
-
     // TODO. Are we supposed to cache these.
     let fft = Radix4::new(length, FftDirection::Inverse);
     fft.process(&mut a);
@@ -172,8 +170,8 @@ impl Wavetable {
 }
 
 /// Bandlimited wavetable synthesizer with `N` outputs (1 or 2).
-/// First output is audio.
-/// Second, optional, output is phase.
+/// - Output 0: audio.
+/// - Output 1 (optional): phase.
 #[derive(Clone)]
 pub struct WaveSynth<'a, T, N>
 where
@@ -261,8 +259,8 @@ where
 }
 
 /// Bandlimited wavetable synthesizer with `N` outputs (1 or 2) driven by a phase input.
-/// First output is audio.
-/// Second, optional, output is phase pass-through.
+/// - Output 0: audio.
+/// - Output 1 (optional): phase pass-through.
 #[derive(Clone)]
 pub struct PhaseSynth<'a, T, N>
 where

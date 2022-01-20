@@ -193,10 +193,10 @@ impl<X> std::ops::Not for An<X>
 where
     X: AudioNode,
 {
-    type Output = An<FitNode<X>>;
+    type Output = An<ThruNode<X>>;
     #[inline]
     fn not(self) -> Self::Output {
-        An(FitNode::new(self.0))
+        An(ThruNode::new(self.0))
     }
 }
 

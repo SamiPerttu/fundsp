@@ -3,7 +3,7 @@
 ## Audio Processing and Synthesis Library for Rust
 
 [FunDSP](https://github.com/SamiPerttu/fundsp)
-is an audio DSP ([digital dignal processing](https://en.wikipedia.org/wiki/Digital_signal_processing)) library with a focus on usability.
+is an audio DSP ([digital signal processing](https://en.wikipedia.org/wiki/Digital_signal_processing)) library with a focus on usability.
 
 FunDSP features a powerful inline graph notation that
 empowers users to accomplish diverse audio processing tasks with ease and elegance.
@@ -19,22 +19,22 @@ However, some standard components are missing and breakage can be expected as we
 
 ### Uses
 
+- Audio processing and synthesis for games and applications
 - Education
 - Music making
 - Sound hacking and audio golfing
-- Audio synthesis for games and applications
 - Prototyping of DSP algorithms
 
 ### Graph Notation
 
 *FunDSP Composable Graph Notation* expresses audio networks
-in an algebraic form, using graph operators. It
+in algebraic form, using graph operators. It
 was developed together with the functional
 environment to minimize the number
 of typed characters needed to accomplish common audio tasks.
 
 Many common algorithms can be expressed in a natural form
-conducive to understanding, making FunDSP a superb platform for education.
+conducive to understanding.
 For example, an [FM oscillator](https://ccrma.stanford.edu/~jos/sasp/Frequency_Modulation_FM_Synthesis.html)
 can be written simply as:
 
@@ -76,16 +76,15 @@ Both systems operate on audio signals synchronously as an infinite stream.
 
 ---
 
-| Trait         | Sample Type | Dispatch             | Allocation Strategy | Connectivity |
-| ------------- | ----------- | -------------------- | --------------- | ---------------- |
-| `AudioNode`   | generic     | static, inlined      | stack           | input and output arity fixed at compile time |
-| `AudioUnit`   | generic     | dynamic, object safe | heap            | input and output arity fixed after construction |
+| Trait         | Sample Type    | Dispatch             | Allocation Strategy | Connectivity |
+| ------------- | -------------- | -------------------- | --------------- | ---------------- |
+| `AudioNode`   | generic        | static, inlined      | stack           | input and output arity fixed at compile time |
+| `AudioUnit`   | `f32` or `f64` | dynamic, object safe | heap            | input and output arity fixed after construction |
 
 ---
 
-The lower level `AudioNode`s can be lifted
-to block processing mode with the object safe `AudioUnit` interface via the `AnUnit<X: AudioNode>` wrapper.
-Block processing aims to maximize efficiency in dynamic situations.
+The lower level `AudioNode`s can be lifted to dynamic mode
+with the object safe `AudioUnit` interface via the `AnUnit<X: AudioNode>` wrapper.
 
 `AudioNode`s can be stack allocated for the most part.
 Some nodes may use the heap for audio buffers and the like.
@@ -103,7 +102,6 @@ selective oversampling in nested sections that are easy to configure and modify.
 Some low-level components ignore the sample rate by design, such as the single sample delay `tick()`.
 
 The default sample rate is 44.1 kHz.
-
 In both systems, a component `A` can be reinitialized with a new sample rate: `A.reset(Some(sr))`.
 
 
@@ -252,7 +250,7 @@ we can always bus together any set of matching components
 without touching the rest of the expression.
 
 Both `A + B` and `A & B` are mixing operators. The difference between the two is that `A + B` is *reducing*:
-`A` and `B` have their own, disjoint inputs.
+`A` and `B` have their own, disjoint inputs, which are combined at the output.
 In `A & B`, both components source from the same inputs, and the number of inputs must match.
 
 
@@ -354,15 +352,15 @@ Verified frequency responses are available for all filters.
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
 | `allpass`    | allpass (2nd order)    | frequency, Q | [Simper SVF](https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf) | |
 | `bandpass`   | bandpass (2nd order)   | frequency, Q | Simper SVF   | |
-| `bell`       | peaking (2nd order)    | frequency, Q, gain | Simper SVF | Adjustable gain. |
+| `bell`       | peaking (2nd order)    | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
 | `butterpass` | lowpass (2nd order)    | frequency    | [biquad](https://en.wikipedia.org/wiki/Digital_biquad_filter) | [Butterworth](https://en.wikipedia.org/wiki/Butterworth_filter) lowpass has a maximally flat passband and monotonic frequency response. |
 | `dcblock`    | DC blocker (1st order) | frequency    | 1st order    | Zero centers signal, countering any constant offset ("direct current"). |
 | `follow`     | lowpass (3rd order)    | response time | nested 1st order | Smoothing filter with adjustable edge response time. |
 | `highpass`   | highpass (2nd order)   | frequency, Q | Simper SVF   | |
-| `highshelf`  | high shelf (2nd order) | frequency, Q, gain | Simper SVF | Adjustable gain. |
+| `highshelf`  | high shelf (2nd order) | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
 | `lowpass`    | lowpass (2nd order)    | frequency, Q | Simper SVF   | |
 | `lowpole`    | lowpass (1st order)    | frequency    | 1st order    | |
-| `lowshelf`   | low shelf (2nd order)  | frequency, Q, gain | Simper SVF | Adjustable gain. |
+| `lowshelf`   | low shelf (2nd order)  | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
 | `notch`      | notch (2nd order)      | frequency, Q | Simper SVF   | |
 | `peak`       | peaking (2nd order)    | frequency, Q | Simper SVF   | |
 | `pinkpass`   | lowpass (3 dB/octave)  | -            | mixed FIR / 1st order | Turns white noise into pink noise. |
@@ -555,7 +553,7 @@ The values in between are linearly interpolated.
 | `squared(x)`           | square of `x` |
 | `sqrt(x)`              | square root of `x` |
 | `spline(x0, x1, x2, x3, t)` | [Catmull-Rom](https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Catmull%E2%80%93Rom_spline) cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
-| `splinem(x0, x1, x2, x3, t)` | [monotonic cubic interpolation](https://en.wikipedia.org/wiki/Monotone_cubic_interpolation) between `x1` and `x2`, taking `x0` and `x3` into account |
+| `spline_mono(x0, x1, x2, x3, t)` | [monotonic cubic interpolation](https://en.wikipedia.org/wiki/Monotone_cubic_interpolation) between `x1` and `x2`, taking `x0` and `x3` into account |
 | `staircase(n, ease)(x)`| staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
@@ -697,6 +695,7 @@ MIT or Apache-2.0.
 ## Next Steps
 
 - See if `AudioNode::tick` can be made faster with, e.g., slice iterators.
+- Implement block processing for the `AudioNode` system.
 - Implement the dynamic `AudioUnit` system. Complex graph expressions can get cumbersome,
   so we'd like to have an explicit graph interface there for adding units to a graph and connecting them.
 

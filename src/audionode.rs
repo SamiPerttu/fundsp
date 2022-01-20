@@ -26,8 +26,9 @@ pub trait AudioNode: Clone {
     /// Output arity.
     type Outputs: Size<Self::Sample>;
 
-    /// Reset the input state of the component to an initial state where it has not processed any samples.
-    /// In other words, reset time to zero.
+    /// Reset the input state of the component to an initial state where it has
+    /// not processed any samples. In other words, reset time to zero.
+    /// The sample rate can be set optionally. The default sample rate is 44.1 kHz.
     fn reset(&mut self, _sample_rate: Option<f64>) {}
 
     /// Process one sample.
@@ -52,8 +53,8 @@ pub trait AudioNode: Clone {
         hash.hash(Self::ID)
     }
 
-    /// Propagate constants, latencies and frequency responses at `frequency`. Return output signal.
-    /// Default implementation marks all outputs unknown.
+    /// Propagate constants, latencies and frequency responses at `frequency`.
+    /// Return output signal. Default implementation marks all outputs unknown.
     fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         new_signal_frame(self.outputs())
     }
@@ -918,22 +919,23 @@ where
     }
 }
 
-/// Pass through inputs without matching outputs. Adapts a filter to a pipeline.
+/// Pass through inputs without matching outputs.
+/// Adjusts output arity to match input arity, adapting a filter to a pipeline.
 #[derive(Clone)]
-pub struct FitNode<X> {
+pub struct ThruNode<X> {
     x: X,
 }
 
-impl<X: AudioNode> FitNode<X> {
+impl<X: AudioNode> ThruNode<X> {
     pub fn new(x: X) -> Self {
-        let mut node = FitNode { x };
+        let mut node = ThruNode { x };
         let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
     }
 }
 
-impl<X: AudioNode> AudioNode for FitNode<X> {
+impl<X: AudioNode> AudioNode for ThruNode<X> {
     const ID: u64 = 12;
     type Sample = X::Sample;
     type Inputs = X::Inputs;

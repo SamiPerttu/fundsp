@@ -44,7 +44,7 @@ impl<T: Float> AudioNode for SineNode<T> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         let frequency = input[0].to_f64();
-        self.phase += frequency * self.sample_duration;
+        self.phase = (self.phase + frequency * self.sample_duration).fract();
         [convert(sin(self.phase * TAU))].into()
     }
 

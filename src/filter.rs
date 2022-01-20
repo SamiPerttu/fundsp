@@ -408,6 +408,8 @@ fn halfway_coeff<F: Real>(samples: F) -> F {
 }
 
 /// Smoothing filter with adjustable edge response time.
+/// - Input 0: input signal
+/// - Output 0: smoothed signal
 #[derive(Default, Clone)]
 pub struct Follower<T: Float, F: Real> {
     v3: F,
@@ -535,6 +537,8 @@ impl<T: Float, F: Real> AudioNode for Follower<T, F> {
 }
 
 /// Smoothing filter with adjustable edge response times for attack and release.
+/// - Input 0: input signal
+/// - Output 0: smoothed signal
 #[derive(Clone, Default)]
 pub struct AFollower<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
     v3: F,
@@ -677,6 +681,8 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollower<T, 
 }
 
 /// Pinking filter.
+/// - Input 0: input signal
+/// - Output 0: filtered signal
 #[derive(Clone, Default)]
 pub struct PinkFilter<T: Float, F: Float> {
     // Algorithm by Paul Kellett. +-0.05 dB accuracy above 9.2 Hz @ 44.1 kHz.
