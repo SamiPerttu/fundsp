@@ -188,7 +188,8 @@ where
     }
 }
 
-/// `!` unary operator: The fit operator converts output arity to match input arity and passes through missing outputs.
+/// `!` unary operator: The thru operator makes output arity match input arity
+/// and passes through missing outputs.
 impl<X> std::ops::Not for An<X>
 where
     X: AudioNode,
@@ -200,7 +201,8 @@ where
     }
 }
 
-/// `+` binary operator: Sums outputs of two nodes with disjoint inputs. The nodes must have the same number of outputs.
+/// `+` binary operator: Sums outputs of two nodes with disjoint inputs.
+/// The nodes must have the same number of outputs.
 impl<X, Y> std::ops::Add<An<Y>> for An<X>
 where
     X: AudioNode,
@@ -216,7 +218,8 @@ where
     }
 }
 
-/// `X + constant` binary operator: Adds `constant` to outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
+/// `X + constant` binary operator: Adds `constant` to outputs of `X`.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Add<f64> for An<X>
 where
     X: AudioNode<Sample = f64>,
@@ -236,7 +239,8 @@ where
     }
 }
 
-/// `constant + X` binary operator: Adds `constant` to outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
+/// `constant + X` binary operator: Adds `constant` to outputs of `X`.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Add<An<X>> for f64
 where
     X: AudioNode<Sample = f64>,
@@ -255,7 +259,8 @@ where
     }
 }
 
-/// `X + constant` binary operator: Adds `constant` to outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
+/// `X + constant` binary operator: Adds `constant` to outputs of `X`.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Add<f32> for An<X>
 where
     X: AudioNode<Sample = f32>,
@@ -275,7 +280,8 @@ where
     }
 }
 
-/// `constant + X` binary operator: Adds `constant` to outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
+/// `constant + X` binary operator: Adds `constant` to outputs of `X`.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Add<An<X>> for f32
 where
     X: AudioNode<Sample = f32>,
@@ -294,7 +300,8 @@ where
     }
 }
 
-/// `-` binary operator: The difference of outputs of two nodes with disjoint inputs. The nodes must have the same number of outputs.
+/// `-` binary operator: The difference of outputs of two nodes with disjoint inputs.
+/// The nodes must have the same number of outputs.
 impl<X, Y> std::ops::Sub<An<Y>> for An<X>
 where
     X: AudioNode,
@@ -310,7 +317,8 @@ where
     }
 }
 
-/// `X - constant` binary operator: Subtracts `constant` from outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
+/// `X - constant` binary operator: Subtracts `constant` from outputs of `X`.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Sub<f64> for An<X>
 where
     X: AudioNode<Sample = f64>,
@@ -329,7 +337,8 @@ where
     }
 }
 
-/// `constant - X` binary operator: Negates `X` and adds `constant` to its outputs. Broadcasts `constant` to an arbitrary number of channels.
+/// `constant - X` binary operator: Negates `X` and adds `constant` to its outputs.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Sub<An<X>> for f64
 where
     X: AudioNode<Sample = f64>,
@@ -348,7 +357,8 @@ where
     }
 }
 
-/// `X - constant` binary operator: Subtracts `constant` from outputs of `X`. Broadcasts `constant` to an arbitrary number of channels.
+/// `X - constant` binary operator: Subtracts `constant` from outputs of `X`.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Sub<f32> for An<X>
 where
     X: AudioNode<Sample = f32>,
@@ -367,7 +377,8 @@ where
     }
 }
 
-/// `constant - X` binary operator: Negates `X` and adds `constant` to its outputs. Broadcasts `constant` to an arbitrary number of channels.
+/// `constant - X` binary operator: Negates `X` and adds `constant` to its outputs.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Sub<An<X>> for f32
 where
     X: AudioNode<Sample = f32>,
@@ -386,7 +397,8 @@ where
     }
 }
 
-/// `*` binary operator: Multiplies outputs of two nodes with disjoint inputs. The nodes must have the same number of outputs.
+/// `*` binary operator: Multiplies outputs of two nodes with disjoint inputs.
+/// The nodes must have the same number of outputs.
 impl<X, Y> std::ops::Mul<An<Y>> for An<X>
 where
     X: AudioNode,
@@ -402,7 +414,8 @@ where
     }
 }
 
-/// `X * constant` binary operator: Multplies outputs of `X` with `constant`. Broadcasts `constant` to an arbitrary number of channels.
+/// `X * constant` binary operator: Multplies outputs of `X` with `constant`.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<f64> for An<X>
 where
     X: AudioNode<Sample = f64>,
@@ -421,7 +434,8 @@ where
     }
 }
 
-/// `constant * X` binary operator: Multplies outputs of `X` with `constant`. Broadcasts `constant` to an arbitrary number of channels.
+/// `constant * X` binary operator: Multplies outputs of `X` with `constant`.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<An<X>> for f64
 where
     X: AudioNode<Sample = f64>,
@@ -440,7 +454,8 @@ where
     }
 }
 
-/// `X * constant` binary operator: Multplies outputs of `X` with `constant`. Broadcasts `constant` to an arbitrary number of channels.
+/// `X * constant` binary operator: Multplies outputs of `X` with `constant`.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<f32> for An<X>
 where
     X: AudioNode<Sample = f32>,
@@ -459,7 +474,8 @@ where
     }
 }
 
-/// `constant * X` binary operator: Multplies outputs of `X` with `constant`. Broadcasts `constant` to an arbitrary number of channels.
+/// `constant * X` binary operator: Multplies outputs of `X` with `constant`.
+/// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<An<X>> for f32
 where
     X: AudioNode<Sample = f32>,

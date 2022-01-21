@@ -121,5 +121,5 @@ fn main() {
 
     println!();
     println!("Latency:");
-    println!("{:.1} samples", node.latency(0).unwrap());
+    println!("{:.1} samples", node.latency().unwrap_or(0.0));
 }

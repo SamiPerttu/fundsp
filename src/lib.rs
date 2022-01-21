@@ -13,8 +13,11 @@ pub extern crate lazy_static;
 use std::cmp::PartialEq;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
+
 /// Default sample rate is 44.1 khz.
 pub const DEFAULT_SR: f64 = 44_100.0;
+
+pub const MAX_BUFFER_SIZE: usize = 64;
 
 pub trait Num:
     Copy
@@ -257,6 +260,7 @@ pub mod oscillator;
 pub mod prelude;
 pub mod signal;
 pub mod svf;
+pub mod wave;
 pub mod wavetable;
 
 pub use audionode::{AudioNode, Frame, Size};

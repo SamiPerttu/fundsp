@@ -951,10 +951,10 @@ pub fn highshelf_eq(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = 
     super::prelude::highshelf_eq::<f64, f64>(f, q)
 }
 
-pub fn lift<X: AudioNode<Sample = f64> + 'static>(x: An<X>) -> Au
+pub fn lift<X: AudioNode<Sample = f64> + 'static>(x: An<X>) -> Au64
 where
     X::Inputs: Size<f64>,
     X::Outputs: Size<f64>,
 {
-    Au(Box::new(AnUnit(x.0)))
+    Au64(Box::new(x))
 }

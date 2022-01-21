@@ -37,6 +37,26 @@ pub trait AudioNode: Clone {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs>;
 
+    /// Process up to 64 samples.
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        debug_assert!(size <= MAX_BUFFER_SIZE);
+        debug_assert!(input.len() == self.inputs());
+        debug_assert!(output.len() == self.outputs());
+        debug_assert!(input.iter().all(|x| x.len() >= size));
+        debug_assert!(output.iter().all(|x| x.len() >= size));
+        for i in 0..size {
+            let result = self.tick(&Frame::generate(|j| input[j][i]));
+            for (j, &x) in result.iter().enumerate() {
+                output[j][i] = x;
+            }
+        }
+    }
+
     /// Set node hash. Override this to use the hash.
     /// This is called from `ping`. It should not be called by users.
     fn set_hash(&mut self, _hash: u32) {}
@@ -54,9 +74,13 @@ pub trait AudioNode: Clone {
     }
 
     /// Propagate constants, latencies and frequency responses at `frequency`.
-    /// Return output signal. Default implementation marks all outputs unknown.
+    /// Return output signal. Default implementation marks all outputs with zero latencies.
     fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        new_signal_frame(self.outputs())
+        let mut frame = new_signal_frame(self.outputs());
+        for i in 0..self.outputs() {
+            frame[i] = Signal::Latency(0.0)
+        }
+        frame
     }
 
     // End of interface. There is no need to override the following.
@@ -83,21 +107,29 @@ pub trait AudioNode: Clone {
         self.response(output, frequency).map(|r| amp_db(r.norm()))
     }
 
-    /// Causal latency at `output`, in (fractional) samples.
+    /// Causal latency in (fractional) samples.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
     /// The latency can depend on the sample rate and is allowed to change after `reset`.
-    fn latency(&self, output: usize) -> Option<f64> {
-        assert!(output < Self::Outputs::USIZE);
+    fn latency(&self) -> Option<f64> {
+        if self.outputs() == 0 {
+            return None;
+        }
         let mut input = new_signal_frame(self.inputs());
         for i in 0..Self::Inputs::USIZE {
             input[i] = Signal::Latency(0.0);
         }
         // The frequency argument can be anything as there are no responses to propagate, only latencies.
         let response = self.propagate(&input, 1.0);
-        match response[output] {
-            Signal::Latency(latency) => Some(latency),
-            _ => None,
+        // Return the minimum latency.
+        let mut result: Option<f64> = None;
+        for output in 0..self.outputs() {
+            match (result, response[output]) {
+                (None, Signal::Latency(x)) => result = Some(x),
+                (Some(r), Signal::Latency(x)) => result = Some(r.min(x)),
+                _ => (),
+            }
         }
+        result
     }
 
     /// Number of inputs.
@@ -337,6 +369,7 @@ pub trait FrameUnop<T: Float, N: Size<T>>: Clone {
     fn unop(x: &Frame<T, N>) -> Frame<T, N>;
     fn propagate(x: Signal) -> Signal;
 }
+
 #[derive(Clone, Default)]
 pub struct FrameNeg<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
@@ -424,8 +457,8 @@ where
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let input_x = &input[0..X::Inputs::USIZE];
-        let input_y = &input[Self::Inputs::USIZE - Y::Inputs::USIZE..Self::Inputs::USIZE];
+        let input_x = &input[..X::Inputs::USIZE];
+        let input_y = &input[X::Inputs::USIZE..];
         let x = self.x.tick(input_x.into());
         let y = self.y.tick(input_y.into());
         B::binop(&x, &y)

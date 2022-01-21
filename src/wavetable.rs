@@ -170,6 +170,7 @@ impl Wavetable {
 }
 
 /// Bandlimited wavetable synthesizer with `N` outputs (1 or 2).
+/// - Input 0: frequency in Hz.
 /// - Output 0: audio.
 /// - Output 1 (optional): phase.
 #[derive(Clone)]
@@ -259,6 +260,7 @@ where
 }
 
 /// Bandlimited wavetable synthesizer with `N` outputs (1 or 2) driven by a phase input.
+/// - Input 0: phase in 0...1.
 /// - Output 0: audio.
 /// - Output 1 (optional): phase pass-through.
 #[derive(Clone)]
@@ -382,7 +384,7 @@ lazy_static! {
         20_000.0,
         4.0,
         // To build the classic triangle shape, shift every other odd partial 180 degrees.
-        &|i| if (i & 2) == 0 { 0.0 } else { 0.5 },
+        &|i| if (i & 3) == 3 { 0.5 } else { 0.0 },
         &|_, i| if (i & 1) == 1 {
             1.0 / (i * i) as f64
         } else {
