@@ -11,16 +11,39 @@
 extern crate fundsp;
 
 use fundsp::hacker::*;
+use fundsp::wave::*;
 
-// New nodes can be defined with the following return signature.
-// Declaring the full arity in the signature enables use of the node
-// in further combinations, as does the full type name.
-// Signatures with generic number of channels can be challenging to write.
+/// Check that the stereo generator given is rendered identically
+/// via `process` (block processing) and `tick` (single sample processing).
+/// Also check that the generator is reset properly.
+fn wave_is_equal<X>(node: &mut An<X>) -> bool
+where
+    X: AudioNode<Sample = f64, Inputs = U0, Outputs = U2>,
+{
+    let wave = Wave::render(44100.0, 1.0, node);
+    assert!(wave.channels() == 2);
+    assert!(wave.length() == 44100);
+    node.reset(None);
+    for i in 0..44100 {
+        let (tick_x, tick_y) = node.get_stereo();
+        let process_x = wave.at(0, i);
+        let process_y = wave.at(1, i);
+        let tolerance = 1.0e-9;
+        assert!(tick_x - tolerance <= process_x && tick_x + tolerance >= process_x);
+        assert!(tick_y - tolerance <= process_y && tick_y + tolerance >= process_y);
+    }
+    true
+}
+
+/// New nodes can be defined with the following return signature.
+/// Declaring the full arity in the signature enables use of the node
+/// in further combinations, as does the full type name.
+/// Signatures with generic number of channels can be challenging to write.
 fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
     pass() ^ pass() ^ pass() ^ pass()
 }
 
-// Attempt to test two nodes for equality.
+/// Attempt to test two nodes for equality.
 fn is_equal<X, Y>(rnd: &mut AttoRand, x: &mut An<X>, y: &mut An<Y>) -> bool
 where
     X: AudioNode,
@@ -39,7 +62,7 @@ where
     true
 }
 
-// Check if the outputs of a node are all unique.
+/// Check that the outputs of a node are all unique.
 fn outputs_diverge<X>(rnd: &mut AttoRand, x: &mut An<X>) -> bool
 where
     X: AudioNode,
@@ -75,6 +98,26 @@ where
 #[test]
 fn test_basic() {
     let mut rnd = AttoRand::new(0);
+
+    // Wave rendering, tick vs. process rendering, node reseting.
+    assert!(wave_is_equal(&mut (noise() | noise() + noise())));
+    assert!(wave_is_equal(
+        &mut (noise() * noise() | sine_hz(440.0) - noise())
+    ));
+    assert!(wave_is_equal(
+        &mut (noise() & noise() | sine_hz(440.0) & -noise())
+    ));
+    assert!(wave_is_equal(
+        &mut (dc(110.0) >> sine() | (dc(220.0) >> pass() >> sine()) & mls())
+    ));
+    assert!(wave_is_equal(
+        &mut (dc((110.0, 220.0)) >> multipass() >> -(sine() | sine()))
+    ));
+    assert!(wave_is_equal(
+        &mut (dc((110.0, 220.0, 440.0, 880.0))
+            >> multipass()
+            >> (sink() | sine() | sink() | sine()))
+    ));
 
     // Constants.
     let mut d = constant(1.0);

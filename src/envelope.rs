@@ -104,7 +104,7 @@ where
             self.t_hash = self.t_hash.wrapping_mul(1664525).wrapping_add(1);
         }
         let u = delerp(self.t_0, self.t_1, self.t);
-        self.t = self.t + self.sample_duration;
+        self.t += self.sample_duration;
         Frame::generate(|i| lerp(self.value_0[i], self.value_1[i], convert(u)))
     }
 

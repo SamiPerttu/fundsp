@@ -4,29 +4,6 @@ use super::signal::*;
 use super::*;
 use std::marker::PhantomData;
 
-/// Identity op.
-#[derive(Clone, Default)]
-pub struct FrameId<T: Float, N: Size<T>> {
-    _marker: PhantomData<(T, N)>,
-}
-
-impl<T: Float, N: Size<T>> FrameId<T, N> {
-    pub fn new() -> FrameId<T, N> {
-        FrameId::default()
-    }
-}
-
-impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameId<T, N> {
-    #[inline]
-    fn unop(x: &Frame<T, N>) -> Frame<T, N> {
-        x.clone()
-    }
-    #[inline]
-    fn propagate(x: Signal) -> Signal {
-        x
-    }
-}
-
 /// Diffusive Hadamard feedback matrix.
 #[derive(Clone, Default)]
 pub struct FrameHadamard<T: Float, N: Size<T>> {
@@ -85,8 +62,12 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameHadamard<T, N> {
         output
     }
     // Not implemented.
+    // TODO: Hadamard is a special op because of interchannel dependencies.
     #[inline]
     fn propagate(_: Signal) -> Signal {
+        panic!()
+    }
+    fn assign(_size: usize, _x: &mut [T]) {
         panic!()
     }
 }

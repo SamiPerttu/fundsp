@@ -7,11 +7,12 @@
     clippy::needless_range_loop,
     clippy::manual_range_contains
 )]
+
 #[macro_use]
 pub extern crate lazy_static;
 
 use std::cmp::PartialEq;
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 
 /// Default sample rate is 44.1 khz.
@@ -26,6 +27,10 @@ pub trait Num:
     + Sub<Output = Self>
     + Mul<Output = Self>
     + Div<Output = Self>
+    + AddAssign
+    + MulAssign
+    + SubAssign
+    + DivAssign
     + PartialEq
     + PartialOrd
 {
@@ -247,6 +252,7 @@ impl_as_primitive!(bool => {});
 
 pub mod audionode;
 pub mod audiounit;
+pub mod buffer;
 pub mod combinator;
 pub mod delay;
 pub mod dynamics;

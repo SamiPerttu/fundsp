@@ -343,7 +343,7 @@ impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
         if self.t < self.duration {
             let phase = delerp(F::zero(), self.duration, self.t);
             let value = smooth5(phase);
-            self.t = self.t + self.sample_duration;
+            self.t += self.sample_duration;
             [input[0] * convert(value)].into()
         } else {
             [input[0]].into()

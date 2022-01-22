@@ -7,8 +7,6 @@ use rustfft::algorithm::Radix4;
 use rustfft::Fft;
 use rustfft::FftDirection;
 
-type C32 = Complex32;
-
 /// Interpolates between a1 and a2 taking previous (a0) and next (a3) points into account.
 /// Employs an optimal 4-point, 4th order interpolating polynomial for 4x oversampled signals.
 /// The SNR of the interpolator for pink noise is 101.1 dB.
@@ -29,10 +27,10 @@ fn optimal4x44<T: Float>(a0: T, a1: T, a2: T, a3: T, x: T) -> T {
     (((c4 * z + c3) * z + c2) * z + c1) * z + c0
 }
 
-/// Complex64 with real component `x` and imaginary component zero.
+/// Complex32 with real component `x` and imaginary component zero.
 #[inline]
-fn re<T: Float>(x: T) -> C32 {
-    C32::new(x.to_f32(), 0.0)
+fn re<T: Float>(x: T) -> Complex32 {
+    Complex32::new(x.to_f32(), 0.0)
 }
 
 /// Create a single cycle wave into a power-of-two table, unnormalized.
@@ -66,7 +64,7 @@ where
         let w = w * smooth5(clamp01(delerp(MAX_F, FADE_F, f)));
         // Insert partial.
         if w > 0.0 {
-            a[i] = C32::from_polar(w as f32, (TAU * phase(i as u32)) as f32);
+            a[i] = Complex32::from_polar(w as f32, (TAU * phase(i as u32)) as f32);
         }
     }
 
@@ -172,7 +170,7 @@ impl Wavetable {
 /// Bandlimited wavetable synthesizer with `N` outputs (1 or 2).
 /// - Input 0: frequency in Hz.
 /// - Output 0: audio.
-/// - Output 1 (optional): phase.
+/// - Output 1 (optional): phase in 0...1.
 #[derive(Clone)]
 pub struct WaveSynth<'a, T, N>
 where

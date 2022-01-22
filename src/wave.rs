@@ -1,9 +1,10 @@
 use crate::audionode::*;
+use crate::combinator::*;
 use crate::math::*;
 use crate::*;
 use rsor::Slice;
 
-/// Simple multichannel wave object.
+/// Multichannel wave.
 pub struct Wave<F: Float> {
     /// Vector of channels. Each channel is stored in its own vector.
     vec: Vec<Vec<F>>,
@@ -82,8 +83,9 @@ impl<F: Float> Wave<F> {
         }
     }
 
-    /// Renders wave from node. Does not reset node or remove pre-delay.
-    pub fn render<T>(sample_rate: f64, duration: f64, node: &mut T) -> Self
+    /// Renders wave from a generator node.
+    /// Does not reset node or remove pre-delay.
+    pub fn render<T>(sample_rate: f64, duration: f64, node: &mut An<T>) -> Self
     where
         T: AudioNode<Sample = F>,
     {

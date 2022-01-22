@@ -1,3 +1,4 @@
+use super::buffer::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
@@ -10,13 +11,13 @@ pub trait Size<T>: numeric_array::ArrayLength<T> {}
 
 impl<T, A: numeric_array::ArrayLength<T>> Size<T> for A {}
 
-/// Transports audio data between `AudioNode` instances.
+/// Frames are used to transport audio data between `AudioNode` instances.
 pub type Frame<T, Size> = numeric_array::NumericArray<T, Size>;
 
 /// Generic audio processor.
 /// `AudioNode` has a static number of inputs (`AudioNode::Inputs`) and outputs (`AudioNode::Outputs`).
 /// `AudioNode` processes samples of type `AudioNode::Sample`, chosen statically.
-pub trait AudioNode: Clone {
+pub trait AudioNode {
     /// Unique ID for hashing.
     const ID: u64;
     /// Sample type for input and output.
@@ -37,7 +38,9 @@ pub trait AudioNode: Clone {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs>;
 
-    /// Process up to 64 samples.
+    /// Process up to 64 (`MAX_BUFFER_SIZE`) samples.
+    /// The number of input and output buffers must match the number of inputs and outputs, respectively.
+    /// All input and output buffers must be at least as large as `size`.
     fn process(
         &mut self,
         size: usize,
@@ -210,7 +213,18 @@ impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         input.clone()
     }
-
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        for i in 0..self.inputs() {
+            for j in 0..size {
+                output[i][j] = input[i][j];
+            }
+        }
+    }
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         input.clone()
     }
@@ -241,6 +255,13 @@ impl<T: Float, N: Size<T>> AudioNode for SinkNode<T, N> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         Frame::default()
     }
+    fn process(
+        &mut self,
+        _size: usize,
+        _input: &[&[Self::Sample]],
+        _output: &mut [&mut [Self::Sample]],
+    ) {
+    }
 }
 
 /// Output a constant value.
@@ -268,7 +289,18 @@ impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.output.clone()
     }
-
+    fn process(
+        &mut self,
+        size: usize,
+        _input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        for i in 0..self.outputs() {
+            for j in 0..size {
+                output[i][j] = self.output[i];
+            }
+        }
+    }
     fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
@@ -281,6 +313,8 @@ impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
 pub trait FrameBinop<T: Float, N: Size<T>>: Clone {
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
     fn propagate(x: Signal, y: Signal) -> Signal;
+    /// Do binary op (x op y) in-place.
+    fn assign(size: usize, x: &mut [T], y: &[T]);
 }
 #[derive(Clone, Default)]
 pub struct FrameAdd<T: Float, N: Size<T>> {
@@ -301,6 +335,11 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
     #[inline]
     fn propagate(x: Signal, y: Signal) -> Signal {
         combine_linear(x, y, 0.0, |x, y| x + y, |x, y| x + y)
+    }
+    fn assign(size: usize, x: &mut [T], y: &[T]) {
+        for i in 0..size {
+            x[i] += y[i];
+        }
     }
 }
 
@@ -323,6 +362,11 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
     #[inline]
     fn propagate(x: Signal, y: Signal) -> Signal {
         combine_linear(x, y, 0.0, |x, y| x - y, |x, y| x - y)
+    }
+    fn assign(size: usize, x: &mut [T], y: &[T]) {
+        for i in 0..size {
+            x[i] -= y[i];
+        }
     }
 }
 
@@ -363,34 +407,9 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
             _ => Signal::Unknown,
         }
     }
-}
-
-pub trait FrameUnop<T: Float, N: Size<T>>: Clone {
-    fn unop(x: &Frame<T, N>) -> Frame<T, N>;
-    fn propagate(x: Signal) -> Signal;
-}
-
-#[derive(Clone, Default)]
-pub struct FrameNeg<T: Float, N: Size<T>> {
-    _marker: PhantomData<(T, N)>,
-}
-
-impl<T: Float, N: Size<T>> FrameNeg<T, N> {
-    pub fn new() -> FrameNeg<T, N> {
-        FrameNeg::default()
-    }
-}
-
-impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
-    #[inline]
-    fn unop(x: &Frame<T, N>) -> Frame<T, N> {
-        -x
-    }
-    fn propagate(x: Signal) -> Signal {
-        match x {
-            Signal::Value(vx) => Signal::Value(-vx),
-            Signal::Response(rx, lx) => Signal::Response(-rx, lx),
-            s => s,
+    fn assign(size: usize, x: &mut [T], y: &[T]) {
+        for i in 0..size {
+            x[i] *= y[i];
         }
     }
 }
@@ -399,13 +418,17 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
 /// Inputs are disjoint.
 /// Outputs are combined channel-wise.
 /// The nodes must have the same number of outputs.
-#[derive(Clone)]
-pub struct BinopNode<T, X, Y, B> {
+//#[derive(Clone)]
+pub struct BinopNode<T, X, Y, B>
+where
+    T: Float,
+{
     _marker: PhantomData<T>,
     x: X,
     y: Y,
     #[allow(dead_code)]
     b: B,
+    buffer: Buffer<T>,
 }
 
 impl<T, X, Y, B> BinopNode<T, X, Y, B>
@@ -425,6 +448,7 @@ where
             x,
             y,
             b,
+            buffer: Buffer::new(),
         };
         let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
@@ -463,6 +487,19 @@ where
         let y = self.y.tick(input_y.into());
         B::binop(&x, &y)
     }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.x.process(size, input, output);
+        self.y
+            .process(size, input, self.buffer.get_mut(self.outputs()));
+        for i in 0..self.outputs() {
+            B::assign(size, output[i], self.buffer.at(i));
+        }
+    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
@@ -479,6 +516,67 @@ where
         }
         signal_x
     }
+}
+
+pub trait FrameUnop<T: Float, N: Size<T>>: Clone {
+    fn unop(x: &Frame<T, N>) -> Frame<T, N>;
+    fn propagate(x: Signal) -> Signal;
+    /// Do unary op in-place.
+    fn assign(size: usize, x: &mut [T]);
+}
+
+#[derive(Clone, Default)]
+pub struct FrameNeg<T: Float, N: Size<T>> {
+    _marker: PhantomData<(T, N)>,
+}
+
+impl<T: Float, N: Size<T>> FrameNeg<T, N> {
+    pub fn new() -> FrameNeg<T, N> {
+        FrameNeg::default()
+    }
+}
+
+impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
+    #[inline]
+    fn unop(x: &Frame<T, N>) -> Frame<T, N> {
+        -x
+    }
+    fn propagate(x: Signal) -> Signal {
+        match x {
+            Signal::Value(vx) => Signal::Value(-vx),
+            Signal::Response(rx, lx) => Signal::Response(-rx, lx),
+            s => s,
+        }
+    }
+    fn assign(size: usize, x: &mut [T]) {
+        for i in 0..size {
+            x[i] = -x[i];
+        }
+    }
+}
+
+/// Identity op.
+#[derive(Clone, Default)]
+pub struct FrameId<T: Float, N: Size<T>> {
+    _marker: PhantomData<(T, N)>,
+}
+
+impl<T: Float, N: Size<T>> FrameId<T, N> {
+    pub fn new() -> FrameId<T, N> {
+        FrameId::default()
+    }
+}
+
+impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameId<T, N> {
+    #[inline]
+    fn unop(x: &Frame<T, N>) -> Frame<T, N> {
+        x.clone()
+    }
+    #[inline]
+    fn propagate(x: Signal) -> Signal {
+        x
+    }
+    fn assign(_size: usize, _x: &mut [T]) {}
 }
 
 /// Apply a unary operation to output of contained node.
@@ -534,6 +632,17 @@ where
         U::unop(&self.x.tick(input))
     }
     #[inline]
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.x.process(size, input, output);
+        for i in 0..self.outputs() {
+            U::assign(size, output[i]);
+        }
+    }
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.x.ping(probe, hash.hash(Self::ID))
     }
@@ -599,11 +708,14 @@ where
 }
 
 /// Pipe the output of `X` to `Y`.
-#[derive(Clone)]
-pub struct PipeNode<T, X, Y> {
+pub struct PipeNode<T, X, Y>
+where
+    T: Float,
+{
     _marker: PhantomData<T>,
     x: X,
     y: Y,
+    buffer: Buffer<T>,
 }
 
 impl<T, X, Y> PipeNode<T, X, Y>
@@ -620,6 +732,7 @@ where
             _marker: PhantomData,
             x,
             y,
+            buffer: Buffer::new(),
         };
         let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
@@ -651,6 +764,17 @@ where
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.y.tick(&self.x.tick(input))
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.x
+            .process(size, input, self.buffer.get_mut(self.x.outputs()));
+        self.y
+            .process(size, self.buffer.get_ref(self.y.inputs()), output);
     }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
@@ -720,8 +844,8 @@ where
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let input_x = &input[0..X::Inputs::USIZE];
-        let input_y = &input[Self::Inputs::USIZE - Y::Inputs::USIZE..Self::Inputs::USIZE];
+        let input_x = &input[..X::Inputs::USIZE];
+        let input_y = &input[X::Inputs::USIZE..];
         let output_x = self.x.tick(input_x.into());
         let output_y = self.y.tick(input_y.into());
         Frame::generate(|i| {

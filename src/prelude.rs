@@ -713,7 +713,7 @@ where
             Frame::generate(|j| {
                 let mut output = x[j];
                 for i in 1..N::USIZE {
-                    output = output + x[j + i * M::USIZE];
+                    output += x[j + i * M::USIZE];
                 }
                 output / T::new(N::I64)
             })
