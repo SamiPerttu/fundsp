@@ -118,6 +118,19 @@ fn test_basic() {
             >> multipass()
             >> (sink() | sine() | sink() | sine()))
     ));
+    assert!(wave_is_equal(
+        &mut (dc((110.0, 220.0)) >> pass() + pass() >> (sine() ^ saw()))
+    ));
+    assert!(wave_is_equal(
+        &mut (dc((20.0, 40.0)) >> pass() * pass() >> (sine() ^ square()))
+    ));
+    assert!(wave_is_equal(
+        &mut (dc((880.0, 440.0)) >> pass() - pass() >> (sine() ^ triangle()))
+    ));
+    assert!(wave_is_equal(
+        &mut ((noise() | dc(440.0)) >> !lowpole() >> lowpole()
+            | ((mls() | dc(880.0)) >> !butterpass() >> butterpass()))
+    ));
 
     // Constants.
     let mut d = constant(1.0);

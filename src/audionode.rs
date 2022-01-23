@@ -41,6 +41,7 @@ pub trait AudioNode {
     /// Process up to 64 (`MAX_BUFFER_SIZE`) samples.
     /// The number of input and output buffers must match the number of inputs and outputs, respectively.
     /// All input and output buffers must be at least as large as `size`.
+    /// The default implementation is a fallback that calls into `tick`.
     fn process(
         &mut self,
         size: usize,
@@ -220,9 +221,7 @@ impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
         output: &mut [&mut [Self::Sample]],
     ) {
         for i in 0..self.inputs() {
-            for j in 0..size {
-                output[i][j] = input[i][j];
-            }
+            output[i][..size].clone_from_slice(&input[i][..size]);
         }
     }
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -296,9 +295,7 @@ impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
         output: &mut [&mut [Self::Sample]],
     ) {
         for i in 0..self.outputs() {
-            for j in 0..size {
-                output[i][j] = self.output[i];
-            }
+            output[i][..size].fill(self.output[i]);
         }
     }
     fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -418,7 +415,6 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
 /// Inputs are disjoint.
 /// Outputs are combined channel-wise.
 /// The nodes must have the same number of outputs.
-//#[derive(Clone)]
 pub struct BinopNode<T, X, Y, B>
 where
     T: Float,
@@ -493,9 +489,12 @@ where
         input: &[&[Self::Sample]],
         output: &mut [&mut [Self::Sample]],
     ) {
-        self.x.process(size, input, output);
-        self.y
-            .process(size, input, self.buffer.get_mut(self.outputs()));
+        self.x.process(size, &input[..X::Inputs::USIZE], output);
+        self.y.process(
+            size,
+            &input[X::Inputs::USIZE..],
+            self.buffer.get_mut(self.outputs()),
+        );
         for i in 0..self.outputs() {
             B::assign(size, output[i], self.buffer.at(i));
         }
@@ -856,6 +855,23 @@ where
             }
         })
     }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.x.process(
+            size,
+            &input[..X::Inputs::USIZE],
+            &mut output[..X::Outputs::USIZE],
+        );
+        self.y.process(
+            size,
+            &input[X::Inputs::USIZE..],
+            &mut output[X::Outputs::USIZE..],
+        );
+    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
@@ -938,6 +954,17 @@ where
             }
         })
     }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.x
+            .process(size, input, &mut output[..X::Outputs::USIZE]);
+        self.y
+            .process(size, input, &mut output[X::Outputs::USIZE..]);
+    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
@@ -1004,11 +1031,14 @@ impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
 }
 
 /// Mix together `X` and `Y` sourcing from the same inputs.
-#[derive(Clone)]
-pub struct BusNode<T, X, Y> {
+pub struct BusNode<T, X, Y>
+where
+    T: Float,
+{
     _marker: PhantomData<T>,
     x: X,
     y: Y,
+    buffer: Buffer<T>,
 }
 
 impl<T, X, Y> BusNode<T, X, Y>
@@ -1026,6 +1056,7 @@ where
             _marker: PhantomData,
             x,
             y,
+            buffer: Buffer::new(),
         };
         let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
@@ -1061,6 +1092,23 @@ where
         let output_y = self.y.tick(input);
         output_x + output_y
     }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.x.process(size, input, output);
+        self.y
+            .process(size, input, self.buffer.get_mut(self.outputs()));
+        for i in 0..self.outputs() {
+            let src = self.buffer.at(i);
+            let dst = &mut output[i];
+            for j in 0..size {
+                dst[j] += src[j];
+            }
+        }
+    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
@@ -1078,14 +1126,17 @@ where
 
 /// Pass through inputs without matching outputs.
 /// Adjusts output arity to match input arity, adapting a filter to a pipeline.
-#[derive(Clone)]
-pub struct ThruNode<X> {
+pub struct ThruNode<X: AudioNode> {
     x: X,
+    buffer: Buffer<X::Sample>,
 }
 
 impl<X: AudioNode> ThruNode<X> {
     pub fn new(x: X) -> Self {
-        let mut node = ThruNode { x };
+        let mut node = ThruNode {
+            x,
+            buffer: Buffer::new(),
+        };
         let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
@@ -1116,6 +1167,32 @@ impl<X: AudioNode> AudioNode for ThruNode<X> {
                 input[i]
             }
         })
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        if X::Inputs::USIZE == 0 {
+            // This is an empty node.
+            return;
+        }
+        if X::Inputs::USIZE < X::Outputs::USIZE {
+            // The intermediate buffer is only used in this "degenerate" case where
+            // we are not passing through inputs - we are cutting out some of them.
+            self.x
+                .process(size, input, self.buffer.get_mut(X::Inputs::USIZE));
+            for i in 0..X::Inputs::USIZE {
+                output[i][..size].clone_from_slice(&self.buffer.at(i)[..size]);
+            }
+        } else {
+            self.x
+                .process(size, input, &mut output[..X::Outputs::USIZE]);
+            for i in X::Outputs::USIZE..X::Inputs::USIZE {
+                output[i][..size].clone_from_slice(&input[i][..size]);
+            }
+        }
     }
 
     #[inline]

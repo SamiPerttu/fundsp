@@ -226,6 +226,7 @@ where
     #[inline]
     fn set_hash(&mut self, hash: u32) {
         self.initial_phase = super::hacker::rnd(hash as i64);
+        self.phase = self.initial_phase;
     }
 
     #[inline]

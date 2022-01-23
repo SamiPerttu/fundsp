@@ -694,7 +694,6 @@ MIT or Apache-2.0.
 
 ## Next Steps
 
-- See if `AudioNode::tick` can be made faster with, e.g., slice iterators.
 - Implement block processing for the `AudioNode` system.
 - Implement the dynamic `AudioUnit` system. Complex graph expressions can get cumbersome,
   so we'd like to have an explicit graph interface there for adding units to a graph and connecting them.
@@ -708,8 +707,9 @@ MIT or Apache-2.0.
 - Implement conversion of graph to diagram (normalize operators to associative form).
   Layout and display a graph as a diagram and show the signals flowing in it.
   Allow user to poke at `plug` nodes while audio is playing.
+- Compartmentalize the preludes so the user can choose to include them in parts.
 
-### TODO: Standard Components
+### TODO: Components
 
 - FIR filters.
 - `pluck`
@@ -722,8 +722,7 @@ MIT or Apache-2.0.
   The former returns all information about enclosed parameters and their current values.
 - `oversample(n, x)`. Oversample enclosed circuit `x` by `n`.
   Impose a default maximum sample rate to keep nested oversampling sensible.
-
-### TODO: Prelude
-
-- Compartmentalize the preludes so the user can choose to include them in parts.
+- `feedback_delay(delay, circuit)`. Feedback with explicit delay that enables block processing.
+- `multitick`. Multichannel single sample delay.
 - `melody(f, string)`: melody generator.
+- 1st order filters `highpole` and `allpole`.
