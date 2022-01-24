@@ -865,7 +865,6 @@ where
     T: Float,
     F: Real,
     M: SvfMode<F>,
-    M::Inputs: Size<T>,
 {
     mode: M,
     params: SvfParams<F>,
@@ -880,7 +879,6 @@ where
     T: Float,
     F: Real,
     M: SvfMode<F>,
-    M::Inputs: Size<T>,
 {
     pub fn new(mode: M, params: &SvfParams<F>) -> Self {
         let params = params.clone();
@@ -959,7 +957,6 @@ where
     T: Float,
     F: Real,
     M: SvfMode<F>,
-    M::Inputs: Size<T>,
 {
     const ID: u64 = 36;
     type Sample = T;

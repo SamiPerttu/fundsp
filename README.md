@@ -370,7 +370,8 @@ Verified frequency responses are available for all filters.
 
 ### Parametric Equalizer Recipe
 
-In this example, we make a 12-band parametric equalizer using the `bell` filter.
+In this example, we make a 12-band, double precision parametric equalizer
+using the `bell` filter.
 
 First, declare the processing pipeline.
 Here we space the bands at 1 kHz increments starting from 1 kHz, set Q values to 1.0
@@ -378,9 +379,11 @@ and set gains of all bands to 0 dB initially:
 
 ```rust
 use fundsp::hacker::*;
+use fundsp::svf::*;
 let equalizer = pipe::<U12, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f64, 1.0, db_amp(0.0)));
 ```
 
+The type of the equalizer is `An<ChainNode<f64, U12, FixedSvf<f64, f64, BellMode<f64>>>>`.
 The equalizer is ready to use immediately. Filter samples:
 
 ```rust
