@@ -108,7 +108,8 @@ fn test_basic() {
         &mut (noise() & noise() | sine_hz(440.0) & -noise())
     ));
     assert!(wave_is_equal(
-        &mut (dc(110.0) >> sine() | (dc(220.0) >> pass() >> sine()) & mls())
+        &mut (lfo(|t| xerp(110.0, 220.0, clamp01(t))) >> sine()
+            | (envelope(|t| xerp(220.0, 440.0, clamp01(t))) >> pass() >> sine()) & mls())
     ));
     assert!(wave_is_equal(
         &mut (dc((110.0, 220.0)) >> multipass() >> -(sine() | sine()))
@@ -213,6 +214,18 @@ fn test_basic() {
         &mut rnd,
         &mut (sink() | zero() | sink() | zero() | zero() | sink() | zero()),
         &mut (zero() | zero() | zero() | sink() | sink() | zero() | sink())
+    ));
+
+    // Test delays.
+    assert!(is_equal(
+        &mut rnd,
+        &mut (tick() >> tick() >> tick()),
+        &mut (delay(3.0 / 44100.0))
+    ));
+    assert!(is_equal(
+        &mut rnd,
+        &mut (tick() >> tick() >> tick() >> tick() >> tick()),
+        &mut (delay(5.0 / 44100.0))
     ));
 
     // Test pseudorandom phase: generator outputs should diverge.
