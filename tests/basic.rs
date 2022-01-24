@@ -102,7 +102,7 @@ fn test_basic() {
     // Wave rendering, tick vs. process rendering, node reseting.
     assert!(wave_is_equal(&mut (noise() | noise() + noise())));
     assert!(wave_is_equal(
-        &mut (noise() * noise() | sine_hz(440.0) - noise())
+        &mut (noise() * noise() | bus::<U4, _, _>(|i| mls_bits(10 + i)))
     ));
     assert!(wave_is_equal(
         &mut (noise() & noise() | sine_hz(440.0) & -noise())
@@ -112,12 +112,12 @@ fn test_basic() {
             | (envelope(|t| xerp(220.0, 440.0, clamp01(t))) >> pass() >> sine()) & mls())
     ));
     assert!(wave_is_equal(
-        &mut (dc((110.0, 220.0)) >> multipass() >> -(sine() | sine()))
+        &mut (dc((110.0, 220.0)) >> multipass() >> -stackf::<U2, _, _>(|f| (f - 0.5) * sine()))
     ));
     assert!(wave_is_equal(
         &mut (dc((110.0, 220.0, 440.0, 880.0))
             >> multipass()
-            >> (sink() | sine() | sink() | sine()))
+            >> (sink() | -sine() | sink() | sine()))
     ));
     assert!(wave_is_equal(
         &mut (dc((110.0, 220.0)) >> pass() + pass() >> (sine() ^ saw()))
@@ -126,11 +126,17 @@ fn test_basic() {
         &mut (dc((20.0, 40.0)) >> pass() * pass() >> (sine() ^ square()))
     ));
     assert!(wave_is_equal(
-        &mut (dc((880.0, 440.0)) >> pass() - pass() >> (sine() ^ triangle()))
+        &mut (dc((880.0, 440.0))
+            >> pass() - pass()
+            >> branchf::<U2, _, _>(|f| (f - 0.5) * triangle()))
     ));
     assert!(wave_is_equal(
-        &mut ((noise() | dc(440.0)) >> !lowpole() >> lowpole()
+        &mut ((noise() | dc(440.0)) >> pipe::<U3, _, _>(|_| !lowpole()) >> lowpole()
             | ((mls() | dc(880.0)) >> !butterpass() >> butterpass()))
+    ));
+    assert!(wave_is_equal(
+        &mut ((noise() | dc(440.0)) >> pipe::<U6, _, _>(|_| !lowpass_q(1.0)) >> highpass_q(1.0)
+            | ((mls() | dc(880.0)) >> !bandpass_q(1.0) >> notch_q(2.0)))
     ));
 
     // Constants.

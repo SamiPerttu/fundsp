@@ -331,10 +331,10 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
         x + y
     }
-    #[inline]
     fn propagate(x: Signal, y: Signal) -> Signal {
         combine_linear(x, y, 0.0, |x, y| x + y, |x, y| x + y)
     }
+    #[inline]
     fn assign(size: usize, x: &mut [T], y: &[T]) {
         for i in 0..size {
             x[i] += y[i];
@@ -358,10 +358,10 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
         x - y
     }
-    #[inline]
     fn propagate(x: Signal, y: Signal) -> Signal {
         combine_linear(x, y, 0.0, |x, y| x - y, |x, y| x - y)
     }
+    #[inline]
     fn assign(size: usize, x: &mut [T], y: &[T]) {
         for i in 0..size {
             x[i] -= y[i];
@@ -385,7 +385,6 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
         x * y
     }
-    #[inline]
     fn propagate(x: Signal, y: Signal) -> Signal {
         match (x, y) {
             (Signal::Value(vx), Signal::Value(vy)) => Signal::Value(vx * vy),
@@ -406,6 +405,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
             _ => Signal::Unknown,
         }
     }
+    #[inline]
     fn assign(size: usize, x: &mut [T], y: &[T]) {
         for i in 0..size {
             x[i] *= y[i];
@@ -549,6 +549,7 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
             s => s,
         }
     }
+    #[inline]
     fn assign(size: usize, x: &mut [T]) {
         for i in 0..size {
             x[i] = -x[i];
@@ -573,10 +574,10 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameId<T, N> {
     fn unop(x: &Frame<T, N>) -> Frame<T, N> {
         x.clone()
     }
-    #[inline]
     fn propagate(x: Signal) -> Signal {
         x
     }
+    #[inline]
     fn assign(_size: usize, _x: &mut [T]) {}
 }
 
@@ -1201,7 +1202,6 @@ impl<X: AudioNode> AudioNode for ThruNode<X> {
 }
 
 /// Mix together a bunch of similar nodes sourcing from the same inputs.
-#[derive(Clone, Default)]
 pub struct MultiBusNode<T, N, X>
 where
     T: Float,
@@ -1213,6 +1213,7 @@ where
 {
     _marker: PhantomData<T>,
     x: Frame<X, N>,
+    buffer: Buffer<T>,
 }
 
 impl<T, N, X> MultiBusNode<T, N, X>
@@ -1228,6 +1229,7 @@ where
         let mut node = MultiBusNode {
             _marker: PhantomData::default(),
             x,
+            buffer: Buffer::new(),
         };
         let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
@@ -1265,6 +1267,24 @@ where
         self.x
             .iter_mut()
             .fold(Frame::splat(T::zero()), |acc, x| acc + x.tick(input))
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.x[0].process(size, input, output);
+        for i in 1..N::USIZE {
+            self.x[i].process(size, input, self.buffer.get_mut(X::Outputs::USIZE));
+            for channel in 0..X::Outputs::USIZE {
+                let src = self.buffer.at(channel);
+                let dst = &mut output[channel];
+                for j in 0..size {
+                    dst[j] += src[j];
+                }
+            }
+        }
     }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
@@ -1367,6 +1387,26 @@ where
         }
         output
     }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        let mut in_channel = 0;
+        let mut out_channel = 0;
+        for i in 0..N::USIZE {
+            let next_in_channel = in_channel + X::Inputs::USIZE;
+            let next_out_channel = out_channel + X::Outputs::USIZE;
+            self.x[i].process(
+                size,
+                &input[in_channel..next_in_channel],
+                &mut output[out_channel..next_out_channel],
+            );
+            in_channel = next_in_channel;
+            out_channel = next_out_channel;
+        }
+    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         let mut hash = hash.hash(Self::ID);
@@ -1397,7 +1437,6 @@ where
 /// Combine outputs of a bunch of similar nodes with a binary operation.
 /// Inputs are disjoint.
 /// Outputs are combined channel-wise.
-#[derive(Clone)]
 pub struct ReduceNode<T, N, X, B>
 where
     T: Float,
@@ -1412,6 +1451,7 @@ where
     x: Frame<X, N>,
     #[allow(dead_code)]
     b: B,
+    buffer: Buffer<T>,
     _marker: PhantomData<T>,
 }
 
@@ -1430,6 +1470,7 @@ where
         let mut node = ReduceNode {
             x,
             b,
+            buffer: Buffer::new(),
             _marker: PhantomData,
         };
         let hash = node.ping(true, AttoRand::new(Self::ID));
@@ -1478,6 +1519,27 @@ where
             }
         }
         output
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.x[0].process(size, &input[..X::Inputs::USIZE], output);
+        let mut in_channel = X::Inputs::USIZE;
+        for i in 1..N::USIZE {
+            let next_in_channel = in_channel + X::Inputs::USIZE;
+            self.x[i].process(
+                size,
+                &input[in_channel..next_in_channel],
+                self.buffer.get_mut(X::Outputs::USIZE),
+            );
+            in_channel = next_in_channel;
+            for channel in 0..X::Outputs::USIZE {
+                B::assign(size, output[channel], self.buffer.at(channel));
+            }
+        }
     }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
@@ -1579,6 +1641,19 @@ where
         }
         output
     }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        let mut out_channel = 0;
+        for i in 0..N::USIZE {
+            let next_out_channel = out_channel + X::Outputs::USIZE;
+            self.x[i].process(size, input, &mut output[out_channel..next_out_channel]);
+            out_channel = next_out_channel;
+        }
+    }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         let mut hash = hash.hash(Self::ID);
@@ -1604,7 +1679,6 @@ where
 }
 
 /// Chain together a bunch of similar nodes.
-#[derive(Clone)]
 pub struct ChainNode<T, N, X>
 where
     T: Float,
@@ -1615,6 +1689,8 @@ where
     X::Outputs: Size<T>,
 {
     x: Frame<X, N>,
+    buffer_a: Buffer<T>,
+    buffer_b: Buffer<T>,
     _marker: PhantomData<T>,
 }
 
@@ -1630,6 +1706,8 @@ where
     pub fn new(x: Frame<X, N>) -> Self {
         let mut node = ChainNode {
             x,
+            buffer_a: Buffer::new(),
+            buffer_b: Buffer::new(),
             _marker: PhantomData,
         };
         let hash = node.ping(true, AttoRand::new(Self::ID));
@@ -1672,6 +1750,46 @@ where
             output = self.x[i].tick(&Frame::generate(|i| output[i]));
         }
         output
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        if N::USIZE == 1 {
+            self.x[0].process(size, input, output);
+        } else {
+            self.x[0].process(size, input, self.buffer_a.get_mut(X::Outputs::USIZE));
+            for i in 1..N::USIZE - 1 {
+                if i & 1 > 0 {
+                    self.x[i].process(
+                        size,
+                        self.buffer_a.get_ref(X::Outputs::USIZE),
+                        self.buffer_b.get_mut(X::Outputs::USIZE),
+                    );
+                } else {
+                    self.x[i].process(
+                        size,
+                        self.buffer_b.get_ref(X::Outputs::USIZE),
+                        self.buffer_a.get_mut(X::Outputs::USIZE),
+                    );
+                }
+            }
+            if (N::USIZE - 1) & 1 > 0 {
+                self.x[N::USIZE - 1].process(
+                    size,
+                    self.buffer_a.get_ref(X::Outputs::USIZE),
+                    output,
+                );
+            } else {
+                self.x[N::USIZE - 1].process(
+                    size,
+                    self.buffer_b.get_ref(X::Outputs::USIZE),
+                    output,
+                );
+            }
+        }
     }
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {

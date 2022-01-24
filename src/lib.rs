@@ -18,6 +18,7 @@ use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 /// Default sample rate is 44.1 khz.
 pub const DEFAULT_SR: f64 = 44_100.0;
 
+/// Maximum buffer size for block processing is 64 samples.
 pub const MAX_BUFFER_SIZE: usize = 64;
 
 pub trait Num:
