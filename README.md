@@ -389,12 +389,12 @@ let output_sample = equalizer.filter(input_sample);
 ```
 
 We can access individual bands via `equalizer.node(i)` where `i` ranges from 0 to 11.
-Set band 0 to amplify by 10 dB at 1000.0 Hz with Q set to 5.0:
+Set band 0 to amplify by 10 dB at 500 Hz with Q set to 2.0:
 
 ```rust
 equalizer.node(0).set_gain(db_amp(10.0));
-equalizer.node(0).set_center(1000.0);
-equalizer.node(0).set_q(5.0);
+equalizer.node(0).set_center(500.0);
+equalizer.node(0).set_q(2.0);
 ```
 
 For plotting the frequency response, we can query the equalizer.
