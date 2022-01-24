@@ -32,7 +32,7 @@ fn test_filter() {
         x.reset(Some(sample_rate));
         let goal = lerp(-100.0, 100.0, rnd.gen_01::<f64>());
         for _ in 0..samples as usize {
-            x.filter_mono(goal);
+            x.filter(goal);
         }
         // Promise was 0.5% accuracy between 1 and 100k samples.
         let response = x.value() / goal;
@@ -54,7 +54,7 @@ fn test_filter() {
             release_samples
         }) as usize
         {
-            x.filter_mono(goal);
+            x.filter(goal);
         }
         // Promise was 0.5% accuracy between 1 and 100k samples.
         let response = x.value() / goal;
@@ -97,7 +97,7 @@ where
     for i in 0..length {
         // Apply a Hann window.
         let window = 0.5 + 0.5 * cos(i as f64 / length as f64 * PI);
-        buffer.push(re(filter.filter_mono(input) * window));
+        buffer.push(re(filter.filter(input) * window));
         input = 0.0;
     }
 
@@ -191,7 +191,7 @@ fn test_responses() {
     test_response(split() >> multipass::<U32>() >> join());
     test_response(
         split()
-            >> stacki::<U8, _, _>(|i| {
+            >> stack::<U8, _, _>(|i| {
                 resonator_hz(1000.0 + 1000.0 * i as f64, 100.0 + 100.0 * i as f64)
             })
             >> join(),

@@ -69,7 +69,7 @@ where
     //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.9);
 
     // Risset glissando.
-    let c = stacki::<U20, _, _>(|i| {
+    let c = stack::<U20, _, _>(|i| {
         lfo(move |t| {
             let f = lerp(-0.5, 0.5, rnd(i))
                 + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0);
@@ -116,7 +116,7 @@ where
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));
 
-    //let mut next_value = move || { let v = c.get_mono(); assert!(v.is_nan() == false && abs(v) < 1.0e6); v };
+    //let mut next_value = move || { let v = c.get(); assert!(v.is_nan() == false && abs(v) < 1.0e6); v };
     let mut next_value = move || c.get_stereo();
     //let mut next_value = c.as_mono_fn();
 

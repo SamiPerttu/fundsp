@@ -268,150 +268,6 @@ pub struct SvfParams<F: Real> {
     pub gain: F,
 }
 
-#[derive(Clone, Default)]
-pub struct Svf<T, F, M>
-where
-    T: Float,
-    F: Real,
-    M: SvfMode<F>,
-    M::Inputs: Size<T>,
-{
-    mode: M,
-    params: SvfParams<F>,
-    coeffs: SvfCoeffs<F>,
-    ic1eq: F,
-    ic2eq: F,
-    _marker: PhantomData<T>,
-}
-
-impl<T, F, M> Svf<T, F, M>
-where
-    T: Float,
-    F: Real,
-    M: SvfMode<F>,
-    M::Inputs: Size<T>,
-{
-    pub fn new(mode: M, params: &SvfParams<F>) -> Self {
-        let params = params.clone();
-        let mut coeffs = SvfCoeffs::default();
-        let mut mode = mode;
-        mode.update(&params, &mut coeffs);
-        Svf {
-            mode,
-            params,
-            coeffs,
-            ic1eq: F::zero(),
-            ic2eq: F::zero(),
-            _marker: PhantomData::default(),
-        }
-    }
-
-    /// Sample rate in Hz.
-    pub fn sample_rate(&self) -> F {
-        self.params.sample_rate
-    }
-    /// Filter cutoff in Hz. Synonymous with `center`.
-    pub fn cutoff(&self) -> F {
-        self.params.cutoff
-    }
-    /// Filter center in Hz. Synonymous with `cutoff`.
-    pub fn center(&self) -> F {
-        self.params.cutoff
-    }
-    /// Filter Q.
-    pub fn q(&self) -> F {
-        self.params.q
-    }
-    /// Filter gain. Only equalization modes support gain; others ignore it.
-    pub fn gain(&self) -> F {
-        self.params.gain
-    }
-
-    /// Set filter cutoff in Hz. Synonymous with `set_center`.
-    pub fn set_cutoff(&mut self, cutoff: F) {
-        self.params.cutoff = cutoff;
-        self.mode.update_frequency(&self.params, &mut self.coeffs);
-    }
-
-    /// Set filter center in Hz. Synonymous with `set_cutoff`.
-    pub fn set_center(&mut self, center: F) {
-        self.set_cutoff(center);
-    }
-
-    /// Set filter cutoff in Hz and Q. Synonymous with `set_center_q`.
-    pub fn set_cutoff_q(&mut self, cutoff: F, q: F) {
-        self.params.cutoff = cutoff;
-        self.params.q = q;
-        self.mode.update_frequency(&self.params, &mut self.coeffs);
-    }
-
-    /// Set filter center in Hz and Q. Synonymous with `set_cutoff_q`.
-    pub fn set_center_q(&mut self, center: F, q: F) {
-        self.set_cutoff_q(center, q);
-    }
-
-    /// Set filter Q.
-    pub fn set_q(&mut self, q: F) {
-        self.params.q = q;
-        self.mode.update_q(&self.params, &mut self.coeffs);
-    }
-
-    /// Set filter gain. Only equalizing modes support gain. Other modes ignore it.
-    pub fn set_gain(&mut self, gain: F) {
-        self.params.gain = gain;
-        self.mode.update_gain(&self.params, &mut self.coeffs);
-    }
-}
-
-impl<T, F, M> AudioNode for Svf<T, F, M>
-where
-    T: Float,
-    F: Real,
-    M: SvfMode<F>,
-    M::Inputs: Size<T>,
-{
-    const ID: u64 = 36;
-    type Sample = T;
-    type Inputs = M::Inputs;
-    type Outputs = U1;
-
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.ic1eq = F::zero();
-        self.ic2eq = F::zero();
-        if let Some(sample_rate) = sample_rate {
-            self.params.sample_rate = convert(sample_rate);
-            self.mode.update_frequency(&self.params, &mut self.coeffs);
-        }
-    }
-
-    #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        // Update parameters from input.
-        let input = Frame::generate(|i| convert(input[i]));
-        self.mode
-            .update_inputs(&input, &mut self.params, &mut self.coeffs);
-        let v0 = input[0];
-        let v3 = v0 - self.ic2eq;
-        let v1 = self.coeffs.a1 * self.ic1eq + self.coeffs.a2 * v3;
-        let v2 = self.ic2eq + self.coeffs.a2 * self.ic1eq + self.coeffs.a3 * v3;
-        self.ic1eq = F::new(2) * v1 - self.ic1eq;
-        self.ic2eq = F::new(2) * v2 - self.ic2eq;
-        [convert(
-            self.coeffs.m0 * v0 + self.coeffs.m1 * v1 + self.coeffs.m2 * v2,
-        )]
-        .into()
-    }
-
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| r * self.mode.response(&self.params, frequency));
-        output
-    }
-}
-
 /// Lowpass filter with cutoff and Q inputs.
 /// - Input 0: audio
 /// - Input 1: cutoff in Hz
@@ -850,5 +706,296 @@ impl<F: Real> SvfMode<F> for HighshelfMode<F> {
             / ((z - 1.0) * (z - 1.0)
                 + a * g * g * (1.0 + z) * (1.0 + z)
                 + sqrt_a * g * k * (z * z - 1.0))
+    }
+}
+
+/// Simper SVF.
+/// - Inputs: see descriptions of the filter modes.
+/// - Output 0: filtered audio
+#[derive(Clone, Default)]
+pub struct Svf<T, F, M>
+where
+    T: Float,
+    F: Real,
+    M: SvfMode<F>,
+    M::Inputs: Size<T>,
+{
+    mode: M,
+    params: SvfParams<F>,
+    coeffs: SvfCoeffs<F>,
+    ic1eq: F,
+    ic2eq: F,
+    _marker: PhantomData<T>,
+}
+
+impl<T, F, M> Svf<T, F, M>
+where
+    T: Float,
+    F: Real,
+    M: SvfMode<F>,
+    M::Inputs: Size<T>,
+{
+    pub fn new(mode: M, params: &SvfParams<F>) -> Self {
+        let params = params.clone();
+        let mut coeffs = SvfCoeffs::default();
+        let mut mode = mode;
+        mode.update(&params, &mut coeffs);
+        Svf {
+            mode,
+            params,
+            coeffs,
+            ic1eq: F::zero(),
+            ic2eq: F::zero(),
+            _marker: PhantomData::default(),
+        }
+    }
+
+    /// Sample rate in Hz.
+    pub fn sample_rate(&self) -> F {
+        self.params.sample_rate
+    }
+    /// Filter cutoff in Hz. Synonymous with `center`.
+    pub fn cutoff(&self) -> F {
+        self.params.cutoff
+    }
+    /// Filter center in Hz. Synonymous with `cutoff`.
+    pub fn center(&self) -> F {
+        self.params.cutoff
+    }
+    /// Filter Q.
+    pub fn q(&self) -> F {
+        self.params.q
+    }
+    /// Filter gain. Only equalization modes support gain; others ignore it.
+    pub fn gain(&self) -> F {
+        self.params.gain
+    }
+
+    /// Set filter cutoff in Hz. Synonymous with `set_center`.
+    pub fn set_cutoff(&mut self, cutoff: F) {
+        self.params.cutoff = cutoff;
+        self.mode.update_frequency(&self.params, &mut self.coeffs);
+    }
+
+    /// Set filter center in Hz. Synonymous with `set_cutoff`.
+    pub fn set_center(&mut self, center: F) {
+        self.set_cutoff(center);
+    }
+
+    /// Set filter cutoff in Hz and Q. Synonymous with `set_center_q`.
+    pub fn set_cutoff_q(&mut self, cutoff: F, q: F) {
+        self.params.cutoff = cutoff;
+        self.params.q = q;
+        self.mode.update_frequency(&self.params, &mut self.coeffs);
+    }
+
+    /// Set filter center in Hz and Q. Synonymous with `set_cutoff_q`.
+    pub fn set_center_q(&mut self, center: F, q: F) {
+        self.set_cutoff_q(center, q);
+    }
+
+    /// Set filter Q.
+    pub fn set_q(&mut self, q: F) {
+        self.params.q = q;
+        self.mode.update_q(&self.params, &mut self.coeffs);
+    }
+
+    /// Set filter gain. Only equalizing modes support gain. Other modes ignore it.
+    pub fn set_gain(&mut self, gain: F) {
+        self.params.gain = gain;
+        self.mode.update_gain(&self.params, &mut self.coeffs);
+    }
+}
+
+impl<T, F, M> AudioNode for Svf<T, F, M>
+where
+    T: Float,
+    F: Real,
+    M: SvfMode<F>,
+    M::Inputs: Size<T>,
+{
+    const ID: u64 = 36;
+    type Sample = T;
+    type Inputs = M::Inputs;
+    type Outputs = U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.ic1eq = F::zero();
+        self.ic2eq = F::zero();
+        if let Some(sample_rate) = sample_rate {
+            self.params.sample_rate = convert(sample_rate);
+            self.mode.update_frequency(&self.params, &mut self.coeffs);
+        }
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        // Update parameters from input.
+        let input = Frame::generate(|i| convert(input[i]));
+        self.mode
+            .update_inputs(&input, &mut self.params, &mut self.coeffs);
+        let v0 = input[0];
+        let v3 = v0 - self.ic2eq;
+        let v1 = self.coeffs.a1 * self.ic1eq + self.coeffs.a2 * v3;
+        let v2 = self.ic2eq + self.coeffs.a2 * self.ic1eq + self.coeffs.a3 * v3;
+        self.ic1eq = F::new(2) * v1 - self.ic1eq;
+        self.ic2eq = F::new(2) * v2 - self.ic2eq;
+        [convert(
+            self.coeffs.m0 * v0 + self.coeffs.m1 * v1 + self.coeffs.m2 * v2,
+        )]
+        .into()
+    }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = input[0].filter(0.0, |r| r * self.mode.response(&self.params, frequency));
+        output
+    }
+}
+
+/// Simper SVF with fixed parameters.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[derive(Clone, Default)]
+pub struct FixedSvf<T, F, M>
+where
+    T: Float,
+    F: Real,
+    M: SvfMode<F>,
+    M::Inputs: Size<T>,
+{
+    mode: M,
+    params: SvfParams<F>,
+    coeffs: SvfCoeffs<F>,
+    ic1eq: F,
+    ic2eq: F,
+    _marker: PhantomData<T>,
+}
+
+impl<T, F, M> FixedSvf<T, F, M>
+where
+    T: Float,
+    F: Real,
+    M: SvfMode<F>,
+    M::Inputs: Size<T>,
+{
+    pub fn new(mode: M, params: &SvfParams<F>) -> Self {
+        let params = params.clone();
+        let mut coeffs = SvfCoeffs::default();
+        let mut mode = mode;
+        mode.update(&params, &mut coeffs);
+        FixedSvf {
+            mode,
+            params,
+            coeffs,
+            ic1eq: F::zero(),
+            ic2eq: F::zero(),
+            _marker: PhantomData::default(),
+        }
+    }
+
+    /// Sample rate in Hz.
+    pub fn sample_rate(&self) -> F {
+        self.params.sample_rate
+    }
+    /// Filter cutoff in Hz. Synonymous with `center`.
+    pub fn cutoff(&self) -> F {
+        self.params.cutoff
+    }
+    /// Filter center in Hz. Synonymous with `cutoff`.
+    pub fn center(&self) -> F {
+        self.params.cutoff
+    }
+    /// Filter Q.
+    pub fn q(&self) -> F {
+        self.params.q
+    }
+    /// Filter gain. Only equalization modes support gain; others ignore it.
+    pub fn gain(&self) -> F {
+        self.params.gain
+    }
+
+    /// Set filter cutoff in Hz. Synonymous with `set_center`.
+    pub fn set_cutoff(&mut self, cutoff: F) {
+        self.params.cutoff = cutoff;
+        self.mode.update_frequency(&self.params, &mut self.coeffs);
+    }
+
+    /// Set filter center in Hz. Synonymous with `set_cutoff`.
+    pub fn set_center(&mut self, center: F) {
+        self.set_cutoff(center);
+    }
+
+    /// Set filter cutoff in Hz and Q. Synonymous with `set_center_q`.
+    pub fn set_cutoff_q(&mut self, cutoff: F, q: F) {
+        self.params.cutoff = cutoff;
+        self.params.q = q;
+        self.mode.update_frequency(&self.params, &mut self.coeffs);
+    }
+
+    /// Set filter center in Hz and Q. Synonymous with `set_cutoff_q`.
+    pub fn set_center_q(&mut self, center: F, q: F) {
+        self.set_cutoff_q(center, q);
+    }
+
+    /// Set filter Q.
+    pub fn set_q(&mut self, q: F) {
+        self.params.q = q;
+        self.mode.update_q(&self.params, &mut self.coeffs);
+    }
+
+    /// Set filter gain. Only equalizing modes support gain. Other modes ignore it.
+    pub fn set_gain(&mut self, gain: F) {
+        self.params.gain = gain;
+        self.mode.update_gain(&self.params, &mut self.coeffs);
+    }
+}
+
+impl<T, F, M> AudioNode for FixedSvf<T, F, M>
+where
+    T: Float,
+    F: Real,
+    M: SvfMode<F>,
+    M::Inputs: Size<T>,
+{
+    const ID: u64 = 36;
+    type Sample = T;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.ic1eq = F::zero();
+        self.ic2eq = F::zero();
+        if let Some(sample_rate) = sample_rate {
+            self.params.sample_rate = convert(sample_rate);
+            self.mode.update_frequency(&self.params, &mut self.coeffs);
+        }
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        // Update parameters from input.
+        let v0 = convert(input[0]);
+        let v3 = v0 - self.ic2eq;
+        let v1 = self.coeffs.a1 * self.ic1eq + self.coeffs.a2 * v3;
+        let v2 = self.ic2eq + self.coeffs.a2 * self.ic1eq + self.coeffs.a3 * v3;
+        self.ic1eq = F::new(2) * v1 - self.ic1eq;
+        self.ic2eq = F::new(2) * v2 - self.ic2eq;
+        [convert(
+            self.coeffs.m0 * v0 + self.coeffs.m1 * v1 + self.coeffs.m2 * v2,
+        )]
+        .into()
+    }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = input[0].filter(0.0, |r| r * self.mode.response(&self.params, frequency));
+        output
     }
 }

@@ -368,6 +368,40 @@ Verified frequency responses are available for all filters.
 
 ---
 
+### Parametric Equalizer Recipe
+
+In this example, we make a 12-band parametric equalizer using the `bell` filter.
+
+First, declare the processing pipeline. Here we set gains of all bands to 0 dB initially:
+
+```rust
+use fundsp::hacker::*;
+let equalizer = pipe::<U12, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f64, 1.0, db_amp(0.0)));
+```
+
+The equalizer is ready to use immediately. Filter samples:
+
+```rust
+let input_sample = 0.0;
+let output_sample = equalizer.filter(input_sample);
+```
+
+We can access individual bands via `equalizer.node(i)`.
+Set band 0 to amplify by 10 dB at 1000.0 Hz with Q set to 5.0:
+
+```rust
+equalizer.node(0).set_gain(db_amp(10.0));
+equalizer.node(0).set_center(1000.0);
+equalizer.node(0).set_q(5.0);
+```
+
+For plotting the frequency response, we can query the equalizer.
+Query equalizer gain at 1 kHz:
+
+```rust
+let decibel_gain_at_1k = equalizer.response_db(0, 1000.0);
+```
+
 
 ## Free Functions
 
@@ -393,7 +427,7 @@ These free functions are available in the environment.
 | `bell_hz(f, q, gain)`  |    1   |    1     | Peaking bell filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `brown()`              |    -   |    1     | Brown noise. |
 | `branchf::<U, _, _>(f)` |  `f`  | `U * f`  | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))` |
-| `busi::<U, _, _>(f)`   |   `f`  |   `f`    | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f64 + 1.0) >> sine()`
+| `bus::<U, _, _>(f)`    |   `f`  |   `f`    | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f64 + 1.0) >> sine()`
 | `butterpass()`         | 2 (audio, frequency) | 1 | Butterworth lowpass filter (2nd order). |
 | `butterpass_hz(f)`     |    1   |    1     | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
 | `constant(x)`          |    -   |   `x`    | Constant signal `x`. Synonymous with `dc`. |
@@ -446,6 +480,7 @@ These free functions are available in the environment.
 | `peak_q(q)`            | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q`. |
 | `pink()`               |    -   |    1     | Pink noise. |
 | `pinkpass()`           |    1   |    1     | Pinking filter (3 dB/octave). |
+| `pipe::<U, _, _>(f)`   |   `f`  |   `f`    | Chain together `U` nodes from indexed generator `f`. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `saw()`                | 1 (pitch) | 1     | Saw wave oscillator. |
@@ -458,7 +493,7 @@ These free functions are available in the environment.
 | `square()`             | 1 (pitch) | 1     | Square wave oscillator. |
 | `square_hz()`          |    -   |    1     | Square wave oscillator at frequency `f` Hz. |
 | `stackf::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
-| `stacki::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from indexed generator `i`. |
+| `stack::<U, _, _>(f)`  | `U * f`| `U * f`  | Stack `U` nodes from indexed generator `f`. |
 | `stereo_limiter(t)`    |    2   |    2     | Look-ahead limiter with attack and release times `t` seconds. |
 | `stereo_limiter((a, r))` |  2   |    2     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `stereo_reverb(wet, t)` |   2   |    2     | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
@@ -726,3 +761,4 @@ MIT or Apache-2.0.
 - `multitick`. Multichannel single sample delay.
 - `melody(f, string)`: melody generator.
 - 1st order filters `highpole` and `allpole`.
+- Hard clipping as `clip`, `clip_to(min, max)`.

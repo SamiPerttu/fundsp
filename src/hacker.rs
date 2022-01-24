@@ -478,7 +478,7 @@ where
 
 /// Create bus with `n` nodes from indexed generator `f`.
 #[inline]
-pub fn busi<N, X, F>(f: F) -> An<MultiBusNode<f64, N, X>>
+pub fn bus<N, X, F>(f: F) -> An<MultiBusNode<f64, N, X>>
 where
     N: Size<f64>,
     N: Size<X>,
@@ -563,6 +563,21 @@ where
     An(ReduceNode::new(nodes, FrameAdd::new()))
 }
 
+/// Chains together a bunch of similar nodes.
+#[inline]
+pub fn pipe<N, X, F>(f: F) -> An<ChainNode<f64, N, X>>
+where
+    N: Size<f64>,
+    N: Size<X>,
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64>,
+    X::Outputs: Size<f64>,
+    F: Fn(i64) -> An<X>,
+{
+    let nodes = Frame::generate(|i| f(i as i64).0);
+    An(ChainNode::new(nodes))
+}
+
 /// Split signal into N channels.
 #[inline]
 pub fn split<N>() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = N>>
@@ -606,9 +621,9 @@ where
     super::prelude::multijoin::<f64, M, N>()
 }
 
-/// Stacks `n` nodes from an indexed generator.
+/// Stacks `N` nodes from an indexed generator.
 #[inline]
-pub fn stacki<N, X, F>(f: F) -> An<MultiStackNode<f64, N, X>>
+pub fn stack<N, X, F>(f: F) -> An<MultiStackNode<f64, N, X>>
 where
     N: Size<f64>,
     N: Size<X>,
@@ -643,7 +658,7 @@ pub fn stereo_reverb(
     let a = pow(db_amp(-60.0), 0.03 / time);
 
     // The feedback structure.
-    let reverb = fdn(stacki::<U32, _, _>(|i| {
+    let reverb = fdn(stack::<U32, _, _>(|i| {
         // Index is i64 because of hacker prelude rules.
         // In the standard prelude, the index type would be usize.
         delay(DELAYS[i as usize]) >> lowpole_hz(1600.0) >> dcblock_hz(5.0) * a
@@ -707,7 +722,7 @@ pub fn lowpass() -> An<Svf<f64, f64, LowpassMode<f64>>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpass_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+pub fn lowpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, LowpassMode<f64>>> {
     super::prelude::lowpass_hz::<f64, f64>(f, q)
 }
 
@@ -734,7 +749,7 @@ pub fn highpass() -> An<Svf<f64, f64, HighpassMode<f64>>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn highpass_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+pub fn highpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, HighpassMode<f64>>> {
     super::prelude::highpass_hz::<f64, f64>(f, q)
 }
 
@@ -761,7 +776,7 @@ pub fn bandpass() -> An<Svf<f64, f64, BandpassMode<f64>>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn bandpass_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+pub fn bandpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, BandpassMode<f64>>> {
     super::prelude::bandpass_hz::<f64, f64>(f, q)
 }
 
@@ -788,7 +803,7 @@ pub fn notch() -> An<Svf<f64, f64, NotchMode<f64>>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn notch_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+pub fn notch_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, NotchMode<f64>>> {
     super::prelude::notch_hz::<f64, f64>(f, q)
 }
 
@@ -815,7 +830,7 @@ pub fn peak() -> An<Svf<f64, f64, PeakMode<f64>>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn peak_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+pub fn peak_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, PeakMode<f64>>> {
     super::prelude::peak_hz::<f64, f64>(f, q)
 }
 
@@ -842,7 +857,7 @@ pub fn allpass() -> An<Svf<f64, f64, AllpassMode<f64>>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn allpass_hz(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+pub fn allpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, AllpassMode<f64>>> {
     super::prelude::allpass_hz::<f64, f64>(f, q)
 }
 
@@ -870,11 +885,7 @@ pub fn bell() -> An<Svf<f64, f64, BellMode<f64>>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn bell_hz(
-    f: f64,
-    q: f64,
-    gain: f64,
-) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+pub fn bell_hz(f: f64, q: f64, gain: f64) -> An<FixedSvf<f64, f64, BellMode<f64>>> {
     super::prelude::bell_hz::<f64, f64>(f, q, gain)
 }
 
@@ -902,11 +913,7 @@ pub fn lowshelf() -> An<Svf<f64, f64, LowshelfMode<f64>>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowshelf_hz(
-    f: f64,
-    q: f64,
-    gain: f64,
-) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+pub fn lowshelf_hz(f: f64, q: f64, gain: f64) -> An<FixedSvf<f64, f64, LowshelfMode<f64>>> {
     super::prelude::lowshelf_hz::<f64, f64>(f, q, gain)
 }
 
@@ -934,11 +941,7 @@ pub fn highshelf() -> An<Svf<f64, f64, HighshelfMode<f64>>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn highshelf_hz(
-    f: f64,
-    q: f64,
-    gain: f64,
-) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
+pub fn highshelf_hz(f: f64, q: f64, gain: f64) -> An<FixedSvf<f64, f64, HighshelfMode<f64>>> {
     super::prelude::highshelf_hz::<f64, f64>(f, q, gain)
 }
 

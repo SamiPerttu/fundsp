@@ -77,7 +77,7 @@ pub trait AudioNode {
         hash.hash(Self::ID)
     }
 
-    /// Propagate constants, latencies and frequency responses at `frequency`.
+    /// Propagate constants, latencies and frequency responses at `frequency` Hz.
     /// Return output signal. Default implementation marks all outputs with zero latencies.
     fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut frame = new_signal_frame(self.outputs());
@@ -89,7 +89,8 @@ pub trait AudioNode {
 
     // End of interface. There is no need to override the following.
 
-    /// Evaluate frequency response at `output`. Any linear response can be composed.
+    /// Evaluate frequency response of `output` at `frequency` Hz.
+    /// Any linear response can be composed.
     /// Return `None` if there is no response or it could not be calculated.
     fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
         assert!(output < Self::Outputs::USIZE);
@@ -104,7 +105,8 @@ pub trait AudioNode {
         }
     }
 
-    /// Evaluate frequency response at `output` in dB. Any linear response can be composed.
+    /// Evaluate frequency response of `output` in dB at `frequency Hz`.
+    /// Any linear response can be composed.
     /// Return `None` if there is no response or it could not be calculated.
     fn response_db(&self, output: usize, frequency: f64) -> Option<f64> {
         assert!(output < Self::Outputs::USIZE);
@@ -151,7 +153,7 @@ pub trait AudioNode {
     /// Retrieve the next mono sample from a zero input.
     /// The node must have exactly 1 output.
     #[inline]
-    fn get_mono(&mut self) -> Self::Sample {
+    fn get(&mut self) -> Self::Sample {
         // TODO. Is there some way to make this constraint static.
         assert!(Self::Outputs::USIZE == 1);
         let output = self.tick(&Frame::default());
@@ -173,7 +175,7 @@ pub trait AudioNode {
     /// Filter the next mono sample `x`.
     /// The node must have exactly 1 input and 1 output.
     #[inline]
-    fn filter_mono(&mut self, x: Self::Sample) -> Self::Sample {
+    fn filter(&mut self, x: Self::Sample) -> Self::Sample {
         assert!(Self::Inputs::USIZE == 1 && Self::Outputs::USIZE == 1);
         let output = self.tick(&Frame::splat(x));
         output[0]
@@ -737,6 +739,16 @@ where
         node.ping(false, hash);
         node
     }
+
+    /// Access the left node of the pipe.
+    pub fn left(&mut self) -> &mut X {
+        &mut self.x
+    }
+
+    /// Access the right node of the pipe.
+    pub fn right(&mut self) -> &mut Y {
+        &mut self.y
+    }
 }
 
 impl<T, X, Y> AudioNode for PipeNode<T, X, Y>
@@ -814,6 +826,16 @@ where
         let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
+    }
+
+    /// Access the left node of the stack.
+    pub fn left(&mut self) -> &mut X {
+        &mut self.x
+    }
+
+    /// Access the right node of the stack.
+    pub fn right(&mut self) -> &mut Y {
+        &mut self.y
     }
 }
 
@@ -918,6 +940,16 @@ where
         node.ping(false, hash);
         node
     }
+
+    /// Access the left node of the branch.
+    pub fn left(&mut self) -> &mut X {
+        &mut self.x
+    }
+
+    /// Access the right node of the branch.
+    pub fn right(&mut self) -> &mut Y {
+        &mut self.y
+    }
 }
 
 impl<T, X, Y> AudioNode for BranchNode<T, X, Y>
@@ -980,56 +1012,6 @@ where
     }
 }
 
-/// Single sample delay.
-#[derive(Clone)]
-pub struct TickNode<T: Float, N: Size<T>> {
-    buffer: Frame<T, N>,
-    sample_rate: f64,
-}
-
-impl<T: Float, N: Size<T>> TickNode<T, N> {
-    pub fn new(sample_rate: f64) -> Self {
-        TickNode {
-            buffer: Frame::default(),
-            sample_rate,
-        }
-    }
-}
-
-impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
-    const ID: u64 = 9;
-    type Sample = T;
-    type Inputs = N;
-    type Outputs = N;
-
-    #[inline]
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = sample_rate;
-        }
-        self.buffer = Frame::default();
-    }
-
-    #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        let output = self.buffer.clone();
-        self.buffer = input.clone();
-        output
-    }
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        for i in 0..self.outputs() {
-            output[i] = input[i].filter(1.0, |r| {
-                r * Complex64::from_polar(1.0, -TAU * frequency / self.sample_rate)
-            });
-        }
-        output
-    }
-}
-
 /// Mix together `X` and `Y` sourcing from the same inputs.
 pub struct BusNode<T, X, Y>
 where
@@ -1061,6 +1043,16 @@ where
         let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
+    }
+
+    /// Access the left node of the bus.
+    pub fn left(&mut self) -> &mut X {
+        &mut self.x
+    }
+
+    /// Access the right node of the bus.
+    pub fn right(&mut self) -> &mut Y {
+        &mut self.y
     }
 }
 
@@ -1241,6 +1233,11 @@ where
         node.ping(false, hash);
         node
     }
+
+    /// Access a contained node.
+    pub fn node(&mut self, index: usize) -> &mut X {
+        &mut self.x[index]
+    }
 }
 
 impl<T, N, X> AudioNode for MultiBusNode<T, N, X>
@@ -1329,6 +1326,11 @@ where
         let hash = node.ping(true, AttoRand::new(Self::ID));
         node.ping(false, hash);
         node
+    }
+
+    /// Access a contained node.
+    pub fn node(&mut self, index: usize) -> &mut X {
+        &mut self.x[index]
     }
 }
 
@@ -1434,6 +1436,11 @@ where
         node.ping(false, hash);
         node
     }
+
+    /// Access a contained node.
+    pub fn node(&mut self, index: usize) -> &mut X {
+        &mut self.x[index]
+    }
 }
 
 impl<T, N, X, B> AudioNode for ReduceNode<T, N, X, B>
@@ -1534,6 +1541,11 @@ where
         node.ping(false, hash);
         node
     }
+
+    /// Access a contained node.
+    pub fn node(&mut self, index: usize) -> &mut X {
+        &mut self.x[index]
+    }
 }
 
 impl<T, N, X> AudioNode for MultiBranchNode<T, N, X>
@@ -1586,6 +1598,94 @@ where
             let output_i = self.x[i].propagate(input, frequency);
             output[i * X::Outputs::USIZE..(i + 1) * X::Outputs::USIZE]
                 .copy_from_slice(&output_i[0..X::Outputs::USIZE]);
+        }
+        output
+    }
+}
+
+/// Chain together a bunch of similar nodes.
+#[derive(Clone)]
+pub struct ChainNode<T, N, X>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+{
+    x: Frame<X, N>,
+    _marker: PhantomData<T>,
+}
+
+impl<T, N, X> ChainNode<T, N, X>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+{
+    pub fn new(x: Frame<X, N>) -> Self {
+        let mut node = ChainNode {
+            x,
+            _marker: PhantomData,
+        };
+        let hash = node.ping(true, AttoRand::new(Self::ID));
+        node.ping(false, hash);
+        node
+    }
+
+    /// Access a contained node.
+    pub fn node(&mut self, index: usize) -> &mut X {
+        &mut self.x[index]
+    }
+}
+
+impl<T, N, X> AudioNode for ChainNode<T, N, X>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+{
+    const ID: u64 = 32;
+    type Sample = T;
+    // TODO. We'd like to require that X::Inputs equals X::Outputs but
+    // I don't know how to write such a trait bound.
+    type Inputs = X::Inputs;
+    type Outputs = X::Outputs;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.x.iter_mut().for_each(|node| node.reset(sample_rate));
+    }
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let mut output = self.x[0].tick(input);
+        for i in 1..N::USIZE {
+            output = self.x[i].tick(&Frame::generate(|i| output[i]));
+        }
+        output
+    }
+    #[inline]
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        let mut hash = hash.hash(Self::ID);
+        for x in self.x.iter_mut() {
+            hash = x.ping(probe, hash);
+        }
+        hash
+    }
+
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = self.x[0].propagate(input, frequency);
+        for i in 1..self.x.len() {
+            output = self.x[i].propagate(&output, frequency);
         }
         output
     }

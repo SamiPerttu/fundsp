@@ -135,7 +135,7 @@ fn test_basic() {
     // Constants.
     let mut d = constant(1.0);
     assert!(d.inputs() == 0 && d.outputs() == 1);
-    assert!(d.get_mono() == 1.0);
+    assert!(d.get() == 1.0);
     let mut d = constant((2.0, 3.0));
     assert!(d.inputs() == 0 && d.outputs() == 2);
     assert!(d.get_stereo() == (2.0, 3.0));
@@ -145,7 +145,7 @@ fn test_basic() {
     let e = c >> (pass() | pass());
     let mut f = e >> mul(0.5) + mul(0.5);
     assert!(f.inputs() == 0 && f.outputs() == 1);
-    assert!(f.get_mono() == 6.5);
+    assert!(f.get() == 6.5);
 
     fn inouts<X: AudioNode>(x: An<X>) -> (usize, usize) {
         (x.inputs(), x.outputs())

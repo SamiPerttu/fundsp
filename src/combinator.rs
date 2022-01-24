@@ -566,6 +566,9 @@ where
     }
 }
 
+/*
+// TODO. If we implement iterator here, its filter method will clash with ours.
+// So we'd need to change ours to get_mono and filter_mono. What is the best solution?
 impl<X: AudioNode> Iterator for An<X> {
     type Item = Frame<X::Sample, X::Outputs>;
     /// Processes a sample from an all-zeros input.
@@ -574,6 +577,7 @@ impl<X: AudioNode> Iterator for An<X> {
         Some(self.tick(&Frame::default()))
     }
 }
+*/
 
 pub struct MonoIter<X>
 where
@@ -611,17 +615,17 @@ where
 
 impl<X: AudioNode> An<X> {
     /// Consumes and returns the component as an FnMut closure
-    /// that yields mono samples via AudioNode::get_mono.
+    /// that yields mono samples via AudioNode::get.
     pub fn into_mono_fn(self) -> impl FnMut() -> X::Sample {
         let mut c = self;
-        move || c.get_mono()
+        move || c.get()
     }
 
     /// Consumes and returns the component as an FnMut closure
-    /// that filters mono samples via AudioNode::filter_mono.
+    /// that filters mono samples via AudioNode::filter.
     pub fn into_mono_filter_fn(self) -> impl FnMut(X::Sample) -> X::Sample {
         let mut c = self;
-        move |x| c.filter_mono(x)
+        move |x| c.filter(x)
     }
 
     /// Consumes and returns the component as an FnMut closure

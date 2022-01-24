@@ -5,6 +5,56 @@ use super::*;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
 
+/// Single sample delay.
+#[derive(Clone)]
+pub struct TickNode<T: Float, N: Size<T>> {
+    buffer: Frame<T, N>,
+    sample_rate: f64,
+}
+
+impl<T: Float, N: Size<T>> TickNode<T, N> {
+    pub fn new(sample_rate: f64) -> Self {
+        TickNode {
+            buffer: Frame::default(),
+            sample_rate,
+        }
+    }
+}
+
+impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
+    const ID: u64 = 9;
+    type Sample = T;
+    type Inputs = N;
+    type Outputs = N;
+
+    #[inline]
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sample_rate) = sample_rate {
+            self.sample_rate = sample_rate;
+        }
+        self.buffer = Frame::default();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let output = self.buffer.clone();
+        self.buffer = input.clone();
+        output
+    }
+    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        for i in 0..self.outputs() {
+            output[i] = input[i].filter(1.0, |r| {
+                r * Complex64::from_polar(1.0, -TAU * frequency / self.sample_rate)
+            });
+        }
+        output
+    }
+}
+
 /// Fixed delay.
 #[derive(Clone)]
 pub struct DelayNode<T: Float> {
