@@ -372,7 +372,9 @@ Verified frequency responses are available for all filters.
 
 In this example, we make a 12-band parametric equalizer using the `bell` filter.
 
-First, declare the processing pipeline. Here we set gains of all bands to 0 dB initially:
+First, declare the processing pipeline.
+Here we space the bands at 1 kHz increments starting from 1 kHz, set Q values to 1.0
+and set gains of all bands to 0 dB initially:
 
 ```rust
 use fundsp::hacker::*;
@@ -386,7 +388,7 @@ let input_sample = 0.0;
 let output_sample = equalizer.filter(input_sample);
 ```
 
-We can access individual bands via `equalizer.node(i)`.
+We can access individual bands via `equalizer.node(i)` where `i` ranges from 0 to 11.
 Set band 0 to amplify by 10 dB at 1000.0 Hz with Q set to 5.0:
 
 ```rust
