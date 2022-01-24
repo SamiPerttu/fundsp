@@ -407,6 +407,7 @@ Query equalizer gain at 1 kHz:
 let decibel_gain_at_1k = equalizer.response_db(0, 1000.0).unwrap();
 ```
 
+---
 
 ## Free Functions
 
