@@ -476,7 +476,7 @@ where
     An(FeedbackNode::new(x.0, FrameHadamard::new()))
 }
 
-/// Create bus with `n` nodes from indexed generator `f`.
+/// Bus `N` similar nodes from indexed generator `f`.
 #[inline]
 pub fn bus<N, X, F>(f: F) -> An<MultiBusNode<f64, N, X>>
 where
@@ -487,12 +487,42 @@ where
     X::Outputs: Size<f64>,
     F: Fn(i64) -> An<X>,
 {
-    let nodes = Frame::generate(|i| f(i as i64).0);
-    An(MultiBusNode::<f64, N, X>::new(nodes))
+    super::prelude::bus(f)
 }
 
-/// Stacks `n` nodes from a fractional generator,
-/// which is given uniformly divided values in 0...1.
+/// Bus `N` similar nodes from fractional generator `f`.
+/// The fractional generator is given values in the range 0...1.
+#[inline]
+pub fn busf<N, X, F>(f: F) -> An<MultiBusNode<f64, N, X>>
+where
+    N: Size<f64>,
+    N: Size<X>,
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64>,
+    X::Outputs: Size<f64>,
+    F: Fn(f64) -> An<X>,
+{
+    super::prelude::busf(f)
+}
+
+/// Stack ´N´ similar nodes from indexed generator `f`.
+#[inline]
+pub fn stack<N, X, F>(f: F) -> An<MultiStackNode<f64, N, X>>
+where
+    N: Size<f64>,
+    N: Size<X>,
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64> + Mul<N>,
+    X::Outputs: Size<f64> + Mul<N>,
+    <X::Inputs as Mul<N>>::Output: Size<f64>,
+    <X::Outputs as Mul<N>>::Output: Size<f64>,
+    F: Fn(i64) -> An<X>,
+{
+    super::prelude::stack(f)
+}
+
+/// Stack `N` similar nodes from fractional generator `f`.
+/// The fractional generator is given values in the range 0...1.
 #[inline]
 pub fn stackf<N, X, F>(f: F) -> An<MultiStackNode<f64, N, X>>
 where
@@ -505,19 +535,26 @@ where
     <X::Outputs as Mul<N>>::Output: Size<f64>,
     F: Fn(f64) -> An<X>,
 {
-    let nodes = Frame::generate(|i| {
-        f(lerp(
-            i as f64 / N::USIZE as f64,
-            (i + 1) as f64 / N::USIZE as f64,
-            0.5,
-        ))
-        .0
-    });
-    An(MultiStackNode::new(nodes))
+    super::prelude::stackf(f)
 }
 
-/// Branches into `n` nodes from a fractional generator,
-/// which is given uniformly divided values in 0...1.
+/// Branch into `N` similar nodes from indexed generator `f`.
+#[inline]
+pub fn branch<N, X, F>(f: F) -> An<MultiBranchNode<f64, N, X>>
+where
+    N: Size<f64>,
+    N: Size<X>,
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64>,
+    X::Outputs: Size<f64> + Mul<N>,
+    <X::Outputs as Mul<N>>::Output: Size<f64>,
+    F: Fn(i64) -> An<X>,
+{
+    super::prelude::branch(f)
+}
+
+/// Branch into `N` similar nodes from fractional generator `f`.
+/// The fractional generator is given values in the range 0...1.
 #[inline]
 pub fn branchf<N, X, F>(f: F) -> An<MultiBranchNode<f64, N, X>>
 where
@@ -529,18 +566,26 @@ where
     <X::Outputs as Mul<N>>::Output: Size<f64>,
     F: Fn(f64) -> An<X>,
 {
-    let nodes = Frame::generate(|i| {
-        f(lerp(
-            i as f64 / N::USIZE as f64,
-            (i + 1) as f64 / N::USIZE as f64,
-            0.5,
-        ))
-        .0
-    });
-    An(MultiBranchNode::new(nodes))
+    super::prelude::branchf(f)
 }
 
-/// Mixes together a bunch of similar nodes sourcing from disjoint inputs.
+/// Mix together `N` similar nodes from indexed generator `f`.
+#[inline]
+pub fn sum<N, X, F>(f: F) -> An<ReduceNode<f64, N, X, FrameAdd<f64, X::Outputs>>>
+where
+    N: Size<f64>,
+    N: Size<X>,
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64> + Mul<N>,
+    X::Outputs: Size<f64>,
+    <X::Inputs as Mul<N>>::Output: Size<f64>,
+    F: Fn(i64) -> An<X>,
+{
+    super::prelude::sum(f)
+}
+
+/// Mix together `N` similar nodes from fractional generator `f`.
+/// The fractional generator is given values in the range 0...1.
 #[inline]
 pub fn sumf<N, X, F>(f: F) -> An<ReduceNode<f64, N, X, FrameAdd<f64, X::Outputs>>>
 where
@@ -552,18 +597,10 @@ where
     <X::Inputs as Mul<N>>::Output: Size<f64>,
     F: Fn(f64) -> An<X>,
 {
-    let nodes = Frame::generate(|i| {
-        f(lerp(
-            i as f64 / N::USIZE as f64,
-            (i + 1) as f64 / N::USIZE as f64,
-            0.5,
-        ))
-        .0
-    });
-    An(ReduceNode::new(nodes, FrameAdd::new()))
+    super::prelude::sumf(f)
 }
 
-/// Chains together a bunch of similar nodes.
+/// Chain together `N` similar nodes from indexed generator `f`.
 #[inline]
 pub fn pipe<N, X, F>(f: F) -> An<ChainNode<f64, N, X>>
 where
@@ -574,8 +611,22 @@ where
     X::Outputs: Size<f64>,
     F: Fn(i64) -> An<X>,
 {
-    let nodes = Frame::generate(|i| f(i as i64).0);
-    An(ChainNode::new(nodes))
+    super::prelude::pipe(f)
+}
+
+/// Chain together `N` similar nodes from fractional generator `f`.
+/// The fractional generator is given values in the range 0...1.
+#[inline]
+pub fn pipef<N, X, F>(f: F) -> An<ChainNode<f64, N, X>>
+where
+    N: Size<f64>,
+    N: Size<X>,
+    X: AudioNode<Sample = f64>,
+    X::Inputs: Size<f64>,
+    X::Outputs: Size<f64>,
+    F: Fn(f64) -> An<X>,
+{
+    super::prelude::pipef(f)
 }
 
 /// Split signal into N channels.
@@ -619,23 +670,6 @@ where
     <M as Mul<N>>::Output: Size<f64>,
 {
     super::prelude::multijoin::<f64, M, N>()
-}
-
-/// Stacks `N` nodes from an indexed generator.
-#[inline]
-pub fn stack<N, X, F>(f: F) -> An<MultiStackNode<f64, N, X>>
-where
-    N: Size<f64>,
-    N: Size<X>,
-    X: AudioNode<Sample = f64>,
-    X::Inputs: Size<f64> + Mul<N>,
-    X::Outputs: Size<f64> + Mul<N>,
-    <X::Inputs as Mul<N>>::Output: Size<f64>,
-    <X::Outputs as Mul<N>>::Output: Size<f64>,
-    F: Fn(i64) -> An<X>,
-{
-    let nodes = Frame::generate(|i| f(i as i64).0);
-    An(MultiStackNode::new(nodes))
 }
 
 /// Stereo reverb.

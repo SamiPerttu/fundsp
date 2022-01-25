@@ -569,9 +569,9 @@ where
     An(FeedbackNode::new(x.0, FrameHadamard::new()))
 }
 
-/// Buses a bunch of similar nodes.
+/// Bus `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn bus<T, N, X>(x: Frame<X, N>) -> An<MultiBusNode<T, N, X>>
+pub fn bus<T, N, X, F>(f: F) -> An<MultiBusNode<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -579,13 +579,34 @@ where
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
+    F: Fn(i64) -> An<X>,
 {
-    An(MultiBusNode::new(x))
+    assert!(N::USIZE > 0);
+    let nodes = Frame::generate(|i| f(i as i64).0);
+    An(MultiBusNode::new(nodes))
 }
 
-/// Stacks a bunch of similar nodes.
+/// Bus `N` similar nodes from fractional generator `f`.
+/// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn stack<T, N, X>(x: Frame<X, N>) -> An<MultiStackNode<T, N, X>>
+pub fn busf<T, N, X, F>(f: F) -> An<MultiBusNode<T, N, X>>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+    F: Fn(f64) -> An<X>,
+{
+    assert!(N::USIZE > 0);
+    let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
+    An(MultiBusNode::new(nodes))
+}
+
+/// Stack `N` similar nodes from indexed generator `f`.
+#[inline]
+pub fn stack<T, N, X, F>(f: F) -> An<MultiStackNode<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -595,13 +616,36 @@ where
     X::Outputs: Size<T> + Mul<N>,
     <X::Inputs as Mul<N>>::Output: Size<T>,
     <X::Outputs as Mul<N>>::Output: Size<T>,
+    F: Fn(i64) -> An<X>,
 {
-    An(MultiStackNode::new(x))
+    assert!(N::USIZE > 0);
+    let nodes = Frame::generate(|i| f(i as i64).0);
+    An(MultiStackNode::new(nodes))
 }
 
-/// Branches into a bunch of similar nodes.
+/// Stack `N` similar nodes from fractional generator `f`.
+/// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn branch<T, N, X>(x: Frame<X, N>) -> An<MultiBranchNode<T, N, X>>
+pub fn stackf<T, N, X, F>(f: F) -> An<MultiStackNode<T, N, X>>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T> + Mul<N>,
+    X::Outputs: Size<T> + Mul<N>,
+    <X::Inputs as Mul<N>>::Output: Size<T>,
+    <X::Outputs as Mul<N>>::Output: Size<T>,
+    F: Fn(f64) -> An<X>,
+{
+    assert!(N::USIZE > 0);
+    let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
+    An(MultiStackNode::new(nodes))
+}
+
+/// Branch into `N` similar nodes from indexed generator `f`.
+#[inline]
+pub fn branch<T, N, X, F>(f: F) -> An<MultiBranchNode<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -610,13 +654,33 @@ where
     X::Inputs: Size<T>,
     X::Outputs: Size<T> + Mul<N>,
     <X::Outputs as Mul<N>>::Output: Size<T>,
+    F: Fn(i64) -> An<X>,
 {
-    An(MultiBranchNode::new(x))
+    let nodes = Frame::generate(|i| f(i as i64).0);
+    An(MultiBranchNode::new(nodes))
 }
 
-/// Mixes together a bunch of similar nodes sourcing from disjoint inputs.
+/// Branch into `N` similar nodes from fractional generator `f`.
+/// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn sum<T, N, X>(x: Frame<X, N>) -> An<ReduceNode<T, N, X, FrameAdd<T, X::Outputs>>>
+pub fn branchf<T, N, X, F>(f: F) -> An<MultiBranchNode<T, N, X>>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T> + Mul<N>,
+    <X::Outputs as Mul<N>>::Output: Size<T>,
+    F: Fn(f64) -> An<X>,
+{
+    let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
+    An(MultiBranchNode::new(nodes))
+}
+
+/// Mix together `N` similar nodes from indexed generator `f`.
+#[inline]
+pub fn sum<T, N, X, F>(f: F) -> An<ReduceNode<T, N, X, FrameAdd<T, X::Outputs>>>
 where
     T: Float,
     N: Size<T>,
@@ -625,13 +689,33 @@ where
     X::Inputs: Size<T> + Mul<N>,
     X::Outputs: Size<T>,
     <X::Inputs as Mul<N>>::Output: Size<T>,
+    F: Fn(i64) -> An<X>,
 {
-    An(ReduceNode::new(x, FrameAdd::new()))
+    let nodes = Frame::generate(|i| f(i as i64).0);
+    An(ReduceNode::new(nodes, FrameAdd::new()))
 }
 
-/// Chains together a bunch of similar nodes.
+/// Mix together `N` similar nodes from fractional generator `f`.
+/// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn pipe<T, N, X>(x: Frame<X, N>) -> An<ChainNode<T, N, X>>
+pub fn sumf<T, N, X, F>(f: F) -> An<ReduceNode<T, N, X, FrameAdd<T, X::Outputs>>>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T> + Mul<N>,
+    X::Outputs: Size<T>,
+    <X::Inputs as Mul<N>>::Output: Size<T>,
+    F: Fn(f64) -> An<X>,
+{
+    let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
+    An(ReduceNode::new(nodes, FrameAdd::new()))
+}
+
+/// Chain together `N` similar nodes from indexed generator `f`.
+#[inline]
+pub fn pipe<T, N, X, F>(f: F) -> An<ChainNode<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -639,8 +723,27 @@ where
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
+    F: Fn(i64) -> An<X>,
 {
-    An(ChainNode::new(x))
+    let nodes = Frame::generate(|i| f(i as i64).0);
+    An(ChainNode::new(nodes))
+}
+
+/// Chain together `N` similar nodes from fractional generator `f`.
+/// The fractional generator is given values in the range 0...1.
+#[inline]
+pub fn pipef<T, N, X, F>(f: F) -> An<ChainNode<T, N, X>>
+where
+    T: Float,
+    N: Size<T>,
+    N: Size<X>,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+    F: Fn(f64) -> An<X>,
+{
+    let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
+    An(ChainNode::new(nodes))
 }
 
 /// Split signal into N channels.

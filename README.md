@@ -419,96 +419,101 @@ These free functions are available in the environment.
 
 ---
 
-| Function               | Inputs | Outputs  | Explanation                                    |
-| ---------------------- |:------:|:--------:| ---------------------------------------------- |
-| `add(x)`               |   `x`  |   `x`    | Adds constant `x` to signal. |
+| Function               | Inputs  | Outputs | Explanation                                    |
+| ---------------------- |:-------:|:-------:| ---------------------------------------------- |
+| `add(x)`               |   `x`   |   `x`   | Adds constant `x` to signal. |
 | `allpass()`            | 3 (audio, frequency, Q) | 1 | Allpass filter (2nd order). |
-| `allpass_hz(f, q)`     |    1   |    1     | Allpass filter (2nd order) centered at `f` Hz with Q `q`. |
+| `allpass_hz(f, q)`     |    1    |    1    | Allpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `allpass_q(q)`         | 2 (audio, frequency) | 1 | Allpass filter (2nd order) with Q `q`. |
 | `bandpass()`           | 3 (audio, frequency, Q) | 1 | Bandpass filter (2nd order). |
-| `bandpass_hz(f, q)`    |    1   |    1     | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
+| `bandpass_hz(f, q)`    |    1    |    1    | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `bandpass_q(q)`        | 2 (audio, frequency) | 1 | Bandpass filter (2nd order) with Q `q`. |
 | `bell()`               | 4 (audio, frequency, Q, gain) | 1 | Peaking bell filter (2nd order) with adjustable amplitude gain. |
 | `bell_eq(f, q)`        | 2 (audio, gain) | 1 | Peaking bell filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
-| `bell_hz(f, q, gain)`  |    1   |    1     | Peaking bell filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
-| `brown()`              |    -   |    1     | Brown noise. |
-| `branchf::<U, _, _>(f)` |  `f`  | `U * f`  | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))` |
-| `bus::<U, _, _>(f)`    |   `f`  |   `f`    | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f64 + 1.0) >> sine()`
+| `bell_hz(f, q, gain)`  |    1    |    1    | Peaking bell filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `brown()`              |    -    |    1    | Brown noise. |
+| `branch::<U, _, _>(f)` |   `f`   | `U * f` | Branch into `U` nodes from indexed generator `f`. |
+| `branchf::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))`. |
+| `bus::<U, _, _>(f)`    |   `f`   |   `f`   | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f64 + 1.0) >> sine()`. |
+| `busf::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from fractional generator `f`. |
 | `butterpass()`         | 2 (audio, frequency) | 1 | Butterworth lowpass filter (2nd order). |
-| `butterpass_hz(f)`     |    1   |    1     | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
-| `constant(x)`          |    -   |   `x`    | Constant signal `x`. Synonymous with `dc`. |
-| `dc(x)`                |    -   |   `x`    | Constant signal `x`. Synonymous with `constant`. |
-| `dcblock()`            |    1   |    1     | Zero centers signal with cutoff frequency 10 Hz. |
-| `dcblock_hz(f)`        |    1   |    1     | Zero centers signal with cutoff frequency `f`. |
-| `declick()`            |    1   |    1     | Apply 10 ms of fade-in to signal. |
-| `declick_s(t)`         |    1   |    1     | Apply `t` seconds of fade-in to signal. |
-| `delay(t)`             |    1   |    1     | Delay of `t` seconds. |
-| `envelope(f)`          |    -   |   `f`    | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
-| `feedback(x)`          |   `x`  |   `x`    | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
-| `fdn(x)`               |   `x`  |   `x`    | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
-| `follow(t)`            |    1   |    1     | Smoothing filter with halfway response time `t` seconds. |
-| `follow((a, r))`       |    1   |    1     | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
+| `butterpass_hz(f)`     |    1    |    1    | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
+| `constant(x)`          |    -    |   `x`   | Constant signal `x`. Synonymous with `dc`. |
+| `dc(x)`                |    -    |   `x`   | Constant signal `x`. Synonymous with `constant`. |
+| `dcblock()`            |    1    |    1    | Zero centers signal with cutoff frequency 10 Hz. |
+| `dcblock_hz(f)`        |    1    |    1    | Zero centers signal with cutoff frequency `f`. |
+| `declick()`            |    1    |    1    | Apply 10 ms of fade-in to signal. |
+| `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
+| `delay(t)`             |    1    |    1    | Delay of `t` seconds. |
+| `envelope(f)`          |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
+| `feedback(x)`          |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
+| `fdn(x)`               |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
+| `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
+| `follow((a, r))`       |    1    |    1    | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
 | `goertzel_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
 | `highpass()`           | 3 (audio, frequency, Q) | 1 | Highpass filter (2nd order). |
-| `highpass_hz(f, q)`    |    1   |    1     | Highpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
+| `highpass_hz(f, q)`    |    1    |    1    | Highpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `highpass_q(q)`        | 2 (audio, frequency) | 1 | Highpass filter (2nd order) with Q `q`. |
 | `highshelf()`          | 4 (audio, frequency, Q, gain) | 1 | High shelving filter (2nd order) with adjustable amplitude gain. |
 | `highshelf_eq(f, q)`   | 2 (audio, gain) | 1 | High shelving filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
-| `highshelf_hz(f, q, gain)` | 1  |    1     | High shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
-| `join::<U>()`          |   `U`  |    1     | Average together `U` channels. Inverse of `split`. |
-| `lfo(f)`               |    -   |   `f`    | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
-| `limiter(t)`           |    1   |    1     | Look-ahead limiter with attack and release times `t` seconds. |
-| `limiter((a, r))`      |    1   |    1     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
+| `highshelf_hz(f, q, gain)`| 1    |    1    | High shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `join::<U>()`          |   `U`   |    1    | Average together `U` channels. Inverse of `split`. |
+| `lfo(f)`               |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
+| `limiter(t)`           |    1    |    1    | Look-ahead limiter with attack and release times `t` seconds. |
+| `limiter((a, r))`      |    1    |    1    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
-| `lowpass_hz(f, q)`     |    1   |    1     | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
+| `lowpass_hz(f, q)`     |    1    |    1    | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `lowpass_q(q)`         | 2 (audio, frequency) | 1 | Lowpass filter (2nd order) with Q `q`. |
 | `lowpole()`            | 2 (audio, frequency) | 1 | 1-pole lowpass filter (1st order). |
-| `lowpole_hz(f)`        |    1   |    1     | 1-pole lowpass filter (1st order) with cutoff frequency `f` Hz. |
+| `lowpole_hz(f)`        |    1    |    1    | 1-pole lowpass filter (1st order) with cutoff frequency `f` Hz. |
 | `lowshelf()`           | 4 (audio, frequency, Q, gain) | 1 | Low shelving filter (2nd order) with adjustable amplitude gain. |
 | `lowshelf_eq(f, q)`    | 2 (audio, gain) | 1 | Low shelving filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
-| `lowshelf_hz(f, q, gain)` | 1   |    1     | Low shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
-| `mls()`                |    -   |    1     | White MLS noise source. |
-| `mls_bits(n)`          |    -   |    1     | White MLS noise source from `n`-bit MLS sequence. |
-| `mul(x)`               |   `x`  |   `x`    | Multiplies signal with constant `x`. |
-| `multijoin::<M, N>()`  | `M * N`|   `M`    | Joins `N` branches of `M` channels into one. Inverse of `multisplit`. |
-| `multipass::<U>()`     |   `U`  |   `U`    | Passes multichannel signal through. |
-| `multisink::<U>()`     |   `U`  |    -     | Consumes multichannel signal. |
-| `multisplit::<M, N>()` |   `M`  | `M * N`  | Splits `M` channels into `N` branches. |
-| `multizero::<U>()`     |    -   |   `U`    | Multichannel zero signal. |
-| `noise()`              |    -   |    1     | White noise source. Synonymous with `white`. |
+| `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `mls()`                |    -    |    1    | White MLS noise source. |
+| `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
+| `mul(x)`               |   `x`   |   `x`   | Multiplies signal with constant `x`. |
+| `multijoin::<M, N>()`  | `M * N` |   `M`   | Joins `N` branches of `M` channels into one. Inverse of `multisplit`. |
+| `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
+| `multisink::<U>()`     |   `U`   |    -    | Consumes multichannel signal. |
+| `multisplit::<M, N>()` |   `M`   | `M * N` | Splits `M` channels into `N` branches. |
+| `multizero::<U>()`     |    -    |   `U`   | Multichannel zero signal. |
+| `noise()`              |    -    |    1    | White noise source. Synonymous with `white`. |
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
-| `notch_hz(f, q)`       |    1   |    1     | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
+| `notch_hz(f, q)`       |    1    |    1    | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
 | `notch_q(q)`           | 2 (audio, frequency) | 1 | Notch filter (2nd order) with Q `q`. |
-| `pass()`               |    1   |    1     | Passes signal through. |
+| `pass()`               |    1    |    1    | Passes signal through. |
 | `peak()`               | 3 (audio, frequency, Q) | 1 | Peaking filter (2nd order). |
-| `peak_hz(f, q)`        |    1   |    1     | Peaking filter (2nd order) centered at `f` Hz with Q `q`. |
+| `peak_hz(f, q)`        |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q`. |
 | `peak_q(q)`            | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q`. |
-| `pink()`               |    -   |    1     | Pink noise. |
-| `pinkpass()`           |    1   |    1     | Pinking filter (3 dB/octave). |
-| `pipe::<U, _, _>(f)`   |   `f`  |   `f`    | Chain together `U` nodes from indexed generator `f`. |
+| `pink()`               |    -    |    1    | Pink noise. |
+| `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave). |
+| `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain together `U` nodes from indexed generator `f`. |
+| `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain together `U` nodes from fractional generator `f`. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
-| `resonator_hz(f, bw)`  |    1   |    1     | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
-| `saw()`                | 1 (pitch) | 1     | Saw wave oscillator. |
-| `saw_hz()`             |    -   |    1     | Saw wave oscillator at `f` Hz. |
-| `shape(f)`             |    1   |    1     | Shape signal with waveshaper `f`, e.g., `tanh`. |
-| `sine()`               | 1 (pitch) | 1     | Sine oscillator. |
-| `sine_hz(f)`           |    -   |    1     | Sine oscillator at `f` Hz. |
-| `sink()`               |    1   |    -     | Consumes signal. |
-| `split::<U>()`         |    1   |   `U`    | Split signal into `U` channels. |
-| `square()`             | 1 (pitch) | 1     | Square wave oscillator. |
-| `square_hz()`          |    -   |    1     | Square wave oscillator at frequency `f` Hz. |
-| `stackf::<U, _, _>(f)` | `U * f`| `U * f`  | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
-| `stack::<U, _, _>(f)`  | `U * f`| `U * f`  | Stack `U` nodes from indexed generator `f`. |
-| `stereo_limiter(t)`    |    2   |    2     | Look-ahead limiter with attack and release times `t` seconds. |
-| `stereo_limiter((a, r))` |  2   |    2     | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
-| `stereo_reverb(wet, t)` |   2   |    2     | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
-| `sub(x)`               |   `x`  |   `x`    | Subtracts constant `x` from signal. |
-| `tick()`               |    1   |    1     | Single sample delay. |
-| `triangle()`           | 1 (pitch) | 1     | Triangle wave oscillator. |
-| `triangle_hz(f)`       |    -   |    1     | Triangle wave oscillator at `f` Hz. |
-| `white()`              |    -   |    1     | White noise source. Synonymous with `noise`. |
-| `zero()`               |    -   |    1     | Zero signal. |
+| `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
+| `saw()`                | 1 (pitch) |  1    | Saw wave oscillator. |
+| `saw_hz()`             |    -    |    1    | Saw wave oscillator at `f` Hz. |
+| `shape(f)`             |    1    |    1    | Shape signal with waveshaper `f`, e.g., `tanh`. |
+| `sine()`               | 1 (pitch) |  1    | Sine oscillator. |
+| `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
+| `sink()`               |    1    |    -    | Consumes signal. |
+| `split::<U>()`         |    1    |   `U`   | Split signal into `U` channels. |
+| `square()`             | 1 (pitch) |  1    | Square wave oscillator. |
+| `square_hz()`          |    -    |    1    | Square wave oscillator at frequency `f` Hz. |
+| `stack::<U, _, _>(f)`  | `U * f` | `U * f` | Stack `U` nodes from indexed generator `f`. |
+| `stackf::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
+| `stereo_limiter(t)`    |    2    |    2    | Look-ahead limiter with attack and release times `t` seconds. |
+| `stereo_limiter((a, r))`|   2    |    2    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
+| `stereo_reverb(wet, t)`|    2    |    2    | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
+| `sub(x)`               |   `x`   |   `x`   | Subtracts constant `x` from signal. |
+| `sum::<U, _, _>(f)`    | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
+| `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
+| `tick()`               |    1    |    1    | Single sample delay. |
+| `triangle()`           | 1 (pitch) |  1    | Triangle wave oscillator. |
+| `triangle_hz(f)`       |    -    |    1    | Triangle wave oscillator at `f` Hz. |
+| `white()`              |    -    |    1    | White noise source. Synonymous with `noise`. |
+| `zero()`               |    -    |    1    | Zero signal. |
 
 
 `M`, `N`, `U` are type-level integers. They are `U0`, `U1`, `U2`...
