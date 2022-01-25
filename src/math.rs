@@ -353,31 +353,6 @@ pub fn downarc<T: Real>(x: T) -> T {
     sqrt(max(T::new(0), (T::new(2) - x) * x))
 }
 
-/// Wave function, shaped similarly to `cos`, stitched together from two symmetric pieces peaking at origin.
-#[inline]
-pub fn ewave<T, F>(f: F, x: T) -> T
-where
-    T: Num,
-    F: Fn(T) -> T,
-{
-    let u = (x - T::from_f64(PI)) / T::from_f64(4.0 * PI);
-    let u = (u - u.floor()) * T::new(2);
-    let w0 = u.min(T::one());
-    let w1 = u - w0;
-    T::one() - (f(w0) - f(w1)) * T::new(2)
-}
-
-/// Wave function, shaped similarly to `cos`, stitched together from two symmetric pieces peaking at origin,
-/// that oscillates at the specified frequency (Hz). Time is input in seconds.
-#[inline]
-pub fn ewave_hz<T, F>(f: F, hz: T, t: T) -> T
-where
-    T: Num,
-    F: Fn(T) -> T,
-{
-    ewave(f, t * hz * T::from_f64(TAU))
-}
-
 /// Sine that oscillates at the specified frequency (Hz). Time is input in seconds.
 #[inline]
 pub fn sin_hz<T: Real>(hz: T, t: T) -> T {
@@ -479,7 +454,7 @@ pub fn hashk(x: i64) -> i64 {
     (x ^ (x >> 32)) as i64
 }
 
-/// Trait for symmetric/asymmetric interpolation in `enoise`.
+/// Trait for symmetric/asymmetric interpolation in `ease_noise`.
 pub trait SegmentInterpolator<T: Float>: Clone {
     /// Interpolate between `y1` and `y2` at relative position `t` in 0...1.
     /// `x1` and `x2` are additional information.
@@ -513,11 +488,12 @@ where
 
 /// 1-D easing noise in -1...1 with frequency of 1.
 /// Value noise interpolated with an easing function.
-/// The noise follows a triangular distribution in -1...1.
+/// When interpolated linearly, the noise follows
+/// a roughly triangular distribution in -1...1.
 /// Each integer cell is an interpolation segment.
 /// Easing function `ease` (for example, `smooth3`) can be asymmetric:
 /// `(r, f)` employs `r` for rising and `f` for falling segments.
-pub fn enoise<T: Float>(ease: impl SegmentInterpolator<T>, seed: i64, x: T) -> T {
+pub fn ease_noise<T: Float>(ease: impl SegmentInterpolator<T>, seed: i64, x: T) -> T {
     let fx = floor(x);
     let dx = x - fx;
     let ix = fx.to_i64();
@@ -561,9 +537,9 @@ pub fn staircase<T: Float, F: Fn(T) -> T + Clone>(n: T, f: F) -> impl Fn(T) -> T
 
 /// 1-D spline noise in -1...1 with frequency of 1.
 /// Value noise interpolated with a cubic spline.
-/// The noise follows a triangular distribution in -1...1.
+/// The noise follows a roughly triangular distribution in -1...1.
 /// Each integer cell is an interpolation segment.
-pub fn snoise<T: Float>(seed: i64, x: T) -> T {
+pub fn spline_noise<T: Float>(seed: i64, x: T) -> T {
     let fx = floor(x);
     let dx = x - fx;
     let ix = fx.to_i64();

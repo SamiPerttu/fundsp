@@ -90,16 +90,16 @@ where
     //    >> (pass() | envelope(|t| xerp(1000.0, 20000.0, sin_hz(0.0666, t))) | dc(10.0))
     //    >> bandpass();
 
-    // Test enoise.
+    // Test ease_noise.
     /*let c = lfo(|t| {
         xerp11(
             50.0,
             5000.0,
-            //enoise(uparc, 0, t) * 0.67 + enoise(cuparc, 1, t) * 0.43,
-            //enoise(smooth3, 0, t),
-            //enoise((staircase(8.0, uparc), id), 0, t * 0.5),
-            snoise(0, t),
-        ) * lerp11(0.5, 1.0, ewave_hz(sigmoid(1.0), 8.0, t))
+            //ease_noise(uparc, 0, t) * 0.67 + ease_noise(uparc, 1, t) * 0.43
+            //ease_noise(smooth3, 0, t)
+            //ease_noise((staircase(8.0, uparc), id), 0, t * 0.5)
+            spline_noise(0, t)
+        )
     }) >> triangle();*/
 
     // Waveshapers.
