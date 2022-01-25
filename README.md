@@ -3,7 +3,8 @@
 ## Audio Processing and Synthesis Library for Rust
 
 [FunDSP](https://github.com/SamiPerttu/fundsp)
-is an audio DSP ([digital signal processing](https://en.wikipedia.org/wiki/Digital_signal_processing)) library with a focus on usability.
+is an audio DSP ([digital signal processing](https://en.wikipedia.org/wiki/Digital_signal_processing))
+library with a focus on usability.
 
 FunDSP features a powerful inline graph notation that
 empowers users to accomplish diverse audio processing tasks with ease and elegance.
@@ -15,7 +16,8 @@ FunDSP comes with a combinator environment containing
 a suite of audio components, math and utility functions and procedural generation tools.
 
 *This project is under construction*! It is already useful for experimentation.
-However, some standard components are missing and breakage can be expected as we continue to experiment with best practices.
+However, some standard components are missing and breakage can be expected
+as we continue to experiment with best practices.
 
 ### Uses
 
@@ -259,7 +261,8 @@ In `A & B`, both components source from the same inputs, and the number of input
 The stack ( `|` ) operator builds composite components.
 It can be applied to any two components.
 
-As a graph operator, the stack corresponds to the *disjoint union*. In `A | B`, the inputs and outputs of `A` and `B`
+As a graph operator, the stack corresponds to the *disjoint union*.
+In `A | B`, the inputs and outputs of `A` and `B`
 are disjoint and they are processed independently, in parallel.
 
 In stacks, components are written in channel order.
@@ -312,7 +315,8 @@ Some signals found flowing in audio networks.
 
 ## Signal Flow Analysis
 
-FunDSP features a comprehensive signal flow system that analyzes causal latencies and frequency responses in audio networks.
+FunDSP features a comprehensive signal flow system that analyzes
+causal latencies and frequency responses in audio networks.
 
 The system can calculate the frequency response of any *[linear network](https://en.wikipedia.org/wiki/Linear_filter)*
 analytically by composing [transfer functions](https://en.wikipedia.org/wiki/Transfer_function#Linear_time-invariant_systems)
@@ -326,8 +330,10 @@ Signal latencies are similarly analyzed from input to output in detail,
 facilitating automatic removal of pre-delay from effects chains.
 
 For example,
-[FIR](https://en.wikipedia.org/wiki/Finite_impulse_response) filters can be composed inline from single sample delays (the `tick` opcode) and arithmetic.
-Signal flow analysis will readily reveal that a 2-point averaging filter has zero gain at the [Nyquist](https://en.wikipedia.org/wiki/Nyquist_frequency) frequency,
+[FIR](https://en.wikipedia.org/wiki/Finite_impulse_response) filters
+can be composed inline from single sample delays (the `tick` opcode) and arithmetic.
+Signal flow analysis will readily reveal that a 2-point averaging filter
+has zero gain at the [Nyquist](https://en.wikipedia.org/wiki/Nyquist_frequency) frequency,
 while a 3-point averaging filter does not:
 
 ```rust
@@ -545,8 +551,6 @@ The values in between are linearly interpolated.
 | Function               | Explanation                                    |
 | ---------------------- | ---------------------------------------------- |
 | `abs(x)`               | absolute value of `x` |
-| `arcdown(x)`           | concave quarter circle easing curve (inverse of `arcup`) |
-| `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
 | `a_weight(f)`          | [A-weighted](https://en.wikipedia.org/wiki/A-weighting) amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `bpm_hz(bpm)`          | convert `bpm` BPM (beats per minute) to Hz |
 | `ceil(x)`              | ceiling function |
@@ -563,8 +567,9 @@ The values in between are linearly interpolated.
 | `dexerp11(x0, x1, x)`  | recover exponential interpolation amount `t` in -1...1 from interpolated value (`x0`, `x1`, `x` > 0) |
 | `dissonance(f0, f1)`   | dissonance amount in 0...1 between pure tones at `f0` and `f1` Hz |
 | `dissonance_max(f)`    | maximally dissonant pure frequency above `f` Hz |
+| `downarc(x)`           | concave quarter circle easing curve (inverse function of `uparc` in 0...1) |
 | `enoise(ease, seed, x)`| easing noise: value noise in -1...1 interpolated with easing function `ease`, e.g., `smooth3` |
-| `enoise((rise, fall), seed, x)` | asymmetric easing noise: value noise in -1...1 interpolated with easing function `rise` in rising segments and `fall` in falling segments, e.g., `(arcup, id)` |
+| `enoise((rise, fall), seed, x)` | asymmetric easing noise: value noise in -1...1 interpolated with easing function `rise` in rising segments and `fall` in falling segments, e.g., `(uparc, id)` |
 | `ewave(ease, x)`       | wave function shaped like `cos` built from two symmetric eases peaking at origin |
 | `ewave_hz(ease, f, t)` | wave function built from two symmetric eases that oscillates at `f` Hz at time `t` seconds |
 | `exp(x)`               | exp |
@@ -603,6 +608,7 @@ The values in between are linearly interpolated.
 | `staircase(n, ease)(x)`| staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
+| `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
 | `xerp(x0, x1, t)`      | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) with `t` in 0...1 |
 | `xerp11(x0, x1, t)`    | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) with `t` in -1...1 |
 
@@ -615,9 +621,8 @@ These math functions have the shape of an easing function.
 
 | Function               | Explanation                                    |
 | ---------------------- | ---------------------------------------------- |
-| `arcdown(x)`           | concave quarter circle easing curve (inverse of `arcup`) |
-| `arcup(x)`             | convex quarter circle easing curve (inverse of `arcdown`) |
 | `cubed(x)`             | cube of `x` |
+| `downarc(x)`           | concave quarter circle easing curve (inverse function of `uparc` in 0...1) |
 | `id(x)`                | identity function (linear easing function) |
 | `sigmoid(sharpness)(x)`| smooth sigmoidal easing function with shape parameter `sharpness` in 0...1. |
 | `smooth3(x)`           | smooth cubic easing polynomial |
@@ -627,6 +632,7 @@ These math functions have the shape of an easing function.
 | `squared(x)`           | square of `x` |
 | `sqrt(x)`              | square root of `x` |
 | `staircase(n, ease)(x)`| staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
+| `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
 
 ---
 
@@ -732,6 +738,7 @@ An<BusNode<f64, NoiseNode<f64>, PipeNode<f64, ConstantNode<f64, U1>, SineNode<f6
 The prelude employs the wrapper type `An<X: AudioNode>`
 containing operator overloads and other trait implementations.
 
+---
 
 ## License
 
@@ -742,6 +749,7 @@ Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in Fundsp by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
 
+---
 
 ## Next Steps
 

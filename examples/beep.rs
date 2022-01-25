@@ -95,9 +95,9 @@ where
         xerp11(
             50.0,
             5000.0,
-            //enoise(arcup, 0, t) * 0.67 + enoise(arcup, 1, t) * 0.43,
+            //enoise(uparc, 0, t) * 0.67 + enoise(cuparc, 1, t) * 0.43,
             //enoise(smooth3, 0, t),
-            //enoise((staircase(8.0, arcup), id), 0, t * 0.5),
+            //enoise((staircase(8.0, uparc), id), 0, t * 0.5),
             snoise(0, t),
         ) * lerp11(0.5, 1.0, ewave_hz(sigmoid(1.0), 8.0, t))
     }) >> triangle();*/

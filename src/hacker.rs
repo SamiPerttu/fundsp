@@ -693,8 +693,6 @@ pub fn stereo_reverb(
 
     // The feedback structure.
     let reverb = fdn(stack::<U32, _, _>(|i| {
-        // Index is i64 because of hacker prelude rules.
-        // In the standard prelude, the index type would be usize.
         delay(DELAYS[i as usize]) >> lowpole_hz(1600.0) >> dcblock_hz(5.0) * a
     }));
 

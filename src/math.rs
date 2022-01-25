@@ -91,19 +91,19 @@ pub const LN_2: f64 = std::f64::consts::LN_2;
 /// log(10)
 pub const LN_10: f64 = std::f64::consts::LN_10;
 
-/// Clamps x between x0 and x1.
+/// Clamps `x` between `x0` and `x1`.
 #[inline]
 pub fn clamp<T: Num>(x0: T, x1: T, x: T) -> T {
     x.max(x0).min(x1)
 }
 
-/// Clamps x between 0 and 1.
+/// Clamps `x` between 0 and 1.
 #[inline]
 pub fn clamp01<T: Num>(x: T) -> T {
     x.max(T::zero()).min(T::one())
 }
 
-/// Clamps x between -1 and 1.
+/// Clamps `x` between -1 and 1.
 #[inline]
 pub fn clamp11<T: Num>(x: T) -> T {
     x.max(T::new(-1)).min(T::one())
@@ -146,31 +146,31 @@ pub fn lerp<U: Lerp<T>, T>(a: U, b: U, t: T) -> U {
     a.lerp(b, t)
 }
 
-/// Linear interpolation with t in -1...1.
+/// Linear interpolation with `t` in -1...1.
 #[inline]
 pub fn lerp11<U: Lerp<T>, T: Num>(a: U, b: U, t: T) -> U {
     a.lerp(b, t * T::from_f32(0.5) + T::from_f32(0.5))
 }
 
-/// Linear de-interpolation. Recovers t from interpolated x.
+/// Linear de-interpolation. Recovers `t` from interpolated `x`.
 #[inline]
 pub fn delerp<T: Num>(a: T, b: T, x: T) -> T {
     (x - a) / (b - a)
 }
 
-/// Linear de-interpolation. Recovers t in -1...1 from interpolated x.
+/// Linear de-interpolation. Recovers `t` in -1...1 from interpolated `x`.
 #[inline]
 pub fn delerp11<T: Num>(a: T, b: T, x: T) -> T {
     (x - a) / (b - a) * T::new(2) - T::new(1)
 }
 
-/// Exponential interpolation. a, b > 0.
+/// Exponential interpolation. `a`, `b` > 0.
 #[inline]
 pub fn xerp<U: Lerp<T> + Real, T>(a: U, b: U, t: T) -> U {
     exp(lerp(log(a), log(b), t))
 }
 
-/// Exponential interpolation with t in -1...1. a, b > 0.
+/// Exponential interpolation with `t` in -1...1. `a`, `b` > 0.
 #[inline]
 pub fn xerp11<U: Lerp<T> + Real, T: Num>(a: U, b: U, t: T) -> U {
     exp(lerp(
@@ -180,7 +180,7 @@ pub fn xerp11<U: Lerp<T> + Real, T: Num>(a: U, b: U, t: T) -> U {
     ))
 }
 
-/// Returns a dissonance amount between pure tones at f0 and f1 Hz.
+/// Return a dissonance amount between pure tones at `f0` and `f1` Hz.
 /// Dissonance amounts range between 0 and 1.
 #[inline]
 pub fn dissonance<T: Real>(f0: T, f1: T) -> T {
@@ -188,19 +188,21 @@ pub fn dissonance<T: Real>(f0: T, f1: T) -> T {
     T::from_f64(5.531753) * (exp(T::from_f64(-0.84) * q) - exp(T::from_f64(-1.38) * q))
 }
 
-/// Returns maximally dissonant pure frequency above f Hz.
+/// Return the maximally dissonant pure frequency above `f` Hz.
 #[inline]
 pub fn dissonance_max<T: Num>(f: T) -> T {
     T::from_f64(1.0193) * f + T::from_f64(17.4672)
 }
 
-/// Exponential de-interpolation. a, b, x > 0. Recovers t from interpolated x.
+/// Exponential de-interpolation. `a`, `b`, `x` > 0.
+/// Recovers `t` from interpolated `x`.
 #[inline]
 pub fn dexerp<T: Real>(a: T, b: T, x: T) -> T {
     log(x / a) / log(b / a)
 }
 
-/// Exponential de-interpolation. a, b, x > 0. Recovers t in -1...1 from interpolated x.
+/// Exponential de-interpolation. `a`, `b`, `x` > 0.
+/// Recovers `t` in -1...1 from interpolated `x`.
 #[inline]
 pub fn dexerp11<T: Real>(a: T, b: T, x: T) -> T {
     log(x / a) / log(b / a) * T::new(2) - T::new(1)
@@ -212,14 +214,14 @@ pub fn db_amp<T: Real>(db: T) -> T {
     exp10(db / T::new(20))
 }
 
-/// Convert gain (gain > 0) to decibels. 1.0 = 0 dB.
+/// Convert amplitude `gain` (`gain` > 0) to decibels. Unity gain = 0 dB.
 #[inline]
-pub fn amp_db<T: Real>(amp: T) -> T {
-    log10(amp) * T::new(20)
+pub fn amp_db<T: Real>(gain: T) -> T {
+    log10(gain) * T::new(20)
 }
 
 /// A-weighted response function.
-/// Returns equal loudness amplitude response at f Hz.
+/// Returns equal loudness amplitude response at `f` Hz.
 /// Normalized to 1.0 at 1 kHz.
 #[inline]
 pub fn a_weight<T: Real>(f: T) -> T {
@@ -256,9 +258,11 @@ pub fn m_weight<T: Real>(f: T) -> T {
         )
 }
 
-/// Catmull-Rom cubic spline interpolation, which is a form of cubic Hermite spline. Interpolates between
-/// y1 (returns y1 when x = 0) and y2 (returns y2 when x = 1) while using the previous (y0) and next (y3)
-/// points to define slopes at the endpoints. The maximum overshoot is 1/8th of the range of the arguments.
+/// Catmull-Rom cubic spline interpolation, which is a form of cubic Hermite spline.
+/// Interpolates between `y1` (returns `y1` when `x` = 0) and `y2` (returns `y2` when `x` = 1)
+/// while using the previous (`y0`) and next (`y3`)
+/// points to define slopes at the endpoints.
+/// The maximum overshoot is 1/8th of the range of the arguments.
 #[inline]
 pub fn spline<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
     y1 + x / T::new(2)
@@ -268,8 +272,8 @@ pub fn spline<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
 }
 
 /// Monotonic cubic interpolation via Steffen's method. The result never overshoots.
-/// It is first order continuous. Interpolates between y1 (at x = 0) and y2 (at x = 1)
-/// while using the previous (y0) and next (y3) values to influence slopes.
+/// It is first order continuous. Interpolates between `y1` (at `x` = 0) and `y2` (at `x` = 1)
+/// while using the previous (`y0`) and next (`y3`) values to influence slopes.
 pub fn spline_mono<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
     let d0 = y1 - y0;
     let d1 = y2 - y1;
@@ -289,8 +293,8 @@ pub fn softsign<T: Num>(x: T) -> T {
 }
 
 /// This exp-like response function is second order continuous.
-/// It has asymmetrical magnitude curves: (inverse) linear when x < 0 and quadratic when x > 0.
-/// softexp(x) >= 0 for all x. Like the exponential function, softexp(0) = softexp'(0) = 1.
+/// It has asymmetrical magnitude curves: (inverse) linear when `x` < 0 and quadratic when `x` > 0.
+/// `softexp(x)` >= 0 for all `x`. Like the exponential function, `softexp(0)` = `softexp'(0)` = 1.
 #[inline]
 pub fn softexp<T: Num>(x: T) -> T {
     // With a branch:
@@ -299,7 +303,7 @@ pub fn softexp<T: Num>(x: T) -> T {
     p * p + p + T::one() / (T::one() + p - x)
 }
 
-// Softmin function when bias < 0, softmax when bias > 0, and average when bias = 0.
+/// Softmin function when `bias` < 0, softmax when `bias` > 0, and average when `bias` = 0.
 #[inline]
 pub fn softmix<T: Num>(x: T, y: T, bias: T) -> T {
     let xw = softexp(x * bias);
@@ -337,15 +341,15 @@ pub fn smooth9<T: Num>(x: T) -> T {
         * x
 }
 
-/// A quarter circle fade that slopes upwards. Inverse function of Fade.downarc.
+/// A quarter circle fade that slopes upwards. Inverse function of `downarc`.
 #[inline]
-pub fn arcup<T: Real>(x: T) -> T {
+pub fn uparc<T: Real>(x: T) -> T {
     T::one() - sqrt(max(T::zero(), T::one() - x * x))
 }
 
-/// A quarter circle fade that slopes downwards. Inverse function of Fade.uparc.
+/// A quarter circle fade that slopes downwards. Inverse function of `uparc`.
 #[inline]
-pub fn arcdown<T: Real>(x: T) -> T {
+pub fn downarc<T: Real>(x: T) -> T {
     sqrt(max(T::new(0), (T::new(2) - x) * x))
 }
 
