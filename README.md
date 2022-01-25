@@ -376,7 +376,7 @@ Verified frequency responses are available for all filters.
 
 ### Parametric Equalizer Recipe
 
-In this example, we make a 12-band, double precision parametric equalizer
+In this example we make a 12-band, double precision parametric equalizer
 using the `bell` filter.
 
 First, declare the processing pipeline.
@@ -604,7 +604,7 @@ The values in between are linearly interpolated.
 | `spline(x0, x1, x2, x3, t)` | [Catmull-Rom](https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Catmull%E2%80%93Rom_spline) cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `spline_mono(x0, x1, x2, x3, t)` | [monotonic cubic interpolation](https://en.wikipedia.org/wiki/Monotone_cubic_interpolation) between `x1` and `x2`, taking `x0` and `x3` into account |
 | `spline_noise(seed, x)`| value noise in -1...1 interpolated with a cubic spline, with one interpolation point per integer cell |
-| `staircase(n, ease)(x)`| staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
+| `steps(n, ease)(x)`    | staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
 | `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
@@ -630,7 +630,7 @@ These math functions have the shape of an easing function.
 | `smooth9(x)`           | smooth 9th degree easing polynomial |
 | `squared(x)`           | square of `x` |
 | `sqrt(x)`              | square root of `x` |
-| `staircase(n, ease)(x)`| staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
+| `steps(n, ease)(x)`    | staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
 | `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
 
 ---

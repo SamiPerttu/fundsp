@@ -526,7 +526,7 @@ pub fn sigmoid<T: Float>(sharpness: T) -> impl Fn(T) -> T + Clone {
 /// Creates a staircase function from easing function `f` with `n` copies per integer cell.
 /// The result is an easing function when `n` is integer.
 #[inline]
-pub fn staircase<T: Float, F: Fn(T) -> T + Clone>(n: T, f: F) -> impl Fn(T) -> T + Clone {
+pub fn steps<T: Float, F: Fn(T) -> T + Clone>(n: T, f: F) -> impl Fn(T) -> T + Clone {
     move |x| {
         let x = x * n;
         let ix = floor(x);

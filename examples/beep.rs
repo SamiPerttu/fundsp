@@ -97,13 +97,13 @@ where
             5000.0,
             //ease_noise(uparc, 0, t) * 0.67 + ease_noise(uparc, 1, t) * 0.43
             //ease_noise(smooth3, 0, t)
-            //ease_noise((staircase(8.0, uparc), id), 0, t * 0.5)
+            //ease_noise((steps(8.0, uparc), id), 0, t * 0.5)
             spline_noise(0, t)
         )
     }) >> triangle();*/
 
     // Waveshapers.
-    //let c = c >> shape(staircase(10.0, sigmoid(0.5)));
+    //let c = c >> shape(steps(10.0, sigmoid(0.5)));
     //let c = c >> shape(|x| tanh(x * 10.0));
 
     let mut c = c
