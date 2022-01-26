@@ -21,6 +21,7 @@ impl<T: Float> Buffer<T> {
             slice: Slice::new(),
         }
     }
+    #[inline]
     pub fn get_ref(&mut self, buffers: usize) -> &[&[T]] {
         while self.buffer.len() < buffers {
             let mut v = Vec::with_capacity(MAX_BUFFER_SIZE);
@@ -29,6 +30,7 @@ impl<T: Float> Buffer<T> {
         }
         self.slice.from_refs(&self.buffer)
     }
+    #[inline]
     pub fn get_mut(&mut self, buffers: usize) -> &mut [&mut [T]] {
         while self.buffer.len() < buffers {
             let mut v = Vec::with_capacity(MAX_BUFFER_SIZE);
@@ -37,6 +39,7 @@ impl<T: Float> Buffer<T> {
         }
         self.slice.from_muts(&mut self.buffer)
     }
+    #[inline]
     pub fn at(&self, index: usize) -> &Vec<T> {
         &self.buffer[index]
     }

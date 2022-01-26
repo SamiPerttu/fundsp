@@ -6,7 +6,7 @@ use super::signal::*;
 use super::*;
 use numeric_array::typenum::*;
 
-pub trait Binop<T>: Clone {
+pub trait Monoidal<T>: Clone {
     fn binop(&self, x: T, y: T) -> T;
 }
 
@@ -21,7 +21,7 @@ impl<T: Num> Amplitude<T> {
     }
 }
 
-impl<T: Num> Binop<T> for Amplitude<T> {
+impl<T: Num> Monoidal<T> for Amplitude<T> {
     fn binop(&self, x: T, y: T) -> T {
         max(abs(x), abs(y))
     }
@@ -38,7 +38,7 @@ impl<T: Num> Maximum<T> {
     }
 }
 
-impl<T: Num> Binop<T> for Maximum<T> {
+impl<T: Num> Monoidal<T> for Maximum<T> {
     fn binop(&self, x: T, y: T) -> T {
         max(x, y)
     }
@@ -49,7 +49,7 @@ impl<T: Num> Binop<T> for Maximum<T> {
 pub struct ReduceBuffer<T, B>
 where
     T: Num,
-    B: Binop<T>,
+    B: Monoidal<T>,
 {
     // First item is unused for convenience. Buffer length is rounded up to an even number.
     buffer: Vec<T>,
@@ -61,7 +61,7 @@ where
 impl<T, B> ReduceBuffer<T, B>
 where
     T: Num,
-    B: Binop<T>,
+    B: Monoidal<T>,
 {
     fn get_index(&self, i: usize) -> usize {
         self.leaf_offset + i
@@ -116,7 +116,7 @@ where
     release: f64,
     sample_rate: f64,
     reducer: ReduceBuffer<T, Maximum<T>>,
-    follower: AFollower<T, f64, S>,
+    follower: AFollow<T, f64, S>,
     buffer: Vec<Frame<T, N>>,
     index: usize,
 }
@@ -148,7 +148,7 @@ where
             lookahead,
             release,
             sample_rate,
-            follower: AFollower::new(sample_rate, S::construct(lookahead * 0.4, release * 0.4)),
+            follower: AFollow::new(sample_rate, S::construct(lookahead * 0.4, release * 0.4)),
             buffer: vec![],
             reducer: Self::new_buffer(sample_rate, lookahead),
             index: 0,
@@ -221,13 +221,13 @@ where
 }
 
 #[derive(Clone, Default)]
-pub struct Goertzel<F: Real> {
+pub struct Detector<F: Real> {
     y1: F,
     y2: F,
     ccoeff: F,
     scoeff: F,
 }
-impl<F: Real> Goertzel<F> {
+impl<F: Real> Detector<F> {
     pub fn reset(&mut self) {
         self.y1 = F::zero();
         self.y2 = F::zero();
@@ -249,22 +249,22 @@ impl<F: Real> Goertzel<F> {
 
 /// Goertzel filter. Detects the presence of a frequency. Outputs DFT power at the selected frequency.
 #[derive(Clone, Default)]
-pub struct GoertzelNode<T: Float, F: Real> {
-    filter: Goertzel<F>,
+pub struct Goertzel<T: Float, F: Real> {
+    filter: Detector<F>,
     sample_rate: F,
     frequency: F,
     _marker: std::marker::PhantomData<T>,
 }
 
-impl<T: Float, F: Real> GoertzelNode<T, F> {
+impl<T: Float, F: Real> Goertzel<T, F> {
     pub fn new(sample_rate: f64) -> Self {
-        let mut node = GoertzelNode::default();
+        let mut node = Goertzel::default();
         node.reset(Some(sample_rate));
         node
     }
 }
 
-impl<T: Float, F: Real> AudioNode for GoertzelNode<T, F> {
+impl<T: Float, F: Real> AudioNode for Goertzel<T, F> {
     const ID: u64 = 27;
     type Sample = T;
     type Inputs = U2;
@@ -304,16 +304,16 @@ impl<T: Float, F: Real> AudioNode for GoertzelNode<T, F> {
 /// - Input 0: input signal
 /// - Output 0: filtered signal
 #[derive(Copy, Clone, Default)]
-pub struct Declicker<T: Float, F: Real> {
+pub struct Declick<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
     t: F,
     duration: F,
     sample_duration: F,
 }
 
-impl<T: Float, F: Real> Declicker<T, F> {
+impl<T: Float, F: Real> Declick<T, F> {
     pub fn new(sample_rate: f64, duration: F) -> Self {
-        let mut node = Declicker::<T, F> {
+        let mut node = Declick::<T, F> {
             duration,
             ..Default::default()
         };
@@ -322,7 +322,7 @@ impl<T: Float, F: Real> Declicker<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for Declicker<T, F> {
+impl<T: Float, F: Real> AudioNode for Declick<T, F> {
     const ID: u64 = 23;
     type Sample = T;
     type Inputs = U1;

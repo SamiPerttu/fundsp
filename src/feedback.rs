@@ -75,7 +75,7 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameHadamard<T, N> {
 /// Mix back output of contained node to its input.
 /// The contained node must have an equal number of inputs and outputs.
 #[derive(Clone)]
-pub struct FeedbackNode<T, X, N, U>
+pub struct Feedback<T, X, N, U>
 where
     T: Float,
     X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
@@ -92,7 +92,7 @@ where
     feedback: U,
 }
 
-impl<T, X, N, U> FeedbackNode<T, X, N, U>
+impl<T, X, N, U> Feedback<T, X, N, U>
 where
     T: Float,
     X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
@@ -102,7 +102,7 @@ where
     U: FrameUnop<T, X::Outputs>,
 {
     pub fn new(x: X, feedback: U) -> Self {
-        let mut node = FeedbackNode {
+        let mut node = Feedback {
             x,
             value: Frame::default(),
             feedback,
@@ -113,7 +113,7 @@ where
     }
 }
 
-impl<T, X, N, U> AudioNode for FeedbackNode<T, X, N, U>
+impl<T, X, N, U> AudioNode for Feedback<T, X, N, U>
 where
     T: Float,
     X: AudioNode<Sample = T, Inputs = N, Outputs = N>,

@@ -193,17 +193,17 @@ pub trait AudioNode {
 
 /// Pass through inputs unchanged.
 #[derive(Clone, Default)]
-pub struct PassNode<T, N> {
+pub struct Pass<T, N> {
     _marker: PhantomData<(T, N)>,
 }
 
-impl<T: Float, N: Size<T>> PassNode<T, N> {
+impl<T: Float, N: Size<T>> Pass<T, N> {
     pub fn new() -> Self {
-        PassNode::default()
+        Pass::default()
     }
 }
 
-impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
+impl<T: Float, N: Size<T>> AudioNode for Pass<T, N> {
     const ID: u64 = 0;
     type Sample = T;
     type Inputs = N;
@@ -233,17 +233,17 @@ impl<T: Float, N: Size<T>> AudioNode for PassNode<T, N> {
 
 /// Consume inputs.
 #[derive(Clone, Default)]
-pub struct SinkNode<T, N> {
+pub struct Sink<T, N> {
     _marker: PhantomData<(T, N)>,
 }
 
-impl<T: Float, N: Size<T>> SinkNode<T, N> {
+impl<T: Float, N: Size<T>> Sink<T, N> {
     pub fn new() -> Self {
-        SinkNode::default()
+        Sink::default()
     }
 }
 
-impl<T: Float, N: Size<T>> AudioNode for SinkNode<T, N> {
+impl<T: Float, N: Size<T>> AudioNode for Sink<T, N> {
     const ID: u64 = 1;
     type Sample = T;
     type Inputs = N;
@@ -267,17 +267,17 @@ impl<T: Float, N: Size<T>> AudioNode for SinkNode<T, N> {
 
 /// Output a constant value.
 #[derive(Clone)]
-pub struct ConstantNode<T: Float, N: Size<T>> {
+pub struct Constant<T: Float, N: Size<T>> {
     output: Frame<T, N>,
 }
 
-impl<T: Float, N: Size<T>> ConstantNode<T, N> {
+impl<T: Float, N: Size<T>> Constant<T, N> {
     pub fn new(output: Frame<T, N>) -> Self {
-        ConstantNode { output }
+        Constant { output }
     }
 }
 
-impl<T: Float, N: Size<T>> AudioNode for ConstantNode<T, N> {
+impl<T: Float, N: Size<T>> AudioNode for Constant<T, N> {
     const ID: u64 = 2;
     type Sample = T;
     type Inputs = U0;
@@ -417,7 +417,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
 /// Inputs are disjoint.
 /// Outputs are combined channel-wise.
 /// The nodes must have the same number of outputs.
-pub struct BinopNode<T, X, Y, B>
+pub struct Binop<T, X, Y, B>
 where
     T: Float,
 {
@@ -429,7 +429,7 @@ where
     buffer: Buffer<T>,
 }
 
-impl<T, X, Y, B> BinopNode<T, X, Y, B>
+impl<T, X, Y, B> Binop<T, X, Y, B>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -441,7 +441,7 @@ where
     <X::Inputs as Add<Y::Inputs>>::Output: Size<T>,
 {
     pub fn new(x: X, y: Y, b: B) -> Self {
-        let mut node = BinopNode {
+        let mut node = Binop {
             _marker: PhantomData,
             x,
             y,
@@ -454,7 +454,7 @@ where
     }
 }
 
-impl<T, X, Y, B> AudioNode for BinopNode<T, X, Y, B>
+impl<T, X, Y, B> AudioNode for Binop<T, X, Y, B>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -583,14 +583,14 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameId<T, N> {
 
 /// Apply a unary operation to output of contained node.
 #[derive(Clone)]
-pub struct UnopNode<T, X, U> {
+pub struct Unop<T, X, U> {
     _marker: PhantomData<T>,
     x: X,
     #[allow(dead_code)]
     u: U,
 }
 
-impl<T, X, U> UnopNode<T, X, U>
+impl<T, X, U> Unop<T, X, U>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -599,7 +599,7 @@ where
     X::Outputs: Size<T>,
 {
     pub fn new(x: X, u: U) -> Self {
-        let mut node = UnopNode {
+        let mut node = Unop {
             _marker: PhantomData,
             x,
             u,
@@ -610,7 +610,7 @@ where
     }
 }
 
-impl<T, X, U> AudioNode for UnopNode<T, X, U>
+impl<T, X, U> AudioNode for Unop<T, X, U>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -659,14 +659,14 @@ where
 }
 
 #[derive(Clone)]
-pub struct MapNode<T, M, P, I, O> {
+pub struct Map<T, M, P, I, O> {
     f: M,
     propagate_f: P,
     _marker: PhantomData<(T, I, O)>,
 }
 
 /// Map any number of channels.
-impl<T, M, P, I, O> MapNode<T, M, P, I, O>
+impl<T, M, P, I, O> Map<T, M, P, I, O>
 where
     T: Float,
     M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
@@ -683,7 +683,7 @@ where
     }
 }
 
-impl<T, M, P, I, O> AudioNode for MapNode<T, M, P, I, O>
+impl<T, M, P, I, O> AudioNode for Map<T, M, P, I, O>
 where
     T: Float,
     M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
@@ -710,7 +710,7 @@ where
 }
 
 /// Pipe the output of `X` to `Y`.
-pub struct PipeNode<T, X, Y>
+pub struct Pipe<T, X, Y>
 where
     T: Float,
 {
@@ -720,7 +720,7 @@ where
     buffer: Buffer<T>,
 }
 
-impl<T, X, Y> PipeNode<T, X, Y>
+impl<T, X, Y> Pipe<T, X, Y>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -730,7 +730,7 @@ where
     Y::Outputs: Size<T>,
 {
     pub fn new(x: X, y: Y) -> Self {
-        let mut node = PipeNode {
+        let mut node = Pipe {
             _marker: PhantomData,
             x,
             y,
@@ -752,7 +752,7 @@ where
     }
 }
 
-impl<T, X, Y> AudioNode for PipeNode<T, X, Y>
+impl<T, X, Y> AudioNode for Pipe<T, X, Y>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -800,13 +800,13 @@ where
 
 /// Stack `X` and `Y` in parallel.
 #[derive(Clone)]
-pub struct StackNode<T, X, Y> {
+pub struct Stack<T, X, Y> {
     _marker: PhantomData<T>,
     x: X,
     y: Y,
 }
 
-impl<T, X, Y> StackNode<T, X, Y>
+impl<T, X, Y> Stack<T, X, Y>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -819,7 +819,7 @@ where
     <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
 {
     pub fn new(x: X, y: Y) -> Self {
-        let mut node = StackNode {
+        let mut node = Stack {
             _marker: PhantomData,
             x,
             y,
@@ -840,7 +840,7 @@ where
     }
 }
 
-impl<T, X, Y> AudioNode for StackNode<T, X, Y>
+impl<T, X, Y> AudioNode for Stack<T, X, Y>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -915,13 +915,13 @@ where
 
 /// Send the same input to `X` and `Y`. Concatenate outputs.
 #[derive(Clone)]
-pub struct BranchNode<T, X, Y> {
+pub struct Branch<T, X, Y> {
     _marker: PhantomData<T>,
     x: X,
     y: Y,
 }
 
-impl<T, X, Y> BranchNode<T, X, Y>
+impl<T, X, Y> Branch<T, X, Y>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -932,7 +932,7 @@ where
     <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
 {
     pub fn new(x: X, y: Y) -> Self {
-        let mut node = BranchNode {
+        let mut node = Branch {
             _marker: PhantomData,
             x,
             y,
@@ -953,7 +953,7 @@ where
     }
 }
 
-impl<T, X, Y> AudioNode for BranchNode<T, X, Y>
+impl<T, X, Y> AudioNode for Branch<T, X, Y>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -1014,7 +1014,7 @@ where
 }
 
 /// Mix together `X` and `Y` sourcing from the same inputs.
-pub struct BusNode<T, X, Y>
+pub struct Bus<T, X, Y>
 where
     T: Float,
 {
@@ -1024,7 +1024,7 @@ where
     buffer: Buffer<T>,
 }
 
-impl<T, X, Y> BusNode<T, X, Y>
+impl<T, X, Y> Bus<T, X, Y>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -1035,7 +1035,7 @@ where
     Y::Outputs: Size<T>,
 {
     pub fn new(x: X, y: Y) -> Self {
-        let mut node = BusNode {
+        let mut node = Bus {
             _marker: PhantomData,
             x,
             y,
@@ -1057,7 +1057,7 @@ where
     }
 }
 
-impl<T, X, Y> AudioNode for BusNode<T, X, Y>
+impl<T, X, Y> AudioNode for Bus<T, X, Y>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -1119,14 +1119,14 @@ where
 
 /// Pass through inputs without matching outputs.
 /// Adjusts output arity to match input arity, adapting a filter to a pipeline.
-pub struct ThruNode<X: AudioNode> {
+pub struct Thru<X: AudioNode> {
     x: X,
     buffer: Buffer<X::Sample>,
 }
 
-impl<X: AudioNode> ThruNode<X> {
+impl<X: AudioNode> Thru<X> {
     pub fn new(x: X) -> Self {
-        let mut node = ThruNode {
+        let mut node = Thru {
             x,
             buffer: Buffer::new(),
         };
@@ -1136,7 +1136,7 @@ impl<X: AudioNode> ThruNode<X> {
     }
 }
 
-impl<X: AudioNode> AudioNode for ThruNode<X> {
+impl<X: AudioNode> AudioNode for Thru<X> {
     const ID: u64 = 12;
     type Sample = X::Sample;
     type Inputs = X::Inputs;
@@ -1202,7 +1202,7 @@ impl<X: AudioNode> AudioNode for ThruNode<X> {
 }
 
 /// Mix together a bunch of similar nodes sourcing from the same inputs.
-pub struct MultiBusNode<T, N, X>
+pub struct MultiBus<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1216,7 +1216,7 @@ where
     buffer: Buffer<T>,
 }
 
-impl<T, N, X> MultiBusNode<T, N, X>
+impl<T, N, X> MultiBus<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1226,7 +1226,7 @@ where
     X::Outputs: Size<T>,
 {
     pub fn new(x: Frame<X, N>) -> Self {
-        let mut node = MultiBusNode {
+        let mut node = MultiBus {
             _marker: PhantomData::default(),
             x,
             buffer: Buffer::new(),
@@ -1242,7 +1242,7 @@ where
     }
 }
 
-impl<T, N, X> AudioNode for MultiBusNode<T, N, X>
+impl<T, N, X> AudioNode for MultiBus<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1312,7 +1312,7 @@ where
 
 /// Stack a bunch of similar nodes in parallel.
 #[derive(Clone)]
-pub struct MultiStackNode<T, N, X>
+pub struct MultiStack<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1327,7 +1327,7 @@ where
     x: Frame<X, N>,
 }
 
-impl<T, N, X> MultiStackNode<T, N, X>
+impl<T, N, X> MultiStack<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1339,7 +1339,7 @@ where
     <X::Outputs as Mul<N>>::Output: Size<T>,
 {
     pub fn new(x: Frame<X, N>) -> Self {
-        let mut node = MultiStackNode {
+        let mut node = MultiStack {
             _marker: PhantomData,
             x,
         };
@@ -1354,7 +1354,7 @@ where
     }
 }
 
-impl<T, N, X> AudioNode for MultiStackNode<T, N, X>
+impl<T, N, X> AudioNode for MultiStack<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1437,7 +1437,7 @@ where
 /// Combine outputs of a bunch of similar nodes with a binary operation.
 /// Inputs are disjoint.
 /// Outputs are combined channel-wise.
-pub struct ReduceNode<T, N, X, B>
+pub struct Reduce<T, N, X, B>
 where
     T: Float,
     N: Size<T>,
@@ -1455,7 +1455,7 @@ where
     _marker: PhantomData<T>,
 }
 
-impl<T, N, X, B> ReduceNode<T, N, X, B>
+impl<T, N, X, B> Reduce<T, N, X, B>
 where
     T: Float,
     N: Size<T>,
@@ -1467,7 +1467,7 @@ where
     B: FrameBinop<T, X::Outputs>,
 {
     pub fn new(x: Frame<X, N>, b: B) -> Self {
-        let mut node = ReduceNode {
+        let mut node = Reduce {
             x,
             b,
             buffer: Buffer::new(),
@@ -1484,7 +1484,7 @@ where
     }
 }
 
-impl<T, N, X, B> AudioNode for ReduceNode<T, N, X, B>
+impl<T, N, X, B> AudioNode for Reduce<T, N, X, B>
 where
     T: Float,
     N: Size<T>,
@@ -1570,7 +1570,7 @@ where
 
 /// Branch into a bunch of similar nodes in parallel.
 #[derive(Clone)]
-pub struct MultiBranchNode<T, N, X>
+pub struct MultiBranch<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1584,7 +1584,7 @@ where
     x: Frame<X, N>,
 }
 
-impl<T, N, X> MultiBranchNode<T, N, X>
+impl<T, N, X> MultiBranch<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1595,7 +1595,7 @@ where
     <X::Outputs as Mul<N>>::Output: Size<T>,
 {
     pub fn new(x: Frame<X, N>) -> Self {
-        let mut node = MultiBranchNode {
+        let mut node = MultiBranch {
             _marker: PhantomData,
             x,
         };
@@ -1610,7 +1610,7 @@ where
     }
 }
 
-impl<T, N, X> AudioNode for MultiBranchNode<T, N, X>
+impl<T, N, X> AudioNode for MultiBranch<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1679,7 +1679,7 @@ where
 }
 
 /// Chain together a bunch of similar nodes.
-pub struct ChainNode<T, N, X>
+pub struct Chain<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1694,7 +1694,7 @@ where
     _marker: PhantomData<T>,
 }
 
-impl<T, N, X> ChainNode<T, N, X>
+impl<T, N, X> Chain<T, N, X>
 where
     T: Float,
     N: Size<T>,
@@ -1704,7 +1704,7 @@ where
     X::Outputs: Size<T>,
 {
     pub fn new(x: Frame<X, N>) -> Self {
-        let mut node = ChainNode {
+        let mut node = Chain {
             x,
             buffer_a: Buffer::new(),
             buffer_b: Buffer::new(),
@@ -1721,7 +1721,7 @@ where
     }
 }
 
-impl<T, N, X> AudioNode for ChainNode<T, N, X>
+impl<T, N, X> AudioNode for Chain<T, N, X>
 where
     T: Float,
     N: Size<T>,

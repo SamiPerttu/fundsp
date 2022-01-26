@@ -264,7 +264,7 @@ impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered signal
 #[derive(Copy, Clone, Default)]
-pub struct OnePoleLowpass<T: Float, F: Real> {
+pub struct Lowpole<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
     value: F,
     coeff: F,
@@ -272,9 +272,9 @@ pub struct OnePoleLowpass<T: Float, F: Real> {
     sample_rate: F,
 }
 
-impl<T: Float, F: Real> OnePoleLowpass<T, F> {
+impl<T: Float, F: Real> Lowpole<T, F> {
     pub fn new(sample_rate: f64, cutoff: F) -> Self {
-        let mut node = OnePoleLowpass {
+        let mut node = Lowpole {
             _marker: std::marker::PhantomData,
             value: F::zero(),
             coeff: F::zero(),
@@ -290,7 +290,7 @@ impl<T: Float, F: Real> OnePoleLowpass<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for OnePoleLowpass<T, F> {
+impl<T: Float, F: Real> AudioNode for Lowpole<T, F> {
     const ID: u64 = 18;
     type Sample = T;
     type Inputs = typenum::U2;
@@ -334,7 +334,7 @@ impl<T: Float, F: Real> AudioNode for OnePoleLowpass<T, F> {
 /// - Input 0: input signal
 /// - Output 0: zero centered signal
 #[derive(Copy, Clone, Default)]
-pub struct DCBlocker<T: Float, F: Real> {
+pub struct DCBlock<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
     x1: F,
     y1: F,
@@ -343,9 +343,9 @@ pub struct DCBlocker<T: Float, F: Real> {
     sample_rate: F,
 }
 
-impl<T: Float, F: Real> DCBlocker<T, F> {
+impl<T: Float, F: Real> DCBlock<T, F> {
     pub fn new(sample_rate: f64, cutoff: F) -> Self {
-        let mut node = DCBlocker::<T, F> {
+        let mut node = DCBlock::<T, F> {
             cutoff,
             ..Default::default()
         };
@@ -354,7 +354,7 @@ impl<T: Float, F: Real> DCBlocker<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for DCBlocker<T, F> {
+impl<T: Float, F: Real> AudioNode for DCBlock<T, F> {
     const ID: u64 = 22;
     type Sample = T;
     type Inputs = typenum::U1;
@@ -411,7 +411,7 @@ fn halfway_coeff<F: Real>(samples: F) -> F {
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
 #[derive(Default, Clone)]
-pub struct Follower<T: Float, F: Real> {
+pub struct Follow<T: Float, F: Real> {
     v3: F,
     v2: F,
     v1: F,
@@ -423,14 +423,14 @@ pub struct Follower<T: Float, F: Real> {
     analysis_mode: AnalysisMode,
 }
 
-impl<T: Float, F: Real> Follower<T, F> {
+impl<T: Float, F: Real> Follow<T, F> {
     /// Create new smoothing filter.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new(sample_rate: f64, response_time: F) -> Self {
-        let mut node = Follower::<T, F> {
+        let mut node = Follow::<T, F> {
             response_time,
             analysis_mode: AnalysisMode::Filter,
-            ..Follower::default()
+            ..Follow::default()
         };
         node.reset(Some(sample_rate));
         node
@@ -439,10 +439,10 @@ impl<T: Float, F: Real> Follower<T, F> {
     /// Create new smoothing filter that presents itself as a constant for frequency response analysis purposes.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new_constant(sample_rate: f64, response_time: F) -> Self {
-        let mut node = Follower::<T, F> {
+        let mut node = Follow::<T, F> {
             response_time,
             analysis_mode: AnalysisMode::Constant,
-            ..Follower::default()
+            ..Follow::default()
         };
         node.reset(Some(sample_rate));
         node
@@ -451,10 +451,10 @@ impl<T: Float, F: Real> Follower<T, F> {
     /// Create new smoothing filter that presents itself as a bypass for frequency response analysis purposes.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new_bypass(sample_rate: f64, response_time: F) -> Self {
-        let mut node = Follower::<T, F> {
+        let mut node = Follow::<T, F> {
             response_time,
             analysis_mode: AnalysisMode::Bypass,
-            ..Follower::default()
+            ..Follow::default()
         };
         node.reset(Some(sample_rate));
         node
@@ -484,7 +484,7 @@ impl<T: Float, F: Real> Follower<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for Follower<T, F> {
+impl<T: Float, F: Real> AudioNode for Follow<T, F> {
     const ID: u64 = 24;
     type Sample = T;
     type Inputs = U1;
@@ -540,7 +540,7 @@ impl<T: Float, F: Real> AudioNode for Follower<T, F> {
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
 #[derive(Clone, Default)]
-pub struct AFollower<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
+pub struct AFollow<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
     v3: F,
     v2: F,
     v1: F,
@@ -553,14 +553,14 @@ pub struct AFollower<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
     analysis_mode: AnalysisMode,
 }
 
-impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollower<T, F, S> {
+impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollow<T, F, S> {
     /// Create new smoothing filter.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new(sample_rate: f64, time: S) -> Self {
-        let mut node = AFollower::<T, F, S> {
+        let mut node = AFollow::<T, F, S> {
             time,
             analysis_mode: AnalysisMode::Filter,
-            ..AFollower::default()
+            ..AFollow::default()
         };
         node.reset(Some(sample_rate));
         node
@@ -569,10 +569,10 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollower<T, F, S> {
     /// Create new smoothing filter that presents itself as a constant for frequency response analysis purposes.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new_constant(sample_rate: f64, time: S) -> Self {
-        let mut node = AFollower::<T, F, S> {
+        let mut node = AFollow::<T, F, S> {
             time,
             analysis_mode: AnalysisMode::Constant,
-            ..AFollower::default()
+            ..AFollow::default()
         };
         node.reset(Some(sample_rate));
         node
@@ -581,10 +581,10 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollower<T, F, S> {
     /// Create new smoothing filter that presents itself as a bypass for frequency response analysis purposes.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
     pub fn new_bypass(sample_rate: f64, time: S) -> Self {
-        let mut node = AFollower::<T, F, S> {
+        let mut node = AFollow::<T, F, S> {
             time,
             analysis_mode: AnalysisMode::Bypass,
-            ..AFollower::default()
+            ..AFollow::default()
         };
         node.reset(Some(sample_rate));
         node
@@ -620,7 +620,7 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollower<T, F, S> {
     }
 }
 
-impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollower<T, F, S> {
+impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F, S> {
     const ID: u64 = 29;
     type Sample = T;
     type Inputs = U1;
@@ -684,7 +684,7 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollower<T, 
 /// - Input 0: input signal
 /// - Output 0: filtered signal
 #[derive(Clone, Default)]
-pub struct PinkFilter<T: Float, F: Float> {
+pub struct Pinkpass<T: Float, F: Float> {
     // Algorithm by Paul Kellett. +-0.05 dB accuracy above 9.2 Hz @ 44.1 kHz.
     b0: F,
     b1: F,
@@ -697,17 +697,17 @@ pub struct PinkFilter<T: Float, F: Float> {
     sample_rate: F,
 }
 
-impl<T: Float, F: Float> PinkFilter<T, F> {
+impl<T: Float, F: Float> Pinkpass<T, F> {
     /// Create pinking filter.
     pub fn new(sample_rate: f64) -> Self {
-        PinkFilter::<T, F> {
+        Pinkpass::<T, F> {
             sample_rate: convert(sample_rate),
-            ..PinkFilter::default()
+            ..Pinkpass::default()
         }
     }
 }
 
-impl<T: Float, F: Float> AudioNode for PinkFilter<T, F> {
+impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
     const ID: u64 = 26;
     type Sample = T;
     type Inputs = U1;

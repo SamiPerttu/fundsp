@@ -7,21 +7,21 @@ use numeric_array::typenum::*;
 
 /// Single sample delay.
 #[derive(Clone)]
-pub struct TickNode<T: Float, N: Size<T>> {
+pub struct Tick<T: Float, N: Size<T>> {
     buffer: Frame<T, N>,
     sample_rate: f64,
 }
 
-impl<T: Float, N: Size<T>> TickNode<T, N> {
+impl<T: Float, N: Size<T>> Tick<T, N> {
     pub fn new(sample_rate: f64) -> Self {
-        TickNode {
+        Tick {
             buffer: Frame::default(),
             sample_rate,
         }
     }
 }
 
-impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
+impl<T: Float, N: Size<T>> AudioNode for Tick<T, N> {
     const ID: u64 = 9;
     type Sample = T;
     type Inputs = N;
@@ -57,16 +57,16 @@ impl<T: Float, N: Size<T>> AudioNode for TickNode<T, N> {
 
 /// Fixed delay.
 #[derive(Clone)]
-pub struct DelayNode<T: Float> {
+pub struct Delay<T: Float> {
     buffer: Vec<T>,
     i: usize,
     sample_rate: f64,
     length: f64,
 }
 
-impl<T: Float> DelayNode<T> {
-    pub fn new(length: f64, sample_rate: f64) -> DelayNode<T> {
-        let mut node = DelayNode {
+impl<T: Float> Delay<T> {
+    pub fn new(length: f64, sample_rate: f64) -> Delay<T> {
+        let mut node = Delay {
             buffer: vec![],
             i: 0,
             sample_rate,
@@ -77,7 +77,7 @@ impl<T: Float> DelayNode<T> {
     }
 }
 
-impl<T: Float> AudioNode for DelayNode<T> {
+impl<T: Float> AudioNode for Delay<T> {
     const ID: u64 = 13;
     type Sample = T;
     type Inputs = U1;

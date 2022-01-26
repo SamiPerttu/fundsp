@@ -7,7 +7,7 @@ use numeric_array::*;
 /// binary white noise sequences with interesting properties.
 /// We have pre-baked sequences with state space sizes from 1 to 31 bits.
 #[derive(Copy, Clone)]
-pub struct Mls {
+pub struct MlsState {
     /// State space size in bits.
     n: u32,
     /// Current state.
@@ -49,19 +49,19 @@ static MLS_POLY: [u32; 31] = [
     0b1001000000000000000000000000000,
 ];
 
-impl Mls {
+impl MlsState {
     /// Creates a MLS.
     /// Number of bits in the state space is n (1 <= n <= 31).
-    pub fn new(n: u32) -> Mls {
+    pub fn new(n: u32) -> MlsState {
         assert!(n >= 1 && n <= 31);
-        Mls { n, s: (1 << n) - 1 }
+        MlsState { n, s: (1 << n) - 1 }
     }
 
     /// Creates a MLS from seed.
     /// Number of bits in the state space is n (1 <= n <= 31).
-    pub fn new_with_seed(n: u32, seed: u32) -> Mls {
+    pub fn new_with_seed(n: u32, seed: u32) -> MlsState {
         assert!(n >= 1 && n <= 31);
-        Mls {
+        MlsState {
             n,
             s: 1 + seed % ((1 << n) - 1),
         }
@@ -73,10 +73,10 @@ impl Mls {
     }
 
     /// Returns the next state in the sequence.
-    pub fn next(self) -> Mls {
+    pub fn next(self) -> MlsState {
         let feedback = MLS_POLY[(self.n - 1) as usize] & self.s;
         let parity = feedback.count_ones() & 1;
-        Mls {
+        MlsState {
             n: self.n,
             s: ((self.s << 1) | parity) & self.length(),
         }
@@ -91,15 +91,15 @@ impl Mls {
 /// MLS noise component.
 /// - Output 0: noise.
 #[derive(Clone)]
-pub struct MlsNoise<T> {
+pub struct Mls<T> {
     _marker: std::marker::PhantomData<T>,
-    mls: Mls,
+    mls: MlsState,
     hash: u32,
 }
 
-impl<T: Float> MlsNoise<T> {
-    pub fn new(mls: Mls) -> MlsNoise<T> {
-        MlsNoise {
+impl<T: Float> Mls<T> {
+    pub fn new(mls: MlsState) -> Mls<T> {
+        Mls {
             _marker: std::marker::PhantomData,
             mls,
             hash: 0,
@@ -107,14 +107,14 @@ impl<T: Float> MlsNoise<T> {
     }
 }
 
-impl<T: Float> AudioNode for MlsNoise<T> {
+impl<T: Float> AudioNode for Mls<T> {
     const ID: u64 = 19;
     type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
-        self.mls = Mls::new_with_seed(self.mls.n, self.hash);
+        self.mls = MlsState::new_with_seed(self.mls.n, self.hash);
     }
 
     #[inline]
@@ -137,19 +137,19 @@ impl<T: Float> AudioNode for MlsNoise<T> {
 /// White noise component.
 /// - Output 0: noise.
 #[derive(Clone, Default)]
-pub struct NoiseNode<T> {
+pub struct Noise<T> {
     _marker: std::marker::PhantomData<T>,
     rnd: AttoRand,
     hash: u32,
 }
 
-impl<T: Float> NoiseNode<T> {
-    pub fn new() -> NoiseNode<T> {
-        NoiseNode::default()
+impl<T: Float> Noise<T> {
+    pub fn new() -> Noise<T> {
+        Noise::default()
     }
 }
 
-impl<T: Float> AudioNode for NoiseNode<T> {
+impl<T: Float> AudioNode for Noise<T> {
     const ID: u64 = 20;
     type Sample = T;
     type Inputs = typenum::U0;

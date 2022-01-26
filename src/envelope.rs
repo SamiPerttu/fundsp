@@ -5,7 +5,8 @@ use super::*;
 use numeric_array::*;
 
 /// Sample a time varying function.
-/// The return type can be scalar or tuple. It determines the number of output channels.
+/// The return type can be scalar or tuple.
+/// It determines the number of output channels.
 #[derive(Clone, Default)]
 pub struct EnvelopeNode<T, F, E, R>
 where

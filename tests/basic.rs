@@ -135,7 +135,7 @@ fn test_basic() {
             | ((mls() | dc(880.0)) >> !butterpass() >> butterpass()))
     ));
     assert!(wave_is_equal(
-        &mut ((noise() | dc(440.0)) >> pipe::<U6, _, _>(|_| !lowpass_q(1.0)) >> highpass_q(1.0)
+        &mut ((noise() | dc(440.0)) >> pipe::<U4, _, _>(|_| !lowpass_q(1.0)) >> highpass_q(1.0)
             | ((mls() | dc(880.0)) >> !bandpass_q(1.0) >> notch_q(2.0)))
     ));
 

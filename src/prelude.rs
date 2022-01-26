@@ -124,68 +124,68 @@ pub type U100 = numeric_array::typenum::U100;
 /// Constant node.
 /// Synonymous with `[dc]`.
 #[inline]
-pub fn constant<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<ConstantNode<T, X::Size>>
+pub fn constant<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<Constant<T, X::Size>>
 where
     X::Size: Size<T>,
 {
-    An(ConstantNode::new(x.convert()))
+    An(Constant::new(x.convert()))
 }
 
 /// Constant node.
 /// Synonymous with `constant`.
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
 #[inline]
-pub fn dc<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<ConstantNode<T, X::Size>>
+pub fn dc<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<Constant<T, X::Size>>
 where
     X::Size: Size<T>,
 {
-    An(ConstantNode::new(x.convert()))
+    An(Constant::new(x.convert()))
 }
 
 /// Zero generator.
 /// - Output 0: zero
 #[inline]
-pub fn zero<T: Float>() -> An<ConstantNode<T, U1>> {
+pub fn zero<T: Float>() -> An<Constant<T, U1>> {
     dc(T::new(0))
 }
 
 /// Multichannel zero generator.
 /// - Output(s): zero
 #[inline]
-pub fn multizero<T: Float, U: Size<T>>() -> An<ConstantNode<T, U>> {
-    An(ConstantNode::new(Frame::splat(T::zero())))
+pub fn multizero<T: Float, U: Size<T>>() -> An<Constant<T, U>> {
+    An(Constant::new(Frame::splat(T::zero())))
 }
 
 /// Mono pass-through.
 #[inline]
-pub fn pass<T: Float>() -> An<PassNode<T, U1>> {
-    An(PassNode::new())
+pub fn pass<T: Float>() -> An<Pass<T, U1>> {
+    An(Pass::new())
 }
 
 /// Multichannel pass-through.
 #[inline]
-pub fn multipass<T: Float, U: Size<T>>() -> An<PassNode<T, U>> {
-    An(PassNode::new())
+pub fn multipass<T: Float, U: Size<T>>() -> An<Pass<T, U>> {
+    An(Pass::new())
 }
 
 /// Mono sink.
 #[inline]
-pub fn sink<T: Float>() -> An<SinkNode<T, U1>> {
-    An(SinkNode::new())
+pub fn sink<T: Float>() -> An<Sink<T, U1>> {
+    An(Sink::new())
 }
 
 /// Multichannel sink.
 #[inline]
-pub fn multisink<T: Float, U: Size<T>>() -> An<SinkNode<T, U>> {
-    An(SinkNode::new())
+pub fn multisink<T: Float, U: Size<T>>() -> An<Sink<T, U>> {
+    An(Sink::new())
 }
 
 /// Sine oscillator.
 /// - Input 0: frequency (Hz)
 /// - Output 0: sine wave
 #[inline]
-pub fn sine<T: Float>() -> An<SineNode<T>> {
-    An(SineNode::new(DEFAULT_SR))
+pub fn sine<T: Float>() -> An<Sine<T>> {
+    An(Sine::new(DEFAULT_SR))
 }
 
 /// Fixed sine oscillator at `f` Hz.
@@ -200,10 +200,10 @@ pub fn sine_hz<T: Float>(f: T) -> An<impl AudioNode<Sample = T, Inputs = U0, Out
 pub fn add<X: ConstantFrame>(
     x: X,
 ) -> An<
-    BinopNode<
+    Binop<
         X::Sample,
-        PassNode<X::Sample, X::Size>,
-        ConstantNode<X::Sample, X::Size>,
+        Pass<X::Sample, X::Size>,
+        Constant<X::Sample, X::Size>,
         FrameAdd<X::Sample, X::Size>,
     >,
 >
@@ -211,7 +211,7 @@ where
     X::Size: Size<X::Sample> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<X::Sample>,
 {
-    An(PassNode::<X::Sample, X::Size>::new()) + dc(x)
+    An(Pass::<X::Sample, X::Size>::new()) + dc(x)
 }
 
 /// Subtract constant from signal.
@@ -219,10 +219,10 @@ where
 pub fn sub<X: ConstantFrame>(
     x: X,
 ) -> An<
-    BinopNode<
+    Binop<
         X::Sample,
-        PassNode<X::Sample, X::Size>,
-        ConstantNode<X::Sample, X::Size>,
+        Pass<X::Sample, X::Size>,
+        Constant<X::Sample, X::Size>,
         FrameSub<X::Sample, X::Size>,
     >,
 >
@@ -230,7 +230,7 @@ where
     X::Size: Size<X::Sample> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<X::Sample>,
 {
-    An(PassNode::<X::Sample, X::Size>::new()) - dc(x)
+    An(Pass::<X::Sample, X::Size>::new()) - dc(x)
 }
 
 /// Multiply signal with constant.
@@ -238,10 +238,10 @@ where
 pub fn mul<X: ConstantFrame>(
     x: X,
 ) -> An<
-    BinopNode<
+    Binop<
         X::Sample,
-        PassNode<X::Sample, X::Size>,
-        ConstantNode<X::Sample, X::Size>,
+        Pass<X::Sample, X::Size>,
+        Constant<X::Sample, X::Size>,
         FrameMul<X::Sample, X::Size>,
     >,
 >
@@ -249,7 +249,7 @@ where
     X::Size: Size<X::Sample> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<X::Sample>,
 {
-    An(PassNode::<X::Sample, X::Size>::new()) * dc(x)
+    An(Pass::<X::Sample, X::Size>::new()) * dc(x)
 }
 
 /// Butterworth lowpass filter (2nd order).
@@ -276,8 +276,8 @@ pub fn butterpass_hz<T: Float, F: Real>(
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpole<T: Float, F: Real>() -> An<OnePoleLowpass<T, F>> {
-    An(OnePoleLowpass::new(convert(DEFAULT_SR), F::new(440)))
+pub fn lowpole<T: Float, F: Real>() -> An<Lowpole<T, F>> {
+    An(Lowpole::new(convert(DEFAULT_SR), F::new(440)))
 }
 
 /// One-pole lowpass filter (1st order) with fixed cutoff frequency `f` Hz.
@@ -288,7 +288,7 @@ pub fn lowpole<T: Float, F: Real>() -> An<OnePoleLowpass<T, F>> {
 pub fn lowpole_hz<T: Float, F: Real>(
     f: T,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    (pass::<T>() | constant(f)) >> An(OnePoleLowpass::<T, F>::new(convert(DEFAULT_SR), convert(f)))
+    (pass::<T>() | constant(f)) >> An(Lowpole::<T, F>::new(convert(DEFAULT_SR), convert(f)))
 }
 
 /// Constant-gain bandpass resonator.
@@ -366,14 +366,14 @@ where
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
 #[inline]
-pub fn mls_bits<T: Float>(n: u32) -> An<MlsNoise<T>> {
-    An(MlsNoise::new(Mls::new(n)))
+pub fn mls_bits<T: Float>(n: u32) -> An<Mls<T>> {
+    An(Mls::new(MlsState::new(n)))
 }
 
 /// Default Maximum Length Sequence noise generator.
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
 #[inline]
-pub fn mls<T: Float>() -> An<MlsNoise<T>> {
+pub fn mls<T: Float>() -> An<Mls<T>> {
     mls_bits(29)
 }
 
@@ -381,32 +381,32 @@ pub fn mls<T: Float>() -> An<MlsNoise<T>> {
 /// Synonymous with `white`.
 /// - Output 0: white noise.
 #[inline]
-pub fn noise<T: Float>() -> An<NoiseNode<T>> {
-    An(NoiseNode::new())
+pub fn noise<T: Float>() -> An<Noise<T>> {
+    An(Noise::new())
 }
 
 /// White noise generator.
 /// Synonymous with `noise`.
 /// - Output 0: white noise.
 #[inline]
-pub fn white<T: Float>() -> An<NoiseNode<T>> {
-    An(NoiseNode::new())
+pub fn white<T: Float>() -> An<Noise<T>> {
+    An(Noise::new())
 }
 
 /// Single sample delay.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
 #[inline]
-pub fn tick<T: Float>() -> An<TickNode<T, U1>> {
-    An(TickNode::new(convert(DEFAULT_SR)))
+pub fn tick<T: Float>() -> An<Tick<T, U1>> {
+    An(Tick::new(convert(DEFAULT_SR)))
 }
 
 /// Fixed delay of `t` seconds.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
 #[inline]
-pub fn delay<T: Float>(t: f64) -> An<DelayNode<T>> {
-    An(DelayNode::new(t, DEFAULT_SR))
+pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
+    An(Delay::new(t, DEFAULT_SR))
 }
 
 /// Mix output of enclosed circuit `x` back to its input.
@@ -414,7 +414,7 @@ pub fn delay<T: Float>(t: f64) -> An<DelayNode<T>> {
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
 #[inline]
-pub fn feedback<T, X, N>(x: An<X>) -> An<FeedbackNode<T, X, N, FrameId<T, N>>>
+pub fn feedback<T, X, N>(x: An<X>) -> An<Feedback<T, X, N, FrameId<T, N>>>
 where
     T: Float,
     X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
@@ -422,7 +422,7 @@ where
     X::Outputs: Size<T>,
     N: Size<T>,
 {
-    An(FeedbackNode::new(x.0, FrameId::new()))
+    An(Feedback::new(x.0, FrameId::new()))
 }
 
 /// Transform channels freely. Accounted as non-linear processing for signal flow.
@@ -441,7 +441,7 @@ where
     I: Size<T>,
     O: Size<T>,
 {
-    An(MapNode::new(f, |input, _| {
+    An(Map::new(f, |input, _| {
         let mut output = new_signal_frame(O::USIZE);
         for j in 0..O::USIZE {
             if j == 0 {
@@ -464,24 +464,24 @@ where
 /// Filter cutoff `c` is usually somewhere below the audible range.
 /// The default blocker cutoff is 10 Hz.
 #[inline]
-pub fn dcblock_hz<T: Float, F: Real>(c: F) -> An<DCBlocker<T, F>> {
-    An(DCBlocker::new(DEFAULT_SR, c))
+pub fn dcblock_hz<T: Float, F: Real>(c: F) -> An<DCBlock<T, F>> {
+    An(DCBlock::new(DEFAULT_SR, c))
 }
 
 /// Keeps a signal zero centered.
 #[inline]
-pub fn dcblock<T: Float, F: Real>() -> An<DCBlocker<T, F>> {
-    An(DCBlocker::new(DEFAULT_SR, F::new(10)))
+pub fn dcblock<T: Float, F: Real>() -> An<DCBlock<T, F>> {
+    An(DCBlock::new(DEFAULT_SR, F::new(10)))
 }
 
 #[inline]
-pub fn declick<T: Float, F: Real>() -> An<Declicker<T, F>> {
-    An(Declicker::new(DEFAULT_SR, F::from_f64(0.010)))
+pub fn declick<T: Float, F: Real>() -> An<Declick<T, F>> {
+    An(Declick::new(DEFAULT_SR, F::from_f64(0.010)))
 }
 
 #[inline]
-pub fn declick_s<T: Float, F: Real>(t: F) -> An<Declicker<T, F>> {
-    An(Declicker::new(DEFAULT_SR, t))
+pub fn declick_s<T: Float, F: Real>(t: F) -> An<Declick<T, F>> {
+    An(Declick::new(DEFAULT_SR, t))
 }
 
 /// Shape signal with a waveshaper.
@@ -489,7 +489,7 @@ pub fn declick_s<T: Float, F: Real>(t: F) -> An<Declicker<T, F>> {
 pub fn shape<T: Float, S: Fn(T) -> T + Clone>(
     f: S,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    An(MapNode::new(
+    An(Map::new(
         move |input: &Frame<T, U1>| [f(input[0])].into(),
         |input, _| {
             // Assume non-linear waveshaping.
@@ -502,8 +502,8 @@ pub fn shape<T: Float, S: Fn(T) -> T + Clone>(
 
 /// Parameter follower filter with halfway response time `t` seconds.
 #[inline]
-pub fn follow<T: Float, F: Real, S: ScalarOrPair<Sample = F>>(t: S) -> An<AFollower<T, F, S>> {
-    An(AFollower::new(DEFAULT_SR, t))
+pub fn follow<T: Float, F: Real, S: ScalarOrPair<Sample = F>>(t: S) -> An<AFollow<T, F, S>> {
+    An(AFollow::new(DEFAULT_SR, t))
 }
 
 /// Look-ahead limiter with response time in seconds. Look-ahead is equal to the attack time.
@@ -520,8 +520,8 @@ pub fn stereo_limiter<T: Float, S: ScalarOrPair<Sample = f64>>(time: S) -> An<Li
 
 /// Pinking filter.
 #[inline]
-pub fn pinkpass<T: Float, F: Float>() -> An<PinkFilter<T, F>> {
-    An(PinkFilter::new(DEFAULT_SR))
+pub fn pinkpass<T: Float, F: Float>() -> An<Pinkpass<T, F>> {
+    An(Pinkpass::new(DEFAULT_SR))
 }
 
 /// Pink noise.
@@ -539,8 +539,8 @@ pub fn brown<T: Float, F: Real>() -> An<impl AudioNode<Sample = T, Inputs = U0, 
 
 /// Frequency detector.
 #[inline]
-pub fn goertzel<T: Float, F: Real>() -> An<GoertzelNode<T, F>> {
-    An(GoertzelNode::new(DEFAULT_SR))
+pub fn goertzel<T: Float, F: Real>() -> An<Goertzel<T, F>> {
+    An(Goertzel::new(DEFAULT_SR))
 }
 
 /// Frequency detector of frequency `f` Hz.
@@ -558,7 +558,7 @@ pub fn goertzel_hz<T: Float, F: Real>(
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
 #[inline]
-pub fn fdn<T, X, N>(x: An<X>) -> An<FeedbackNode<T, X, N, FrameHadamard<T, N>>>
+pub fn fdn<T, X, N>(x: An<X>) -> An<Feedback<T, X, N, FrameHadamard<T, N>>>
 where
     T: Float,
     X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
@@ -566,12 +566,12 @@ where
     X::Outputs: Size<T>,
     N: Size<T>,
 {
-    An(FeedbackNode::new(x.0, FrameHadamard::new()))
+    An(Feedback::new(x.0, FrameHadamard::new()))
 }
 
 /// Bus `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn bus<T, N, X, F>(f: F) -> An<MultiBusNode<T, N, X>>
+pub fn bus<T, N, X, F>(f: F) -> An<MultiBus<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -583,13 +583,13 @@ where
 {
     assert!(N::USIZE > 0);
     let nodes = Frame::generate(|i| f(i as i64).0);
-    An(MultiBusNode::new(nodes))
+    An(MultiBus::new(nodes))
 }
 
 /// Bus `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn busf<T, N, X, F>(f: F) -> An<MultiBusNode<T, N, X>>
+pub fn busf<T, N, X, F>(f: F) -> An<MultiBus<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -601,12 +601,12 @@ where
 {
     assert!(N::USIZE > 0);
     let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
-    An(MultiBusNode::new(nodes))
+    An(MultiBus::new(nodes))
 }
 
 /// Stack `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn stack<T, N, X, F>(f: F) -> An<MultiStackNode<T, N, X>>
+pub fn stack<T, N, X, F>(f: F) -> An<MultiStack<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -620,13 +620,13 @@ where
 {
     assert!(N::USIZE > 0);
     let nodes = Frame::generate(|i| f(i as i64).0);
-    An(MultiStackNode::new(nodes))
+    An(MultiStack::new(nodes))
 }
 
 /// Stack `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn stackf<T, N, X, F>(f: F) -> An<MultiStackNode<T, N, X>>
+pub fn stackf<T, N, X, F>(f: F) -> An<MultiStack<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -640,12 +640,12 @@ where
 {
     assert!(N::USIZE > 0);
     let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
-    An(MultiStackNode::new(nodes))
+    An(MultiStack::new(nodes))
 }
 
 /// Branch into `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn branch<T, N, X, F>(f: F) -> An<MultiBranchNode<T, N, X>>
+pub fn branch<T, N, X, F>(f: F) -> An<MultiBranch<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -657,13 +657,13 @@ where
     F: Fn(i64) -> An<X>,
 {
     let nodes = Frame::generate(|i| f(i as i64).0);
-    An(MultiBranchNode::new(nodes))
+    An(MultiBranch::new(nodes))
 }
 
 /// Branch into `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn branchf<T, N, X, F>(f: F) -> An<MultiBranchNode<T, N, X>>
+pub fn branchf<T, N, X, F>(f: F) -> An<MultiBranch<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -675,12 +675,12 @@ where
     F: Fn(f64) -> An<X>,
 {
     let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
-    An(MultiBranchNode::new(nodes))
+    An(MultiBranch::new(nodes))
 }
 
 /// Mix together `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn sum<T, N, X, F>(f: F) -> An<ReduceNode<T, N, X, FrameAdd<T, X::Outputs>>>
+pub fn sum<T, N, X, F>(f: F) -> An<Reduce<T, N, X, FrameAdd<T, X::Outputs>>>
 where
     T: Float,
     N: Size<T>,
@@ -692,13 +692,13 @@ where
     F: Fn(i64) -> An<X>,
 {
     let nodes = Frame::generate(|i| f(i as i64).0);
-    An(ReduceNode::new(nodes, FrameAdd::new()))
+    An(Reduce::new(nodes, FrameAdd::new()))
 }
 
 /// Mix together `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn sumf<T, N, X, F>(f: F) -> An<ReduceNode<T, N, X, FrameAdd<T, X::Outputs>>>
+pub fn sumf<T, N, X, F>(f: F) -> An<Reduce<T, N, X, FrameAdd<T, X::Outputs>>>
 where
     T: Float,
     N: Size<T>,
@@ -710,12 +710,12 @@ where
     F: Fn(f64) -> An<X>,
 {
     let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
-    An(ReduceNode::new(nodes, FrameAdd::new()))
+    An(Reduce::new(nodes, FrameAdd::new()))
 }
 
 /// Chain together `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn pipe<T, N, X, F>(f: F) -> An<ChainNode<T, N, X>>
+pub fn pipe<T, N, X, F>(f: F) -> An<Chain<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -726,13 +726,13 @@ where
     F: Fn(i64) -> An<X>,
 {
     let nodes = Frame::generate(|i| f(i as i64).0);
-    An(ChainNode::new(nodes))
+    An(Chain::new(nodes))
 }
 
 /// Chain together `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn pipef<T, N, X, F>(f: F) -> An<ChainNode<T, N, X>>
+pub fn pipef<T, N, X, F>(f: F) -> An<Chain<T, N, X>>
 where
     T: Float,
     N: Size<T>,
@@ -743,7 +743,7 @@ where
     F: Fn(f64) -> An<X>,
 {
     let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
-    An(ChainNode::new(nodes))
+    An(Chain::new(nodes))
 }
 
 /// Split signal into N channels.
@@ -754,7 +754,7 @@ where
     N: Size<T>,
     U1: Size<T>,
 {
-    An(MapNode::new(
+    An(Map::new(
         |x| Frame::splat(x[0]),
         |input, _| {
             let mut output = new_signal_frame(N::USIZE);
@@ -776,7 +776,7 @@ where
     N: Size<T>,
     <M as Mul<N>>::Output: Size<T>,
 {
-    An(MapNode::new(
+    An(Map::new(
         |x| Frame::generate(|i| x[i % M::USIZE]),
         |input, _| {
             let mut output = new_signal_frame(M::USIZE * N::USIZE);
@@ -796,7 +796,7 @@ where
     N: Size<T>,
     U1: Size<T>,
 {
-    An(MapNode::new(
+    An(Map::new(
         |x| [x.iter().fold(T::zero(), |acc, &x| acc + x) / T::new(N::I64)].into(),
         |input, _| {
             let mut output = new_signal_frame(1);
@@ -825,7 +825,7 @@ where
     N: Size<T>,
     <M as Mul<N>>::Output: Size<T>,
 {
-    An(MapNode::new(
+    An(Map::new(
         |x| {
             Frame::generate(|j| {
                 let mut output = x[j];
