@@ -389,7 +389,7 @@ use fundsp::svf::*;
 let equalizer = pipe::<U12, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f64, 1.0, db_amp(0.0)));
 ```
 
-The type of the equalizer is `An<ChainNode<f64, U12, FixedSvf<f64, f64, BellMode<f64>>>>`.
+The type of the equalizer is `An<Chain<f64, U12, FixedSvf<f64, f64, BellMode<f64>>>>`.
 The equalizer is ready to use immediately. Filter samples:
 
 ```rust
@@ -731,7 +731,7 @@ noise() & constant(440.0) >> sine()
 is represented as
 
 ```rust
-An<BusNode<f64, NoiseNode<f64>, PipeNode<f64, ConstantNode<f64, U1>, SineNode<f64>>>>
+An<Bus<f64, Noise<f64>, Pipe<f64, Constant<f64, U1>, Sine<f64>>>>
 ```
 
 The prelude employs the wrapper type `An<X: AudioNode>`
