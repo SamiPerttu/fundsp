@@ -564,19 +564,6 @@ where
     }
 }
 
-/*
-// TODO. If we implement iterator here, its filter method will clash with ours.
-// So we'd need to change ours to get_mono and filter_mono. What is the best solution?
-impl<X: AudioNode> Iterator for An<X> {
-    type Item = Frame<X::Sample, X::Outputs>;
-    /// Processes a sample from an all-zeros input.
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        Some(self.tick(&Frame::default()))
-    }
-}
-*/
-
 pub struct MonoIter<X>
 where
     X: AudioNode<Outputs = U1>,
@@ -611,39 +598,6 @@ where
     }
 }
 
-impl<X: AudioNode> An<X> {
-    /// Consumes and returns the component as an FnMut closure
-    /// that yields mono samples via AudioNode::get.
-    pub fn into_mono_fn(self) -> impl FnMut() -> X::Sample {
-        let mut c = self;
-        move || c.get()
-    }
-
-    /// Consumes and returns the component as an FnMut closure
-    /// that filters mono samples via AudioNode::filter.
-    pub fn into_mono_filter_fn(self) -> impl FnMut(X::Sample) -> X::Sample {
-        let mut c = self;
-        move |x| c.filter(x)
-    }
-
-    /// Consumes and returns the component as an FnMut closure
-    /// that yields stereo samples via AudioNode::get_stereo.
-    pub fn into_stereo_fn(self) -> impl FnMut() -> (X::Sample, X::Sample) {
-        let mut c = self;
-        move || c.get_stereo()
-    }
-
-    /// Consumes and returns the component as an FnMut closure
-    /// that filters stereo samples via AudioNode::filter_stereo.
-    pub fn into_stereo_filter_fn(
-        self,
-    ) -> impl FnMut(X::Sample, X::Sample) -> (X::Sample, X::Sample) {
-        let mut c = self;
-        move |x, y| c.filter_stereo(x, y)
-    }
-}
-
-// TODO: Constrain get_ and other into_ methods similarly.
 impl<X> An<X>
 where
     X: AudioNode<Outputs = U1>,

@@ -5,8 +5,8 @@ use super::signal::*;
 /// AudioUnit64 is a double precision audio processor with an object safe interface.
 /// Once constructed, it has a fixed number of inputs and outputs.
 pub trait AudioUnit64 {
-    /// Resets the input state of the unit to an initial state where it has not processed any data.
-    /// In other words, resets time to zero.
+    /// Reset the input state of the unit to an initial state where it has not processed any data.
+    /// In other words, reset time to zero.
     fn reset(&mut self, _sample_rate: Option<f64>) {}
 
     /// Process one sample. The length of `input` and `output` must be equal to `inputs` and `outputs`,
@@ -18,11 +18,11 @@ pub trait AudioUnit64 {
     /// The number of input and output buffers must be equal to `inputs` and `outputs`, respectively.
     fn process(&mut self, size: usize, input: &[&[f64]], output: &mut [&mut [f64]]);
 
-    /// Number of inputs to this unit. Size of the input argument in compute().
+    /// Number of inputs to this unit. Size of the input argument in `compute`.
     /// This should be fixed after construction.
     fn inputs(&self) -> usize;
 
-    /// Number of outputs from this unit. Size of the output argument in compute().
+    /// Number of outputs from this unit. Size of the output argument in `compute`.
     /// This should be fixed after construction.
     fn outputs(&self) -> usize;
 

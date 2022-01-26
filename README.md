@@ -78,18 +78,41 @@ Both systems operate on audio signals synchronously as an infinite stream.
 
 ---
 
-| Trait         | Sample Type    | Dispatch             | Allocation Strategy | Connectivity |
-| ------------- | -------------- | -------------------- | --------------- | ---------------- |
-| `AudioNode`   | generic        | static, inlined      | stack           | input and output arity fixed at compile time |
-| `AudioUnit`   | `f32` or `f64` | dynamic, object safe | heap            | input and output arity fixed after construction |
+| Trait         | Sample Type              | Dispatch             | Allocation Strategy | Connectivity |
+| ------------- | ------------------------ | -------------------- | ------------------- | ------------ |
+| `AudioNode`   | generic (`f32` or `f64`) | static, inlined      | stack               | input and output arity fixed at compile time |
+| `AudioUnit`   | `f32` or `f64`           | dynamic, object safe | heap                | input and output arity fixed after construction |
 
 ---
 
-The lower level `AudioNode`s can be lifted to dynamic mode
-with the object safe `AudioUnit` interface via the `AnUnit<X: AudioNode>` wrapper.
-
 `AudioNode`s can be stack allocated for the most part.
 Some nodes may use the heap for audio buffers and the like.
+
+The `AudioUnit` system is under construction and is not usable yet.
+
+### Processing
+
+Processing samples is easy in the `AudioNode` system. The `tick` method is for processing single
+sample frames, while the `process` method processes whole blocks.
+
+Mono samples can be retrieved with `get` and `filter` methods. The `get` method
+returns the next sample from a zero input, while the `filter` method filters the next sample from
+a node that has one input and one output:
+
+```rust
+let out_sample = node.get();
+let out_sample = node.filter(sample);
+```
+
+Stereo samples can be retrieved with `get_stereo` and `filter_stereo` methods.
+The `get_stereo` method returns the next stereo sample pair from a zero input,
+while the `filter_stereo` method filters the next sample
+from a node that has two inputs and two outputs.
+
+```rust
+let (left_out_sample, right_out_sample) = node.get_stereo();
+let (left_out_sample, right_out_sample) = node.filter(left_sample, right_sample);
+```
 
 ### Sample Rate Independence
 
@@ -745,7 +768,7 @@ Licensed under either of <a href="LICENSE-APACHE">Apache License, Version 2.0</a
 or <a href="LICENSE-MIT">MIT license</a> at your option.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in Fundsp by you, as defined in the Apache-2.0 license,
+for inclusion in FunDSP by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
 
 ---
