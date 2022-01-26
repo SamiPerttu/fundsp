@@ -434,9 +434,9 @@ These free functions are available in the environment.
 | `bandpass()`           | 3 (audio, frequency, Q) | 1 | Bandpass filter (2nd order). |
 | `bandpass_hz(f, q)`    |    1    |    1    | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `bandpass_q(q)`        | 2 (audio, frequency) | 1 | Bandpass filter (2nd order) with Q `q`. |
-| `bell()`               | 4 (audio, frequency, Q, gain) | 1 | Peaking bell filter (2nd order) with adjustable amplitude gain. |
-| `bell_eq(f, q)`        | 2 (audio, gain) | 1 | Peaking bell filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
-| `bell_hz(f, q, gain)`  |    1    |    1    | Peaking bell filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `bell()`               | 4 (audio, frequency, Q, gain) | 1 | Bell filter (2nd order) with adjustable amplitude gain. |
+| `bell_hz(f, q, gain)`  |    1    |    1    | Bell filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `bell_q(q, gain)`      | 2 (audio, frequency) | 1 | Bell filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `brown()`              |    -    |    1    | Brown noise. |
 | `branch::<U, _, _>(f)` |   `f`   | `U * f` | Branch into `U` nodes from indexed generator `f`. |
 | `branchf::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))`. |
@@ -461,9 +461,9 @@ These free functions are available in the environment.
 | `highpass()`           | 3 (audio, frequency, Q) | 1 | Highpass filter (2nd order). |
 | `highpass_hz(f, q)`    |    1    |    1    | Highpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `highpass_q(q)`        | 2 (audio, frequency) | 1 | Highpass filter (2nd order) with Q `q`. |
-| `highshelf()`          | 4 (audio, frequency, Q, gain) | 1 | High shelving filter (2nd order) with adjustable amplitude gain. |
-| `highshelf_eq(f, q)`   | 2 (audio, gain) | 1 | High shelving filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
-| `highshelf_hz(f, q, gain)`| 1    |    1    | High shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `highshelf()`          | 4 (audio, frequency, Q, gain) | 1 | High shelf filter (2nd order) with adjustable amplitude gain. |
+| `highshelf_hz(f, q, gain)`| 1    |    1    | High shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `highshelf_q(q, gain)` | 2 (audio, frequency) | 1 | High shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `join::<U>()`          |   `U`   |    1    | Average together `U` channels. Inverse of `split`. |
 | `lfo(f)`               |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
 | `limiter(t)`           |    1    |    1    | Look-ahead limiter with attack and release times `t` seconds. |
@@ -473,9 +473,9 @@ These free functions are available in the environment.
 | `lowpass_q(q)`         | 2 (audio, frequency) | 1 | Lowpass filter (2nd order) with Q `q`. |
 | `lowpole()`            | 2 (audio, frequency) | 1 | 1-pole lowpass filter (1st order). |
 | `lowpole_hz(f)`        |    1    |    1    | 1-pole lowpass filter (1st order) with cutoff frequency `f` Hz. |
-| `lowshelf()`           | 4 (audio, frequency, Q, gain) | 1 | Low shelving filter (2nd order) with adjustable amplitude gain. |
-| `lowshelf_eq(f, q)`    | 2 (audio, gain) | 1 | Low shelving filter (2nd order) with adjustable amplitude gain centered at `f` Hz with Q `q`. |
-| `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelving filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `lowshelf()`           | 4 (audio, frequency, Q, gain) | 1 | Low shelf filter (2nd order) with adjustable amplitude gain. |
+| `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `lowshelf_q(q, gain)`  | 2 (audio, frequency) | 1 | Low shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `mls()`                |    -    |    1    | White MLS noise source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
 | `mul(x)`               |   `x`   |   `x`   | Multiplies signal with constant `x`. |
@@ -499,14 +499,14 @@ These free functions are available in the environment.
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `saw()`                | 1 (pitch) |  1    | Saw wave oscillator. |
-| `saw_hz()`             |    -    |    1    | Saw wave oscillator at `f` Hz. |
+| `saw_hz(f)`            |    -    |    1    | Saw wave oscillator at `f` Hz. |
 | `shape(f)`             |    1    |    1    | Shape signal with waveshaper `f`, e.g., `tanh`. |
 | `sine()`               | 1 (pitch) |  1    | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
 | `sink()`               |    1    |    -    | Consumes signal. |
 | `split::<U>()`         |    1    |   `U`   | Split signal into `U` channels. |
 | `square()`             | 1 (pitch) |  1    | Square wave oscillator. |
-| `square_hz()`          |    -    |    1    | Square wave oscillator at frequency `f` Hz. |
+| `square_hz(f)`         |    -    |    1    | Square wave oscillator at frequency `f` Hz. |
 | `stack::<U, _, _>(f)`  | `U * f` | `U * f` | Stack `U` nodes from indexed generator `f`. |
 | `stackf::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `stereo_limiter(t)`    |    2    |    2    | Look-ahead limiter with attack and release times `t` seconds. |

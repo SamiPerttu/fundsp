@@ -190,15 +190,15 @@ pub fn sine() -> An<Sine<f64>> {
 /// Fixed sine oscillator at `f` Hz.
 /// - Output 0: sine wave
 #[inline]
-pub fn sine_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
-    constant(f) >> sine()
+pub fn sine_hz(f: f64) -> An<Pipe<f64, Constant<f64, U1>, Sine<f64>>> {
+    super::prelude::sine_hz(f)
 }
 
 /// Add constant to signal.
 #[inline]
 pub fn add<X: ConstantFrame<Sample = f64>>(
     x: X,
-) -> An<Binop<f64, Pass<f64, X::Size>, Constant<f64, X::Size>, FrameAdd<f64, X::Size>>>
+) -> An<Binop<f64, FrameAdd<f64, X::Size>, Pass<f64, X::Size>, Constant<f64, X::Size>>>
 where
     X::Size: Size<f64> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<f64>,
@@ -210,7 +210,7 @@ where
 #[inline]
 pub fn sub<X: ConstantFrame<Sample = f64>>(
     x: X,
-) -> An<Binop<f64, Pass<f64, X::Size>, Constant<f64, X::Size>, FrameSub<f64, X::Size>>>
+) -> An<Binop<f64, FrameSub<f64, X::Size>, Pass<f64, X::Size>, Constant<f64, X::Size>>>
 where
     X::Size: Size<f64> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<f64>,
@@ -222,7 +222,7 @@ where
 #[inline]
 pub fn mul<X: ConstantFrame<Sample = f64>>(
     x: X,
-) -> An<Binop<f64, Pass<f64, X::Size>, Constant<f64, X::Size>, FrameMul<f64, X::Size>>>
+) -> An<Binop<f64, FrameMul<f64, X::Size>, Pass<f64, X::Size>, Constant<f64, X::Size>>>
 where
     X::Size: Size<f64> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<f64>,
@@ -243,8 +243,10 @@ pub fn butterpass() -> An<ButterLowpass<f64, f64>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn butterpass_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    (pass() | constant(f)) >> An(ButterLowpass::new(DEFAULT_SR, f))
+pub fn butterpass_hz(
+    f: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U1>>, ButterLowpass<f64, f64>>> {
+    super::prelude::butterpass_hz(f)
 }
 
 /// One-pole lowpass filter (1st order).
@@ -260,8 +262,10 @@ pub fn lowpole() -> An<Lowpole<f64, f64>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpole_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    (pass() | constant(f)) >> An(Lowpole::new(DEFAULT_SR, f))
+pub fn lowpole_hz(
+    f: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U1>>, Lowpole<f64, f64>>> {
+    super::prelude::lowpole_hz(f)
 }
 
 /// Constant-gain bandpass resonator.
@@ -281,8 +285,8 @@ pub fn resonator() -> An<Resonator<f64, f64>> {
 pub fn resonator_hz(
     center: f64,
     bandwidth: f64,
-) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    (pass() | constant((center, bandwidth))) >> An(Resonator::new(DEFAULT_SR, center, bandwidth))
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U2>>, Resonator<f64, f64>>> {
+    super::prelude::resonator_hz(center, bandwidth)
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
@@ -290,17 +294,13 @@ pub fn resonator_hz(
 /// Synonymous with `lfo`.
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn envelope<E, R>(f: E) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = R::Size>>
+pub fn envelope<E, R>(f: E) -> An<Envelope<f64, f64, E, R>>
 where
     E: Fn(f64) -> R + Clone,
     R: ConstantFrame<Sample = f64>,
     R::Size: Size<f64>,
 {
-    // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
-    // Therefore, sampling at 500 Hz means these signals are fairly well represented.
-    // While we represent time in double precision internally, it is often okay to use single precision
-    // in envelopes, as local component time typically does not get far from origin.
-    An(EnvelopeNode::new(0.002, DEFAULT_SR, f))
+    super::prelude::envelope(f)
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
@@ -308,13 +308,13 @@ where
 /// Synonymous with `envelope`.
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn lfo<E, R>(f: E) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = R::Size>>
+pub fn lfo<E, R>(f: E) -> An<Envelope<f64, f64, E, R>>
 where
     E: Fn(f64) -> R + Clone,
     R: ConstantFrame<Sample = f64>,
     R::Size: Size<f64>,
 {
-    An(EnvelopeNode::new(0.002, DEFAULT_SR, f))
+    super::prelude::envelope(f)
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.
@@ -436,13 +436,24 @@ pub fn pinkpass() -> An<Pinkpass<f64, f64>> {
 
 /// Pink noise.
 #[inline]
-pub fn pink() -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
-    white() >> pinkpass()
+pub fn pink() -> An<Pipe<f64, Noise<f64>, Pinkpass<f64, f64>>> {
+    super::prelude::pink()
 }
 
 /// Brown noise.
 #[inline]
-pub fn brown() -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+pub fn brown() -> An<
+    Pipe<
+        f64,
+        Noise<f64>,
+        Binop<
+            f64,
+            FrameMul<f64, U1>,
+            Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U1>>, Lowpole<f64, f64>>,
+            Constant<f64, U1>,
+        >,
+    >,
+> {
     // Empirical normalization factor.
     white() >> lowpole_hz(10.0) * dc(13.7)
 }
@@ -455,8 +466,10 @@ pub fn goertzel() -> An<Goertzel<f64, f64>> {
 
 /// Frequency detector of frequency `f` Hz.
 #[inline]
-pub fn goertzel_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    (pass() | constant(f)) >> goertzel()
+pub fn goertzel_hz(
+    f: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U1>>, Goertzel<f64, f64>>> {
+    super::prelude::goertzel_hz(f)
 }
 
 /// Feedback delay network.
@@ -722,22 +735,22 @@ pub fn triangle() -> An<WaveSynth<'static, f64, U1>> {
 /// Fixed saw wave oscillator at `f` Hz.
 /// - Output 0: saw wave
 #[inline]
-pub fn saw_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
-    constant(f) >> saw()
+pub fn saw_hz(f: f64) -> An<Pipe<f64, Constant<f64, U1>, WaveSynth<'static, f64, U1>>> {
+    super::prelude::saw_hz(f)
 }
 
 /// Fixed square wave oscillator at `f` Hz.
 /// - Output 0: square wave
 #[inline]
-pub fn square_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
-    constant(f) >> square()
+pub fn square_hz(f: f64) -> An<Pipe<f64, Constant<f64, U1>, WaveSynth<'static, f64, U1>>> {
+    super::prelude::square_hz(f)
 }
 
 /// Fixed triangle wave oscillator at `f` Hz.
 /// - Output 0: triangle wave
 #[inline]
-pub fn triangle_hz(f: f64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
-    constant(f) >> triangle()
+pub fn triangle_hz(f: f64) -> An<Pipe<f64, Constant<f64, U1>, WaveSynth<'static, f64, U1>>> {
+    super::prelude::triangle_hz(f)
 }
 
 /// Lowpass filter.
@@ -763,7 +776,9 @@ pub fn lowpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, LowpassMode<f64>>> {
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpass_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+pub fn lowpass_q(
+    q: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, LowpassMode<f64>>>> {
     super::prelude::lowpass_q::<f64, f64>(q)
 }
 
@@ -790,7 +805,9 @@ pub fn highpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, HighpassMode<f64>>> 
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn highpass_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+pub fn highpass_q(
+    q: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, HighpassMode<f64>>>> {
     super::prelude::highpass_q::<f64, f64>(q)
 }
 
@@ -817,7 +834,9 @@ pub fn bandpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, BandpassMode<f64>>> 
 /// - Input 1: center frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn bandpass_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+pub fn bandpass_q(
+    q: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, BandpassMode<f64>>>> {
     super::prelude::bandpass_q::<f64, f64>(q)
 }
 
@@ -844,7 +863,9 @@ pub fn notch_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, NotchMode<f64>>> {
 /// - Input 1: center frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn notch_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+pub fn notch_q(
+    q: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, NotchMode<f64>>>> {
     super::prelude::notch_q::<f64, f64>(q)
 }
 
@@ -871,7 +892,9 @@ pub fn peak_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, PeakMode<f64>>> {
 /// - Input 1: center frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn peak_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+pub fn peak_q(
+    q: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, PeakMode<f64>>>> {
     super::prelude::peak_q::<f64, f64>(q)
 }
 
@@ -898,11 +921,13 @@ pub fn allpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, AllpassMode<f64>>> {
 /// - Input 1: center frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn allpass_q(q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
+pub fn allpass_q(
+    q: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, AllpassMode<f64>>>> {
     super::prelude::allpass_q::<f64, f64>(q)
 }
 
-/// Peaking bell filter with adjustable gain.
+/// Bell filter with adjustable gain.
 /// - Input 0: audio
 /// - Input 1: center frequency (Hz)
 /// - Input 2: Q
@@ -913,7 +938,7 @@ pub fn bell() -> An<Svf<f64, f64, BellMode<f64>>> {
     super::prelude::bell()
 }
 
-/// Peaking bell filter centered at `f` Hz with Q value `q` and amplitude gain `gain`.
+/// Bell filter centered at `f` Hz with Q value `q` and amplitude gain `gain`.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
@@ -921,13 +946,16 @@ pub fn bell_hz(f: f64, q: f64, gain: f64) -> An<FixedSvf<f64, f64, BellMode<f64>
     super::prelude::bell_hz::<f64, f64>(f, q, gain)
 }
 
-/// Peaking bell filter with adjustable gain centered at `f` Hz with Q value `q`.
+/// Bell filter with Q value `q` and amplitude gain `gain`.
 /// - Input 0: audio
-/// - Input 1: amplitude gain
+/// - Input 1: center frequency
 /// - Output 0: filtered audio
 #[inline]
-pub fn bell_eq(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
-    super::prelude::bell_eq::<f64, f64>(f, q)
+pub fn bell_q(
+    q: f64,
+    gain: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U2>>, Svf<f64, f64, BellMode<f64>>>> {
+    super::prelude::bell_q::<f64, f64>(q, gain)
 }
 
 /// Low shelf filter with adjustable gain.
@@ -949,13 +977,16 @@ pub fn lowshelf_hz(f: f64, q: f64, gain: f64) -> An<FixedSvf<f64, f64, LowshelfM
     super::prelude::lowshelf_hz::<f64, f64>(f, q, gain)
 }
 
-/// Low shelf filter with adjustable gain centered at `cutoff` Hz with Q value `q`.
+/// Low shelf filter with Q value `q` and amplitude gain `gain`.
 /// - Input 0: audio
-/// - Input 1: amplitude gain
+/// - Input 1: cutoff frequency
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowshelf_eq(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
-    super::prelude::lowshelf_eq::<f64, f64>(f, q)
+pub fn lowshelf_q(
+    q: f64,
+    gain: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U2>>, Svf<f64, f64, LowshelfMode<f64>>>> {
+    super::prelude::lowshelf_q::<f64, f64>(q, gain)
 }
 
 /// High shelf filter with adjustable gain.
@@ -977,19 +1008,15 @@ pub fn highshelf_hz(f: f64, q: f64, gain: f64) -> An<FixedSvf<f64, f64, Highshel
     super::prelude::highshelf_hz::<f64, f64>(f, q, gain)
 }
 
-/// High shelf filter with adjustable gain centered at `f` Hz with Q value `q`.
+/// High shelf filter with Q value `q` and amplitude gain `gain`.
 /// - Input 0: audio
-/// - Input 1: amplitude gain
+/// - Input 1: cutoff frequency
 /// - Output 0: filtered audio
 #[inline]
-pub fn highshelf_eq(f: f64, q: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U1>> {
-    super::prelude::highshelf_eq::<f64, f64>(f, q)
-}
-
-pub fn lift<X: AudioNode<Sample = f64> + 'static>(x: An<X>) -> Au64
-where
-    X::Inputs: Size<f64>,
-    X::Outputs: Size<f64>,
+pub fn highshelf_q(
+    q: f64,
+    gain: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U2>>, Svf<f64, f64, HighshelfMode<f64>>>>
 {
-    Au64(Box::new(x))
+    super::prelude::highshelf_q::<f64, f64>(q, gain)
 }

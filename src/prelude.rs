@@ -191,7 +191,7 @@ pub fn sine<T: Float>() -> An<Sine<T>> {
 /// Fixed sine oscillator at `f` Hz.
 /// - Output 0: sine wave
 #[inline]
-pub fn sine_hz<T: Float>(f: T) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+pub fn sine_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, Sine<T>>> {
     constant(f) >> sine()
 }
 
@@ -202,9 +202,9 @@ pub fn add<X: ConstantFrame>(
 ) -> An<
     Binop<
         X::Sample,
+        FrameAdd<X::Sample, X::Size>,
         Pass<X::Sample, X::Size>,
         Constant<X::Sample, X::Size>,
-        FrameAdd<X::Sample, X::Size>,
     >,
 >
 where
@@ -221,9 +221,9 @@ pub fn sub<X: ConstantFrame>(
 ) -> An<
     Binop<
         X::Sample,
+        FrameSub<X::Sample, X::Size>,
         Pass<X::Sample, X::Size>,
         Constant<X::Sample, X::Size>,
-        FrameSub<X::Sample, X::Size>,
     >,
 >
 where
@@ -240,9 +240,9 @@ pub fn mul<X: ConstantFrame>(
 ) -> An<
     Binop<
         X::Sample,
+        FrameMul<X::Sample, X::Size>,
         Pass<X::Sample, X::Size>,
         Constant<X::Sample, X::Size>,
-        FrameMul<X::Sample, X::Size>,
     >,
 >
 where
@@ -267,7 +267,7 @@ pub fn butterpass<T: Float, F: Real>() -> An<ButterLowpass<T, F>> {
 #[inline]
 pub fn butterpass_hz<T: Float, F: Real>(
     f: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+) -> An<Pipe<T, Stack<T, Pass<T, U1>, Constant<T, U1>>, ButterLowpass<T, F>>> {
     (pass() | constant(f)) >> An(ButterLowpass::<T, F>::new(convert(DEFAULT_SR), convert(f)))
 }
 
@@ -287,7 +287,7 @@ pub fn lowpole<T: Float, F: Real>() -> An<Lowpole<T, F>> {
 #[inline]
 pub fn lowpole_hz<T: Float, F: Real>(
     f: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+) -> An<Pipe<T, Stack<T, Pass<T, U1>, Constant<T, U1>>, Lowpole<T, F>>> {
     (pass::<T>() | constant(f)) >> An(Lowpole::<T, F>::new(convert(DEFAULT_SR), convert(f)))
 }
 
@@ -312,7 +312,7 @@ pub fn resonator<T: Float, F: Real>() -> An<Resonator<T, F>> {
 pub fn resonator_hz<T: Float, F: Real>(
     center: T,
     bandwidth: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+) -> An<Pipe<T, Stack<T, Pass<T, U1>, Constant<T, U2>>, Resonator<T, F>>> {
     (pass::<T>() | constant((center, bandwidth)))
         >> An(Resonator::<T, F>::new(
             convert(DEFAULT_SR),
@@ -326,7 +326,7 @@ pub fn resonator_hz<T: Float, F: Real>(
 /// Synonymous with `lfo`.
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn envelope<T, F, E, R>(f: E) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = R::Size>>
+pub fn envelope<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
 where
     T: Float,
     F: Float,
@@ -339,7 +339,7 @@ where
     // Therefore, sampling at 500 Hz means these signals are fairly well represented.
     // While we represent time in double precision internally, it is often okay to use single precision
     // in envelopes, as local component time typically does not get far from origin.
-    An(EnvelopeNode::new(F::from_f64(0.002), DEFAULT_SR, f))
+    An(Envelope::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
@@ -347,7 +347,7 @@ where
 /// Synonymous with `envelope`.
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn lfo<T, F, E, R>(f: E) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = R::Size>>
+pub fn lfo<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
 where
     T: Float,
     F: Float,
@@ -356,11 +356,7 @@ where
     R::Size: Size<F>,
     R::Size: Size<T>,
 {
-    // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
-    // Therefore, sampling at 500 Hz means these signals are fairly well represented.
-    // While we represent time in double precision internally, it is often okay to use single precision
-    // in envelopes, as local component time typically does not get far from origin.
-    An(EnvelopeNode::new(F::from_f64(0.002), DEFAULT_SR, f))
+    envelope(f)
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.
@@ -526,13 +522,24 @@ pub fn pinkpass<T: Float, F: Float>() -> An<Pinkpass<T, F>> {
 
 /// Pink noise.
 #[inline]
-pub fn pink<T: Float, F: Float>() -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+pub fn pink<T: Float, F: Float>() -> An<Pipe<T, Noise<T>, Pinkpass<T, F>>> {
     white() >> pinkpass::<T, F>()
 }
 
 /// Brown noise.
 #[inline]
-pub fn brown<T: Float, F: Real>() -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+pub fn brown<T: Float, F: Real>() -> An<
+    Pipe<
+        T,
+        Noise<T>,
+        Binop<
+            T,
+            FrameMul<T, U1>,
+            Pipe<T, Stack<T, Pass<T, U1>, Constant<T, U1>>, Lowpole<T, F>>,
+            Constant<T, U1>,
+        >,
+    >,
+> {
     // Empirical normalization factor.
     white() >> lowpole_hz::<T, F>(T::from_f64(10.0)) * dc(T::from_f64(13.7))
 }
@@ -547,7 +554,7 @@ pub fn goertzel<T: Float, F: Real>() -> An<Goertzel<T, F>> {
 #[inline]
 pub fn goertzel_hz<T: Float, F: Real>(
     f: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+) -> An<Pipe<T, Stack<T, Pass<T, U1>, Constant<T, U1>>, Goertzel<T, F>>> {
     (pass() | constant(f)) >> goertzel::<T, F>()
 }
 
@@ -799,6 +806,7 @@ where
     An(Map::new(
         |x| [x.iter().fold(T::zero(), |acc, &x| acc + x) / T::new(N::I64)].into(),
         |input, _| {
+            // TODO. Check this for correctness.
             let mut output = new_signal_frame(1);
             if N::USIZE > 0 {
                 output[0] = input[0];
@@ -836,6 +844,7 @@ where
             })
         },
         |input, _| {
+            // TODO. Check this for correctness.
             let mut output = new_signal_frame(M::USIZE);
             for j in 0..M::USIZE {
                 if N::USIZE > 0 {
@@ -881,21 +890,21 @@ pub fn triangle<T: Float>() -> An<WaveSynth<'static, T, U1>> {
 /// Fixed saw wave oscillator at `f` Hz.
 /// - Output 0: saw wave
 #[inline]
-pub fn saw_hz<T: Float>(f: T) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+pub fn saw_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, WaveSynth<'static, T, U1>>> {
     constant(f) >> saw()
 }
 
 /// Fixed square wave oscillator at `f` Hz.
 /// - Output 0: square wave
 #[inline]
-pub fn square_hz<T: Float>(f: T) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+pub fn square_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, WaveSynth<'static, T, U1>>> {
     constant(f) >> square()
 }
 
 /// Fixed triangle wave oscillator at `f` Hz.
 /// - Output 0: triangle wave
 #[inline]
-pub fn triangle_hz<T: Float>(f: T) -> An<impl AudioNode<Sample = T, Inputs = U0, Outputs = U1>> {
+pub fn triangle_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, WaveSynth<'static, T, U1>>> {
     constant(f) >> triangle()
 }
 
@@ -940,7 +949,7 @@ pub fn lowpass_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, LowpassMod
 #[inline]
 pub fn lowpass_q<T: Float, F: Real>(
     q: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U1>> {
+) -> An<Pipe<T, Stack<T, Pass<T, U2>, Constant<T, U1>>, Svf<T, F, LowpassMode<F>>>> {
     (multipass::<T, U2>() | dc(q))
         >> An(Svf::new(
             LowpassMode::default(),
@@ -994,7 +1003,7 @@ pub fn highpass_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, HighpassM
 #[inline]
 pub fn highpass_q<T: Float, F: Real>(
     q: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U1>> {
+) -> An<Pipe<T, Stack<T, Pass<T, U2>, Constant<T, U1>>, Svf<T, F, HighpassMode<F>>>> {
     (multipass::<T, U2>() | dc(q))
         >> An(Svf::new(
             HighpassMode::default(),
@@ -1048,7 +1057,7 @@ pub fn bandpass_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, BandpassM
 #[inline]
 pub fn bandpass_q<T: Float, F: Real>(
     q: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U1>> {
+) -> An<Pipe<T, Stack<T, Pass<T, U2>, Constant<T, U1>>, Svf<T, F, BandpassMode<F>>>> {
     (multipass::<T, U2>() | dc(q))
         >> An(Svf::new(
             BandpassMode::default(),
@@ -1102,7 +1111,7 @@ pub fn notch_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, NotchMode<F>
 #[inline]
 pub fn notch_q<T: Float, F: Real>(
     q: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U1>> {
+) -> An<Pipe<T, Stack<T, Pass<T, U2>, Constant<T, U1>>, Svf<T, F, NotchMode<F>>>> {
     (multipass::<T, U2>() | dc(q))
         >> An(Svf::new(
             NotchMode::default(),
@@ -1156,7 +1165,7 @@ pub fn peak_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, PeakMode<F>>>
 #[inline]
 pub fn peak_q<T: Float, F: Real>(
     q: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U1>> {
+) -> An<Pipe<T, Stack<T, Pass<T, U2>, Constant<T, U1>>, Svf<T, F, PeakMode<F>>>> {
     (multipass::<T, U2>() | dc(q))
         >> An(Svf::new(
             PeakMode::default(),
@@ -1210,7 +1219,7 @@ pub fn allpass_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, AllpassMod
 #[inline]
 pub fn allpass_q<T: Float, F: Real>(
     q: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U1>> {
+) -> An<Pipe<T, Stack<T, Pass<T, U2>, Constant<T, U1>>, Svf<T, F, AllpassMode<F>>>> {
     (multipass::<T, U2>() | dc(q))
         >> An(Svf::new(
             AllpassMode::default(),
@@ -1223,7 +1232,7 @@ pub fn allpass_q<T: Float, F: Real>(
         ))
 }
 
-/// Peaking bell filter with adjustable gain.
+/// Bell filter with adjustable gain.
 /// - Input 0: audio
 /// - Input 1: center frequency (Hz)
 /// - Input 2: Q
@@ -1242,7 +1251,7 @@ pub fn bell<T: Float, F: Real>() -> An<Svf<T, F, BellMode<F>>> {
     ))
 }
 
-/// Peaking bell filter centered at `f` Hz with Q value `q` and amplitude gain `gain`.
+/// Bell filter centered at `f` Hz with Q value `q` and amplitude gain `gain`.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
@@ -1258,23 +1267,23 @@ pub fn bell_hz<T: Float, F: Real>(f: T, q: T, gain: T) -> An<FixedSvf<T, F, Bell
     ))
 }
 
-/// Peaking bell filter with adjustable gain centered at `f` Hz with Q value `q`.
+/// Bell filter with with Q value `q` and amplitude gain `gain`.
 /// - Input 0: audio
-/// - Input 1: amplitude gain
+/// - Input 1: center frequency
 /// - Output 0: filtered audio
 #[inline]
-pub fn bell_eq<T: Float, F: Real>(
-    f: T,
+pub fn bell_q<T: Float, F: Real>(
     q: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U1>> {
-    (pass() | dc((f, q)) | pass())
+    gain: T,
+) -> An<Pipe<T, Stack<T, Pass<T, U2>, Constant<T, U2>>, Svf<T, F, BellMode<F>>>> {
+    (multipass::<T, U2>() | dc((q, gain)))
         >> An(Svf::new(
             BellMode::default(),
             &SvfParams {
                 sample_rate: convert(DEFAULT_SR),
-                cutoff: convert(f),
+                cutoff: F::new(440),
                 q: convert(q),
-                gain: F::one(),
+                gain: convert(gain),
             },
         ))
 }
@@ -1314,21 +1323,21 @@ pub fn lowshelf_hz<T: Float, F: Real>(f: T, q: T, gain: T) -> An<FixedSvf<T, F, 
     ))
 }
 
-/// Low shelf filter with adjustable gain centered at `f` Hz with Q value `q`.
+/// Low shelf filter with with Q value `q` and amplitude gain `gain`.
 /// - Input 0: audio
-/// - Input 1: amplitude gain
+/// - Input 1: cutoff frequency
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowshelf_eq<T: Float, F: Real>(
-    f: T,
+pub fn lowshelf_q<T: Float, F: Real>(
     q: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U1>> {
-    (pass() | dc((f, q)) | pass())
+    gain: T,
+) -> An<Pipe<T, Stack<T, Pass<T, U2>, Constant<T, U2>>, Svf<T, F, LowshelfMode<F>>>> {
+    (multipass::<T, U2>() | dc((q, gain)))
         >> An(Svf::new(
             LowshelfMode::default(),
             &SvfParams {
                 sample_rate: convert(DEFAULT_SR),
-                cutoff: convert(f),
+                cutoff: convert(440.0),
                 q: convert(q),
                 gain: F::one(),
             },
@@ -1374,21 +1383,21 @@ pub fn highshelf_hz<T: Float, F: Real>(
     ))
 }
 
-/// High shelf filter with adjustable gain centered at `f` Hz with Q value `q`.
+/// High shelf filter with with Q value `q` and amplitude gain `gain`.
 /// - Input 0: audio
-/// - Input 1: amplitude gain
+/// - Input 1: cutoff frequency
 /// - Output 0: filtered audio
 #[inline]
-pub fn highshelf_eq<T: Float, F: Real>(
-    f: T,
+pub fn highshelf_q<T: Float, F: Real>(
     q: T,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U1>> {
-    (pass() | dc((f, q)) | pass())
+    gain: T,
+) -> An<Pipe<T, Stack<T, Pass<T, U2>, Constant<T, U2>>, Svf<T, F, HighshelfMode<F>>>> {
+    (multipass::<T, U2>() | dc((q, gain)))
         >> An(Svf::new(
             HighshelfMode::default(),
             &SvfParams {
                 sample_rate: convert(DEFAULT_SR),
-                cutoff: convert(f),
+                cutoff: convert(440.0),
                 q: convert(q),
                 gain: F::one(),
             },

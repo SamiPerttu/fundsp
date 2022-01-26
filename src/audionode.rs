@@ -417,7 +417,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
 /// Inputs are disjoint.
 /// Outputs are combined channel-wise.
 /// The nodes must have the same number of outputs.
-pub struct Binop<T, X, Y, B>
+pub struct Binop<T, B, X, Y>
 where
     T: Float,
 {
@@ -429,7 +429,7 @@ where
     buffer: Buffer<T>,
 }
 
-impl<T, X, Y, B> Binop<T, X, Y, B>
+impl<T, B, X, Y> Binop<T, B, X, Y>
 where
     T: Float,
     X: AudioNode<Sample = T>,
@@ -454,7 +454,7 @@ where
     }
 }
 
-impl<T, X, Y, B> AudioNode for Binop<T, X, Y, B>
+impl<T, B, X, Y> AudioNode for Binop<T, B, X, Y>
 where
     T: Float,
     X: AudioNode<Sample = T>,

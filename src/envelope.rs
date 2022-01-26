@@ -8,7 +8,7 @@ use numeric_array::*;
 /// The return type can be scalar or tuple.
 /// It determines the number of output channels.
 #[derive(Clone, Default)]
-pub struct EnvelopeNode<T, F, E, R>
+pub struct Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
@@ -29,7 +29,7 @@ where
     hash: u32,
 }
 
-impl<T, F, E, R> EnvelopeNode<T, F, E, R>
+impl<T, F, E, R> Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
@@ -40,7 +40,7 @@ where
 {
     pub fn new(interval: F, sample_rate: f64, envelope: E) -> Self {
         assert!(interval > F::zero());
-        let mut node = EnvelopeNode::<T, F, E, R> {
+        let mut node = Envelope::<T, F, E, R> {
             envelope,
             t: F::zero(),
             t_0: F::zero(),
@@ -57,7 +57,7 @@ where
     }
 }
 
-impl<T, F, E, R> AudioNode for EnvelopeNode<T, F, E, R>
+impl<T, F, E, R> AudioNode for Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
