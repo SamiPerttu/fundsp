@@ -111,7 +111,7 @@ from a node that has two inputs and two outputs.
 
 ```rust
 let (left_out_sample, right_out_sample) = node.get_stereo();
-let (left_out_sample, right_out_sample) = node.filter(left_sample, right_sample);
+let (left_out_sample, right_out_sample) = node.filter_stereo(left_sample, right_sample);
 ```
 
 ### Sample Rate Independence
