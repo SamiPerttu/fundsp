@@ -95,13 +95,13 @@ The `AudioUnit` system is under construction and is not usable yet.
 Processing samples is easy in the `AudioNode` system. The `tick` method is for processing single
 sample frames, while the `process` method processes whole blocks.
 
-Mono samples can be retrieved with `get` and `filter` methods. The `get` method
-returns the next sample from a zero input, while the `filter` method filters the next sample from
+Mono samples can be retrieved with `get_mono` and `filter_mono` methods. The `get_mono` method
+returns the next sample from a zero input, while the `filter_mono` method filters the next sample from
 a node that has one input and one output:
 
 ```rust
-let out_sample = node.get();
-let out_sample = node.filter(sample);
+let out_sample = node.get_mono();
+let out_sample = node.filter_mono(sample);
 ```
 
 Stereo samples can be retrieved with `get_stereo` and `filter_stereo` methods.
@@ -110,8 +110,8 @@ while the `filter_stereo` method filters the next sample
 from a node that has two inputs and two outputs.
 
 ```rust
-let (left_out_sample, right_out_sample) = node.get_stereo();
-let (left_out_sample, right_out_sample) = node.filter_stereo(left_sample, right_sample);
+let (out_left_sample, out_right_sample) = node.get_stereo();
+let (out_left_sample, out_right_sample) = node.filter_stereo(left_sample, right_sample);
 ```
 
 ### Sample Rate Independence
@@ -416,8 +416,7 @@ The type of the equalizer is `An<Chain<f64, U12, FixedSvf<f64, f64, BellMode<f64
 The equalizer is ready to use immediately. Filter samples:
 
 ```rust
-let input_sample = 0.0;
-let output_sample = equalizer.filter(input_sample);
+let output_sample = equalizer.filter_mono(input_sample);
 ```
 
 We can access individual bands via `equalizer.node(i)` where `i` ranges from 0 to 11.

@@ -153,7 +153,7 @@ pub trait AudioNode {
     /// Retrieve the next mono sample from a zero input.
     /// The node must have exactly 1 output.
     #[inline]
-    fn get(&mut self) -> Self::Sample {
+    fn get_mono(&mut self) -> Self::Sample {
         // TODO. Is there some way to make this constraint static.
         assert!(Self::Outputs::USIZE == 1);
         let output = self.tick(&Frame::default());
@@ -175,7 +175,7 @@ pub trait AudioNode {
     /// Filter the next mono sample `x`.
     /// The node must have exactly 1 input and 1 output.
     #[inline]
-    fn filter(&mut self, x: Self::Sample) -> Self::Sample {
+    fn filter_mono(&mut self, x: Self::Sample) -> Self::Sample {
         assert!(Self::Inputs::USIZE == 1 && Self::Outputs::USIZE == 1);
         let output = self.tick(&Frame::splat(x));
         output[0]

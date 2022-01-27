@@ -191,7 +191,7 @@ where
         self.reducer.set(self.index, amplitude);
         // Leave some headroom.
         self.follower
-            .filter(self.reducer.total() * T::from_f64(1.15));
+            .filter_mono(self.reducer.total() * T::from_f64(1.15));
         if self.buffer.len() < self.reducer.length() {
             // We are filling up the initial buffer.
             self.buffer.push(input.clone());

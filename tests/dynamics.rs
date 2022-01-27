@@ -41,14 +41,14 @@ fn test_dynamics() {
         let mut x = limiter((samples as f64 / sample_rate, samples as f64 / sample_rate));
         x.reset(Some(sample_rate));
         for _ in 0..samples {
-            x.filter(0.0);
+            x.filter_mono(0.0);
         }
         // Edges are the most challenging case. Test a +100 dB edge.
         let edge = db_amp(100.0);
         for _ in 0..samples {
-            assert!(x.filter(edge) <= 1.0);
+            assert!(x.filter_mono(edge) <= 1.0);
         }
-        let value = x.filter(edge);
+        let value = x.filter_mono(edge);
         println!("length {} value {}", samples, value);
         // The limiter leaves some headroom.
         // Check that the response is limited and has sufficient range.
