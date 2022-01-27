@@ -10,6 +10,7 @@ pub use super::feedback::*;
 pub use super::filter::*;
 pub use super::noise::*;
 pub use super::oscillator::*;
+pub use super::shape::*;
 pub use super::signal::*;
 pub use super::svf::*;
 pub use super::wave::*;
@@ -434,7 +435,7 @@ where
 pub fn map<T, M, I, O>(f: M) -> An<Map<T, M, I, O>>
 where
     T: Float,
-    M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
+    M: Fn(&Frame<T, I>) -> Frame<T, O>,
     I: Size<T>,
     O: Size<T>,
 {
@@ -467,13 +468,8 @@ pub fn declick_s<T: Float, F: Real>(t: F) -> An<Declick<T, F>> {
 
 /// Shape signal with a waveshaper.
 #[inline]
-pub fn shape<T: Float, S: Fn(T) -> T + Clone>(
-    f: S,
-) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    An(Map::new(
-        move |input: &Frame<T, U1>| [f(input[0])].into(),
-        Routing::Arbitrary,
-    ))
+pub fn shape<T: Float, S: Fn(T) -> T>(f: S) -> An<Shaper<T, S>> {
+    An(Shaper::new(f))
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.

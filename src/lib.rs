@@ -226,6 +226,7 @@ pub mod math;
 pub mod noise;
 pub mod oscillator;
 pub mod prelude;
+pub mod shape;
 pub mod signal;
 pub mod svf;
 pub mod wave;

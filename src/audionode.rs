@@ -664,7 +664,7 @@ pub struct Map<T, M, I, O> {
 impl<T, M, I, O> Map<T, M, I, O>
 where
     T: Float,
-    M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
+    M: Fn(&Frame<T, I>) -> Frame<T, O>,
     I: Size<T>,
     O: Size<T>,
 {
@@ -680,7 +680,7 @@ where
 impl<T, M, I, O> AudioNode for Map<T, M, I, O>
 where
     T: Float,
-    M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
+    M: Fn(&Frame<T, I>) -> Frame<T, O>,
     I: Size<T>,
     O: Size<T>,
 {
