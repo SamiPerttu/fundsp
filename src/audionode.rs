@@ -654,36 +654,33 @@ where
     }
 }
 
-#[derive(Clone)]
-pub struct Map<T, M, P, I, O> {
+pub struct Map<T, M, I, O> {
     f: M,
-    propagate_f: P,
+    routing: Routing,
     _marker: PhantomData<(T, I, O)>,
 }
 
 /// Map any number of channels.
-impl<T, M, P, I, O> Map<T, M, P, I, O>
+impl<T, M, I, O> Map<T, M, I, O>
 where
     T: Float,
     M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
-    P: Clone + Fn(&SignalFrame, f64) -> SignalFrame,
     I: Size<T>,
     O: Size<T>,
 {
-    pub fn new(f: M, propagate_f: P) -> Self {
+    pub fn new(f: M, routing: Routing) -> Self {
         Self {
             f,
-            propagate_f,
+            routing,
             _marker: PhantomData,
         }
     }
 }
 
-impl<T, M, P, I, O> AudioNode for Map<T, M, P, I, O>
+impl<T, M, I, O> AudioNode for Map<T, M, I, O>
 where
     T: Float,
     M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
-    P: Clone + Fn(&SignalFrame, f64) -> SignalFrame,
     I: Size<T>,
     O: Size<T>,
 {
@@ -700,8 +697,8 @@ where
         (self.f)(input)
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        (self.propagate_f)(input, frequency)
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        self.routing.propagate(input, O::USIZE)
     }
 }
 

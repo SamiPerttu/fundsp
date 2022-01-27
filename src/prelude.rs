@@ -430,32 +430,15 @@ where
 /// # use fundsp::prelude::*;
 /// let my_sum = map(|i: &Frame<f64, U2>| Frame::<f64, U1>::splat(i[0] + i[1]));
 /// ```
-// TODO: ConstantFrame (?) based version for prelude.
 #[inline]
-pub fn map<T, M, I, O>(f: M) -> An<impl AudioNode<Sample = T, Inputs = I, Outputs = O>>
+pub fn map<T, M, I, O>(f: M) -> An<Map<T, M, I, O>>
 where
     T: Float,
     M: Clone + Fn(&Frame<T, I>) -> Frame<T, O>,
     I: Size<T>,
     O: Size<T>,
 {
-    An(Map::new(f, |input, _| {
-        let mut output = new_signal_frame(O::USIZE);
-        for j in 0..O::USIZE {
-            if j == 0 {
-                for i in 0..I::USIZE {
-                    if i == 0 {
-                        output[0] = input[0].distort(0.0);
-                    } else {
-                        output[0] = output[0].combine_nonlinear(input[i], 0.0);
-                    }
-                }
-            } else {
-                output[j] = output[0];
-            }
-        }
-        output
-    }))
+    An(Map::new(f, Routing::Arbitrary))
 }
 
 /// Keeps a signal zero centered.
@@ -489,12 +472,7 @@ pub fn shape<T: Float, S: Fn(T) -> T + Clone>(
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
     An(Map::new(
         move |input: &Frame<T, U1>| [f(input[0])].into(),
-        |input, _| {
-            // Assume non-linear waveshaping.
-            let mut output = new_signal_frame(1);
-            output[0] = input[0].distort(0.0);
-            output
-        },
+        Routing::Arbitrary,
     ))
 }
 
@@ -798,16 +776,7 @@ where
     N: Size<T>,
     U1: Size<T>,
 {
-    An(Map::new(
-        |x| Frame::splat(x[0]),
-        |input, _| {
-            let mut output = new_signal_frame(N::USIZE);
-            for i in 0..N::USIZE {
-                output[i] = input[0];
-            }
-            output
-        },
-    ))
+    An(Map::new(|x| Frame::splat(x[0]), Routing::Split))
 }
 
 /// Splits M channels into N branches. The output has M * N channels.
@@ -822,13 +791,7 @@ where
 {
     An(Map::new(
         |x| Frame::generate(|i| x[i % M::USIZE]),
-        |input, _| {
-            let mut output = new_signal_frame(M::USIZE * N::USIZE);
-            for i in 0..M::USIZE * N::USIZE {
-                output[i] = input[i % M::USIZE];
-            }
-            output
-        },
+        Routing::Split,
     ))
 }
 
@@ -842,25 +805,12 @@ where
 {
     An(Map::new(
         |x| [x.iter().fold(T::zero(), |acc, &x| acc + x) / T::new(N::I64)].into(),
-        |input, _| {
-            // TODO. Check this for correctness.
-            let mut output = new_signal_frame(1);
-            if N::USIZE > 0 {
-                output[0] = input[0];
-            }
-            for i in 1..N::USIZE {
-                output[0] = output[0].combine_linear(input[i], 0.0, |x, y| x + y, |x, y| x + y);
-            }
-            if N::USIZE > 1 {
-                output[0] =
-                    output[0].filter(0.0, |x| x * Complex64::new(1.0 / N::USIZE as f64, 0.0));
-            }
-            output
-        },
+        Routing::Join,
     ))
 }
 
-/// Average N branches of M channels into one branch with M channels. The input has M * N channels. Inverse of `multisplit`.
+/// Average N branches of M channels into one branch with M channels.
+/// The input has M * N channels. Inverse of `multisplit`.
 #[inline]
 pub fn multijoin<T, M, N>(
 ) -> An<impl AudioNode<Sample = T, Inputs = numeric_array::typenum::Prod<M, N>, Outputs = M>>
@@ -880,28 +830,7 @@ where
                 output / T::new(N::I64)
             })
         },
-        |input, _| {
-            // TODO. Check this for correctness.
-            let mut output = new_signal_frame(M::USIZE);
-            for j in 0..M::USIZE {
-                if N::USIZE > 0 {
-                    output[j] = input[j];
-                }
-                for i in 1..N::USIZE {
-                    output[j] = output[j].combine_linear(
-                        input[j + i * M::USIZE],
-                        0.0,
-                        |x, y| x + y,
-                        |x, y| x + y,
-                    );
-                }
-                if N::USIZE > 1 {
-                    output[j] =
-                        output[j].filter(0.0, |x| x * Complex64::new(1.0 / N::USIZE as f64, 0.0));
-                }
-            }
-            output
-        },
+        Routing::Join,
     ))
 }
 

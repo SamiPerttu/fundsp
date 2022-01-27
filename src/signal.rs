@@ -52,6 +52,15 @@ impl Signal {
         }
     }
 
+    /// Scale signal by `factor`.
+    pub fn scale(&self, factor: f64) -> Signal {
+        match self {
+            Signal::Value(x) => Signal::Value(x * factor),
+            Signal::Response(response, latency) => Signal::Response(response * factor, *latency),
+            x => *x,
+        }
+    }
+
     /// Combine signals nonlinearly with extra `latency`.
     /// Nonlinear processing erases constant values and frequency responses but maintains latency.
     /// Latency is measured in samples.
@@ -133,4 +142,57 @@ pub fn copy_signal_frame(source: &SignalFrame, i: usize, n: usize) -> SignalFram
     let mut frame = new_signal_frame(n);
     frame[0..n].copy_from_slice(&source[i..i + n]);
     frame
+}
+
+/// Signal routing information. We use this to avoid "impl AudioNode"
+/// return types in preludes resulting from closures.
+pub enum Routing {
+    /// Conservative routing: every input influences every output nonlinearly.
+    Arbitrary,
+    /// Split or multisplit semantics.
+    Split,
+    /// Join or multijoin semantics.
+    Join,
+}
+
+impl Routing {
+    /// Routes signals from input to output.
+    pub fn propagate(&self, input: &SignalFrame, outputs: usize) -> SignalFrame {
+        let mut output = new_signal_frame(outputs);
+        if input.is_empty() {
+            return output;
+        }
+        match self {
+            Routing::Arbitrary => {
+                let mut combo = input[0].distort(0.0);
+                for i in 1..input.len() {
+                    combo = combo.combine_nonlinear(input[i], 0.0);
+                }
+                output.fill(combo);
+            }
+            Routing::Split => {
+                for i in 0..outputs {
+                    output[i] = input[i % input.len()];
+                }
+            }
+            Routing::Join => {
+                // How many inputs for each output.
+                let bundle = input.len() / output.len();
+                for i in 0..outputs {
+                    let mut combo = input[i];
+                    for j in 1..bundle {
+                        combo = combo.combine_linear(
+                            input[i + j * outputs],
+                            0.0,
+                            |x, y| x + y,
+                            |x, y| x + y,
+                        );
+                    }
+                    // Normalize.
+                    output[i] = combo.scale(output.len() as f64 / input.len() as f64);
+                }
+            }
+        }
+        output
+    }
 }

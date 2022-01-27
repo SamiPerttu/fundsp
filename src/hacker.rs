@@ -381,6 +381,23 @@ where
     An(Feedback::new(x.0, FrameId::new()))
 }
 
+/// Transform channels freely. Accounted as non-linear processing for signal flow.
+///
+/// # Example
+/// ```
+/// # use fundsp::hacker::*;
+/// let my_sum = map(|i: &Frame<f64, U2>| Frame::<f64, U1>::splat(i[0] + i[1]));
+/// ```
+#[inline]
+pub fn map<M, I, O>(f: M) -> An<Map<f64, M, I, O>>
+where
+    M: Clone + Fn(&Frame<f64, I>) -> Frame<f64, O>,
+    I: Size<f64>,
+    O: Size<f64>,
+{
+    An(Map::new(f, Routing::Arbitrary))
+}
+
 /// Keeps a signal zero centered.
 /// Filter cutoff `c` is usually somewhere below the audible range.
 /// The default blocker cutoff is 10 Hz.
@@ -521,7 +538,7 @@ where
     super::prelude::busf(f)
 }
 
-/// Stack ´N´ similar nodes from indexed generator `f`.
+/// Stack `N` similar nodes from indexed generator `f`.
 #[inline]
 pub fn stack<N, X, F>(f: F) -> An<MultiStack<f64, N, X>>
 where
