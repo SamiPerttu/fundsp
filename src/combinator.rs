@@ -412,7 +412,7 @@ where
     }
 }
 
-/// `X * constant` binary operator: Multplies outputs of `X` with `constant`.
+/// `X * constant` binary operator: Multiplies outputs of `X` with `constant`.
 /// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<f64> for An<X>
 where
@@ -432,7 +432,7 @@ where
     }
 }
 
-/// `constant * X` binary operator: Multplies outputs of `X` with `constant`.
+/// `constant * X` binary operator: Multiplies outputs of `X` with `constant`.
 /// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<An<X>> for f64
 where
@@ -452,7 +452,7 @@ where
     }
 }
 
-/// `X * constant` binary operator: Multplies outputs of `X` with `constant`.
+/// `X * constant` binary operator: Multiplies outputs of `X` with `constant`.
 /// Broadcasts `constant` to an arbitrary number of channels.
 impl<X> std::ops::Mul<f32> for An<X>
 where

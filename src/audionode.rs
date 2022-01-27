@@ -78,13 +78,9 @@ pub trait AudioNode {
     }
 
     /// Propagate constants, latencies and frequency responses at `frequency` Hz.
-    /// Return output signal. Default implementation marks all outputs with zero latencies.
+    /// Return output signal. Default implementation marks all outputs unknown.
     fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut frame = new_signal_frame(self.outputs());
-        for i in 0..self.outputs() {
-            frame[i] = Signal::Latency(0.0)
-        }
-        frame
+        new_signal_frame(self.outputs())
     }
 
     // End of interface. There is no need to override the following.
@@ -332,7 +328,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
         x + y
     }
     fn propagate(x: Signal, y: Signal) -> Signal {
-        combine_linear(x, y, 0.0, |x, y| x + y, |x, y| x + y)
+        x.combine_linear(y, 0.0, |x, y| x + y, |x, y| x + y)
     }
     #[inline]
     fn assign(size: usize, x: &mut [T], y: &[T]) {
@@ -359,7 +355,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
         x - y
     }
     fn propagate(x: Signal, y: Signal) -> Signal {
-        combine_linear(x, y, 0.0, |x, y| x - y, |x, y| x - y)
+        x.combine_linear(y, 0.0, |x, y| x - y, |x, y| x - y)
     }
     #[inline]
     fn assign(size: usize, x: &mut [T], y: &[T]) {
@@ -1094,11 +1090,11 @@ where
         self.x.process(size, input, output);
         self.y
             .process(size, input, self.buffer.get_mut(self.outputs()));
-        for i in 0..self.outputs() {
-            let src = self.buffer.at(i);
-            let dst = &mut output[i];
-            for j in 0..size {
-                dst[j] += src[j];
+        for channel in 0..self.outputs() {
+            let src = self.buffer.at(channel);
+            let dst = &mut output[channel];
+            for i in 0..size {
+                dst[i] += src[i];
             }
         }
     }
@@ -1111,7 +1107,7 @@ where
         let mut signal_x = self.x.propagate(input, frequency);
         let signal_y = self.y.propagate(input, frequency);
         for i in 0..Self::Outputs::USIZE {
-            signal_x[i] = combine_linear(signal_x[i], signal_y[i], 0.0, |x, y| x + y, |x, y| x + y);
+            signal_x[i] = signal_x[i].combine_linear(signal_y[i], 0.0, |x, y| x + y, |x, y| x + y);
         }
         signal_x
     }
@@ -1153,11 +1149,11 @@ impl<X: AudioNode> AudioNode for Thru<X> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         let output = self.x.tick(input);
-        Frame::generate(|i| {
-            if i < X::Outputs::USIZE {
-                output[i]
+        Frame::generate(|channel| {
+            if channel < X::Outputs::USIZE {
+                output[channel]
             } else {
-                input[i]
+                input[channel]
             }
         })
     }
@@ -1176,14 +1172,14 @@ impl<X: AudioNode> AudioNode for Thru<X> {
             // we are not passing through inputs - we are cutting out some of them.
             self.x
                 .process(size, input, self.buffer.get_mut(X::Inputs::USIZE));
-            for i in 0..X::Inputs::USIZE {
-                output[i][..size].clone_from_slice(&self.buffer.at(i)[..size]);
+            for channel in 0..X::Inputs::USIZE {
+                output[channel][..size].clone_from_slice(&self.buffer.at(channel)[..size]);
             }
         } else {
             self.x
                 .process(size, input, &mut output[..X::Outputs::USIZE]);
-            for i in X::Outputs::USIZE..X::Inputs::USIZE {
-                output[i][..size].clone_from_slice(&input[i][..size]);
+            for channel in X::Outputs::USIZE..X::Inputs::USIZE {
+                output[channel][..size].clone_from_slice(&input[channel][..size]);
             }
         }
     }
@@ -1300,10 +1296,15 @@ where
             return new_signal_frame(self.outputs());
         }
         let mut output = self.x[0].propagate(input, frequency);
-        for j in 1..self.x.len() {
-            let output_j = self.x[j].propagate(input, frequency);
-            for i in 0..Self::Outputs::USIZE {
-                output[i] = combine_linear(output[i], output_j[i], 0.0, |x, y| x + y, |x, y| x + y);
+        for i in 1..self.x.len() {
+            let output_i = self.x[i].propagate(input, frequency);
+            for channel in 0..Self::Outputs::USIZE {
+                output[channel] = output[channel].combine_linear(
+                    output_i[channel],
+                    0.0,
+                    |x, y| x + y,
+                    |x, y| x + y,
+                );
             }
         }
         output
@@ -1580,7 +1581,7 @@ where
     X::Outputs: Size<T> + Mul<N>,
     <X::Outputs as Mul<N>>::Output: Size<T>,
 {
-    _marker: PhantomData<(T, N)>,
+    _marker: PhantomData<T>,
     x: Frame<X, N>,
 }
 

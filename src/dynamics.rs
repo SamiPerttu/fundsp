@@ -6,6 +6,7 @@ use super::signal::*;
 use super::*;
 use numeric_array::typenum::*;
 
+/// Binary operation for the monoidal reducer.
 pub trait Monoidal<T>: Clone {
     fn binop(&self, x: T, y: T) -> T;
 }
@@ -214,12 +215,15 @@ where
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
-            output[i] = input[i].distort(self.reducer.length() as f64);
+            // We pretend that the limiter does not alter the frequency response.
+            // TODO. Is this really the best option.
+            output[i] = input[i].delay(self.reducer.length() as f64);
         }
         output
     }
 }
 
+/// Goertzel frequency detector.
 #[derive(Clone, Default)]
 pub struct Detector<F: Real> {
     y1: F,
@@ -228,26 +232,31 @@ pub struct Detector<F: Real> {
     scoeff: F,
 }
 impl<F: Real> Detector<F> {
+    /// Reset detector.
     pub fn reset(&mut self) {
         self.y1 = F::zero();
         self.y2 = F::zero();
     }
+    /// Select the frequency (in Hz).
     pub fn set_frequency(&mut self, sample_rate: F, frequency: F) {
         let f = F::from_f64(TAU) * frequency / sample_rate;
         self.ccoeff = F::new(2) * cos(f);
         self.scoeff = sin(f);
     }
+    /// Process one sample.
     pub fn tick(&mut self, x: F) {
         let y0 = x + self.ccoeff * self.y1 - self.y2;
         self.y2 = self.y1;
         self.y1 = y0;
     }
+    /// Current detected power at the selected frequency.
     pub fn power(&self) -> F {
         squared(self.y2) + squared(self.y1) - self.ccoeff * self.y2 * self.y1
     }
 }
 
-/// Goertzel filter. Detects the presence of a frequency. Outputs DFT power at the selected frequency.
+/// Goertzel filter. Detects the presence of a frequency.
+/// Outputs DFT power at the selected frequency.
 #[derive(Clone, Default)]
 pub struct Goertzel<T: Float, F: Real> {
     filter: Detector<F>,
@@ -261,6 +270,11 @@ impl<T: Float, F: Real> Goertzel<T, F> {
         let mut node = Goertzel::default();
         node.reset(Some(sample_rate));
         node
+    }
+
+    /// Current detected power at the selected frequency.
+    pub fn power(&self) -> F {
+        self.filter.power()
     }
 }
 
@@ -294,7 +308,7 @@ impl<T: Float, F: Real> AudioNode for Goertzel<T, F> {
 
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
-        output[0] = combine_nonlinear(input[0], input[1], 0.0);
+        output[0] = input[0].combine_nonlinear(input[1], 0.0);
         output
     }
 }
@@ -352,7 +366,8 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
 
     fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].distort(0.0);
+        // We pretend that the declicker does not alter frequency response.
+        output[0] = input[0];
         output
     }
 }

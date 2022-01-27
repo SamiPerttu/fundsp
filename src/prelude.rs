@@ -3,17 +3,19 @@ pub use super::combinator::*;
 pub use super::math::*;
 pub use super::*;
 
-use super::delay::*;
-use super::dynamics::*;
-use super::envelope::*;
-use super::feedback::*;
-use super::filter::*;
-use super::noise::*;
-use super::oscillator::*;
-use super::signal::*;
-use super::svf::*;
-use super::wavetable::*;
-use num_complex::Complex64;
+pub use super::delay::*;
+pub use super::dynamics::*;
+pub use super::envelope::*;
+pub use super::feedback::*;
+pub use super::filter::*;
+pub use super::noise::*;
+pub use super::oscillator::*;
+pub use super::signal::*;
+pub use super::svf::*;
+pub use super::wave::*;
+pub use super::wavetable::*;
+
+pub use num_complex::Complex64;
 
 // Combinator environment.
 // We like to define all kinds of useful functions here.
@@ -445,7 +447,7 @@ where
                     if i == 0 {
                         output[0] = input[0].distort(0.0);
                     } else {
-                        output[0] = combine_nonlinear(output[0], input[i], 0.0);
+                        output[0] = output[0].combine_nonlinear(input[i], 0.0);
                     }
                 }
             } else {
@@ -607,7 +609,14 @@ where
     F: Fn(f64) -> An<X>,
 {
     assert!(N::USIZE > 0);
-    let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
+    let nodes = Frame::generate(|i| {
+        f(if N::USIZE > 1 {
+            i as f64 / (N::USIZE - 1) as f64
+        } else {
+            0.5
+        })
+        .0
+    });
     An(MultiBus::new(nodes))
 }
 
@@ -646,7 +655,14 @@ where
     F: Fn(f64) -> An<X>,
 {
     assert!(N::USIZE > 0);
-    let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
+    let nodes = Frame::generate(|i| {
+        f(if N::USIZE > 1 {
+            i as f64 / (N::USIZE - 1) as f64
+        } else {
+            0.5
+        })
+        .0
+    });
     An(MultiStack::new(nodes))
 }
 
@@ -681,7 +697,14 @@ where
     <X::Outputs as Mul<N>>::Output: Size<T>,
     F: Fn(f64) -> An<X>,
 {
-    let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
+    let nodes = Frame::generate(|i| {
+        f(if N::USIZE > 1 {
+            i as f64 / (N::USIZE - 1) as f64
+        } else {
+            0.5
+        })
+        .0
+    });
     An(MultiBranch::new(nodes))
 }
 
@@ -716,7 +739,14 @@ where
     <X::Inputs as Mul<N>>::Output: Size<T>,
     F: Fn(f64) -> An<X>,
 {
-    let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
+    let nodes = Frame::generate(|i| {
+        f(if N::USIZE > 1 {
+            i as f64 / (N::USIZE - 1) as f64
+        } else {
+            0.5
+        })
+        .0
+    });
     An(Reduce::new(nodes, FrameAdd::new()))
 }
 
@@ -749,7 +779,14 @@ where
     X::Outputs: Size<T>,
     F: Fn(f64) -> An<X>,
 {
-    let nodes = Frame::generate(|i| f(i as f64 / max(1, N::USIZE - 1) as f64).0);
+    let nodes = Frame::generate(|i| {
+        f(if N::USIZE > 1 {
+            i as f64 / (N::USIZE - 1) as f64
+        } else {
+            0.5
+        })
+        .0
+    });
     An(Chain::new(nodes))
 }
 
@@ -812,7 +849,7 @@ where
                 output[0] = input[0];
             }
             for i in 1..N::USIZE {
-                output[0] = combine_linear(output[0], input[i], 0.0, |x, y| x + y, |x, y| x + y);
+                output[0] = output[0].combine_linear(input[i], 0.0, |x, y| x + y, |x, y| x + y);
             }
             if N::USIZE > 1 {
                 output[0] =
@@ -851,8 +888,7 @@ where
                     output[j] = input[j];
                 }
                 for i in 1..N::USIZE {
-                    output[j] = combine_linear(
-                        output[j],
+                    output[j] = output[j].combine_linear(
                         input[j + i * M::USIZE],
                         0.0,
                         |x, y| x + y,

@@ -11,7 +11,6 @@
 extern crate fundsp;
 
 use fundsp::hacker::*;
-use fundsp::wave::*;
 
 /// Check that the stereo generator given is rendered identically
 /// via `process` (block processing) and `tick` (single sample processing).

@@ -1,18 +1,21 @@
 pub use super::audionode::*;
-pub use super::audiounit::*;
 pub use super::combinator::*;
 pub use super::math::*;
 pub use super::*;
 
-use super::delay::*;
-use super::dynamics::*;
-use super::envelope::*;
-use super::feedback::*;
-use super::filter::*;
-use super::noise::*;
-use super::oscillator::*;
-use super::svf::*;
-use super::wavetable::*;
+pub use super::delay::*;
+pub use super::dynamics::*;
+pub use super::envelope::*;
+pub use super::feedback::*;
+pub use super::filter::*;
+pub use super::noise::*;
+pub use super::oscillator::*;
+pub use super::signal::*;
+pub use super::svf::*;
+pub use super::wave::*;
+pub use super::wavetable::*;
+
+pub use num_complex::Complex64;
 
 // Combinator environment.
 // We like to define all kinds of useful functions here.

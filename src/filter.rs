@@ -680,7 +680,7 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F,
     }
 }
 
-/// Pinking filter.
+/// Pinking filter (3 dB/octave lowpass).
 /// - Input 0: input signal
 /// - Output 0: filtered signal
 #[derive(Clone, Default)]

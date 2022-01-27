@@ -197,4 +197,11 @@ fn test_responses() {
             >> join(),
     );
     test_response(branchf::<U5, _, _>(|t| resonator_hz(xerp(100.0, 20000.0, t), 10.0)) >> join());
+    test_response(pipe::<U4, _, _>(|i| {
+        bell_hz(
+            1000.0 + 1000.0 * i as f64,
+            (i + 1) as f64,
+            db_amp((i + 6) as f64),
+        )
+    }));
 }

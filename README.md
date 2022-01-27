@@ -408,7 +408,6 @@ and set gains of all bands to 0 dB initially:
 
 ```rust
 use fundsp::hacker::*;
-use fundsp::svf::*;
 let equalizer = pipe::<U12, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f64, 1.0, db_amp(0.0)));
 ```
 
