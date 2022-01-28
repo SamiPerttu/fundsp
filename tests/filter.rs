@@ -26,11 +26,11 @@ fn test_filter() {
     // Test follow().
     for _ in 0..200 {
         // Bias testing toward smaller lengths to cut testing time shorter.
-        let samples = round(xerp(1.0, 100_000.0, squared(rnd.gen_01::<f64>())));
-        let sample_rate = xerp(10.0, 100_000.0, rnd.gen_01::<f64>());
+        let samples = round(xerp(1.0, 100_000.0, squared(rnd.get01::<f64>())));
+        let sample_rate = xerp(10.0, 100_000.0, rnd.get01::<f64>());
         let mut x = follow(samples / sample_rate);
         x.reset(Some(sample_rate));
-        let goal = lerp(-100.0, 100.0, rnd.gen_01::<f64>());
+        let goal = lerp(-100.0, 100.0, rnd.get01::<f64>());
         for _ in 0..samples as usize {
             x.filter_mono(goal);
         }
@@ -42,10 +42,10 @@ fn test_filter() {
     // Test asymmetric follow().
     for _ in 0..200 {
         // Bias testing toward smaller lengths to cut testing time shorter.
-        let attack_samples = round(xerp(1.0, 100_000.0, squared(rnd.gen_01::<f64>())));
-        let release_samples = round(xerp(1.0, 100_000.0, squared(rnd.gen_01::<f64>())));
-        let sample_rate = xerp(10.0, 100_000.0, rnd.gen_01::<f64>());
-        let goal = lerp(-100.0, 100.0, rnd.gen_01::<f64>());
+        let attack_samples = round(xerp(1.0, 100_000.0, squared(rnd.get01::<f64>())));
+        let release_samples = round(xerp(1.0, 100_000.0, squared(rnd.get01::<f64>())));
+        let sample_rate = xerp(10.0, 100_000.0, rnd.get01::<f64>());
+        let goal = lerp(-100.0, 100.0, rnd.get01::<f64>());
         let mut x = follow((attack_samples / sample_rate, release_samples / sample_rate));
         x.reset(Some(sample_rate));
         for _ in 0..(if goal > 0.0 {

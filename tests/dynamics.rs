@@ -20,14 +20,14 @@ fn test_dynamics() {
 
     // Test ReduceBuffer.
     for _ in 0..100 {
-        let length = (rnd.gen() as usize & 0xff) + 1;
+        let length = (rnd.get() as usize & 0xff) + 1;
         let mut buffer = ReduceBuffer::<u32, _>::new(length, Maximum::new());
         let mut vector = vec![0u32; length];
         for _ in 0..1000 {
-            let i = rnd.gen() as usize % length;
-            let value = rnd.gen() >> (rnd.gen() & 0x1f);
-            buffer.set(i, value);
-            vector[i] = value;
+            let i = rnd.get() as usize % length;
+            let value = rnd.get() >> (rnd.get() & 0x1f);
+            buffer.set(i, value as u32);
+            vector[i] = value as u32;
             if i % 100 == 99 {
                 assert_eq!(*vector.iter().max().unwrap(), buffer.total());
             }
@@ -36,7 +36,7 @@ fn test_dynamics() {
 
     // Test limiter.
     for _ in 0..20 {
-        let samples = round(xerp(1.0, 100_000.0, rnd.gen_01::<f64>())) as usize;
+        let samples = round(xerp(1.0, 100_000.0, rnd.get01::<f64>())) as usize;
         let sample_rate = 32768.0;
         let mut x = limiter((samples as f64 / sample_rate, samples as f64 / sample_rate));
         x.reset(Some(sample_rate));
@@ -49,7 +49,6 @@ fn test_dynamics() {
             assert!(x.filter_mono(edge) <= 1.0);
         }
         let value = x.filter_mono(edge);
-        println!("length {} value {}", samples, value);
         // The limiter leaves some headroom.
         // Check that the response is limited and has sufficient range.
         assert!(value >= 0.8 && value <= 1.0);

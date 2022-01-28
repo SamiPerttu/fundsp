@@ -94,7 +94,7 @@ impl MlsState {
 pub struct Mls<T> {
     _marker: std::marker::PhantomData<T>,
     mls: MlsState,
-    hash: u32,
+    hash: u64,
 }
 
 impl<T: Float> Mls<T> {
@@ -114,7 +114,7 @@ impl<T: Float> AudioNode for Mls<T> {
     type Outputs = typenum::U1;
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
-        self.mls = MlsState::new_with_seed(self.mls.n, self.hash);
+        self.mls = MlsState::new_with_seed(self.mls.n, (self.hash >> 32) as u32);
     }
 
     #[inline]
@@ -128,7 +128,7 @@ impl<T: Float> AudioNode for Mls<T> {
     }
 
     #[inline]
-    fn set_hash(&mut self, hash: u32) {
+    fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.reset(None);
     }
@@ -140,7 +140,7 @@ impl<T: Float> AudioNode for Mls<T> {
 pub struct Noise<T> {
     _marker: std::marker::PhantomData<T>,
     rnd: AttoRand,
-    hash: u32,
+    hash: u64,
 }
 
 impl<T: Float> Noise<T> {
@@ -164,12 +164,12 @@ impl<T: Float> AudioNode for Noise<T> {
         &mut self,
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let value = lerp(T::new(-1), T::new(1), self.rnd.gen_01_closed());
+        let value = self.rnd.get11();
         [value].into()
     }
 
     #[inline]
-    fn set_hash(&mut self, hash: u32) {
+    fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.reset(None);
     }

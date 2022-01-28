@@ -21,12 +21,12 @@ where
     t: F,
     t_0: F,
     t_1: F,
-    t_hash: u32,
+    t_hash: u64,
     value_0: Frame<T, R::Size>,
     value_1: Frame<T, R::Size>,
     interval: F,
     sample_duration: F,
-    hash: u32,
+    hash: u64,
 }
 
 impl<T, F, E, R> Envelope<T, F, E, R>
@@ -110,7 +110,7 @@ where
     }
 
     #[inline]
-    fn set_hash(&mut self, hash: u32) {
+    fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.t_hash = hash;
     }

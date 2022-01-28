@@ -11,7 +11,7 @@ pub struct Sine<T: Float> {
     _marker: PhantomData<T>,
     phase: f64,
     sample_duration: f64,
-    hash: u32,
+    hash: u64,
 }
 
 impl<T: Float> Sine<T> {
@@ -49,7 +49,7 @@ impl<T: Float> AudioNode for Sine<T> {
     }
 
     #[inline]
-    fn set_hash(&mut self, hash: u32) {
+    fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.reset(None);
     }

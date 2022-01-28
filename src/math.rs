@@ -109,16 +109,19 @@ pub fn clamp11<T: Num>(x: T) -> T {
     x.max(T::new(-1)).min(T::one())
 }
 
+/// Identity function.
 #[inline]
 pub fn id<T>(x: T) -> T {
     x
 }
 
+/// Square function.
 #[inline]
 pub fn squared<T: Num>(x: T) -> T {
     x * x
 }
 
+/// Cube function.
 #[inline]
 pub fn cubed<T: Num>(x: T) -> T {
     x * x * x
@@ -371,16 +374,8 @@ pub fn semitone<T: Real>(x: T) -> T {
     exp2(x / T::from_f64(12.0))
 }
 
-/// 32-bit hash by Chris Wellon, used for pinging.
-#[inline]
-pub const fn hashw(x: u32) -> u32 {
-    let x = (x ^ (x >> 16)).wrapping_mul(0x7feb352d);
-    let x = (x ^ (x >> 15)).wrapping_mul(0x846ca68b);
-    x ^ (x >> 16)
-}
-
 /// SplitMix hash as an indexed RNG.
-/// Returns pseudorandom f64 in range [0, 1[.
+/// Returns pseudorandom f64 in right exclusive range 0...1.
 #[inline]
 pub fn rnd(x: i64) -> f64 {
     let x = (x as u64).wrapping_mul(0x9e3779b97f4a7c15);
@@ -411,47 +406,51 @@ pub struct AttoRand {
 
 /// Pico sized RNG.
 impl AttoRand {
+    /// Create new `AttoRand` from seed.
     #[inline]
     pub fn new(seed: u64) -> AttoRand {
         AttoRand { state: seed }
     }
+    /// Hashes `data`. Consumes self and returns a new `AttoRand`.
     #[inline]
     pub fn hash(self, data: u64) -> Self {
-        // 64-bit hash by degski.
-        let x = (data ^ self.state ^ (self.state >> 32)).wrapping_mul(0xd6e8feb86659fd93);
+        // Hash taken from FxHasher.
         AttoRand {
-            state: (x ^ (x >> 32)).wrapping_mul(0xd6e8feb86659fd93),
+            state: self
+                .state
+                .rotate_left(5)
+                .bitxor(data)
+                .wrapping_mul(0x517cc1b727220a95),
         }
     }
+    /// Current 64-bit value.
     #[inline]
-    pub fn value(&self) -> u32 {
-        hashw((self.state >> 32) as u32)
+    pub fn value(&self) -> u64 {
+        // Use SplitMix hash.
+        let x = self.state.wrapping_mul(0x9e3779b97f4a7c15);
+        let x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+        let x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
+        x ^ (x >> 31)
     }
+    /// Get next 64-bit value.
     #[inline]
-    pub fn gen(&mut self) -> u32 {
-        self.state = self.state.wrapping_mul(0xaf251af3b0f025b5).wrapping_add(1);
+    pub fn get(&mut self) -> u64 {
+        // Multiplier taken from https://arxiv.org/abs/2001.05304.
+        self.state = self.state.wrapping_mul(0xd1342543de82ef95).wrapping_add(1);
         self.value()
     }
+    /// Get next floating point value in 0...1.
     #[inline]
-    pub fn gen_01<T: Float>(&mut self) -> T {
-        let x = self.gen();
-        T::new(x as i64) / T::new(1i64 << 32)
+    pub fn get01<T: Float>(&mut self) -> T {
+        let x = self.get();
+        T::from_f64((x >> 11) as f64 / (1u64 << 53) as f64)
     }
+    /// Get next floating point value in -1...1.
     #[inline]
-    pub fn gen_01_closed<T: Float>(&mut self) -> T {
-        let x = self.gen();
-        T::new(x as i64) / T::new((1i64 << 32) - 1)
+    pub fn get11<T: Float>(&mut self) -> T {
+        let x = self.get();
+        T::from_f64((x >> 10) as f64 / (1u64 << 53) as f64 - 1.0)
     }
-}
-
-/// Yet another 64-bit hash function.
-#[inline]
-pub fn hashk(x: i64) -> i64 {
-    let x = x as u64;
-    let x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
-    let x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
-    let x = (x ^ (x >> 31)).wrapping_mul(0xd6e8feb86659fd93);
-    (x ^ (x >> 32)) as i64
 }
 
 /// Trait for symmetric/asymmetric interpolation in `ease_noise`.
@@ -499,8 +498,7 @@ pub fn ease_noise<T: Float>(ease: impl SegmentInterpolator<T>, seed: i64, x: T) 
     let ix = fx.to_i64();
 
     fn get_point<T: Float>(seed: i64, i: i64) -> T {
-        let h = hashw((seed ^ i) as u32);
-        T::new(h as i64) / T::from_f64(2147483647.5) - T::one()
+        AttoRand::new((seed ^ i) as u64).get11()
     }
 
     let y1 = get_point(seed, ix);
@@ -545,8 +543,7 @@ pub fn spline_noise<T: Float>(seed: i64, x: T) -> T {
     let ix = fx.to_i64();
 
     fn get_point<T: Float>(seed: i64, i: i64) -> T {
-        let h = hashw((seed ^ i) as u32);
-        T::new(h as i64) / T::from_f64(2147483647.5) - T::one()
+        AttoRand::new((seed ^ i) as u64).get11()
     }
 
     let y0 = get_point(seed, ix.wrapping_sub(1));

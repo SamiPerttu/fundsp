@@ -51,7 +51,7 @@ where
     // The signature constrains the structure already, try some random inputs.
     for _ in 0..1000 {
         let input =
-            Frame::<X::Sample, X::Inputs>::generate(|_| X::Sample::new((rnd.gen() as i64) % 3 - 1));
+            Frame::<X::Sample, X::Inputs>::generate(|_| X::Sample::new((rnd.get() as i64) % 3 - 1));
         let output_x = x.tick(&input.clone());
         let output_y = y.tick(&input.clone());
         if output_x != output_y {
@@ -73,7 +73,7 @@ where
     // Send 10 inputs. If none of them diverge, then we declare failure.
     for _ in 0..10 {
         let input =
-            Frame::<X::Sample, X::Inputs>::generate(|_| X::Sample::new((rnd.gen() as i64) % 3 - 1));
+            Frame::<X::Sample, X::Inputs>::generate(|_| X::Sample::new((rnd.get() as i64) % 3 - 1));
         let output = x.tick(&input);
         for i in 0..x.outputs() {
             for j in 0..x.outputs() {

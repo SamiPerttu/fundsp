@@ -63,7 +63,7 @@ pub trait AudioNode {
 
     /// Set node hash. Override this to use the hash.
     /// This is called from `ping`. It should not be called by users.
-    fn set_hash(&mut self, _hash: u32) {}
+    fn set_hash(&mut self, _hash: u64) {}
 
     /// Ping contained `AudioNode`s to obtain a deterministic pseudorandom hash.
     /// The local hash includes children, too.
