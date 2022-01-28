@@ -15,11 +15,11 @@ use fundsp::hacker::*;
 /// Check that the stereo generator given is rendered identically
 /// via `process` (block processing) and `tick` (single sample processing).
 /// Also check that the generator is reset properly.
-fn wave_is_equal<X>(node: &mut An<X>) -> bool
+fn check_wave<X>(mut node: An<X>)
 where
     X: AudioNode<Sample = f64, Inputs = U0, Outputs = U2>,
 {
-    let wave = Wave::render(44100.0, 1.0, node);
+    let wave = Wave::render(44100.0, 1.0, &mut node);
     assert!(wave.channels() == 2);
     assert!(wave.length() == 44100);
     node.reset(None);
@@ -31,7 +31,6 @@ where
         assert!(tick_x - tolerance <= process_x && tick_x + tolerance >= process_x);
         assert!(tick_y - tolerance <= process_y && tick_y + tolerance >= process_y);
     }
-    true
 }
 
 /// New nodes can be defined with the following return signature.
@@ -99,44 +98,33 @@ fn test_basic() {
     let mut rnd = AttoRand::new(0);
 
     // Wave rendering, tick vs. process rendering, node reseting.
-    assert!(wave_is_equal(&mut (noise() | noise() + noise())));
-    assert!(wave_is_equal(
-        &mut (noise() * noise() | bus::<U4, _, _>(|i| mls_bits(10 + i)))
-    ));
-    assert!(wave_is_equal(
-        &mut (noise() & noise() | sine_hz(440.0) & -noise())
-    ));
-    assert!(wave_is_equal(
-        &mut (lfo(|t| xerp(110.0, 220.0, clamp01(t))) >> sine()
-            | (envelope(|t| xerp(220.0, 440.0, clamp01(t))) >> pass() >> sine()) & mls())
-    ));
-    assert!(wave_is_equal(
-        &mut (dc((110.0, 220.0)) >> multipass() >> -stackf::<U2, _, _>(|f| (f - 0.5) * sine()))
-    ));
-    assert!(wave_is_equal(
-        &mut (dc((110.0, 220.0, 440.0, 880.0))
-            >> multipass()
-            >> (sink() | -sine() | sink() | sine()))
-    ));
-    assert!(wave_is_equal(
-        &mut (dc((110.0, 220.0)) >> pass() + pass() >> (sine() ^ saw()))
-    ));
-    assert!(wave_is_equal(
-        &mut (dc((20.0, 40.0)) >> pass() * pass() >> (sine() ^ square()))
-    ));
-    assert!(wave_is_equal(
-        &mut (dc((880.0, 440.0))
-            >> pass() - pass()
-            >> branchf::<U2, _, _>(|f| (f - 0.5) * triangle()))
-    ));
-    assert!(wave_is_equal(
-        &mut ((noise() | dc(440.0)) >> pipe::<U3, _, _>(|_| !lowpole()) >> lowpole()
-            | ((mls() | dc(880.0)) >> !butterpass() >> butterpass()))
-    ));
-    assert!(wave_is_equal(
-        &mut ((noise() | dc(440.0)) >> pipe::<U4, _, _>(|_| !lowpass_q(1.0)) >> highpass_q(1.0)
-            | ((mls() | dc(880.0)) >> !bandpass_q(1.0) >> notch_q(2.0)))
-    ));
+    check_wave(noise() | noise() + noise());
+    check_wave(noise() * noise() | bus::<U4, _, _>(|i| mls_bits(10 + i)));
+    check_wave(noise() & noise() | sine_hz(440.0) & -noise());
+    check_wave(
+        lfo(|t| xerp(110.0, 220.0, clamp01(t))) >> sine()
+            | (envelope(|t| xerp(220.0, 440.0, clamp01(t))) >> pass() >> sine()) & mls(),
+    );
+    check_wave(dc((110.0, 220.0)) >> multipass() >> -stackf::<U2, _, _>(|f| (f - 0.5) * sine()));
+    check_wave(
+        dc((110.0, 220.0, 440.0, 880.0)) >> multipass() >> (sink() | -sine() | sink() | sine()),
+    );
+    check_wave(dc((110.0, 220.0)) >> pass() + pass() >> (sine() ^ saw()));
+    check_wave(dc((20.0, 40.0)) >> pass() * pass() >> (sine() ^ square()));
+    check_wave(
+        dc((880.0, 440.0)) >> pass() - pass() >> branchf::<U2, _, _>(|f| (f - 0.5) * triangle()),
+    );
+    check_wave(
+        (noise() | dc(440.0)) >> pipe::<U3, _, _>(|_| !lowpole()) >> lowpole()
+            | ((mls() | dc(880.0)) >> !butterpass() >> butterpass()),
+    );
+    check_wave(
+        (noise() | dc(440.0)) >> pipe::<U4, _, _>(|_| !lowpass_q(1.0)) >> highpass_q(1.0)
+            | ((mls() | dc(880.0)) >> !bandpass_q(1.0) >> notch_q(2.0)),
+    );
+    check_wave(
+        dc((440.0, 880.0)) >> multisplit::<U2, U5>() >> sum::<U10, _, _>(|_| sine()) | noise(),
+    );
 
     // Constants.
     let mut d = constant(1.0);

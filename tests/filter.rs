@@ -69,8 +69,8 @@ fn re<T: Float>(x: T) -> Complex64 {
 
 fn is_equal_response(x: Complex64, y: Complex64) -> bool {
     let abs_tolerance = 1.0e-9;
-    let amp_tolerance = db_amp(0.1);
-    let phase_tolerance = 1.0e-3 * TAU;
+    let amp_tolerance = db_amp(0.05);
+    let phase_tolerance = 5.0e-4 * TAU;
     let x_norm = x.norm();
     let y_norm = y.norm();
     let x_phase = x.arg();
@@ -129,7 +129,6 @@ where
             f += 100.0;
         }
     }
-    //assert!(false);
 }
 
 #[test]
@@ -161,7 +160,7 @@ fn test_responses() {
     test_response(peak_hz(5000.0, 1.0));
     test_response(allpass_hz(500.0, 5.0));
     test_response(notch_hz(1000.0, 1.0));
-    test_response(lowpass_hz(20.0, 1.0));
+    test_response(lowpass_hz(50.0, 1.0));
     test_response(highpass_hz(5000.0, 1.0));
     test_response(bandpass_hz(100.0, 1.0));
     test_response(highpass_hz(500.0, 1.0) & bandpass_hz(500.0, 2.0));
@@ -169,12 +168,12 @@ fn test_responses() {
     test_response(follow(0.0002));
     test_response(follow(0.01));
     test_response(dcblock());
-    test_response(dcblock_hz(20.0) & follow(0.001));
+    test_response(dcblock_hz(100.0) & follow(0.001));
     test_response(lowpole_hz(1000.0));
-    test_response(split() >> (lowpole_hz(100.0) + lowpole_hz(90.0)));
+    test_response(split() >> (lowpole_hz(100.0) + lowpole_hz(190.0)));
     test_response(lowpole_hz(10000.0));
-    test_response(resonator_hz(200.0, 20.0));
-    test_response(butterpass_hz(30.0));
+    test_response(resonator_hz(300.0, 20.0));
+    test_response(butterpass_hz(200.0));
     test_response(butterpass_hz(1000.0));
     test_response(butterpass_hz(500.0) & bell_hz(2000.0, 10.0, 5.0));
     test_response(butterpass_hz(6000.0) >> lowpass_hz(500.0, 3.0));
@@ -204,4 +203,15 @@ fn test_responses() {
             db_amp((i + 6) as f64),
         )
     }));
+    test_response(
+        split() >> stack::<U5, _, _>(|i| lowpole_hz(1000.0 + 1000.0 + i as f64)) >> join(),
+    );
+    test_response(bus::<U7, _, _>(|i| {
+        lowpass_hz(1000.0 + 1000.0 * rnd(i), 1.0 + 1.0 * rnd(i << 1))
+    }));
+    test_response(
+        split::<U3>()
+            >> multisplit::<U3, U3>()
+            >> sumf::<U9, _, _>(|f| highshelf_hz(f, 1.0 + f, 2.0 + f)),
+    );
 }
