@@ -663,17 +663,18 @@ where
 
 /// Split signal into N channels.
 #[inline]
-pub fn split<N>() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = N>>
+pub fn split<N>() -> An<Split<f64, U1, N>>
 where
     N: Size<f64>,
+    U1: Size<f64> + Mul<N>,
+    <U1 as Mul<N>>::Output: Size<f64>,
 {
     super::prelude::split::<f64, N>()
 }
 
-/// Splits M channels into N branches. The output has M * N channels.
+/// Split M channels into N branches. The output has M * N channels.
 #[inline]
-pub fn multisplit<M, N>(
-) -> An<impl AudioNode<Sample = f64, Inputs = M, Outputs = numeric_array::typenum::Prod<M, N>>>
+pub fn multisplit<M, N>() -> An<Split<f64, M, N>>
 where
     M: Size<f64> + Mul<N>,
     N: Size<f64>,
@@ -684,18 +685,19 @@ where
 
 /// Average N channels into one. Inverse of `split`.
 #[inline]
-pub fn join<N>() -> An<impl AudioNode<Sample = f64, Inputs = N, Outputs = U1>>
+pub fn join<N>() -> An<Join<f64, U1, N>>
 where
     N: Size<f64>,
-    U1: Size<f64>,
+    U1: Size<f64> + Mul<N>,
+    <U1 as Mul<N>>::Output: Size<f64>,
 {
     super::prelude::join::<f64, N>()
 }
 
-/// Average N branches of M channels into one branch with M channels. The input has M * N channels. Inverse of `multisplit`.
+/// Average `N` branches of `M` channels into one branch with `M` channels.
+/// The input has `M` * `N` channels. Inverse of `multisplit::<M, N>`.
 #[inline]
-pub fn multijoin<M, N>(
-) -> An<impl AudioNode<Sample = f64, Inputs = numeric_array::typenum::Prod<M, N>, Outputs = M>>
+pub fn multijoin<M, N>() -> An<Join<f64, M, N>>
 where
     M: Size<f64> + Mul<N>,
     N: Size<f64>,

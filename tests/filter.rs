@@ -171,7 +171,7 @@ fn test_responses() {
     test_response(dcblock());
     test_response(dcblock_hz(20.0) & follow(0.001));
     test_response(lowpole_hz(1000.0));
-    test_response(split() >> (lowpole_hz(100.0) + lowpole_hz(90.0)));
+    test_response(split::<U2>() >> (lowpole_hz(100.0) + lowpole_hz(90.0)));
     test_response(lowpole_hz(10000.0));
     test_response(resonator_hz(200.0, 20.0));
     test_response(butterpass_hz(30.0));
@@ -188,15 +188,17 @@ fn test_responses() {
         (resonator_hz(12000.0, 500.0) ^ lowpass_hz(3000.0, 0.5))
             >> pass() + highshelf_hz(3000.0, 0.5, 4.0),
     );
-    test_response(split() >> multipass::<U32>() >> join());
+    test_response(split::<U32>() >> multipass::<U32>() >> join::<U32>());
     test_response(
-        split()
+        split::<U8>()
             >> stack::<U8, _, _>(|i| {
                 resonator_hz(1000.0 + 1000.0 * i as f64, 100.0 + 100.0 * i as f64)
             })
-            >> join(),
+            >> join::<U8>(),
     );
-    test_response(branchf::<U5, _, _>(|t| resonator_hz(xerp(100.0, 20000.0, t), 10.0)) >> join());
+    test_response(
+        branchf::<U5, _, _>(|t| resonator_hz(xerp(100.0, 20000.0, t), 10.0)) >> join::<U5>(),
+    );
     test_response(pipe::<U4, _, _>(|i| {
         bell_hz(
             1000.0 + 1000.0 * i as f64,

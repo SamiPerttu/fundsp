@@ -766,68 +766,51 @@ where
 
 /// Split signal into N channels.
 #[inline]
-pub fn split<T, N>() -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = N>>
+pub fn split<T, N>() -> An<Split<T, U1, N>>
 where
     T: Float,
     N: Size<T>,
-    U1: Size<T>,
+    U1: Size<T> + Mul<N>,
+    <U1 as Mul<N>>::Output: Size<T>,
 {
-    An(Map::new(|x| Frame::splat(x[0]), Routing::Split))
+    An(Split::new())
 }
 
-/// Splits M channels into N branches. The output has M * N channels.
+/// Split M channels into N branches. The output has M * N channels.
 #[inline]
-pub fn multisplit<T, M, N>(
-) -> An<impl AudioNode<Sample = T, Inputs = M, Outputs = numeric_array::typenum::Prod<M, N>>>
+pub fn multisplit<T, M, N>() -> An<Split<T, M, N>>
 where
     T: Float,
     M: Size<T> + Mul<N>,
     N: Size<T>,
     <M as Mul<N>>::Output: Size<T>,
 {
-    An(Map::new(
-        |x| Frame::generate(|i| x[i % M::USIZE]),
-        Routing::Split,
-    ))
+    An(Split::new())
 }
 
 /// Average N channels into one. Inverse of `split`.
 #[inline]
-pub fn join<T, N>() -> An<impl AudioNode<Sample = T, Inputs = N, Outputs = U1>>
+pub fn join<T, N>() -> An<Join<T, U1, N>>
 where
     T: Float,
     N: Size<T>,
-    U1: Size<T>,
+    U1: Size<T> + Mul<N>,
+    <U1 as Mul<N>>::Output: Size<T>,
 {
-    An(Map::new(
-        |x| [x.iter().fold(T::zero(), |acc, &x| acc + x) / T::new(N::I64)].into(),
-        Routing::Join,
-    ))
+    An(Join::new())
 }
 
-/// Average N branches of M channels into one branch with M channels.
-/// The input has M * N channels. Inverse of `multisplit`.
+/// Average `N` branches of `M` channels into one branch with `M` channels.
+/// The input has `M` * `N` channels. Inverse of `multisplit::<M, N>`.
 #[inline]
-pub fn multijoin<T, M, N>(
-) -> An<impl AudioNode<Sample = T, Inputs = numeric_array::typenum::Prod<M, N>, Outputs = M>>
+pub fn multijoin<T, M, N>() -> An<Join<T, M, N>>
 where
     T: Float,
-    M: Size<T> + Mul<N>,
     N: Size<T>,
+    M: Size<T> + Mul<N>,
     <M as Mul<N>>::Output: Size<T>,
 {
-    An(Map::new(
-        |x| {
-            Frame::generate(|j| {
-                let mut output = x[j];
-                for i in 1..N::USIZE {
-                    output += x[j + i * M::USIZE];
-                }
-                output / T::new(N::I64)
-            })
-        },
-        Routing::Join,
-    ))
+    An(Join::new())
 }
 
 /// Saw wave oscillator.

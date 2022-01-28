@@ -144,8 +144,8 @@ pub fn copy_signal_frame(source: &SignalFrame, i: usize, n: usize) -> SignalFram
     frame
 }
 
-/// Signal routing information. We use this to avoid "impl AudioNode"
-/// return types in preludes resulting from closures.
+/// Signal routing information. This is a dumping ground for signal routing
+/// functionality.
 pub enum Routing {
     /// Conservative routing: every input influences every output nonlinearly.
     Arbitrary,

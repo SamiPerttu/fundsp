@@ -305,6 +305,102 @@ impl<T: Float, N: Size<T>> AudioNode for Constant<T, N> {
     }
 }
 
+/// Split `M` inputs into `N` branches, with `M` * `N` outputs.
+pub struct Split<T, M, N> {
+    _marker: PhantomData<(T, M, N)>,
+}
+
+impl<T, M, N> Split<T, M, N>
+where
+    T: Float,
+    M: Size<T> + Mul<N>,
+    N: Size<T>,
+    <M as Mul<N>>::Output: Size<T>,
+{
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self {
+            _marker: PhantomData::default(),
+        }
+    }
+}
+
+impl<T, M, N> AudioNode for Split<T, M, N>
+where
+    T: Float,
+    M: Size<T> + Mul<N>,
+    N: Size<T>,
+    <M as Mul<N>>::Output: Size<T>,
+{
+    const ID: u64 = 38;
+    type Sample = T;
+    type Inputs = M;
+    type Outputs = numeric_array::typenum::Prod<M, N>;
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        Frame::generate(|i| input[i % M::USIZE])
+    }
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Split.propagate(input, self.outputs())
+    }
+}
+
+/// Average `N` branches of `M` channels into one branch with `M` channels.
+/// The input has `M` * `N` channels. Inverse of `Split<T, M, N>`.
+pub struct Join<T, M, N> {
+    _marker: PhantomData<(T, M, N)>,
+}
+
+impl<T, M, N> Join<T, M, N>
+where
+    T: Float,
+    M: Size<T> + Mul<N>,
+    N: Size<T>,
+    <M as Mul<N>>::Output: Size<T>,
+{
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self {
+            _marker: PhantomData::default(),
+        }
+    }
+}
+
+impl<T, M, N> AudioNode for Join<T, M, N>
+where
+    T: Float,
+    M: Size<T> + Mul<N>,
+    N: Size<T>,
+    <M as Mul<N>>::Output: Size<T>,
+{
+    const ID: u64 = 39;
+    type Sample = T;
+    type Inputs = numeric_array::typenum::Prod<M, N>;
+    type Outputs = M;
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        Frame::generate(|j| {
+            let mut output = input[j];
+            for i in 1..N::USIZE {
+                output += input[j + i * M::USIZE];
+            }
+            output / T::new(N::I64)
+        })
+    }
+
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Join.propagate(input, self.outputs())
+    }
+}
+
 pub trait FrameBinop<T: Float, N: Size<T>>: Clone {
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
     fn propagate(x: Signal, y: Signal) -> Signal;
