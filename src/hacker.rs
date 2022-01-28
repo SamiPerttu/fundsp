@@ -435,15 +435,17 @@ pub fn follow<S: ScalarOrPair<Sample = f64>>(t: S) -> An<AFollow<f64, f64, S>> {
     An(AFollow::new(DEFAULT_SR, t))
 }
 
-/// Look-ahead limiter with `attack` and `release` time in seconds. Look-ahead is equal to the attack time.
+/// Look-ahead limiter with `(attack, release)` times in seconds.
+/// Look-ahead is equal to the attack time.
 #[inline]
 pub fn limiter<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64, U1, S>> {
     An(Limiter::new(DEFAULT_SR, time))
 }
 
-/// Look-ahead stereo limiter with `attack` and `release` time in seconds. Look-ahead is equal to the attack time.
+/// Stereo look-ahead limiter with `(attack, release)` times in seconds.
+/// Look-ahead is equal to the attack time.
 #[inline]
-pub fn stereo_limiter<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64, U2, S>> {
+pub fn limiter_stereo<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64, U2, S>> {
     An(Limiter::new(DEFAULT_SR, time))
 }
 
@@ -705,10 +707,45 @@ where
 /// Stereo reverb.
 /// `wet` in 0...1 is balance of reverb mixed in, for example, 0.1.
 /// `time` is approximate reverberation time to -60 dB in seconds.
-pub fn stereo_reverb(
+pub fn reverb_stereo(
     wet: f64,
     time: f64,
-) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U2>> {
+) -> An<
+    Bus<
+        f64,
+        Pipe<
+            f64,
+            Pipe<
+                f64,
+                MultiSplit<f64, U2, U16>,
+                Feedback<
+                    f64,
+                    MultiStack<
+                        f64,
+                        U32,
+                        Pipe<
+                            f64,
+                            Pipe<
+                                f64,
+                                Delay<f64>,
+                                Pipe<
+                                    f64,
+                                    Stack<f64, Pass<f64, U1>, Constant<f64, U1>>,
+                                    Lowpole<f64, f64>,
+                                >,
+                            >,
+                            Binop<f64, FrameMul<f64, U1>, DCBlock<f64, f64>, Constant<f64, U1>>,
+                        >,
+                    >,
+                    U32,
+                    FrameHadamard<f64, U32>,
+                >,
+            >,
+            Binop<f64, FrameMul<f64, U2>, MultiJoin<f64, U2, U16>, Constant<f64, U2>>,
+        >,
+        Binop<f64, FrameMul<f64, U2>, Pass<f64, U2>, Constant<f64, U2>>,
+    >,
+> {
     // TODO: This is the simplest possible structure, there's probably a lot of scope for improvement.
 
     // Optimized delay times for a 32-channel FDN from a legacy project.

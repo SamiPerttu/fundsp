@@ -31,3 +31,7 @@ path = "examples/beep.rs"
 [[example]]
 name = "peek"
 path = "examples/peek.rs"
+
+[[example]]
+name = "type"
+path = "examples/type.rs"

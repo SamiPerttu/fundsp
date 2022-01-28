@@ -156,7 +156,7 @@ The aims of the environments are:
 
 ### Deterministic Pseudorandom Phase
 
-FunDSP uses a deterministic pseudorandom phase system for generators.
+FunDSP uses a deterministic pseudorandom phase system for audio generators.
 Generator phases are seeded from network structure and node location.
 
 Thus, two identical networks sound identical separately but different when combined.
@@ -487,8 +487,8 @@ These free functions are available in the environment.
 | `highshelf_q(q, gain)` | 2 (audio, frequency) | 1 | High shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `join::<U>()`          |   `U`   |    1    | Average together `U` channels. Inverse of `split`. |
 | `lfo(f)`               |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
-| `limiter(t)`           |    1    |    1    | Look-ahead limiter with attack and release times `t` seconds. |
 | `limiter((a, r))`      |    1    |    1    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
+| `limiter_stereo((a, r))`|   2    |    2    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
 | `lowpass_hz(f, q)`     |    1    |    1    | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `lowpass_q(q)`         | 2 (audio, frequency) | 1 | Lowpass filter (2nd order) with Q `q`. |
@@ -519,6 +519,7 @@ These free functions are available in the environment.
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain together `U` nodes from fractional generator `f`. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
+| `reverb_stereo(wet, t)`|    2    |    2    | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
 | `saw()`                | 1 (pitch) |  1    | Saw wave oscillator. |
 | `saw_hz(f)`            |    -    |    1    | Saw wave oscillator at `f` Hz. |
 | `shape(f)`             |    1    |    1    | Shape signal with waveshaper `f`, e.g., `tanh`. |
@@ -530,9 +531,6 @@ These free functions are available in the environment.
 | `square_hz(f)`         |    -    |    1    | Square wave oscillator at frequency `f` Hz. |
 | `stack::<U, _, _>(f)`  | `U * f` | `U * f` | Stack `U` nodes from indexed generator `f`. |
 | `stackf::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
-| `stereo_limiter(t)`    |    2    |    2    | Look-ahead limiter with attack and release times `t` seconds. |
-| `stereo_limiter((a, r))`|   2    |    2    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
-| `stereo_reverb(wet, t)`|    2    |    2    | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
 | `sub(x)`               |   `x`   |   `x`   | Subtracts constant `x` from signal. |
 | `sum::<U, _, _>(f)`    | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
