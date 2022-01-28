@@ -305,12 +305,54 @@ impl<T: Float, N: Size<T>> AudioNode for Constant<T, N> {
     }
 }
 
+/// Split input into `N` channels.
+pub struct Split<T, N> {
+    _marker: PhantomData<(T, N)>,
+}
+
+// Note. We have separate split and multisplit (and join and multijoin)
+// implementations because it helps with type inference.
+impl<T, N> Split<T, N>
+where
+    T: Float,
+    N: Size<T>,
+{
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self {
+            _marker: PhantomData::default(),
+        }
+    }
+}
+
+impl<T, N> AudioNode for Split<T, N>
+where
+    T: Float,
+    N: Size<T>,
+{
+    const ID: u64 = 40;
+    type Sample = T;
+    type Inputs = U1;
+    type Outputs = N;
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        Frame::splat(input[0])
+    }
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Split.propagate(input, self.outputs())
+    }
+}
+
 /// Split `M` inputs into `N` branches, with `M` * `N` outputs.
-pub struct Split<T, M, N> {
+pub struct MultiSplit<T, M, N> {
     _marker: PhantomData<(T, M, N)>,
 }
 
-impl<T, M, N> Split<T, M, N>
+impl<T, M, N> MultiSplit<T, M, N>
 where
     T: Float,
     M: Size<T> + Mul<N>,
@@ -325,7 +367,7 @@ where
     }
 }
 
-impl<T, M, N> AudioNode for Split<T, M, N>
+impl<T, M, N> AudioNode for MultiSplit<T, M, N>
 where
     T: Float,
     M: Size<T> + Mul<N>,
@@ -349,13 +391,58 @@ where
     }
 }
 
+/// Join `N` channels into one by averaging. Inverse of `Split<T, N>`.
+pub struct Join<T, N> {
+    _marker: PhantomData<(T, N)>,
+}
+
+impl<T, N> Join<T, N>
+where
+    T: Float,
+    N: Size<T>,
+{
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self {
+            _marker: PhantomData::default(),
+        }
+    }
+}
+
+impl<T, N> AudioNode for Join<T, N>
+where
+    T: Float,
+    N: Size<T>,
+{
+    const ID: u64 = 41;
+    type Sample = T;
+    type Inputs = N;
+    type Outputs = U1;
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let mut output = input[0];
+        for i in 1..N::USIZE {
+            output += input[i];
+        }
+        [output / T::new(N::I64)].into()
+    }
+
+    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Join.propagate(input, self.outputs())
+    }
+}
+
 /// Average `N` branches of `M` channels into one branch with `M` channels.
-/// The input has `M` * `N` channels. Inverse of `Split<T, M, N>`.
-pub struct Join<T, M, N> {
+/// The input has `M` * `N` channels. Inverse of `MultiSplit<T, M, N>`.
+pub struct MultiJoin<T, M, N> {
     _marker: PhantomData<(T, M, N)>,
 }
 
-impl<T, M, N> Join<T, M, N>
+impl<T, M, N> MultiJoin<T, M, N>
 where
     T: Float,
     M: Size<T> + Mul<N>,
@@ -370,7 +457,7 @@ where
     }
 }
 
-impl<T, M, N> AudioNode for Join<T, M, N>
+impl<T, M, N> AudioNode for MultiJoin<T, M, N>
 where
     T: Float,
     M: Size<T> + Mul<N>,

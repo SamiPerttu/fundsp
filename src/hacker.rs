@@ -663,18 +663,16 @@ where
 
 /// Split signal into N channels.
 #[inline]
-pub fn split<N>() -> An<Split<f64, U1, N>>
+pub fn split<N>() -> An<Split<f64, N>>
 where
     N: Size<f64>,
-    U1: Size<f64> + Mul<N>,
-    <U1 as Mul<N>>::Output: Size<f64>,
 {
     super::prelude::split::<f64, N>()
 }
 
 /// Split M channels into N branches. The output has M * N channels.
 #[inline]
-pub fn multisplit<M, N>() -> An<Split<f64, M, N>>
+pub fn multisplit<M, N>() -> An<MultiSplit<f64, M, N>>
 where
     M: Size<f64> + Mul<N>,
     N: Size<f64>,
@@ -685,11 +683,9 @@ where
 
 /// Average N channels into one. Inverse of `split`.
 #[inline]
-pub fn join<N>() -> An<Join<f64, U1, N>>
+pub fn join<N>() -> An<Join<f64, N>>
 where
     N: Size<f64>,
-    U1: Size<f64> + Mul<N>,
-    <U1 as Mul<N>>::Output: Size<f64>,
 {
     super::prelude::join::<f64, N>()
 }
@@ -697,7 +693,7 @@ where
 /// Average `N` branches of `M` channels into one branch with `M` channels.
 /// The input has `M` * `N` channels. Inverse of `multisplit::<M, N>`.
 #[inline]
-pub fn multijoin<M, N>() -> An<Join<f64, M, N>>
+pub fn multijoin<M, N>() -> An<MultiJoin<f64, M, N>>
 where
     M: Size<f64> + Mul<N>,
     N: Size<f64>,

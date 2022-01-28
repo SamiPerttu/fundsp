@@ -766,36 +766,32 @@ where
 
 /// Split signal into N channels.
 #[inline]
-pub fn split<T, N>() -> An<Split<T, U1, N>>
+pub fn split<T, N>() -> An<Split<T, N>>
 where
     T: Float,
     N: Size<T>,
-    U1: Size<T> + Mul<N>,
-    <U1 as Mul<N>>::Output: Size<T>,
 {
     An(Split::new())
 }
 
 /// Split M channels into N branches. The output has M * N channels.
 #[inline]
-pub fn multisplit<T, M, N>() -> An<Split<T, M, N>>
+pub fn multisplit<T, M, N>() -> An<MultiSplit<T, M, N>>
 where
     T: Float,
     M: Size<T> + Mul<N>,
     N: Size<T>,
     <M as Mul<N>>::Output: Size<T>,
 {
-    An(Split::new())
+    An(MultiSplit::new())
 }
 
 /// Average N channels into one. Inverse of `split`.
 #[inline]
-pub fn join<T, N>() -> An<Join<T, U1, N>>
+pub fn join<T, N>() -> An<Join<T, N>>
 where
     T: Float,
     N: Size<T>,
-    U1: Size<T> + Mul<N>,
-    <U1 as Mul<N>>::Output: Size<T>,
 {
     An(Join::new())
 }
@@ -803,14 +799,14 @@ where
 /// Average `N` branches of `M` channels into one branch with `M` channels.
 /// The input has `M` * `N` channels. Inverse of `multisplit::<M, N>`.
 #[inline]
-pub fn multijoin<T, M, N>() -> An<Join<T, M, N>>
+pub fn multijoin<T, M, N>() -> An<MultiJoin<T, M, N>>
 where
     T: Float,
     N: Size<T>,
     M: Size<T> + Mul<N>,
     <M as Mul<N>>::Output: Size<T>,
 {
-    An(Join::new())
+    An(MultiJoin::new())
 }
 
 /// Saw wave oscillator.
