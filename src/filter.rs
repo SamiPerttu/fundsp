@@ -420,7 +420,6 @@ pub struct Follow<T: Float, F: Real> {
     response_time: F,
     sample_rate: F,
     _marker: std::marker::PhantomData<T>,
-    analysis_mode: AnalysisMode,
 }
 
 impl<T: Float, F: Real> Follow<T, F> {
@@ -429,31 +428,6 @@ impl<T: Float, F: Real> Follow<T, F> {
     pub fn new(sample_rate: f64, response_time: F) -> Self {
         let mut node = Follow::<T, F> {
             response_time,
-            analysis_mode: AnalysisMode::Filter,
-            ..Follow::default()
-        };
-        node.reset(Some(sample_rate));
-        node
-    }
-
-    /// Create new smoothing filter that presents itself as a constant for frequency response analysis purposes.
-    /// Response time is how long it takes for the follower to reach halfway to the new value.
-    pub fn new_constant(sample_rate: f64, response_time: F) -> Self {
-        let mut node = Follow::<T, F> {
-            response_time,
-            analysis_mode: AnalysisMode::Constant,
-            ..Follow::default()
-        };
-        node.reset(Some(sample_rate));
-        node
-    }
-
-    /// Create new smoothing filter that presents itself as a bypass for frequency response analysis purposes.
-    /// Response time is how long it takes for the follower to reach halfway to the new value.
-    pub fn new_bypass(sample_rate: f64, response_time: F) -> Self {
-        let mut node = Follow::<T, F> {
-            response_time,
-            analysis_mode: AnalysisMode::Bypass,
             ..Follow::default()
         };
         node.reset(Some(sample_rate));
@@ -515,23 +489,13 @@ impl<T: Float, F: Real> AudioNode for Follow<T, F> {
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
-        match self.analysis_mode {
-            AnalysisMode::Constant => {
-                output[0] = Signal::Value(convert(self.v3));
-            }
-            AnalysisMode::Bypass => {
-                output[0] = input[0];
-            }
-            AnalysisMode::Filter => {
-                output[0] = input[0].filter(0.0, |r| {
-                    let c = self.coeff.to_f64();
-                    let f = frequency * TAU / self.sample_rate.to_f64();
-                    let z1 = Complex64::from_polar(1.0, -f);
-                    let pole = (1.0 - c) / (1.0 - c * z1);
-                    r * pole * pole * pole
-                });
-            }
-        }
+        output[0] = input[0].filter(0.0, |r| {
+            let c = self.coeff.to_f64();
+            let f = frequency * TAU / self.sample_rate.to_f64();
+            let z1 = Complex64::from_polar(1.0, -f);
+            let pole = (1.0 - c) / (1.0 - c * z1);
+            r * pole * pole * pole
+        });
         output
     }
 }
@@ -550,7 +514,6 @@ pub struct AFollow<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
     time: S,
     sample_rate: F,
     _marker: std::marker::PhantomData<T>,
-    analysis_mode: AnalysisMode,
 }
 
 impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollow<T, F, S> {
@@ -559,31 +522,6 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollow<T, F, S> {
     pub fn new(sample_rate: f64, time: S) -> Self {
         let mut node = AFollow::<T, F, S> {
             time,
-            analysis_mode: AnalysisMode::Filter,
-            ..AFollow::default()
-        };
-        node.reset(Some(sample_rate));
-        node
-    }
-
-    /// Create new smoothing filter that presents itself as a constant for frequency response analysis purposes.
-    /// Response time is how long it takes for the follower to reach halfway to the new value.
-    pub fn new_constant(sample_rate: f64, time: S) -> Self {
-        let mut node = AFollow::<T, F, S> {
-            time,
-            analysis_mode: AnalysisMode::Constant,
-            ..AFollow::default()
-        };
-        node.reset(Some(sample_rate));
-        node
-    }
-
-    /// Create new smoothing filter that presents itself as a bypass for frequency response analysis purposes.
-    /// Response time is how long it takes for the follower to reach halfway to the new value.
-    pub fn new_bypass(sample_rate: f64, time: S) -> Self {
-        let mut node = AFollow::<T, F, S> {
-            time,
-            analysis_mode: AnalysisMode::Bypass,
             ..AFollow::default()
         };
         node.reset(Some(sample_rate));
@@ -654,27 +592,17 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F,
 
     fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
-        match self.analysis_mode {
-            AnalysisMode::Constant => {
-                output[0] = Signal::Value(convert(self.v3));
-            }
-            AnalysisMode::Bypass => {
-                output[0] = input[0];
-            }
-            AnalysisMode::Filter => {
-                // The frequency response exists only in symmetric mode, as the asymmetric mode is nonlinear.
-                if self.acoeff == self.rcoeff {
-                    output[0] = input[0].filter(0.0, |r| {
-                        let c = self.acoeff.to_f64();
-                        let f = frequency * TAU / self.sample_rate.to_f64();
-                        let z1 = Complex64::from_polar(1.0, -f);
-                        let pole = (1.0 - c) / (1.0 - c * z1);
-                        r * pole * pole * pole
-                    });
-                } else {
-                    output[0] = input[0].distort(0.0);
-                }
-            }
+        // The frequency response exists only in symmetric mode, as the asymmetric mode is nonlinear.
+        if self.acoeff == self.rcoeff {
+            output[0] = input[0].filter(0.0, |r| {
+                let c = self.acoeff.to_f64();
+                let f = frequency * TAU / self.sample_rate.to_f64();
+                let z1 = Complex64::from_polar(1.0, -f);
+                let pole = (1.0 - c) / (1.0 - c * z1);
+                r * pole * pole * pole
+            });
+        } else {
+            output[0] = input[0].distort(0.0);
         }
         output
     }

@@ -110,23 +110,6 @@ impl Signal {
     }
 }
 
-/// Some components support different modes for signal flow analysis.
-// TODO. This is too complex for the user. Remove this and only keep the Constant case?
-#[derive(Copy, Clone)]
-pub enum AnalysisMode {
-    /// The component presents itself as a constant.
-    Constant,
-    /// The component presents itself as a bypass.
-    Bypass,
-    /// The component is a filter.
-    Filter,
-}
-impl Default for AnalysisMode {
-    fn default() -> Self {
-        AnalysisMode::Filter
-    }
-}
-
 /// Frame of input or output signals.
 pub type SignalFrame = TinyVec<[Signal; 32]>;
 

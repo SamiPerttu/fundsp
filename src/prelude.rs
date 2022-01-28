@@ -286,7 +286,6 @@ pub fn lowpole<T: Float, F: Real>() -> An<Lowpole<T, F>> {
 /// One-pole lowpass filter (1st order) with fixed cutoff frequency `f` Hz.
 /// - Input 0: audio
 /// - Output 0: filtered audio
-// TODO: should cutoff be T or F?
 #[inline]
 pub fn lowpole_hz<T: Float, F: Real>(
     f: T,
