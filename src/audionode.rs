@@ -1413,8 +1413,13 @@ where
     }
 
     /// Access a contained node.
-    pub fn node(&mut self, index: usize) -> &mut X {
+    pub fn node_mut(&mut self, index: usize) -> &mut X {
         &mut self.x[index]
+    }
+
+    /// Access a contained node.
+    pub fn node(&self, index: usize) -> &X {
+        &self.x[index]
     }
 }
 
@@ -1530,8 +1535,13 @@ where
     }
 
     /// Access a contained node.
-    pub fn node(&mut self, index: usize) -> &mut X {
+    pub fn node_mut(&mut self, index: usize) -> &mut X {
         &mut self.x[index]
+    }
+
+    /// Access a contained node.
+    pub fn node(&self, index: usize) -> &X {
+        &self.x[index]
     }
 }
 
@@ -1660,8 +1670,13 @@ where
     }
 
     /// Access a contained node.
-    pub fn node(&mut self, index: usize) -> &mut X {
+    pub fn node_mut(&mut self, index: usize) -> &mut X {
         &mut self.x[index]
+    }
+
+    /// Access a contained node.
+    pub fn node(&self, index: usize) -> &X {
+        &self.x[index]
     }
 }
 
@@ -1786,8 +1801,13 @@ where
     }
 
     /// Access a contained node.
-    pub fn node(&mut self, index: usize) -> &mut X {
+    pub fn node_mut(&mut self, index: usize) -> &mut X {
         &mut self.x[index]
+    }
+
+    /// Access a contained node.
+    pub fn node(&self, index: usize) -> &X {
+        &self.x[index]
     }
 }
 
@@ -1897,8 +1917,13 @@ where
     }
 
     /// Access a contained node.
-    pub fn node(&mut self, index: usize) -> &mut X {
+    pub fn node_mut(&mut self, index: usize) -> &mut X {
         &mut self.x[index]
+    }
+
+    /// Access a contained node.
+    pub fn node(&self, index: usize) -> &X {
+        &self.x[index]
     }
 }
 
