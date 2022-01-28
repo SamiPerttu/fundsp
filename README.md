@@ -561,6 +561,17 @@ The values in between are linearly interpolated.
 
 `lfo` (Low Frequency Oscillator) is another name for `envelope`.
 
+#### Indexed And Fractional Generator Functions
+
+`branch`, `bus`, `pipe`, `sum` and `stack` are opcodes that combine multiple nodes,
+according to their first generic argument.
+They accept a generator function that is issued `i64` integers starting from 0.
+
+Similarly, `branchf`, `busf`, `pipef`, `sumf` and `stackf` accept a generator function
+that is issued values evenly distributed in the unit interval 0...1.
+The first node is issued the value 0 and the last node the value 1.
+If there is only one node, then it receives the value 0.5.
+
 ---
 
 ### Math And Utility Functions
