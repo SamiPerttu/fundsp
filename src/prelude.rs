@@ -399,6 +399,13 @@ pub fn tick<T: Float>() -> An<Tick<T, U1>> {
     An(Tick::new(convert(DEFAULT_SR)))
 }
 
+/// Multichannel single sample delay.
+/// - Inputs: signal.
+/// - Outputs: delayed signal.
+pub fn multitick<T: Float, N: Size<T>>() -> An<Tick<T, N>> {
+    An(Tick::new(convert(DEFAULT_SR)))
+}
+
 /// Fixed delay of `t` seconds.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
@@ -808,6 +815,88 @@ where
     <M as Mul<N>>::Output: Size<T>,
 {
     An(MultiJoin::new())
+}
+
+/// Stereo reverb.
+/// `wet` in 0...1 is balance of reverb mixed in, for example, 0.1.
+/// `time` is approximate reverberation time to -60 dB in seconds.
+pub fn reverb_stereo<T, F>(
+    wet: T,
+    time: f64,
+) -> An<
+    Bus<
+        T,
+        Pipe<
+            T,
+            Pipe<
+                T,
+                Pipe<
+                    T,
+                    MultiSplit<T, U2, U16>,
+                    Feedback<
+                        T,
+                        MultiStack<
+                            T,
+                            U32,
+                            Pipe<
+                                T,
+                                Pipe<
+                                    T,
+                                    Pipe<
+                                        T,
+                                        Delay<T>,
+                                        Pipe<
+                                            T,
+                                            Stack<T, Pass<T, U1>, Constant<T, U1>>,
+                                            Lowpole<T, F>,
+                                        >,
+                                    >,
+                                    DCBlock<T, F>,
+                                >,
+                                Binop<T, FrameMul<T, U1>, Pass<T, U1>, Constant<T, U1>>,
+                            >,
+                        >,
+                        U32,
+                        FrameHadamard<T, U32>,
+                    >,
+                >,
+                MultiJoin<T, U2, U16>,
+            >,
+            Binop<T, FrameMul<T, U2>, Pass<T, U2>, Constant<T, U2>>,
+        >,
+        Binop<T, FrameMul<T, U2>, Pass<T, U2>, Constant<T, U2>>,
+    >,
+>
+where
+    T: Float,
+    F: Real,
+{
+    // TODO: This is the simplest possible structure, there's probably a lot of scope for improvement.
+
+    // Optimized delay times for a 32-channel FDN from a legacy project.
+    const DELAYS: [f64; 32] = [
+        0.073904, 0.052918, 0.066238, 0.066387, 0.037783, 0.080073, 0.050961, 0.075900, 0.043646,
+        0.072095, 0.056194, 0.045961, 0.058934, 0.068016, 0.047529, 0.058156, 0.072972, 0.036084,
+        0.062715, 0.076377, 0.044339, 0.076725, 0.077884, 0.046126, 0.067741, 0.049800, 0.051709,
+        0.082923, 0.070121, 0.079315, 0.055039, 0.081859,
+    ];
+
+    let a = T::from_f64(pow(db_amp(-60.0), 0.03 / time));
+
+    let line = stack::<T, U32, _, _>(|i| {
+        delay::<T>(DELAYS[i as usize])
+            >> lowpole_hz::<T, F>(T::new(1600))
+            >> dcblock_hz::<T, F>(F::new(5))
+            >> mul(a)
+    });
+
+    // The feedback structure.
+    let reverb = fdn::<T, _, U32>(line);
+
+    // Multiplex stereo into 32 channels, reverberate, then average them back.
+    // Bus the reverb with the dry signal. Operator precedences work perfectly for us here.
+    multisplit::<T, U2, U16>() >> reverb >> multijoin::<T, U2, U16>() >> mul((wet, wet))
+        & mul((T::one() - wet, T::one() - wet))
 }
 
 /// Saw wave oscillator.

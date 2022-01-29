@@ -77,8 +77,9 @@ pub trait AudioNode {
         hash.hash(Self::ID)
     }
 
-    /// Propagate constants, latencies and frequency responses at `frequency` Hz.
-    /// Return output signal. Default implementation marks all outputs unknown.
+    /// Propagate constants, latencies and frequency responses at `frequency` Hz
+    /// from inputs to outputs. Return output signal.
+    /// Default implementation marks all outputs unknown.
     fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         new_signal_frame(self.outputs())
     }

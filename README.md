@@ -444,6 +444,8 @@ These free functions are available in the environment.
 
 ### Component Opcodes
 
+The type parameters in the table refer to the hacker prelude.
+
 ---
 
 | Function               | Inputs  | Outputs | Explanation                                    |
@@ -504,6 +506,7 @@ These free functions are available in the environment.
 | `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
 | `multisink::<U>()`     |   `U`   |    -    | Consumes multichannel signal. |
 | `multisplit::<M, N>()` |   `M`   | `M * N` | Splits `M` channels into `N` branches. |
+| `multitick::<N>()`     |   `N`   |   `N`   | Multichannel single sample delay. |
 | `multizero::<U>()`     |    -    |   `U`   | Multichannel zero signal. |
 | `noise()`              |    -    |    1    | White noise source. Synonymous with `white`. |
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
@@ -820,7 +823,6 @@ shall be dual licensed as above, without any additional terms or conditions.
 - `oversample(n, x)`. Oversample enclosed circuit `x` by `n`.
   Impose a default maximum sample rate to keep nested oversampling sensible.
 - `feedback_delay(delay, circuit)`. Feedback with explicit delay that enables block processing.
-- `multitick`. Multichannel single sample delay.
 - `melody(f, string)`: melody generator.
 - 1st order filters `highpole` and `allpole`.
 - Hard clipping as `clip`, `clip_to(min, max)`.
