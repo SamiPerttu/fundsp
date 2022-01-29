@@ -690,6 +690,7 @@ Some examples of graph expressions.
 | `pass() \| sink() \| zero()`             |   2    |    2    | replace right channel with silence            |
 | `pass() \| mul(0.0)`                     |   2    |    2    | -..-                                          |
 | `mul((1.0, 0.0))`                        |   2    |    2    | -..-                                          |
+| `(pass() & tick()) * 0.5`                |   1    |    1    | 2-point averaging FIR filter                  |
 | `!butterpass() >> lowpole()`             |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
 | `!butterpass() >> !butterpass() >> butterpass()`  | 2 | 1   | triple lowpass filter in series (6th order)   |
 | `!resonator() >> resonator()`            |   3    |    1    | double resonator in series (4th order)        |
@@ -752,7 +753,10 @@ The representation contains sample and inner processing types when applicable, e
 These are chosen statically. The associated sample type, which is used to transport
 data between nodes, is `AudioNode::Sample`.
 
-The encoding is straightforward. As an example, in the hacker prelude
+The preludes employ the wrapper type `An<X: AudioNode>`
+containing operator overloads and other trait implementations.
+
+The type encoding is straightforward. As an example, in the hacker prelude
 
 ```rust
 noise() & constant(440.0) >> sine()
@@ -764,8 +768,13 @@ is represented as
 An<Bus<f64, Noise<f64>, Pipe<f64, Constant<f64, U1>, Sine<f64>>>>
 ```
 
-The prelude employs the wrapper type `An<X: AudioNode>`
-containing operator overloads and other trait implementations.
+The compiler reports these types in an opaque form.
+An attached utility, `examples/type.rs`, can unscramble such opaque types.
+This invocation prints the above type:
+
+```sh
+cargo run --example type -- "fundsp::combinator::An<Bus<f64, Noise<f64>, Pipe<f64, Constant<f64, typenum::uint::UInt<typenum::uint::UTerm, typenum::bit::B1>>, Sine<f64>>>>"
+```
 
 ---
 

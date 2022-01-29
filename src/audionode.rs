@@ -631,6 +631,26 @@ where
         node.ping(false, hash);
         node
     }
+
+    /// Access the left node of the binary operation.
+    pub fn left_mut(&mut self) -> &mut X {
+        &mut self.x
+    }
+
+    /// Access the left node of the binary operation.
+    pub fn left(&self) -> &X {
+        &self.x
+    }
+
+    /// Access the right node of the binary operation.
+    pub fn right_mut(&mut self) -> &mut Y {
+        &mut self.y
+    }
+
+    /// Access the right node of the binary operation.
+    pub fn right(&self) -> &Y {
+        &self.y
+    }
 }
 
 impl<T, B, X, Y> AudioNode for Binop<T, B, X, Y>
@@ -918,13 +938,23 @@ where
     }
 
     /// Access the left node of the pipe.
-    pub fn left(&mut self) -> &mut X {
+    pub fn left_mut(&mut self) -> &mut X {
         &mut self.x
     }
 
+    /// Access the left node of the pipe.
+    pub fn left(&self) -> &X {
+        &self.x
+    }
+
     /// Access the right node of the pipe.
-    pub fn right(&mut self) -> &mut Y {
+    pub fn right_mut(&mut self) -> &mut Y {
         &mut self.y
+    }
+
+    /// Access the right node of the pipe.
+    pub fn right(&self) -> &Y {
+        &self.y
     }
 }
 
@@ -1006,13 +1036,23 @@ where
     }
 
     /// Access the left node of the stack.
-    pub fn left(&mut self) -> &mut X {
+    pub fn left_mut(&mut self) -> &mut X {
         &mut self.x
     }
 
+    /// Access the left node of the stack.
+    pub fn left(&self) -> &X {
+        &self.x
+    }
+
     /// Access the right node of the stack.
-    pub fn right(&mut self) -> &mut Y {
+    pub fn right_mut(&mut self) -> &mut Y {
         &mut self.y
+    }
+
+    /// Access the right node of the stack.
+    pub fn right(&self) -> &Y {
+        &self.y
     }
 }
 
@@ -1119,13 +1159,23 @@ where
     }
 
     /// Access the left node of the branch.
-    pub fn left(&mut self) -> &mut X {
+    pub fn left_mut(&mut self) -> &mut X {
         &mut self.x
     }
 
+    /// Access the left node of the branch.
+    pub fn left(&self) -> &X {
+        &self.x
+    }
+
     /// Access the right node of the branch.
-    pub fn right(&mut self) -> &mut Y {
+    pub fn right_mut(&mut self) -> &mut Y {
         &mut self.y
+    }
+
+    /// Access the right node of the branch.
+    pub fn right(&self) -> &Y {
+        &self.y
     }
 }
 
@@ -1223,13 +1273,23 @@ where
     }
 
     /// Access the left node of the bus.
-    pub fn left(&mut self) -> &mut X {
+    pub fn left_mut(&mut self) -> &mut X {
         &mut self.x
     }
 
+    /// Access the left node of the bus.
+    pub fn left(&self) -> &X {
+        &self.x
+    }
+
     /// Access the right node of the bus.
-    pub fn right(&mut self) -> &mut Y {
+    pub fn right_mut(&mut self) -> &mut Y {
         &mut self.y
+    }
+
+    /// Access the right node of the bus.
+    pub fn right(&self) -> &Y {
+        &self.y
     }
 }
 
