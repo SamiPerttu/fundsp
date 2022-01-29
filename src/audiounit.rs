@@ -1,3 +1,5 @@
+//! `AudioUnit` abstraction. WIP.
+
 use super::audionode::*;
 use super::combinator::*;
 use super::signal::*;

@@ -1,3 +1,5 @@
+//! Waveshaping components.
+
 use super::audionode::*;
 use super::signal::*;
 use super::*;

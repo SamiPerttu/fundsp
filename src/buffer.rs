@@ -1,3 +1,5 @@
+//! Audio buffers for block processing.
+
 use super::*;
 use rsor::Slice;
 

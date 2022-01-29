@@ -1,3 +1,5 @@
+//! Noise components.
+
 use super::audionode::*;
 use super::math::*;
 use super::*;

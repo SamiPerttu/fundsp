@@ -1,3 +1,5 @@
+//! Math functions and utilities and procedural generation tools.
+
 use super::*;
 
 #[inline]

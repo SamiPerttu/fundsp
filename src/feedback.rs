@@ -1,3 +1,5 @@
+//! Feedback component.
+
 use super::audionode::*;
 use super::math::*;
 use super::signal::*;

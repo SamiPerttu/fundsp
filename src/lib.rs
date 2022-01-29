@@ -1,3 +1,7 @@
+//! FunDSP is an audio processing and synthesis library.
+//!
+//! See <http://github.com/SamiPerttu/fundsp> for an overview.
+
 #![allow(
     clippy::precedence,
     clippy::type_complexity,
@@ -21,6 +25,7 @@ pub const DEFAULT_SR: f64 = 44_100.0;
 /// Maximum buffer size for block processing is 64 samples.
 pub const MAX_BUFFER_SIZE: usize = 64;
 
+/// Number abstraction.
 pub trait Num:
     Copy
     + Default
@@ -115,6 +120,7 @@ macro_rules! impl_float_num {
 }
 impl_float_num! { f32, f64 }
 
+/// Integer abstraction.
 pub trait Int:
     Num
     + Not<Output = Self>
@@ -140,6 +146,7 @@ macro_rules! impl_int {
 }
 impl_int! { i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize }
 
+/// Float abstraction.
 pub trait Float: Num + Neg<Output = Self> {
     fn from_float<T: Float>(x: T) -> Self;
     fn to_f64(self) -> f64;
@@ -183,10 +190,12 @@ impl Float for f64 {
     }
 }
 
+/// Generic floating point conversion function.
 pub fn convert<T: Float, U: Float>(x: T) -> U {
     U::from_float(x)
 }
 
+/// Refined float abstraction.
 pub trait Real: Num + Float {
     fn sqrt(self) -> Self;
     fn exp(self) -> Self;

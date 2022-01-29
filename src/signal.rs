@@ -1,3 +1,5 @@
+//! Signal flow analysis components.
+
 use super::math::*;
 use num_complex::Complex64;
 use tinyvec::TinyVec;

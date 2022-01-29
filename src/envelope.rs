@@ -1,3 +1,5 @@
+//! Subsampled control node.
+
 use super::audionode::*;
 use super::combinator::*;
 use super::math::*;

@@ -1,3 +1,5 @@
+//! Audio dynamics related components.
+
 use super::audionode::*;
 use super::combinator::*;
 use super::filter::*;

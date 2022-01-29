@@ -1,3 +1,5 @@
+//! Various filters.
+
 use super::audionode::*;
 use super::combinator::*;
 use super::math::*;

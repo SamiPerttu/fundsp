@@ -1,3 +1,7 @@
+//! Andrew Simper's state variable filters.
+//!
+//! See <https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf>.
+
 use super::audionode::*;
 use super::math::*;
 use super::signal::*;
@@ -5,9 +9,6 @@ use super::*;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
 use std::marker::PhantomData;
-
-// Andrew Simper's state variable filters from
-// https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf
 
 /// State variable filter coefficients, generic formulation.
 #[derive(Clone, Default)]

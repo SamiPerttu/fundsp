@@ -1,3 +1,5 @@
+//! `AudioNode` abstraction and central components.
+
 use super::buffer::*;
 use super::math::*;
 use super::signal::*;

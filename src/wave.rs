@@ -1,3 +1,5 @@
+//! Multichannel wave abstraction.
+
 use crate::audionode::*;
 use crate::combinator::*;
 use crate::math::*;

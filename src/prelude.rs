@@ -1,3 +1,5 @@
+//! Generic prelude.
+
 pub use super::audionode::*;
 pub use super::combinator::*;
 pub use super::math::*;
