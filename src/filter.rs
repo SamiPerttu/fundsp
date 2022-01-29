@@ -61,7 +61,7 @@ impl<F: Real> BiquadCoefs<F> {
 }
 
 /// 2nd order IIR filter implemented in normalized Direct Form I.
-#[derive(Copy, Clone, Default)]
+#[derive(Default)]
 pub struct Biquad<T, F> {
     _marker: std::marker::PhantomData<T>,
     coefs: BiquadCoefs<F>,
@@ -122,7 +122,6 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
 /// - Input 0: input signal
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered signal
-#[derive(Copy, Clone)]
 pub struct ButterLowpass<T: Float, F: Real> {
     biquad: Biquad<T, F>,
     sample_rate: F,
@@ -190,7 +189,6 @@ impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
 /// - Input 1: filter center frequency (peak) (Hz)
 /// - Input 2: filter bandwidth (distance) between -3 dB points (Hz)
 /// - Output 0: filtered signal
-#[derive(Copy, Clone)]
 pub struct Resonator<T: Float, F: Real> {
     biquad: Biquad<T, F>,
     sample_rate: F,
@@ -263,7 +261,7 @@ impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
 /// - Input 0: input signal
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered signal
-#[derive(Copy, Clone, Default)]
+#[derive(Default)]
 pub struct Lowpole<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
     value: F,
@@ -333,7 +331,7 @@ impl<T: Float, F: Real> AudioNode for Lowpole<T, F> {
 /// DC blocking filter.
 /// - Input 0: input signal
 /// - Output 0: zero centered signal
-#[derive(Copy, Clone, Default)]
+#[derive(Default)]
 pub struct DCBlock<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
     x1: F,
@@ -503,7 +501,7 @@ impl<T: Float, F: Real> AudioNode for Follow<T, F> {
 /// Smoothing filter with adjustable edge response times for attack and release.
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct AFollow<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
     v3: F,
     v2: F,
@@ -611,7 +609,7 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F,
 /// Pinking filter (3 dB/octave lowpass).
 /// - Input 0: input signal
 /// - Output 0: filtered signal
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Pinkpass<T: Float, F: Float> {
     // Algorithm by Paul Kellett. +-0.05 dB accuracy above 9.2 Hz @ 44.1 kHz.
     b0: F,

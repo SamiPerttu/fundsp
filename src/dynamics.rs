@@ -105,7 +105,6 @@ where
 }
 
 /// Look-ahead limiter.
-#[derive(Clone)]
 pub struct Limiter<T, N, S>
 where
     T: Float,
@@ -257,7 +256,7 @@ impl<F: Real> Detector<F> {
 
 /// Goertzel filter. Detects the presence of a frequency.
 /// Outputs DFT power at the selected frequency.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Goertzel<T: Float, F: Real> {
     filter: Detector<F>,
     sample_rate: F,
@@ -317,7 +316,7 @@ impl<T: Float, F: Real> AudioNode for Goertzel<T, F> {
 /// After fade-in, pass signal through.
 /// - Input 0: input signal
 /// - Output 0: filtered signal
-#[derive(Copy, Clone, Default)]
+#[derive(Default)]
 pub struct Declick<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
     t: F,

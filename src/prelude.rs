@@ -332,7 +332,7 @@ pub fn envelope<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R + Clone,
+    E: Fn(F) -> R,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -353,7 +353,7 @@ pub fn lfo<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R + Clone,
+    E: Fn(F) -> R,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,

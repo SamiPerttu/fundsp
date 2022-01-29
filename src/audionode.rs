@@ -189,7 +189,7 @@ pub trait AudioNode {
 }
 
 /// Pass through inputs unchanged.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Pass<T, N> {
     _marker: PhantomData<(T, N)>,
 }
@@ -228,8 +228,8 @@ impl<T: Float, N: Size<T>> AudioNode for Pass<T, N> {
     }
 }
 
-/// Consume inputs.
-#[derive(Clone, Default)]
+/// Discard inputs.
+#[derive(Default)]
 pub struct Sink<T, N> {
     _marker: PhantomData<(T, N)>,
 }
@@ -263,7 +263,6 @@ impl<T: Float, N: Size<T>> AudioNode for Sink<T, N> {
 }
 
 /// Output a constant value.
-#[derive(Clone)]
 pub struct Constant<T: Float, N: Size<T>> {
     output: Frame<T, N>,
 }
@@ -489,13 +488,13 @@ where
     }
 }
 
-pub trait FrameBinop<T: Float, N: Size<T>>: Clone {
+pub trait FrameBinop<T: Float, N: Size<T>> {
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
     fn propagate(x: Signal, y: Signal) -> Signal;
     /// Do binary op (x op y) in-place.
     fn assign(size: usize, x: &mut [T], y: &[T]);
 }
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct FrameAdd<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
 }
@@ -522,7 +521,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct FrameSub<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
 }
@@ -549,7 +548,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct FrameMul<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
 }
@@ -719,14 +718,14 @@ where
     }
 }
 
-pub trait FrameUnop<T: Float, N: Size<T>>: Clone {
+pub trait FrameUnop<T: Float, N: Size<T>> {
     fn unop(x: &Frame<T, N>) -> Frame<T, N>;
     fn propagate(x: Signal) -> Signal;
     /// Do unary op in-place.
     fn assign(size: usize, x: &mut [T]);
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct FrameNeg<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
 }
@@ -758,7 +757,7 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
 }
 
 /// Identity op.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct FrameId<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
 }
@@ -782,7 +781,6 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameId<T, N> {
 }
 
 /// Apply a unary operation to output of contained node.
-#[derive(Clone)]
 pub struct Unop<T, X, U> {
     _marker: PhantomData<T>,
     x: X,
@@ -1006,7 +1004,6 @@ where
 }
 
 /// Stack `X` and `Y` in parallel.
-#[derive(Clone)]
 pub struct Stack<T, X, Y> {
     _marker: PhantomData<T>,
     x: X,
@@ -1131,7 +1128,6 @@ where
 }
 
 /// Send the same input to `X` and `Y`. Concatenate outputs.
-#[derive(Clone)]
 pub struct Branch<T, X, Y> {
     _marker: PhantomData<T>,
     x: X,
@@ -1558,7 +1554,6 @@ where
 }
 
 /// Stack a bunch of similar nodes in parallel.
-#[derive(Clone)]
 pub struct MultiStack<T, N, X>
 where
     T: Float,
@@ -1826,7 +1821,6 @@ where
 }
 
 /// Branch into a bunch of similar nodes in parallel.
-#[derive(Clone)]
 pub struct MultiBranch<T, N, X>
 where
     T: Float,

@@ -712,7 +712,7 @@ impl<F: Real> SvfMode<F> for HighshelfMode<F> {
 /// Simper SVF.
 /// - Inputs: see descriptions of the filter modes.
 /// - Output 0: filtered audio
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Svf<T, F, M>
 where
     T: Float,
@@ -824,7 +824,7 @@ where
 /// Simper SVF with fixed parameters.
 /// - Input 0: audio
 /// - Output 0: filtered audio
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct FixedSvf<T, F, M>
 where
     T: Float,

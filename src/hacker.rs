@@ -300,7 +300,7 @@ pub fn resonator_hz(
 #[inline]
 pub fn envelope<E, R>(f: E) -> An<Envelope<f64, f64, E, R>>
 where
-    E: Fn(f64) -> R + Clone,
+    E: Fn(f64) -> R,
     R: ConstantFrame<Sample = f64>,
     R::Size: Size<f64>,
 {
@@ -314,7 +314,7 @@ where
 #[inline]
 pub fn lfo<E, R>(f: E) -> An<Envelope<f64, f64, E, R>>
 where
-    E: Fn(f64) -> R + Clone,
+    E: Fn(f64) -> R,
     R: ConstantFrame<Sample = f64>,
     R::Size: Size<f64>,
 {

@@ -6,7 +6,6 @@ use num_complex::Complex64;
 use numeric_array::typenum::*;
 
 /// Single sample delay.
-#[derive(Clone)]
 pub struct Tick<T: Float, N: Size<T>> {
     buffer: Frame<T, N>,
     sample_rate: f64,
@@ -56,7 +55,6 @@ impl<T: Float, N: Size<T>> AudioNode for Tick<T, N> {
 }
 
 /// Fixed delay.
-#[derive(Clone)]
 pub struct Delay<T: Float> {
     buffer: Vec<T>,
     i: usize,

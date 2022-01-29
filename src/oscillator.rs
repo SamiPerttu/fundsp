@@ -6,7 +6,6 @@ use numeric_array::*;
 use std::marker::PhantomData;
 
 /// Sine oscillator.
-#[derive(Clone)]
 pub struct Sine<T: Float> {
     _marker: PhantomData<T>,
     phase: f64,

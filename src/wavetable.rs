@@ -171,7 +171,6 @@ impl Wavetable {
 /// - Input 0: frequency in Hz.
 /// - Output 0: audio.
 /// - Output 1 (optional): phase in 0...1.
-#[derive(Clone)]
 pub struct WaveSynth<'a, T, N>
 where
     T: Float,
@@ -262,7 +261,6 @@ where
 /// - Input 0: phase in 0...1.
 /// - Output 0: audio.
 /// - Output 1 (optional): phase pass-through.
-#[derive(Clone)]
 pub struct PhaseSynth<'a, T, N>
 where
     T: Float,

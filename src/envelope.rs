@@ -7,12 +7,12 @@ use numeric_array::*;
 /// Sample a time varying function.
 /// The return type can be scalar or tuple.
 /// It determines the number of output channels.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R + Clone,
+    E: Fn(F) -> R,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -33,7 +33,7 @@ impl<T, F, E, R> Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R + Clone,
+    E: Fn(F) -> R,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -61,7 +61,7 @@ impl<T, F, E, R> AudioNode for Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R + Clone,
+    E: Fn(F) -> R,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
