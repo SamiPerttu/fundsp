@@ -770,41 +770,6 @@ where
     pub fn gain(&self) -> F {
         self.params.gain
     }
-
-    /// Set filter cutoff in Hz. Synonymous with `set_center`.
-    pub fn set_cutoff(&mut self, cutoff: F) {
-        self.params.cutoff = cutoff;
-        self.mode.update_frequency(&self.params, &mut self.coeffs);
-    }
-
-    /// Set filter center in Hz. Synonymous with `set_cutoff`.
-    pub fn set_center(&mut self, center: F) {
-        self.set_cutoff(center);
-    }
-
-    /// Set filter cutoff in Hz and Q. Synonymous with `set_center_q`.
-    pub fn set_cutoff_q(&mut self, cutoff: F, q: F) {
-        self.params.cutoff = cutoff;
-        self.params.q = q;
-        self.mode.update_frequency(&self.params, &mut self.coeffs);
-    }
-
-    /// Set filter center in Hz and Q. Synonymous with `set_cutoff_q`.
-    pub fn set_center_q(&mut self, center: F, q: F) {
-        self.set_cutoff_q(center, q);
-    }
-
-    /// Set filter Q.
-    pub fn set_q(&mut self, q: F) {
-        self.params.q = q;
-        self.mode.update_q(&self.params, &mut self.coeffs);
-    }
-
-    /// Set filter gain. Only equalizing modes support gain. Other modes ignore it.
-    pub fn set_gain(&mut self, gain: F) {
-        self.params.gain = gain;
-        self.mode.update_gain(&self.params, &mut self.coeffs);
-    }
 }
 
 impl<T, F, M> AudioNode for Svf<T, F, M>
