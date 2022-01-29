@@ -12,6 +12,10 @@ empowers users to accomplish diverse audio processing tasks with ease and elegan
 The custom notation taps into composable, zero-cost abstractions
 that express audio processing networks as [Rust](https://www.rust-lang.org/) types.
 
+Another highlight feature of FunDSP is its ability to analyze signal latencies
+and compose analytic [frequency responses](https://en.wikipedia.org/wiki/Frequency_response)
+for any [linear network](https://en.wikipedia.org/wiki/Linear_filter).
+
 FunDSP comes with a combinator environment containing
 a suite of audio components, math and utility functions and procedural generation tools.
 
@@ -341,7 +345,8 @@ Some signals found flowing in audio networks.
 FunDSP features a comprehensive signal flow system that analyzes
 causal latencies and frequency responses in audio networks.
 
-The system can calculate the frequency response of any *[linear network](https://en.wikipedia.org/wiki/Linear_filter)*
+The system can calculate the [frequency response](https://en.wikipedia.org/wiki/Frequency_response)
+of any *[linear network](https://en.wikipedia.org/wiki/Linear_filter)*
 analytically by composing [transfer functions](https://en.wikipedia.org/wiki/Transfer_function#Linear_time-invariant_systems)
 and folding constants. Linear networks are constructed from filters, delays, and the operations of:
 
@@ -446,6 +451,8 @@ These free functions are available in the environment.
 
 The type parameters in the table refer to the hacker prelude.
 
+`M`, `N`, `U` are type-level integers. They are `U0`, `U1`, `U2`...
+
 ---
 
 | Function               | Inputs  | Outputs | Explanation                                    |
@@ -542,9 +549,6 @@ The type parameters in the table refer to the hacker prelude.
 | `triangle_hz(f)`       |    -    |    1    | Triangle wave oscillator at `f` Hz. |
 | `white()`              |    -    |    1    | White noise source. Synonymous with `noise`. |
 | `zero()`               |    -    |    1    | Zero signal. |
-
-
-`M`, `N`, `U` are type-level integers. They are `U0`, `U1`, `U2`...
 
 #### Subsampled Controls
 
