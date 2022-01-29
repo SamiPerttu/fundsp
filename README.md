@@ -12,8 +12,8 @@ empowers users to accomplish diverse audio processing tasks with ease and elegan
 The custom notation taps into composable, zero-cost abstractions
 that express audio processing networks as [Rust](https://www.rust-lang.org/) types.
 
-Another highlight feature of FunDSP is its ability to analyze signal latencies
-and compose analytic [frequency responses](https://en.wikipedia.org/wiki/Frequency_response)
+Another innovative feature of FunDSP is its signal flow system, which can analyze signal latencies
+and determine analytic [frequency responses](https://en.wikipedia.org/wiki/Frequency_response)
 for any [linear network](https://en.wikipedia.org/wiki/Linear_filter).
 
 FunDSP comes with a combinator environment containing
@@ -282,7 +282,6 @@ Both `A + B` and `A & B` are mixing operators. The difference between the two is
 `A` and `B` have their own, disjoint inputs, which are combined at the output.
 In `A & B`, both components source from the same inputs, and the number of inputs must match.
 
-
 #### Stack
 
 The stack ( `|` ) operator builds composite components.
@@ -405,7 +404,7 @@ Verified frequency responses are available for all filters.
 ### Parametric Equalizer Recipe
 
 In this example we make a 12-band, double precision parametric equalizer
-using the `bell` filter.
+using the peaking `bell` filter.
 
 First, declare the processing pipeline.
 Here we space the bands at 1 kHz increments starting from 1 kHz, set Q values to 1.0
@@ -497,7 +496,7 @@ The type parameters in the table refer to the hacker prelude.
 | `join::<U>()`          |   `U`   |    1    | Average together `U` channels. Inverse of `split`. |
 | `lfo(f)`               |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
 | `limiter((a, r))`      |    1    |    1    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
-| `limiter_stereo((a, r))`|   2    |    2    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
+| `limiter_stereo((a, r))`|   2    |    2    | Stereo look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
 | `lowpass_hz(f, q)`     |    1    |    1    | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `lowpass_q(q)`         | 2 (audio, frequency) | 1 | Lowpass filter (2nd order) with Q `q`. |
@@ -513,7 +512,7 @@ The type parameters in the table refer to the hacker prelude.
 | `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
 | `multisink::<U>()`     |   `U`   |    -    | Consumes multichannel signal. |
 | `multisplit::<M, N>()` |   `M`   | `M * N` | Splits `M` channels into `N` branches. |
-| `multitick::<N>()`     |   `N`   |   `N`   | Multichannel single sample delay. |
+| `multitick::<U>()`     |   `U`   |   `U`   | Multichannel single sample delay. |
 | `multizero::<U>()`     |    -    |   `U`   | Multichannel zero signal. |
 | `noise()`              |    -    |    1    | White noise source. Synonymous with `white`. |
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
@@ -530,23 +529,23 @@ The type parameters in the table refer to the hacker prelude.
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `reverb_stereo(wet, t)`|    2    |    2    | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
-| `saw()`                | 1 (pitch) |  1    | Saw wave oscillator. |
-| `saw_hz(f)`            |    -    |    1    | Saw wave oscillator at `f` Hz. |
+| `saw()`                | 1 (pitch) |  1    | Bandlimited saw wave oscillator. |
+| `saw_hz(f)`            |    -    |    1    | Bandlimited Saw wave oscillator at `f` Hz. |
 | `shape(f)`             |    1    |    1    | Shape signal with waveshaper `f`, e.g., `tanh`. |
 | `sine()`               | 1 (pitch) |  1    | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
 | `sink()`               |    1    |    -    | Consumes signal. |
 | `split::<U>()`         |    1    |   `U`   | Split signal into `U` channels. |
-| `square()`             | 1 (pitch) |  1    | Square wave oscillator. |
-| `square_hz(f)`         |    -    |    1    | Square wave oscillator at frequency `f` Hz. |
+| `square()`             | 1 (pitch) |  1    | Bandlimited square wave oscillator. |
+| `square_hz(f)`         |    -    |    1    | Bandlimited square wave oscillator at frequency `f` Hz. |
 | `stack::<U, _, _>(f)`  | `U * f` | `U * f` | Stack `U` nodes from indexed generator `f`. |
 | `stackf::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `sub(x)`               |   `x`   |   `x`   | Subtracts constant `x` from signal. |
 | `sum::<U, _, _>(f)`    | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `tick()`               |    1    |    1    | Single sample delay. |
-| `triangle()`           | 1 (pitch) |  1    | Triangle wave oscillator. |
-| `triangle_hz(f)`       |    -    |    1    | Triangle wave oscillator at `f` Hz. |
+| `triangle()`           | 1 (pitch) |  1    | Bandlimited triangle wave oscillator. |
+| `triangle_hz(f)`       |    -    |    1    | Bandlimited triangle wave oscillator at `f` Hz. |
 | `white()`              |    -    |    1    | White noise source. Synonymous with `noise`. |
 | `zero()`               |    -    |    1    | Zero signal. |
 
@@ -798,7 +797,6 @@ shall be dual licensed as above, without any additional terms or conditions.
 
 ## Next Steps
 
-- Implement block processing for the `AudioNode` system.
 - Implement the dynamic `AudioUnit` system. Complex graph expressions can get cumbersome,
   so we'd like to have an explicit graph interface there for adding units to a graph and connecting them.
 
