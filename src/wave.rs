@@ -46,6 +46,11 @@ impl<F: Float> Wave<F> {
         self.sr
     }
 
+    /// Set the sample rate.
+    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sr = sample_rate;
+    }
+
     /// Number of channels in this wave.
     pub fn channels(&self) -> usize {
         self.vec.len()
@@ -56,12 +61,17 @@ impl<F: Float> Wave<F> {
         &self.vec[channel]
     }
 
+    /// Returns a mutable reference to the requested channel.
+    pub fn channel_mut(&mut self, channel: usize) -> &mut Vec<F> {
+        &mut self.vec[channel]
+    }
+
     /// Sample accessor.
     pub fn at(&self, channel: usize, index: usize) -> F {
         self.vec[channel][index]
     }
 
-    /// Sets sample to value.
+    /// Set sample to value.
     pub fn set(&mut self, channel: usize, index: usize, value: F) {
         self.vec[channel][index] = value;
     }
@@ -86,10 +96,10 @@ impl<F: Float> Wave<F> {
     }
 
     /// Render wave from a generator `node`.
-    /// Does not reset `node` or remove pre-delay.
-    pub fn render<T>(sample_rate: f64, duration: f64, node: &mut An<T>) -> Self
+    /// Does not reset `node` or set its sample rate or discard pre-delay.
+    pub fn render<X>(sample_rate: f64, duration: f64, node: &mut An<X>) -> Self
     where
-        T: AudioNode<Sample = F>,
+        X: AudioNode<Sample = F>,
     {
         assert!(node.inputs() == 0);
         assert!(node.outputs() > 0);
@@ -111,23 +121,26 @@ impl<F: Float> Wave<F> {
     }
 
     /// Filter this wave with `node` and return the resulting wave.
-    // TODO. What about pre-delay. Maybe make another filter method that discards pre-delay.
-    // TODO. What about reseting the node and setting the sample rate?
-    pub fn filter<T>(&self, node: &mut An<T>) -> Self
+    /// Does not reset `node` or set its sample rate or discard pre-delay.
+    /// Zero input is used for the rest of the wave if
+    /// the duration is greater than the duration of this wave.
+    pub fn filter<X>(&self, duration: f64, node: &mut An<X>) -> Self
     where
-        T: AudioNode<Sample = F>,
+        X: AudioNode<Sample = F>,
     {
         assert!(node.inputs() == self.channels());
         assert!(node.outputs() > 0);
-        let length = self.length();
-        let mut wave = Wave::<F>::with_capacity(node.outputs(), self.sample_rate(), length);
+        let total_length = round(duration * self.sample_rate()) as usize;
+        let input_length = min(total_length, self.length());
+        let mut wave = Wave::<F>::with_capacity(node.outputs(), self.sample_rate(), total_length);
         let mut i = 0;
         let mut input_buffer = Wave::<F>::new(self.channels(), self.sample_rate());
         let mut reusable_input_slice = Slice::<[F]>::with_capacity(self.channels());
         let mut output_buffer = Wave::<F>::new(node.outputs(), self.sample_rate());
         let mut reusable_output_slice = Slice::<[F]>::with_capacity(node.outputs());
-        while i < length {
-            let n = min(length - i, MAX_BUFFER_SIZE);
+        // Filter from this wave.
+        while i < input_length {
+            let n = min(input_length - i, MAX_BUFFER_SIZE);
             input_buffer.resize(n);
             output_buffer.resize(n);
             for channel in 0..self.channels() {
@@ -144,6 +157,29 @@ impl<F: Float> Wave<F> {
                 wave.vec[channel].extend_from_slice(&output_buffer.vec[channel][..]);
             }
             i += n;
+        }
+        // Filter the rest from a zero input.
+        if i < total_length {
+            input_buffer.resize(MAX_BUFFER_SIZE);
+            for channel in 0..self.channels() {
+                for j in 0..MAX_BUFFER_SIZE {
+                    input_buffer.set(channel, j, F::zero());
+                }
+            }
+            while i < total_length {
+                let n = min(total_length - i, MAX_BUFFER_SIZE);
+                input_buffer.resize(n);
+                output_buffer.resize(n);
+                node.process(
+                    n,
+                    reusable_input_slice.from_refs(&input_buffer.vec),
+                    reusable_output_slice.from_muts(&mut output_buffer.vec),
+                );
+                for channel in 0..node.outputs() {
+                    wave.vec[channel].extend_from_slice(&output_buffer.vec[channel][..]);
+                }
+                i += n;
+            }
         }
         wave
     }

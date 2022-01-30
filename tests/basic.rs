@@ -34,6 +34,27 @@ where
     }
 }
 
+/// Check that the stereo filter given is rendered identically
+/// via `process` (block processing) and `tick` (single sample processing).
+/// Also check that the generator is reset properly.
+fn check_wave_filter<X>(input: Wave<f64>, mut node: An<X>)
+where
+    X: AudioNode<Sample = f64, Inputs = U2, Outputs = U2>,
+{
+    let wave = input.filter(1.1, &mut node);
+    assert!(wave.channels() == 2);
+    assert!(wave.length() == 44100 + 4410);
+    node.reset(None);
+    for i in 0..44100 {
+        let (tick_x, tick_y) = node.filter_stereo(input.at(0, i), input.at(1, i));
+        let process_x = wave.at(0, i);
+        let process_y = wave.at(1, i);
+        let tolerance = 1.0e-9;
+        assert!(tick_x - tolerance <= process_x && tick_x + tolerance >= process_x);
+        assert!(tick_y - tolerance <= process_y && tick_y + tolerance >= process_y);
+    }
+}
+
 /// New nodes can be defined with the following return signature.
 /// Declaring the full arity in the signature enables use of the node
 /// in further combinations, as does the full type name.
@@ -159,6 +180,10 @@ fn test_basic() {
         dc((440.0, 880.0)) >> multisplit::<U2, U5>() >> sum::<U10, _, _>(|_| sine()) | noise(),
     );
     check_wave(noise() >> delay(0.1) | noise() >> delay(0.01));
+
+    // Wave filtering, tick vs. process rendering, node reseting.
+    let input = Wave::render(44100.0, 1.0, &mut (noise() | noise()));
+    check_wave_filter(input, butterpass_hz(1000.0) | lowpole_hz(100.0));
 
     // Constants.
     let mut d = constant(1.0);

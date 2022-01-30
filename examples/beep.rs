@@ -111,8 +111,8 @@ where
         //>> (declick() | declick())
         //>> (dcblock() | dcblock())
         >> split::<U2>()
-        >> reverb_stereo(0.2, 10.0)
-        >> limiter_stereo((0.5, 10.0));
+        >> reverb_stereo(0.2, 5.0)
+        >> limiter_stereo((1.0, 10.0));
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));
 
