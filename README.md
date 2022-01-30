@@ -12,8 +12,8 @@ empowers users to accomplish diverse audio processing tasks with ease and elegan
 The custom notation taps into composable, zero-cost abstractions
 that express audio processing networks as [Rust](https://www.rust-lang.org/) types.
 
-Another innovative feature of FunDSP is its signal flow system, which can analyze signal latencies
-and determine analytic [frequency responses](https://en.wikipedia.org/wiki/Frequency_response)
+Another innovative feature of FunDSP is its signal flow system, which can
+determine analytic [frequency responses](https://en.wikipedia.org/wiki/Frequency_response)
 for any [linear network](https://en.wikipedia.org/wiki/Linear_filter).
 
 FunDSP comes with a combinator environment containing
