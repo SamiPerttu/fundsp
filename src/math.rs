@@ -45,7 +45,7 @@ pub fn exp<T: Real>(x: T) -> T {
 }
 #[inline]
 pub fn exp2<T: Real>(x: T) -> T {
-    (x * T::from_f64(LN_2)).exp()
+    x.exp2()
 }
 #[inline]
 pub fn exp10<T: Real>(x: T) -> T {
@@ -57,11 +57,11 @@ pub fn log<T: Real>(x: T) -> T {
 }
 #[inline]
 pub fn log2<T: Real>(x: T) -> T {
-    x.log() / T::from_f64(LN_2)
+    x.log2()
 }
 #[inline]
 pub fn log10<T: Real>(x: T) -> T {
-    x.log() / T::from_f64(LN_10)
+    x.log10()
 }
 #[inline]
 pub fn sin<T: Real>(x: T) -> T {
@@ -82,8 +82,6 @@ pub fn tanh<T: Real>(x: T) -> T {
 
 /// sqrt(2)
 pub const SQRT_2: f64 = std::f64::consts::SQRT_2;
-/// e (Euler's constant)
-pub const E: f64 = std::f64::consts::E;
 /// pi
 pub const PI: f64 = std::f64::consts::PI;
 /// tau = 2 * pi
@@ -185,20 +183,6 @@ pub fn xerp11<U: Lerp<T> + Real, T: Num>(a: U, b: U, t: T) -> U {
     ))
 }
 
-/// Return a dissonance amount between pure tones at `f0` and `f1` Hz.
-/// Dissonance amounts range between 0 and 1.
-#[inline]
-pub fn dissonance<T: Real>(f0: T, f1: T) -> T {
-    let q = abs(f0 - f1) / (T::from_f64(0.021) * min(f0, f1) + T::from_f64(19.0));
-    T::from_f64(5.531753) * (exp(T::from_f64(-0.84) * q) - exp(T::from_f64(-1.38) * q))
-}
-
-/// Return the maximally dissonant pure frequency above `f` Hz.
-#[inline]
-pub fn dissonance_max<T: Num>(f: T) -> T {
-    T::from_f64(1.0193) * f + T::from_f64(17.4672)
-}
-
 /// Exponential de-interpolation. `a`, `b`, `x` > 0.
 /// Recovers `t` from interpolated `x`.
 #[inline]
@@ -211,6 +195,20 @@ pub fn dexerp<T: Real>(a: T, b: T, x: T) -> T {
 #[inline]
 pub fn dexerp11<T: Real>(a: T, b: T, x: T) -> T {
     log(x / a) / log(b / a) * T::new(2) - T::new(1)
+}
+
+/// Return a dissonance amount between pure tones at `f0` and `f1` Hz.
+/// Dissonance amounts range between 0 and 1.
+#[inline]
+pub fn dissonance<T: Real>(f0: T, f1: T) -> T {
+    let q = abs(f0 - f1) / (T::from_f64(0.021) * min(f0, f1) + T::from_f64(19.0));
+    T::from_f64(5.531753) * (exp(T::from_f64(-0.84) * q) - exp(T::from_f64(-1.38) * q))
+}
+
+/// Return the maximally dissonant pure frequency above `f` Hz.
+#[inline]
+pub fn dissonance_max<T: Num>(f: T) -> T {
+    T::from_f64(1.0193) * f + T::from_f64(17.4672)
 }
 
 /// Convert decibels to gain. 0 dB = 1.0.
@@ -377,7 +375,7 @@ pub fn semitone<T: Real>(x: T) -> T {
 }
 
 /// SplitMix hash as an indexed RNG.
-/// Returns pseudorandom f64 in right exclusive range 0...1.
+/// Returns pseudorandom f64 in 0...1.
 #[inline]
 pub fn rnd(x: i64) -> f64 {
     let x = (x as u64).wrapping_mul(0x9e3779b97f4a7c15);
@@ -401,12 +399,12 @@ pub fn bpm_hz<T: Real>(bpm: T) -> T {
     bpm / T::new(60)
 }
 
+/// Pico sized RNG.
 #[derive(Default, Clone)]
 pub struct AttoRand {
     state: u64,
 }
 
-/// Pico sized RNG.
 impl AttoRand {
     /// Create new `AttoRand` from seed.
     #[inline]

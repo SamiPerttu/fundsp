@@ -103,8 +103,8 @@ where
     }) >> triangle();*/
 
     // Waveshapers.
-    //let c = c >> shape(steps(10.0, sigmoid(0.5)));
-    //let c = c >> shape(|x| tanh(x * 10.0));
+    //let c = c >> shape_fn(steps(10.0, sigmoid(0.5)));
+    //let c = c >> shape_fn(|x| tanh(x * 10.0));
 
     let mut c = c
         >> declick() >> dcblock()

@@ -144,8 +144,8 @@ where
         output
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = self.x.propagate(input, frequency);
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = self.x.route(input, frequency);
         for i in 0..N::USIZE {
             output[i] = input[i].distort(0.0);
         }

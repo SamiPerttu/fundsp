@@ -213,7 +213,7 @@ where
         }
     }
 
-    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             // We pretend that the limiter does not alter the frequency response.
@@ -307,7 +307,7 @@ impl<T: Float, F: Real> AudioNode for Goertzel<T, F> {
         [convert(self.filter.power())].into()
     }
 
-    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].combine_nonlinear(input[1], 0.0);
         output
@@ -365,7 +365,7 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
         }
     }
 
-    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         // We pretend that the declicker does not alter frequency response.
         output[0] = input[0];

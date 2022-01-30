@@ -422,20 +422,38 @@ pub fn dcblock() -> An<DCBlock<f64, f64>> {
     dcblock_hz(10.0)
 }
 
+/// Apply 10 ms of fade-in to signal at time zero.
 #[inline]
 pub fn declick() -> An<Declick<f64, f64>> {
-    An(Declick::new(DEFAULT_SR, 0.010))
+    super::prelude::declick()
 }
 
+/// Apply `t` seconds of fade-in to signal at time zero.
 #[inline]
 pub fn declick_s(t: f64) -> An<Declick<f64, f64>> {
-    An(Declick::new(DEFAULT_SR, t))
+    super::prelude::declick_s(t)
 }
 
-/// Shape signal with a waveshaper.
+/// Shape signal with a waveshaper function.
 #[inline]
-pub fn shape<S: Fn(f64) -> f64>(f: S) -> An<Shaper<f64, S>> {
-    An(Shaper::new(f))
+pub fn shape_fn<S: Fn(f64) -> f64>(f: S) -> An<ShaperFn<f64, S>> {
+    super::prelude::shape_fn(f)
+}
+
+/// Shape signal.
+#[inline]
+pub fn shape(mode: Shape<f64>) -> An<Shaper<f64>> {
+    super::prelude::shape(mode)
+}
+
+/// Clip signal to -1...1.
+pub fn clip() -> An<Shaper<f64>> {
+    super::prelude::clip()
+}
+
+/// Clip signal to min...max.
+pub fn clip_to(minimum: f64, maximum: f64) -> An<Shaper<f64>> {
+    super::prelude::clip_to(minimum, maximum)
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.

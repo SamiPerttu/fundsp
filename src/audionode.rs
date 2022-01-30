@@ -1,4 +1,4 @@
-//! `AudioNode` abstraction and central components.
+//! The central `AudioNode` abstraction and basic components.
 
 use super::buffer::*;
 use super::math::*;
@@ -79,10 +79,10 @@ pub trait AudioNode {
         hash.hash(Self::ID)
     }
 
-    /// Propagate constants, latencies and frequency responses at `frequency` Hz
+    /// Route constants, latencies and frequency responses at `frequency` Hz
     /// from inputs to outputs. Return output signal.
     /// Default implementation marks all outputs unknown.
-    fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         new_signal_frame(self.outputs())
     }
 
@@ -97,7 +97,7 @@ pub trait AudioNode {
         for i in 0..Self::Inputs::USIZE {
             input[i] = Signal::Response(Complex64::new(1.0, 0.0), 0.0);
         }
-        let response = self.propagate(&input, frequency);
+        let response = self.route(&input, frequency);
         match response[output] {
             Signal::Response(rx, _) => Some(rx),
             _ => None,
@@ -123,8 +123,9 @@ pub trait AudioNode {
         for i in 0..Self::Inputs::USIZE {
             input[i] = Signal::Latency(0.0);
         }
-        // The frequency argument can be anything as there are no responses to propagate, only latencies.
-        let response = self.propagate(&input, 1.0);
+        // The frequency argument can be anything as there are no responses to propagate,
+        // only latencies. Latencies are never promoted to responses during signal routing.
+        let response = self.route(&input, 1.0);
         // Return the minimum latency.
         let mut result: Option<f64> = None;
         for output in 0..self.outputs() {
@@ -225,7 +226,7 @@ impl<T: Float, N: Size<T>> AudioNode for Pass<T, N> {
             output[i][..size].clone_from_slice(&input[i][..size]);
         }
     }
-    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         input.clone()
     }
 }
@@ -298,7 +299,7 @@ impl<T: Float, N: Size<T>> AudioNode for Constant<T, N> {
             output[i][..size].fill(self.output[i]);
         }
     }
-    fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             output[i] = Signal::Value(self.output[i].to_f64());
@@ -344,7 +345,7 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         Frame::splat(input[0])
     }
-    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Split.propagate(input, self.outputs())
     }
 }
@@ -388,7 +389,7 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         Frame::generate(|i| input[i % M::USIZE])
     }
-    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Split.propagate(input, self.outputs())
     }
 }
@@ -433,7 +434,7 @@ where
         [output / T::new(N::I64)].into()
     }
 
-    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Join.propagate(input, self.outputs())
     }
 }
@@ -485,7 +486,7 @@ where
         })
     }
 
-    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Join.propagate(input, self.outputs())
     }
 }
@@ -707,9 +708,9 @@ where
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut signal_x = self.x.propagate(input, frequency);
-        let signal_y = self.y.propagate(
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut signal_x = self.x.route(input, frequency);
+        let signal_y = self.y.route(
             &copy_signal_frame(input, X::Inputs::USIZE, Y::Inputs::USIZE),
             frequency,
         );
@@ -849,8 +850,8 @@ where
         self.x.ping(probe, hash.hash(Self::ID))
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut signal_x = self.x.propagate(input, frequency);
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut signal_x = self.x.route(input, frequency);
         for i in 0..Self::Outputs::USIZE {
             signal_x[i] = U::propagate(signal_x[i]);
         }
@@ -901,7 +902,7 @@ where
         (self.f)(input)
     }
 
-    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         self.routing.propagate(input, O::USIZE)
     }
 }
@@ -999,9 +1000,8 @@ where
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        self.y
-            .propagate(&self.x.propagate(input, frequency), frequency)
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.y.route(&self.x.route(input, frequency), frequency)
     }
 }
 
@@ -1116,9 +1116,9 @@ where
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut signal_x = self.x.propagate(input, frequency);
-        let signal_y = self.y.propagate(
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut signal_x = self.x.route(input, frequency);
+        let signal_y = self.y.route(
             &copy_signal_frame(input, X::Inputs::USIZE, Y::Inputs::USIZE),
             frequency,
         );
@@ -1228,9 +1228,9 @@ where
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut signal_x = self.x.propagate(input, frequency);
-        let signal_y = self.y.propagate(input, frequency);
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut signal_x = self.x.route(input, frequency);
+        let signal_y = self.y.route(input, frequency);
         signal_x.resize(self.outputs(), Signal::Unknown);
         signal_x[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
@@ -1342,9 +1342,9 @@ where
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut signal_x = self.x.propagate(input, frequency);
-        let signal_y = self.y.propagate(input, frequency);
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut signal_x = self.x.route(input, frequency);
+        let signal_y = self.y.route(input, frequency);
         for i in 0..Self::Outputs::USIZE {
             signal_x[i] = signal_x[i].combine_linear(signal_y[i], 0.0, |x, y| x + y, |x, y| x + y);
         }
@@ -1428,8 +1428,8 @@ impl<X: AudioNode> AudioNode for Thru<X> {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = self.x.propagate(input, frequency);
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = self.x.route(input, frequency);
         output[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&input[X::Outputs::USIZE..Self::Outputs::USIZE]);
         output
@@ -1535,13 +1535,13 @@ where
         hash
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
             return new_signal_frame(self.outputs());
         }
-        let mut output = self.x[0].propagate(input, frequency);
+        let mut output = self.x[0].route(input, frequency);
         for i in 1..self.x.len() {
-            let output_i = self.x[i].propagate(input, frequency);
+            let output_i = self.x[i].route(input, frequency);
             for channel in 0..Self::Outputs::USIZE {
                 output[channel] = output[channel].combine_linear(
                     output_i[channel],
@@ -1665,14 +1665,14 @@ where
         hash
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
             return new_signal_frame(self.outputs());
         }
-        let mut output = self.x[0].propagate(input, frequency);
+        let mut output = self.x[0].route(input, frequency);
         output.resize(self.outputs(), Signal::Unknown);
         for i in 1..N::USIZE {
-            let output_i = self.x[i].propagate(
+            let output_i = self.x[i].route(
                 &copy_signal_frame(input, i * X::Inputs::USIZE, X::Inputs::USIZE),
                 frequency,
             );
@@ -1804,13 +1804,13 @@ where
         hash
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
             return new_signal_frame(self.outputs());
         }
-        let mut output = self.x[0].propagate(input, frequency);
+        let mut output = self.x[0].route(input, frequency);
         for j in 1..self.x.len() {
-            let output_j = self.x[j].propagate(
+            let output_j = self.x[j].route(
                 &copy_signal_frame(input, j * X::Inputs::USIZE, X::Inputs::USIZE),
                 frequency,
             );
@@ -1921,14 +1921,14 @@ where
         hash
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
             return new_signal_frame(self.outputs());
         }
-        let mut output = self.x[0].propagate(input, frequency);
+        let mut output = self.x[0].route(input, frequency);
         output.resize(self.outputs(), Signal::Unknown);
         for i in 1..N::USIZE {
-            let output_i = self.x[i].propagate(input, frequency);
+            let output_i = self.x[i].route(input, frequency);
             output[i * X::Outputs::USIZE..(i + 1) * X::Outputs::USIZE]
                 .copy_from_slice(&output_i[0..X::Outputs::USIZE]);
         }
@@ -2063,10 +2063,10 @@ where
         hash
     }
 
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = self.x[0].propagate(input, frequency);
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = self.x[0].route(input, frequency);
         for i in 1..self.x.len() {
-            output = self.x[i].propagate(&output, frequency);
+            output = self.x[i].route(&output, frequency);
         }
         output
     }

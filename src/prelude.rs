@@ -464,20 +464,38 @@ pub fn dcblock<T: Float, F: Real>() -> An<DCBlock<T, F>> {
     An(DCBlock::new(DEFAULT_SR, F::new(10)))
 }
 
+/// Apply 10 ms of fade-in to signal at time zero.
 #[inline]
 pub fn declick<T: Float, F: Real>() -> An<Declick<T, F>> {
     An(Declick::new(DEFAULT_SR, F::from_f64(0.010)))
 }
 
+/// Apply `t` seconds of fade-in to signal at time zero.
 #[inline]
 pub fn declick_s<T: Float, F: Real>(t: F) -> An<Declick<T, F>> {
     An(Declick::new(DEFAULT_SR, t))
 }
 
-/// Shape signal with a waveshaper.
+/// Shape signal with a waveshaper function.
 #[inline]
-pub fn shape<T: Float, S: Fn(T) -> T>(f: S) -> An<Shaper<T, S>> {
-    An(Shaper::new(f))
+pub fn shape_fn<T: Float, S: Fn(T) -> T>(f: S) -> An<ShaperFn<T, S>> {
+    An(ShaperFn::new(f))
+}
+
+/// Shape signal.
+#[inline]
+pub fn shape<T: Real>(mode: Shape<T>) -> An<Shaper<T>> {
+    An(Shaper::new(mode))
+}
+
+/// Clip signal to -1...1.
+pub fn clip<T: Real>() -> An<Shaper<T>> {
+    An(Shaper::<T>::new(Shape::Clip))
+}
+
+/// Clip signal to min...max.
+pub fn clip_to<T: Real>(minimum: T, maximum: T) -> An<Shaper<T>> {
+    An(Shaper::<T>::new(Shape::ClipTo(minimum, maximum)))
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.

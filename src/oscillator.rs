@@ -55,7 +55,7 @@ impl<T: Float> AudioNode for Sine<T> {
         self.reset(None);
     }
 
-    fn propagate(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].distort(0.0);
         output

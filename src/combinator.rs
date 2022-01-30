@@ -1,4 +1,4 @@
-//! `AudioNode` wrapper and operators.
+//! `AudioNode` wrapper `An` and operators, methods and traits.
 
 use super::audionode::*;
 use super::math::*;

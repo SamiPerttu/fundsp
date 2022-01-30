@@ -473,6 +473,8 @@ The type parameters in the table refer to the hacker prelude.
 | `busf::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from fractional generator `f`. |
 | `butterpass()`         | 2 (audio, frequency) | 1 | Butterworth lowpass filter (2nd order). |
 | `butterpass_hz(f)`     |    1    |    1    | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
+| `clip()`               |    1    |    1    | Clip signal to -1...1. |
+| `clip_to(min, max)`    |    1    |    1    | Clip signal to min...max. |
 | `constant(x)`          |    -    |   `x`   | Constant signal `x`. Synonymous with `dc`. |
 | `dc(x)`                |    -    |   `x`   | Constant signal `x`. Synonymous with `constant`. |
 | `dcblock()`            |    1    |    1    | Zero centers signal with cutoff frequency 10 Hz. |
@@ -531,7 +533,8 @@ The type parameters in the table refer to the hacker prelude.
 | `reverb_stereo(wet, t)`|    2    |    2    | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
 | `saw()`                | 1 (pitch) |  1    | Bandlimited saw wave oscillator. |
 | `saw_hz(f)`            |    -    |    1    | Bandlimited Saw wave oscillator at `f` Hz. |
-| `shape(f)`             |    1    |    1    | Shape signal with waveshaper `f`, e.g., `tanh`. |
+| `shape(mode)`          |    1    |    1    | Shape signal with waveshaper `mode`, e.g., `Shape::Tanh`. |
+| `shape_fn(f)`          |    1    |    1    | Shape signal with waveshaper function `f`, e.g., `tanh`. |
 | `sine()`               | 1 (pitch) |  1    | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
 | `sink()`               |    1    |    -    | Consumes signal. |
@@ -827,4 +830,3 @@ shall be dual licensed as above, without any additional terms or conditions.
 - `feedback_delay(delay, circuit)`. Feedback with explicit delay that enables block processing.
 - `melody(f, string)`: melody generator.
 - 1st order filters `highpole` and `allpole`.
-- Hard clipping as `clip`, `clip_to(min, max)`.

@@ -28,9 +28,9 @@ pub trait AudioUnit {
     /// This should be fixed after construction.
     fn outputs(&self) -> usize;
 
-    /// Propagate constants, latencies and frequency responses at `frequency`.
-    /// Return output signal.
-    fn propagate(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame;
+    /// Route constants, latencies and frequency responses at `frequency` Hz
+    /// from inputs to outputs. Return output signal.
+    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame;
 
     // End of interface. No need to override the following.
 }
@@ -57,8 +57,8 @@ where
     fn outputs(&self) -> usize {
         self.0.outputs()
     }
-    fn propagate(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        self.0.propagate(input, frequency)
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.0.route(input, frequency)
     }
 }
 

@@ -199,7 +199,10 @@ pub fn convert<T: Float, U: Float>(x: T) -> U {
 pub trait Real: Num + Float {
     fn sqrt(self) -> Self;
     fn exp(self) -> Self;
+    fn exp2(self) -> Self;
     fn log(self) -> Self;
+    fn log2(self) -> Self;
+    fn log10(self) -> Self;
     fn sin(self) -> Self;
     fn cos(self) -> Self;
     fn tan(self) -> Self;
@@ -211,7 +214,10 @@ macro_rules! impl_real {
     $( impl Real for $t {
         #[inline] fn sqrt(self) -> Self { self.sqrt() }
         #[inline] fn exp(self) -> Self { self.exp() }
+        #[inline] fn exp2(self) -> Self { self.exp2() }
         #[inline] fn log(self) -> Self { self.ln() }
+        #[inline] fn log2(self) -> Self { self.log2() }
+        #[inline] fn log10(self) -> Self { self.log10() }
         #[inline] fn sin(self) -> Self { self.sin() }
         #[inline] fn cos(self) -> Self { self.cos() }
         #[inline] fn tan(self) -> Self { <$t>::tan(self) }
