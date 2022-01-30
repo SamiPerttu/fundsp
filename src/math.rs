@@ -378,11 +378,24 @@ pub fn semitone<T: Real>(x: T) -> T {
 /// Returns pseudorandom f64 in 0...1.
 #[inline]
 pub fn rnd(x: i64) -> f64 {
-    let x = (x as u64).wrapping_mul(0x9e3779b97f4a7c15);
+    let x = x as u64 ^ 0x5555555555555555;
+    let x = x.wrapping_mul(0x9e3779b97f4a7c15);
     let x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
     let x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
     let x = x ^ (x >> 31);
     (x >> 11) as f64 / (1u64 << 53) as f64
+}
+
+/// 64-bit hash function.
+/// This hash is a pseudorandom permutation.
+#[inline]
+pub fn hash(x: i64) -> i64 {
+    let x = x as u64 ^ 0x5555555555555555;
+    let x = x.wrapping_mul(0x517cc1b727220a95);
+    // Following hash is by degsky.
+    let x = (x ^ (x >> 32)).wrapping_mul(0xd6e8feb86659fd93);
+    let x = (x ^ (x >> 32)).wrapping_mul(0xd6e8feb86659fd93);
+    (x ^ (x >> 32)) as i64
 }
 
 /// Convert MIDI note number to frequency in Hz. Returns 440 Hz for A_4 (note number 69).
@@ -409,7 +422,9 @@ impl AttoRand {
     /// Create new `AttoRand` from seed.
     #[inline]
     pub fn new(seed: u64) -> AttoRand {
-        AttoRand { state: seed }
+        AttoRand {
+            state: seed ^ 0x5555555555555555,
+        }
     }
     /// Hashes `data`. Consumes self and returns a new `AttoRand`.
     #[inline]

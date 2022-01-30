@@ -4,7 +4,8 @@
     clippy::float_cmp,
     clippy::len_zero,
     clippy::double_neg,
-    clippy::many_single_char_names
+    clippy::many_single_char_names,
+    clippy::manual_range_contains
 )]
 #![allow(dead_code)]
 
@@ -95,6 +96,38 @@ where
 
 #[test]
 fn test_basic() {
+    // Sanity test AttoRand.
+    let mut random = AttoRand::new(0);
+    let mut minimum = 0.0;
+    let mut maximum = 0.0;
+    let mut average = 0.0;
+    let mut deviation = 0.0;
+    let mut variance = 0.0;
+    let n = 10000000;
+    for i in 0..n {
+        let x = match i % 2 {
+            0 => random.get11(),
+            _ => random.get01::<f64>() * 2.0 - 1.0,
+        };
+        minimum = min(minimum, x);
+        maximum = max(maximum, x);
+        average += x;
+        deviation += abs(x);
+        variance += squared(x);
+    }
+    average /= n as f64;
+    deviation /= n as f64;
+    variance /= n as f64;
+
+    //println!(
+    //    "min = {minimum}, max = {maximum}, avg = {average}, dev = {deviation}, var = {variance}"
+    //);
+
+    assert!(average >= -0.0002 && average <= 0.0002);
+    assert!(minimum <= -0.999999 && maximum >= 0.999999);
+    assert!(deviation >= 0.499 && deviation <= 0.501);
+    assert!(variance >= 0.333 && variance <= 0.334);
+
     let mut rnd = AttoRand::new(0);
 
     // Wave rendering, tick vs. process rendering, node reseting.

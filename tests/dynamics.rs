@@ -36,7 +36,7 @@ fn test_dynamics() {
 
     // Test limiter.
     for _ in 0..20 {
-        let samples = round(xerp(1.0, 100_000.0, rnd.get01::<f64>())) as usize;
+        let samples = round(xerp(2.0, 200_000.0, rnd.get01::<f64>())) as usize;
         let sample_rate = 32768.0;
         let mut x = limiter((samples as f64 / sample_rate, samples as f64 / sample_rate));
         x.reset(Some(sample_rate));
@@ -46,11 +46,12 @@ fn test_dynamics() {
         // Edges are the most challenging case. Test a +100 dB edge.
         let edge = db_amp(100.0);
         for _ in 0..samples {
-            assert!(x.filter_mono(edge) <= 1.0);
+            let y = x.filter_mono(edge);
+            assert!(y <= 1.0);
         }
         let value = x.filter_mono(edge);
         // The limiter leaves some headroom.
         // Check that the response is limited and has sufficient range.
-        assert!(value >= 0.8 && value <= 1.0);
+        assert!(value >= 0.90 && value <= 1.00);
     }
 }

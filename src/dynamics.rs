@@ -191,9 +191,6 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         let amplitude = input.iter().fold(T::zero(), |amp, &x| max(amp, abs(x)));
         self.reducer.set(self.index, amplitude);
-        // Leave some headroom.
-        self.follower
-            .filter_mono(self.reducer.total() * T::from_f64(1.15));
         if self.buffer.len() < self.reducer.length() {
             // We are filling up the initial buffer.
             self.buffer.push(input.clone());
@@ -207,6 +204,9 @@ where
         } else {
             let output = self.buffer[self.index].clone();
             self.buffer[self.index] = input.clone();
+            // Leave some headroom.
+            self.follower
+                .filter_mono(self.reducer.total() * T::from_f64(1.15));
             self.advance();
             let limit = max(1.0, self.follower.value());
             output * Frame::splat(T::from_f64(1.0 / limit))

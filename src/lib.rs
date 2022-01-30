@@ -29,6 +29,7 @@ pub const MAX_BUFFER_SIZE: usize = 64;
 pub trait Num:
     Copy
     + Default
+    + std::fmt::Display
     + Add<Output = Self>
     + Sub<Output = Self>
     + Mul<Output = Self>
