@@ -1,11 +1,13 @@
 [package]
 name = "fundsp"
-description = "Audio processing and synthesis library with compact syntax."
+description = "Audio processing and synthesis library."
 keywords = ["dsp", "audio"]
 license = "MIT OR Apache-2.0"
-version = "0.0.9"
+version = "0.1.0"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
 homepage = "https://github.com/SamiPerttu/fundsp"
+repository = "https://github.com/SamiPerttu/fundsp"
+readme = "README.md"
 edition = "2021"
 
 [dependencies]
