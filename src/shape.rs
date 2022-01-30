@@ -67,11 +67,13 @@ where
 pub enum Shape<T: Real> {
     /// Clip signal to -1...1.
     Clip,
-    /// Clip signal to min...max.
+    /// Clip signal between the two arguments.
     ClipTo(T, T),
-    /// Apply `tanh` waveshaping with `hardness`.
+    /// Apply `tanh` waveshaping with configurable hardness.
+    /// Argument to `tanh` is multiplied by the hardness value.
     Tanh(T),
-    /// Apply `softsign` waveshaping with `hardness`.
+    /// Apply `softsign` waveshaping with configurable hardness.
+    /// Argument to `softsign` is multiplied by the hardness value.
     Softsign(T),
 }
 

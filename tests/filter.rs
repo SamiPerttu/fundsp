@@ -167,6 +167,8 @@ fn test_responses() {
     test_response(pinkpass());
     test_response(follow(0.0002));
     test_response(follow(0.01));
+    test_response(delay(0.001));
+    test_response(delay(0.0001));
     test_response(dcblock());
     test_response(dcblock_hz(100.0) & follow(0.001));
     test_response(lowpole_hz(1000.0));

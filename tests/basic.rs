@@ -158,6 +158,7 @@ fn test_basic() {
     check_wave(
         dc((440.0, 880.0)) >> multisplit::<U2, U5>() >> sum::<U10, _, _>(|_| sine()) | noise(),
     );
+    check_wave(noise() >> delay(0.1) | noise() >> delay(0.01));
 
     // Constants.
     let mut d = constant(1.0);
