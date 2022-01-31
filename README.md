@@ -535,7 +535,7 @@ The type parameters in the table refer to the hacker prelude.
 | `reverb_stereo(wet, t)`|    2    |    2    | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
 | `saw()`                | 1 (pitch) |  1    | Bandlimited saw wave oscillator. |
 | `saw_hz(f)`            |    -    |    1    | Bandlimited Saw wave oscillator at `f` Hz. |
-| `shape(mode)`          |    1    |    1    | Shape signal with waveshaper `mode`, e.g., `Shape::Tanh`. |
+| `shape(mode)`          |    1    |    1    | Shape signal with waveshaper `mode`, e.g., `Shape::Tanh(multiplier)` which multiplies signal before `tanh`. |
 | `shape_fn(f)`          |    1    |    1    | Shape signal with waveshaper function `f`, e.g., `tanh`. |
 | `sine()`               | 1 (pitch) |  1    | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |

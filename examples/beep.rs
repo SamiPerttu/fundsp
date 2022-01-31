@@ -79,9 +79,15 @@ where
     }) >> multijoin::<U1, U20>()
         >> pinkpass();
 
-    //let c = lfo(|t| (110.0, lerp11(0.01, 0.99, sin_hz(0.05, t)))) >> pulse();
+    //let c = dc((110.0, 0.99)) >> pulse();
+    // TODO. This pulse wave example causes compilation times to blow up.
+    /*let c = lfo(|t| {
+        let pitch = 110.0;
+        let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
+        (pitch, duty)
+    }) >> pulse();*/
     //let c = dc(110.0) >> triangle();
-    //let c = lfo(|t| xerp(200.0, 2000.0, sin_hz(0.1, t))) >> square() >> lowpole_hz(1000.0);
+    //let c = lfo(|t| xerp11(20.0, 2000.0, sin_hz(0.1, t))) >> square() >> lowpole_hz(1000.0);
     //let c = dc(110.0) >> square();
 
     //let c = c
@@ -89,16 +95,7 @@ where
     //    >> bandpass();
 
     // Test ease_noise.
-    /*let c = lfo(|t| {
-        xerp11(
-            50.0,
-            5000.0,
-            //ease_noise(uparc, 0, t) * 0.67 + ease_noise(uparc, 1, t) * 0.43
-            //ease_noise(smooth3, 0, t)
-            //ease_noise((steps(8.0, uparc), id), 0, t * 0.5)
-            spline_noise(0, t)
-        )
-    }) >> triangle();*/
+    //let c = lfo(|t| xerp11(50.0, 5000.0, ease_noise(uparc, 0, t))) >> triangle();
 
     // Waveshapers.
     //let c = c >> shape_fn(steps(10.0, sigmoid(0.5)));

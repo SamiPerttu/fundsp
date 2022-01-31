@@ -29,12 +29,6 @@ fn optimal4x44<T: Float>(a0: T, a1: T, a2: T, a3: T, x: T) -> T {
     (((c4 * z + c3) * z + c2) * z + c1) * z + c0
 }
 
-/// Complex32 with real component `x` and imaginary component zero.
-#[inline]
-fn re<T: Float>(x: T) -> Complex32 {
-    Complex32::new(x.to_f32(), 0.0)
-}
-
 /// Create a single cycle wave into a power-of-two table, unnormalized.
 /// Assume sample rate is at least 44.1 kHz.
 /// `phase(i)` is phase in 0...1 for partial `i` (1, 2, ...).
@@ -55,7 +49,7 @@ where
 
     let length = clamp(32, 8192, target_len.next_power_of_two());
 
-    let mut a = vec![re(0.0); length];
+    let mut a = vec![Complex32::new(0.0, 0.0); length];
 
     for i in 1..=harmonics {
         let f = pitch * i as f64;

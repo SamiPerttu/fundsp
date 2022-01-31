@@ -846,7 +846,7 @@ pub fn pulse() -> An<
         Binop<f64, FrameSub<f64, U1>, Pass<f64, U1>, Pass<f64, U1>>,
     >,
 > {
-    // TODO. This causes abnormally long compilation times, apparently because of type inference.
+    // TODO. This causes abnormally long compilation times, apparently due to type inference.
     (An(WaveSynth::<'static, f64, U2>::new(DEFAULT_SR, &SAW_TABLE)) | pass())
         >> (pass()
             | (pass() + pass()) >> An(PhaseSynth::<'static, f64>::new(DEFAULT_SR, &SAW_TABLE)))
