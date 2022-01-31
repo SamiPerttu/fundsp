@@ -306,7 +306,7 @@ where
     R: ConstantFrame<Sample = f64>,
     R::Size: Size<f64>,
 {
-    super::prelude::envelope(f)
+    An(Envelope::new(0.002, DEFAULT_SR, f))
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
@@ -320,7 +320,7 @@ where
     R: ConstantFrame<Sample = f64>,
     R::Size: Size<f64>,
 {
-    super::prelude::envelope(f)
+    An(Envelope::new(0.002, DEFAULT_SR, f))
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.
@@ -821,6 +821,36 @@ pub fn square_hz(f: f64) -> An<Pipe<f64, Constant<f64, U1>, WaveSynth<'static, f
 #[inline]
 pub fn triangle_hz(f: f64) -> An<Pipe<f64, Constant<f64, U1>, WaveSynth<'static, f64, U1>>> {
     super::prelude::triangle_hz(f)
+}
+
+/// Pulse wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: pulse duty cycle in 0...1
+/// - Output 0: pulse wave
+pub fn pulse() -> An<
+    Pipe<
+        f64,
+        Pipe<
+            f64,
+            Stack<f64, WaveSynth<'static, f64, U2>, Pass<f64, U1>>,
+            Stack<
+                f64,
+                Pass<f64, U1>,
+                Pipe<
+                    f64,
+                    Binop<f64, FrameAdd<f64, U1>, Pass<f64, U1>, Pass<f64, U1>>,
+                    PhaseSynth<'static, f64>,
+                >,
+            >,
+        >,
+        Binop<f64, FrameSub<f64, U1>, Pass<f64, U1>, Pass<f64, U1>>,
+    >,
+> {
+    // TODO. This causes abnormally long compilation times, apparently because of type inference.
+    (An(WaveSynth::<'static, f64, U2>::new(DEFAULT_SR, &SAW_TABLE)) | pass())
+        >> (pass()
+            | (pass() + pass()) >> An(PhaseSynth::<'static, f64>::new(DEFAULT_SR, &SAW_TABLE)))
+        >> pass() - pass()
 }
 
 /// Lowpass filter.

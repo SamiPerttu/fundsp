@@ -206,7 +206,7 @@ where
             self.buffer[self.index] = input.clone();
             // Leave some headroom.
             self.follower
-                .filter_mono(max(T::one(), self.reducer.total()) * T::from_f64(1.15));
+                .filter_mono(max(T::one(), self.reducer.total() * T::from_f64(1.15)));
             self.advance();
             let limit = self.follower.value();
             output * Frame::splat(T::from_f64(1.0 / limit))

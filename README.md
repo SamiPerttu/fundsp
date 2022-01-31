@@ -301,8 +301,8 @@ The expression `A >> (B ^ C ^ D)` defines a signal processing graph.
 It has whatever inputs `A` has, and outputs everything from `B` and `C` and `D` in parallel.
 
 The whole structure is packed, monomorphized and inlined with the constituent nodes consumed.
-If you want to reuse components, define them as functions or closures, or clone them.
-See the prelude for examples of the former.
+If you want to reuse components, define them as functions or closures.
+See the preludes for examples.
 
 Connectivity is checked during compilation.
 Mismatched connectivity will result in a compilation error complaining about mismatched
@@ -351,7 +351,7 @@ and folding constants. Linear networks are constructed from filters, delays, and
 
 * Mixing.
 * Chaining. Chaining of filters and delays maintains linearity.
-* Constant scaling. Signals may be scaled by constant factors. Selected network inputs may also be marked constant for flow analysis.
+* Constant scaling. Signals may be scaled by constant factors.
 
 Signal latencies are similarly analyzed from input to output in detail,
 facilitating automatic removal of pre-delay from effects chains.
@@ -422,7 +422,8 @@ The equalizer is ready to use immediately. Filter samples:
 let output_sample = equalizer.filter_mono(input_sample);
 ```
 
-We can access individual bands via `equalizer.node(i)` where `i` ranges from 0 to 11.
+We can access individual bands via `equalizer.node(i)` and `equalizer.node_mut(i)`
+where `i` ranges from 0 to 11.
 Set band 0 to amplify by 10 dB at 500 Hz with Q set to 2.0:
 
 ```rust
@@ -528,6 +529,7 @@ The type parameters in the table refer to the hacker prelude.
 | `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave). |
 | `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain together `U` nodes from indexed generator `f`. |
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain together `U` nodes from fractional generator `f`. |
+| `pulse()`              | 2 (pitch, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `reverb_stereo(wet, t)`|    2    |    2    | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |

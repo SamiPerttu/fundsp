@@ -360,7 +360,7 @@ where
     R::Size: Size<F>,
     R::Size: Size<T>,
 {
-    envelope(f)
+    An(Envelope::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.
@@ -920,18 +920,24 @@ where
 }
 
 /// Saw wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: saw wave
 #[inline]
 pub fn saw<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
 }
 
 /// Square wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: square wave
 #[inline]
 pub fn square<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
 }
 
 /// Triangle wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: triangle wave
 #[inline]
 pub fn triangle<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
@@ -956,6 +962,35 @@ pub fn square_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, WaveSynth<'stati
 #[inline]
 pub fn triangle_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, WaveSynth<'static, T, U1>>> {
     constant(f) >> triangle()
+}
+
+/// Pulse wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: pulse duty cycle in 0...1
+/// - Output 0: pulse wave
+#[inline]
+pub fn pulse<T: Float>() -> An<
+    Pipe<
+        T,
+        Pipe<
+            T,
+            Stack<T, WaveSynth<'static, T, U2>, Pass<T, U1>>,
+            Stack<
+                T,
+                Pass<T, U1>,
+                Pipe<
+                    T,
+                    Binop<T, FrameAdd<T, U1>, Pass<T, U1>, Pass<T, U1>>,
+                    PhaseSynth<'static, T>,
+                >,
+            >,
+        >,
+        Binop<T, FrameSub<T, U1>, Pass<T, U1>, Pass<T, U1>>,
+    >,
+> {
+    (An(WaveSynth::<'static, T, U2>::new(DEFAULT_SR, &SAW_TABLE)) | pass())
+        >> (pass() | (pass() + pass()) >> An(PhaseSynth::<'static, T>::new(DEFAULT_SR, &SAW_TABLE)))
+        >> pass() - pass()
 }
 
 /// Lowpass filter.

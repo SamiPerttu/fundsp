@@ -259,14 +259,12 @@ where
     }
 }
 
-/// Bandlimited wavetable synthesizer with `N` outputs (1 or 2) driven by a phase input.
+/// Bandlimited wavetable synthesizer driven by a phase input.
 /// - Input 0: phase in 0...1.
 /// - Output 0: audio.
-/// - Output 1 (optional): phase pass-through.
-pub struct PhaseSynth<'a, T, N>
+pub struct PhaseSynth<'a, T>
 where
     T: Float,
-    N: Size<T>,
 {
     table: &'a Wavetable,
     /// Previous phase.
@@ -274,13 +272,12 @@ where
     phase_ready: bool,
     table_hint: usize,
     sample_rate: f64,
-    _marker: std::marker::PhantomData<(T, N)>,
+    _marker: std::marker::PhantomData<T>,
 }
 
-impl<'a, T, N> PhaseSynth<'a, T, N>
+impl<'a, T> PhaseSynth<'a, T>
 where
     T: Float,
-    N: Size<T>,
 {
     pub fn new(sample_rate: f64, table: &'a Wavetable) -> Self {
         PhaseSynth {
@@ -294,15 +291,14 @@ where
     }
 }
 
-impl<'a, T, N> AudioNode for PhaseSynth<'a, T, N>
+impl<'a, T> AudioNode for PhaseSynth<'a, T>
 where
     T: Float,
-    N: Size<T>,
 {
     const ID: u64 = 35;
     type Sample = T;
     type Inputs = numeric_array::typenum::U1;
-    type Outputs = N;
+    type Outputs = numeric_array::typenum::U1;
 
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -347,9 +343,7 @@ where
 
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
-        for i in 0..N::USIZE {
-            output[i] = input[0].distort(0.0);
-        }
+        output[0] = input[0].distort(0.0);
         output
     }
 }
