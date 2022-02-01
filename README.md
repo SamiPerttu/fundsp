@@ -413,7 +413,7 @@ and set gains of all bands to 0 dB initially:
 
 ```rust
 use fundsp::hacker::*;
-let equalizer = pipe::<U12, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f64, 1.0, db_amp(0.0)));
+let mut equalizer = pipe::<U12, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f64, 1.0, db_amp(0.0)));
 ```
 
 The type of the equalizer is `An<Chain<f64, U12, FixedSvf<f64, f64, BellMode<f64>>>>`.
@@ -438,6 +438,12 @@ Query equalizer gain at 1 kHz:
 
 ```rust
 let decibel_gain_at_1k = equalizer.response_db(0, 1000.0).unwrap();
+```
+
+The default sample rate is 44.1 kHz. Set sample rate to 48 kHz:
+
+```rust
+equalizer.reset(Some(48_000.0));
 ```
 
 ---
