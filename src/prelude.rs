@@ -173,16 +173,26 @@ pub fn multipass<T: Float, U: Size<T>>() -> An<Pass<T, U>> {
     An(Pass::new())
 }
 
-/// Mono sink.
+/// Mono sink. Input is discarded.
 #[inline]
 pub fn sink<T: Float>() -> An<Sink<T, U1>> {
     An(Sink::new())
 }
 
-/// Multichannel sink.
+/// Multichannel sink. Inputs are discarded.
 #[inline]
 pub fn multisink<T: Float, U: Size<T>>() -> An<Sink<T, U>> {
     An(Sink::new())
+}
+
+/// Swap stereo channels.
+/// - Input 0: left channel.
+/// - Input 1: right channel.
+/// - Output 0: right channel input.
+/// - Output 1: left channel input.
+#[inline]
+pub fn swap<T: Float>() -> An<Swap<T>> {
+    An(Swap::new())
 }
 
 /// Sine oscillator.

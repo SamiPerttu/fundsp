@@ -2080,3 +2080,45 @@ where
         output
     }
 }
+
+/// Swap stereo channels.
+#[derive(Default)]
+pub struct Swap<T> {
+    _marker: PhantomData<T>,
+}
+
+impl<T: Float> Swap<T> {
+    pub fn new() -> Self {
+        Swap::default()
+    }
+}
+
+impl<T: Float> AudioNode for Swap<T> {
+    const ID: u64 = 45;
+    type Sample = T;
+    type Inputs = U2;
+    type Outputs = U2;
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        [input[1], input[0]].into()
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        output[0][..size].clone_from_slice(&input[1][..size]);
+        output[1][..size].clone_from_slice(&input[0][..size]);
+    }
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = input[1];
+        output[1] = input[0];
+        output
+    }
+}

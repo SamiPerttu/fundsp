@@ -167,8 +167,8 @@ fn test_responses() {
     test_response(pinkpass());
     test_response(follow(0.0002));
     test_response(follow(0.01));
-    test_response(delay(0.001));
     test_response(delay(0.0001));
+    test_response(delay(0.0001) >> delay(0.0002));
     test_response(dcblock());
     test_response(dcblock_hz(100.0) & follow(0.001));
     test_response(lowpole_hz(1000.0));
@@ -182,6 +182,9 @@ fn test_responses() {
     test_response(pass() & tick());
     test_response(pass() * 0.25 & tick() * 0.5 & tick() >> tick() * 0.25);
     test_response(tick() & lowshelf_hz(500.0, 2.0, 0.1));
+    test_response(
+        (delay(0.001) ^ delay(0.002)) >> swap() >> (delay(0.003) | delay(0.007)) >> join(),
+    );
     test_response(
         (butterpass_hz(15000.0) ^ allpass_hz(10000.0, 10.0)) >> lowpole_hz(500.0) + pass(),
     );

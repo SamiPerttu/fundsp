@@ -173,16 +173,26 @@ pub fn multipass<U: Size<f64>>() -> An<Pass<f64, U>> {
     An(Pass::new())
 }
 
-/// Mono sink.
+/// Mono sink. Input is discarded.
 #[inline]
 pub fn sink() -> An<Sink<f64, U1>> {
     An(Sink::new())
 }
 
-/// Multichannel sink.
+/// Multichannel sink. Inputs are discarded.
 #[inline]
 pub fn multisink<U: Size<f64>>() -> An<Sink<f64, U>> {
     An(Sink::new())
+}
+
+/// Swap stereo channels.
+/// - Input 0: left channel.
+/// - Input 1: right channel.
+/// - Output 0: right channel input.
+/// - Output 1: left channel input.
+#[inline]
+pub fn swap() -> An<Swap<f64>> {
+    An(Swap::new())
 }
 
 /// Sine oscillator.
