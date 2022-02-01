@@ -90,7 +90,8 @@ Both systems operate on audio signals synchronously as an infinite stream.
 ---
 
 `AudioNode`s can be stack allocated for the most part.
-Some nodes may use the heap for audio buffers and the like.
+At the moment, block processing via `AudioNode::process` requires heap allocation.
+Some nodes may also use the heap for audio buffers and the like.
 
 The `AudioUnit` system is under construction and is not usable yet.
 

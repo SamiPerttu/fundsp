@@ -964,35 +964,6 @@ pub fn triangle_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, WaveSynth<'sta
     constant(f) >> triangle()
 }
 
-/// Pulse wave oscillator.
-/// - Input 0: frequency in Hz
-/// - Input 1: pulse duty cycle in 0...1
-/// - Output 0: pulse wave
-#[inline]
-pub fn pulse<T: Float>() -> An<
-    Pipe<
-        T,
-        Pipe<
-            T,
-            Stack<T, WaveSynth<'static, T, U2>, Pass<T, U1>>,
-            Stack<
-                T,
-                Pass<T, U1>,
-                Pipe<
-                    T,
-                    Binop<T, FrameAdd<T, U1>, Pass<T, U1>, Pass<T, U1>>,
-                    PhaseSynth<'static, T>,
-                >,
-            >,
-        >,
-        Binop<T, FrameSub<T, U1>, Pass<T, U1>, Pass<T, U1>>,
-    >,
-> {
-    (An(WaveSynth::<'static, T, U2>::new(DEFAULT_SR, &SAW_TABLE)) | pass())
-        >> (pass() | (pass() + pass()) >> An(PhaseSynth::<'static, T>::new(DEFAULT_SR, &SAW_TABLE)))
-        >> pass() - pass()
-}
-
 /// Lowpass filter.
 /// - Input 0: audio
 /// - Input 1: cutoff frequency (Hz)
@@ -1488,3 +1459,115 @@ pub fn highshelf_q<T: Float, F: Real>(
             },
         ))
 }
+
+/// Pulse wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: pulse duty cycle in 0...1
+/// - Output 0: pulse wave
+pub struct PulseWave<T: Float> {
+    pulse: An<
+        Pipe<
+            T,
+            Pipe<
+                T,
+                Stack<T, WaveSynth<'static, T, U2>, Pass<T, U1>>,
+                Stack<
+                    T,
+                    Pass<T, U1>,
+                    Pipe<
+                        T,
+                        Binop<T, FrameAdd<T, U1>, Pass<T, U1>, Pass<T, U1>>,
+                        PhaseSynth<'static, T>,
+                    >,
+                >,
+            >,
+            Binop<T, FrameSub<T, U1>, Pass<T, U1>, Pass<T, U1>>,
+        >,
+    >,
+}
+
+#[allow(clippy::new_without_default)]
+impl<T: Float> PulseWave<T> {
+    pub fn new() -> Self {
+        Self {
+            pulse: (An(WaveSynth::<'static, T, U2>::new(DEFAULT_SR, &SAW_TABLE)) | pass())
+                >> (pass()
+                    | (pass() + pass())
+                        >> An(PhaseSynth::<'static, T>::new(DEFAULT_SR, &SAW_TABLE)))
+                >> pass() - pass(),
+        }
+    }
+}
+
+impl<T: Float> AudioNode for PulseWave<T> {
+    const ID: u64 = 44;
+    type Sample = T;
+    type Inputs = U2;
+    type Outputs = U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.pulse.reset(sample_rate);
+    }
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        self.pulse.tick(input)
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.pulse.process(size, input, output);
+    }
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.pulse.route(input, frequency)
+    }
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.pulse.ping(probe, hash).hash(Self::ID)
+    }
+}
+
+/// Pulse wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: pulse duty cycle in 0...1
+/// - Output 0: pulse wave
+#[inline]
+pub fn pulse<T: Float>() -> An<PulseWave<T>> {
+    An(PulseWave::new())
+}
+
+/*
+// Note. This causes compilation times to blow up with Rust 1.58.0.
+/// Pulse wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: pulse duty cycle in 0...1
+/// - Output 0: pulse wave
+#[inline]
+pub fn pulse<T: Float>() -> An<
+    Pipe<
+        T,
+        Pipe<
+            T,
+            Stack<T, WaveSynth<'static, T, U2>, Pass<T, U1>>,
+            Stack<
+                T,
+                Pass<T, U1>,
+                Pipe<
+                    T,
+                    Binop<T, FrameAdd<T, U1>, Pass<T, U1>, Pass<T, U1>>,
+                    PhaseSynth<'static, T>,
+                >,
+            >,
+        >,
+        Binop<T, FrameSub<T, U1>, Pass<T, U1>, Pass<T, U1>>,
+    >,
+> {
+    (An(WaveSynth::<'static, T, U2>::new(DEFAULT_SR, &SAW_TABLE)) | pass())
+        >> (pass() | (pass() + pass()) >> An(PhaseSynth::<'static, T>::new(DEFAULT_SR, &SAW_TABLE)))
+        >> pass() - pass()
+}
+*/

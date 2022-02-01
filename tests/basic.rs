@@ -179,7 +179,7 @@ fn test_basic() {
     check_wave(
         dc((440.0, 880.0)) >> multisplit::<U2, U5>() >> sum::<U10, _, _>(|_| sine()) | noise(),
     );
-    check_wave(noise() >> delay(0.1) | noise() >> delay(0.01));
+    check_wave(dc((110.0, 0.5)) >> pulse() >> delay(0.1) | noise() >> delay(0.01));
 
     // Wave filtering, tick vs. process rendering, node reseting.
     let input = Wave::render(44100.0, 1.0, &mut (noise() | noise()));
@@ -352,6 +352,10 @@ fn test_basic() {
     ));
     assert!(outputs_diverge(&mut rnd, &mut (noise() | noise())));
     assert!(outputs_diverge(&mut rnd, &mut (mls() | mls())));
+    assert!(outputs_diverge(&mut rnd, &mut (saw() | saw())));
+    assert!(outputs_diverge(&mut rnd, &mut (square() | square())));
+    assert!(outputs_diverge(&mut rnd, &mut (triangle() | triangle())));
+    assert!(outputs_diverge(&mut rnd, &mut (pulse() | pulse())));
 
     // No-ops with sinks.
     assert_eq!(inouts(--sink() - 42.0 ^ sink() & ---sink() * 3.15), (1, 0));

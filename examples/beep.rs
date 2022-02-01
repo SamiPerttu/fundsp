@@ -69,23 +69,22 @@ where
     //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.9);
 
     // Risset glissando.
-    let c = stack::<U20, _, _>(|i| {
-        lfo(move |t| {
-            let f = lerp(-0.5, 0.5, rnd(i))
-                + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0);
-            let a = smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0));
-            (a, f)
-        }) >> pass() * sine() * 10.0
-    }) >> multijoin::<U1, U20>()
-        >> pinkpass();
-
-    //let c = dc((110.0, 0.99)) >> pulse();
-    // TODO. This pulse wave example causes compilation times to blow up.
-    /*let c = lfo(|t| {
+    /*let c = stack::<U20, _, _>(|i| {
+            lfo(move |t| {
+                let f = lerp(-0.5, 0.5, rnd(i))
+                    + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0);
+                let a = smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0));
+                (a, f)
+            }) >> pass() * sine() * 10.0
+        }) >> multijoin::<U1, U20>()
+            >> pinkpass();
+    */
+    // Pulse wave.
+    let c = lfo(|t| {
         let pitch = 110.0;
         let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
         (pitch, duty)
-    }) >> pulse();*/
+    }) >> pulse();
     //let c = dc(110.0) >> triangle();
     //let c = lfo(|t| xerp11(20.0, 2000.0, sin_hz(0.1, t))) >> square() >> lowpole_hz(1000.0);
     //let c = dc(110.0) >> square();

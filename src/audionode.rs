@@ -32,6 +32,7 @@ pub trait AudioNode {
     /// Reset the input state of the component to an initial state where it has
     /// not processed any samples. In other words, reset time to zero.
     /// The sample rate can be set optionally. The default sample rate is 44.1 kHz.
+    /// The default implementation does nothing.
     fn reset(&mut self, _sample_rate: Option<f64>) {}
 
     /// Process one sample.
@@ -65,6 +66,7 @@ pub trait AudioNode {
 
     /// Set node hash. Override this to use the hash.
     /// This is called from `ping`. It should not be called by users.
+    /// The default implementation does nothing.
     fn set_hash(&mut self, _hash: u64) {}
 
     /// Ping contained `AudioNode`s to obtain a deterministic pseudorandom hash.
@@ -491,12 +493,15 @@ where
     }
 }
 
+/// Provides binary operator implementations to the `Binop` node.
 pub trait FrameBinop<T: Float, N: Size<T>> {
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
     fn propagate(x: Signal, y: Signal) -> Signal;
     /// Do binary op (x op y) in-place.
     fn assign(size: usize, x: &mut [T], y: &[T]);
 }
+
+/// Addition operator.
 #[derive(Default)]
 pub struct FrameAdd<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
@@ -524,6 +529,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
     }
 }
 
+/// Subtraction operator.
 #[derive(Default)]
 pub struct FrameSub<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
@@ -551,6 +557,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
     }
 }
 
+/// Multiplication operator.
 #[derive(Default)]
 pub struct FrameMul<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
@@ -721,6 +728,7 @@ where
     }
 }
 
+/// Provides unary operator implementations to the `Unop` node.
 pub trait FrameUnop<T: Float, N: Size<T>> {
     fn unop(x: &Frame<T, N>) -> Frame<T, N>;
     fn propagate(x: Signal) -> Signal;
@@ -728,6 +736,7 @@ pub trait FrameUnop<T: Float, N: Size<T>> {
     fn assign(size: usize, x: &mut [T]);
 }
 
+/// Negation operator.
 #[derive(Default)]
 pub struct FrameNeg<T: Float, N: Size<T>> {
     _marker: PhantomData<(T, N)>,

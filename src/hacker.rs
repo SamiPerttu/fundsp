@@ -823,36 +823,6 @@ pub fn triangle_hz(f: f64) -> An<Pipe<f64, Constant<f64, U1>, WaveSynth<'static,
     super::prelude::triangle_hz(f)
 }
 
-/// Pulse wave oscillator.
-/// - Input 0: frequency in Hz
-/// - Input 1: pulse duty cycle in 0...1
-/// - Output 0: pulse wave
-pub fn pulse() -> An<
-    Pipe<
-        f64,
-        Pipe<
-            f64,
-            Stack<f64, WaveSynth<'static, f64, U2>, Pass<f64, U1>>,
-            Stack<
-                f64,
-                Pass<f64, U1>,
-                Pipe<
-                    f64,
-                    Binop<f64, FrameAdd<f64, U1>, Pass<f64, U1>, Pass<f64, U1>>,
-                    PhaseSynth<'static, f64>,
-                >,
-            >,
-        >,
-        Binop<f64, FrameSub<f64, U1>, Pass<f64, U1>, Pass<f64, U1>>,
-    >,
-> {
-    // TODO. This causes abnormally long compilation times, apparently due to type inference.
-    (An(WaveSynth::<'static, f64, U2>::new(DEFAULT_SR, &SAW_TABLE)) | pass())
-        >> (pass()
-            | (pass() + pass()) >> An(PhaseSynth::<'static, f64>::new(DEFAULT_SR, &SAW_TABLE)))
-        >> pass() - pass()
-}
-
 /// Lowpass filter.
 /// - Input 0: audio
 /// - Input 1: cutoff frequency (Hz)
@@ -1119,4 +1089,13 @@ pub fn highshelf_q(
 ) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U2>>, Svf<f64, f64, HighshelfMode<f64>>>>
 {
     super::prelude::highshelf_q::<f64, f64>(q, gain)
+}
+
+/// Pulse wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: pulse duty cycle in 0...1
+/// - Output 0: pulse wave
+#[inline]
+pub fn pulse() -> An<super::prelude::PulseWave<f64>> {
+    super::prelude::pulse()
 }
