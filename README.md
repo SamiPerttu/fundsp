@@ -465,9 +465,9 @@ The type parameters in the table refer to the hacker prelude.
 | `bandpass()`           | 3 (audio, frequency, Q) | 1 | Bandpass filter (2nd order). |
 | `bandpass_hz(f, q)`    |    1    |    1    | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `bandpass_q(q)`        | 2 (audio, frequency) | 1 | Bandpass filter (2nd order) with Q `q`. |
-| `bell()`               | 4 (audio, frequency, Q, gain) | 1 | Bell filter (2nd order) with adjustable amplitude gain. |
-| `bell_hz(f, q, gain)`  |    1    |    1    | Bell filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
-| `bell_q(q, gain)`      | 2 (audio, frequency) | 1 | Bell filter (2nd order) with Q `q` and amplitude gain `gain`. |
+| `bell()`               | 4 (audio, frequency, Q, gain) | 1 | Peaking filter (2nd order) with adjustable amplitude gain. |
+| `bell_hz(f, q, gain)`  |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
+| `bell_q(q, gain)`      | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `brown()`              |    -    |    1    | Brown noise. |
 | `branch::<U, _, _>(f)` |   `f`   | `U * f` | Branch into `U` nodes from indexed generator `f`. |
 | `branchf::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))`. |
@@ -583,6 +583,17 @@ Similarly, `branchf`, `busf`, `pipef`, `sumf` and `stackf` accept a generator fu
 that is issued values evenly distributed in the unit interval 0...1.
 The first node is issued the value 0 and the last node the value 1.
 If there is only one node, then it receives the value 0.5.
+
+#### Waveshaping Modes
+
+These are arguments to the `shape` opcode.
+
+- `Shape::Clip`: Clip signal to -1...1.
+- `Shape::ClipTo(minimum, maximum)`: Clip signal between the two arguments.
+- `Shape::Tanh(hardness)`: Apply `tanh` distortion with configurable hardness. Argument to `tanh` is multiplied by the hardness value.
+- `Shape::Softsign(hardness)`: Apply `softsign` distortion with configurable hardness. Argument to `softsign` is multiplied by the hardness value.
+- `Shape::Crush(levels)`: Apply a staircase function with configurable number of levels per unit.
+- `Shape::SoftCrush(levels)`: Apply a smooth staircase function with configurable number of levels per unit.
 
 ---
 

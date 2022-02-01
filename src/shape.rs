@@ -69,12 +69,16 @@ pub enum Shape<T: Real> {
     Clip,
     /// Clip signal between the two arguments.
     ClipTo(T, T),
-    /// Apply `tanh` waveshaping with configurable hardness.
+    /// Apply `tanh` distortion with configurable hardness.
     /// Argument to `tanh` is multiplied by the hardness value.
     Tanh(T),
-    /// Apply `softsign` waveshaping with configurable hardness.
+    /// Apply `softsign` distortion with configurable hardness.
     /// Argument to `softsign` is multiplied by the hardness value.
     Softsign(T),
+    /// Apply a staircase function with configurable number of levels per unit.
+    Crush(T),
+    /// Apply a smooth staircase function with configurable number of levels per unit.
+    SoftCrush(T),
 }
 
 /// Waveshaper with various shaping modes.
@@ -108,6 +112,12 @@ impl<T: Real> AudioNode for Shaper<T> {
             Shape::ClipTo(min, max) => [clamp(min, max, input)].into(),
             Shape::Tanh(hardness) => [tanh(input * hardness)].into(),
             Shape::Softsign(hardness) => [softsign(input * hardness)].into(),
+            Shape::Crush(levels) => [round(input * levels) / levels].into(),
+            Shape::SoftCrush(levels) => {
+                let x = input * levels;
+                let y = floor(x);
+                [(y + smooth9(x - y)) / levels].into()
+            }
         }
     }
 
@@ -138,6 +148,18 @@ impl<T: Real> AudioNode for Shaper<T> {
             Shape::Softsign(hardness) => {
                 for i in 0..size {
                     output[i] = softsign(input[i] * hardness);
+                }
+            }
+            Shape::Crush(levels) => {
+                for i in 0..size {
+                    output[i] = round(input[i] * levels) / levels;
+                }
+            }
+            Shape::SoftCrush(levels) => {
+                for i in 0..size {
+                    let x = input[i] * levels;
+                    let y = floor(x);
+                    output[i] = (y + smooth9(x - y)) / levels;
                 }
             }
         }
