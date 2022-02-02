@@ -320,7 +320,7 @@ pub fn highpole_hz(f: f64) -> An<Highpole<f64, f64, U1>> {
 /// - Input 2: bandwidth (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn resonator() -> An<Resonator<f64, f64>> {
+pub fn resonator() -> An<Resonator<f64, f64, U3>> {
     An(Resonator::new(DEFAULT_SR, 440.0, 110.0))
 }
 
@@ -328,10 +328,7 @@ pub fn resonator() -> An<Resonator<f64, f64>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn resonator_hz(
-    center: f64,
-    bandwidth: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U2>>, Resonator<f64, f64>>> {
+pub fn resonator_hz(center: f64, bandwidth: f64) -> An<Resonator<f64, f64, U1>> {
     super::prelude::resonator_hz(center, bandwidth)
 }
 

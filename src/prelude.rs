@@ -341,7 +341,7 @@ pub fn highpole_hz<T: Float, F: Real>(f: T) -> An<Highpole<T, F, U1>> {
 /// - Input 2: bandwidth (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn resonator<T: Float, F: Real>() -> An<Resonator<T, F>> {
+pub fn resonator<T: Float, F: Real>() -> An<Resonator<T, F, U3>> {
     An(Resonator::new(
         convert(DEFAULT_SR),
         F::new(440),
@@ -353,16 +353,12 @@ pub fn resonator<T: Float, F: Real>() -> An<Resonator<T, F>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn resonator_hz<T: Float, F: Real>(
-    center: T,
-    bandwidth: T,
-) -> An<Pipe<T, Stack<T, Pass<T>, Constant<T, U2>>, Resonator<T, F>>> {
-    (pass::<T>() | constant((center, bandwidth)))
-        >> An(Resonator::<T, F>::new(
-            convert(DEFAULT_SR),
-            convert(center),
-            convert(bandwidth),
-        ))
+pub fn resonator_hz<T: Float, F: Real>(center: T, bandwidth: T) -> An<Resonator<T, F, U1>> {
+    An(Resonator::new(
+        convert(DEFAULT_SR),
+        convert(center),
+        convert(bandwidth),
+    ))
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.

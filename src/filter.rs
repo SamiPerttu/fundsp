@@ -192,20 +192,23 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
 
 /// Constant-gain bandpass filter (resonator).
 /// Filter gain is (nearly) independent of bandwidth.
+/// Number of inputs is `N`, either `U1` or `U3` (sic).
 /// - Input 0: input signal
-/// - Input 1: filter center frequency (peak) (Hz)
-/// - Input 2: filter bandwidth (distance) between -3 dB points (Hz)
+/// - Input 1 (optional): filter center frequency (peak) (Hz)
+/// - Input 2 (optional): filter bandwidth (distance) between -3 dB points (Hz)
 /// - Output 0: filtered signal
-pub struct Resonator<T: Float, F: Real> {
+pub struct Resonator<T: Float, F: Real, N: Size<T>> {
+    _marker: std::marker::PhantomData<N>,
     biquad: Biquad<T, F>,
     sample_rate: F,
     center: F,
     bandwidth: F,
 }
 
-impl<T: Float, F: Real> Resonator<T, F> {
-    pub fn new(sample_rate: f64, center: F, bandwidth: F) -> Resonator<T, F> {
+impl<T: Float, F: Real, N: Size<T>> Resonator<T, F, N> {
+    pub fn new(sample_rate: f64, center: F, bandwidth: F) -> Self {
         let mut node = Resonator {
+            _marker: std::marker::PhantomData::default(),
             biquad: Biquad::new(),
             sample_rate: F::from_f64(sample_rate),
             center,
@@ -222,10 +225,10 @@ impl<T: Float, F: Real> Resonator<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
+impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
     const ID: u64 = 17;
     type Sample = T;
-    type Inputs = typenum::U3;
+    type Inputs = N;
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -241,13 +244,15 @@ impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let center: F = convert(input[1]);
-        let bandwidth: F = convert(input[2]);
-        if center != self.center || bandwidth != self.bandwidth {
-            self.biquad
-                .set_coefs(BiquadCoefs::resonator(self.sample_rate, center, bandwidth));
-            self.center = center;
-            self.bandwidth = bandwidth;
+        if N::USIZE > 2 {
+            let center: F = convert(input[1]);
+            let bandwidth: F = convert(input[2]);
+            if center != self.center || bandwidth != self.bandwidth {
+                self.biquad
+                    .set_coefs(BiquadCoefs::resonator(self.sample_rate, center, bandwidth));
+                self.center = center;
+                self.bandwidth = bandwidth;
+            }
         }
         self.biquad.tick(&[input[0]].into())
     }
