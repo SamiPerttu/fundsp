@@ -37,7 +37,7 @@ where
 /// Check that the stereo filter given is rendered identically
 /// via `process` (block processing) and `tick` (single sample processing).
 /// Also check that the generator is reset properly.
-fn check_wave_filter<X>(input: Wave<f64>, mut node: An<X>)
+fn check_wave_filter<X>(input: &Wave<f64>, mut node: An<X>)
 where
     X: AudioNode<Sample = f64, Inputs = U2, Outputs = U2>,
 {
@@ -183,7 +183,8 @@ fn test_basic() {
 
     // Wave filtering, tick vs. process rendering, node reseting.
     let input = Wave::render(44100.0, 1.0, &mut (noise() | noise()));
-    check_wave_filter(input, butterpass_hz(1000.0) | lowpole_hz(100.0));
+    check_wave_filter(&input, butterpass_hz(1000.0) | lowpole_hz(100.0));
+    check_wave_filter(&input, allpole_delay(0.5) | highpole_hz(500.0));
 
     // Constants.
     let mut d = constant(1.0);
