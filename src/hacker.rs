@@ -270,7 +270,7 @@ pub fn butterpass_hz(
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpole() -> An<Lowpole<f64, f64>> {
+pub fn lowpole() -> An<Lowpole<f64, f64, U2>> {
     An(Lowpole::new(DEFAULT_SR, 440.0))
 }
 
@@ -278,9 +278,7 @@ pub fn lowpole() -> An<Lowpole<f64, f64>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpole_hz(
-    f: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U1>>, Lowpole<f64, f64>>> {
+pub fn lowpole_hz(f: f64) -> An<Lowpole<f64, f64, U1>> {
     super::prelude::lowpole_hz(f)
 }
 
@@ -535,16 +533,7 @@ pub fn pink() -> An<Pipe<f64, Noise<f64>, Pinkpass<f64, f64>>> {
 /// Brown noise.
 #[inline]
 pub fn brown() -> An<
-    Pipe<
-        f64,
-        Noise<f64>,
-        Binop<
-            f64,
-            FrameMul<f64, U1>,
-            Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U1>>, Lowpole<f64, f64>>,
-            Constant<f64, U1>,
-        >,
-    >,
+    Pipe<f64, Noise<f64>, Binop<f64, FrameMul<f64, U1>, Lowpole<f64, f64, U1>, Constant<f64, U1>>>,
 > {
     // Empirical normalization factor.
     white() >> lowpole_hz(10.0) * dc(13.7)
@@ -800,15 +789,7 @@ pub fn reverb_stereo(
                                 f64,
                                 Pipe<
                                     f64,
-                                    Pipe<
-                                        f64,
-                                        Delay<f64>,
-                                        Pipe<
-                                            f64,
-                                            Stack<f64, Pass<f64>, Constant<f64, U1>>,
-                                            Lowpole<f64, f64>,
-                                        >,
-                                    >,
+                                    Pipe<f64, Delay<f64>, Lowpole<f64, f64, U1>>,
                                     DCBlock<f64, f64>,
                                 >,
                                 Binop<

@@ -260,19 +260,20 @@ impl<T: Float, F: Real> AudioNode for Resonator<T, F> {
 }
 
 /// One-pole lowpass filter.
+/// The number of inputs is `N`, either `U1` or `U2`.
 /// - Input 0: input signal
-/// - Input 1: cutoff frequency (Hz)
+/// - Input 1 (optional): cutoff frequency (Hz)
 /// - Output 0: filtered signal
 #[derive(Default)]
-pub struct Lowpole<T: Float, F: Real> {
-    _marker: std::marker::PhantomData<T>,
+pub struct Lowpole<T: Float, F: Real, N: Size<T>> {
+    _marker: std::marker::PhantomData<(T, N)>,
     value: F,
     coeff: F,
     cutoff: F,
     sample_rate: F,
 }
 
-impl<T: Float, F: Real> Lowpole<T, F> {
+impl<T: Float, F: Real, N: Size<T>> Lowpole<T, F, N> {
     pub fn new(sample_rate: f64, cutoff: F) -> Self {
         let mut node = Lowpole {
             _marker: std::marker::PhantomData,
@@ -290,10 +291,10 @@ impl<T: Float, F: Real> Lowpole<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for Lowpole<T, F> {
+impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
     const ID: u64 = 18;
     type Sample = T;
-    type Inputs = typenum::U2;
+    type Inputs = N;
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -309,9 +310,11 @@ impl<T: Float, F: Real> AudioNode for Lowpole<T, F> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let cutoff: F = convert(input[1]);
-        if cutoff != self.cutoff {
-            self.set_cutoff(cutoff);
+        if N::USIZE > 1 {
+            let cutoff: F = convert(input[1]);
+            if cutoff != self.cutoff {
+                self.set_cutoff(cutoff);
+            }
         }
         let x = convert(input[0]);
         self.value = (F::one() - self.coeff) * x + self.coeff * self.value;

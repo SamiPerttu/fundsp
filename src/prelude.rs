@@ -291,7 +291,7 @@ pub fn butterpass_hz<T: Float, F: Real>(
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpole<T: Float, F: Real>() -> An<Lowpole<T, F>> {
+pub fn lowpole<T: Float, F: Real>() -> An<Lowpole<T, F, U2>> {
     An(Lowpole::new(convert(DEFAULT_SR), F::new(440)))
 }
 
@@ -299,10 +299,8 @@ pub fn lowpole<T: Float, F: Real>() -> An<Lowpole<T, F>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn lowpole_hz<T: Float, F: Real>(
-    f: T,
-) -> An<Pipe<T, Stack<T, Pass<T>, Constant<T, U1>>, Lowpole<T, F>>> {
-    (pass::<T>() | constant(f)) >> An(Lowpole::<T, F>::new(DEFAULT_SR, convert(f)))
+pub fn lowpole_hz<T: Float, F: Real>(f: T) -> An<Lowpole<T, F, U1>> {
+    An(Lowpole::new(DEFAULT_SR, convert(f)))
 }
 
 /// Allpole filter with a configurable delay (delay > 0) in samples at DC.
@@ -576,18 +574,8 @@ pub fn pink<T: Float, F: Float>() -> An<Pipe<T, Noise<T>, Pinkpass<T, F>>> {
 
 /// Brown noise.
 #[inline]
-pub fn brown<T: Float, F: Real>() -> An<
-    Pipe<
-        T,
-        Noise<T>,
-        Binop<
-            T,
-            FrameMul<T, U1>,
-            Pipe<T, Stack<T, Pass<T>, Constant<T, U1>>, Lowpole<T, F>>,
-            Constant<T, U1>,
-        >,
-    >,
-> {
+pub fn brown<T: Float, F: Real>(
+) -> An<Pipe<T, Noise<T>, Binop<T, FrameMul<T, U1>, Lowpole<T, F, U1>, Constant<T, U1>>>> {
     // Empirical normalization factor.
     white() >> lowpole_hz::<T, F>(T::from_f64(10.0)) * dc(T::from_f64(13.7))
 }
@@ -904,15 +892,7 @@ pub fn reverb_stereo<T, F>(
                             U32,
                             Pipe<
                                 T,
-                                Pipe<
-                                    T,
-                                    Pipe<
-                                        T,
-                                        Delay<T>,
-                                        Pipe<T, Stack<T, Pass<T>, Constant<T, U1>>, Lowpole<T, F>>,
-                                    >,
-                                    DCBlock<T, F>,
-                                >,
+                                Pipe<T, Pipe<T, Delay<T>, Lowpole<T, F, U1>>, DCBlock<T, F>>,
                                 Binop<T, FrameMul<T, U1>, MultiPass<T, U1>, Constant<T, U1>>,
                             >,
                         >,
