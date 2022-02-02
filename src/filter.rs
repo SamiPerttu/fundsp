@@ -694,3 +694,147 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
         output
     }
 }
+
+/// 1st order allpass filter.
+/// - Input 0: input signal
+/// - Output 0: filtered signal
+#[derive(Default)]
+pub struct Allpole<T: Float, F: Float> {
+    _marker: std::marker::PhantomData<T>,
+    eta: F,
+    x1: F,
+    y1: F,
+    sample_rate: F,
+}
+
+impl<T: Float, F: Float> Allpole<T, F> {
+    pub fn new(sample_rate: f64, delay: F) -> Self {
+        assert!(delay > F::zero());
+        let mut node = Allpole {
+            _marker: std::marker::PhantomData,
+            eta: F::zero(),
+            x1: F::zero(),
+            y1: F::zero(),
+            sample_rate: convert(sample_rate),
+        };
+        node.set_delay(delay);
+        node
+    }
+
+    pub fn set_delay(&mut self, delay: F) {
+        self.eta = F::one() - delay / (F::one() + delay);
+    }
+}
+
+impl<T: Float, F: Float> AudioNode for Allpole<T, F> {
+    const ID: u64 = 45;
+    type Sample = T;
+    type Inputs = typenum::U1;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sample_rate) = sample_rate {
+            self.sample_rate = convert(sample_rate);
+        }
+        self.x1 = F::zero();
+        self.y1 = F::zero();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let x0 = convert(input[0]);
+        let y0 = self.eta * (x0 - self.y1) + self.x1;
+        self.x1 = x0;
+        self.y1 = y0;
+        [convert(y0)].into()
+    }
+
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = input[0].filter(0.0, |r| {
+            let eta = self.eta.to_f64();
+            let z1 = Complex64::from_polar(1.0, -frequency * TAU / self.sample_rate.to_f64());
+            r * (eta + z1) / (1.0 + eta * z1)
+        });
+        output
+    }
+}
+
+/// One-pole, one-zero highpass filter.
+/// - Input 0: input signal
+/// - Input 1: cutoff frequency (Hz)
+/// - Output 0: filtered signal
+#[derive(Default)]
+pub struct Highpole<T: Float, F: Real> {
+    _marker: std::marker::PhantomData<T>,
+    x1: F,
+    y1: F,
+    coeff: F,
+    cutoff: F,
+    sample_rate: F,
+}
+
+impl<T: Float, F: Real> Highpole<T, F> {
+    pub fn new(sample_rate: f64, cutoff: F) -> Self {
+        let mut node = Highpole {
+            _marker: std::marker::PhantomData,
+            x1: F::zero(),
+            y1: F::zero(),
+            coeff: F::zero(),
+            cutoff,
+            sample_rate: convert(sample_rate),
+        };
+        node.set_cutoff(cutoff);
+        node
+    }
+    pub fn set_cutoff(&mut self, cutoff: F) {
+        self.cutoff = cutoff;
+        self.coeff = exp(F::from_f64(-TAU) * cutoff / self.sample_rate);
+    }
+}
+
+impl<T: Float, F: Real> AudioNode for Highpole<T, F> {
+    const ID: u64 = 18;
+    type Sample = T;
+    type Inputs = typenum::U2;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sample_rate) = sample_rate {
+            self.sample_rate = convert(sample_rate);
+            self.set_cutoff(self.cutoff);
+        }
+        self.x1 = F::zero();
+        self.y1 = F::zero();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let cutoff: F = convert(input[1]);
+        if cutoff != self.cutoff {
+            self.set_cutoff(cutoff);
+        }
+        let x0 = convert(input[0]);
+        let y0 = self.coeff * (self.y1 + x0 - self.x1);
+        self.x1 = x0;
+        self.y1 = y0;
+        [convert(y0)].into()
+    }
+
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = input[0].filter(0.0, |r| {
+            let c = self.coeff.to_f64();
+            let f = frequency * TAU / self.sample_rate.to_f64();
+            let z1 = Complex64::from_polar(1.0, -f);
+            r * (c * (1.0 - z1) / (1.0 - c * z1))
+        });
+        output
+    }
+}

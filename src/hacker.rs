@@ -284,6 +284,33 @@ pub fn lowpole_hz(
     super::prelude::lowpole_hz(f)
 }
 
+/// Allpole filter with a configurable delay (delay > 0) in samples at DC.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn allpole_delay(delay_in_samples: f64) -> An<Allpole<f64, f64>> {
+    An(Allpole::new(DEFAULT_SR, delay_in_samples))
+}
+
+/// One-pole, one-zero highpass filter (1st order).
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Output 0: filtered audio
+#[inline]
+pub fn highpole() -> An<Highpole<f64, f64>> {
+    An(Highpole::new(DEFAULT_SR, 440.0))
+}
+
+/// One-pole, one-zero highpass filter (1st order) with fixed cutoff frequency f.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn highpole_hz(
+    f: f64,
+) -> An<Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U1>>, Highpole<f64, f64>>> {
+    (pass() | constant(f)) >> An(Highpole::new(DEFAULT_SR, f))
+}
+
 /// Constant-gain bandpass resonator.
 /// - Input 0: audio
 /// - Input 1: cutoff frequency (Hz)

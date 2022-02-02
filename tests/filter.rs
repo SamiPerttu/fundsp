@@ -182,6 +182,8 @@ fn test_responses() {
     test_response(pass() & tick());
     test_response(pass() * 0.25 & tick() * 0.5 & tick() >> tick() * 0.25);
     test_response(tick() & lowshelf_hz(500.0, 2.0, 0.1));
+    test_response(allpole_delay(0.5) & allpole_delay(1.3) & allpole_delay(0.1));
+    test_response(highpole_hz(5000.0) & highpole_hz(500.0) & highpole_hz(2000.0));
     test_response(
         (delay(0.001) ^ delay(0.002)) >> swap() >> (delay(0.003) | delay(0.007)) >> join(),
     );

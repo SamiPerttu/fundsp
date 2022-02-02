@@ -495,9 +495,11 @@ where
 
 /// Provides binary operator implementations to the `Binop` node.
 pub trait FrameBinop<T: Float, N: Size<T>> {
+    /// Do binary op (x op y) channelwise.
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
+    /// Do binary op (x op y) on signals.
     fn propagate(x: Signal, y: Signal) -> Signal;
-    /// Do binary op (x op y) in-place.
+    /// Do binary op (x op y) in-place lengthwise.
     fn assign(size: usize, x: &mut [T], y: &[T]);
 }
 
@@ -604,7 +606,7 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
 
 /// Combine outputs of two nodes with a binary operation.
 /// Inputs are disjoint.
-/// Outputs are combined channel-wise.
+/// Outputs are combined channelwise.
 /// The nodes must have the same number of outputs.
 pub struct Binop<T, B, X, Y>
 where
@@ -730,9 +732,11 @@ where
 
 /// Provides unary operator implementations to the `Unop` node.
 pub trait FrameUnop<T: Float, N: Size<T>> {
+    /// Do unary op channelwise.
     fn unop(x: &Frame<T, N>) -> Frame<T, N>;
+    /// Do unary op on signal.
     fn propagate(x: Signal) -> Signal;
-    /// Do unary op in-place.
+    /// Do unary op in-place lengthwise.
     fn assign(size: usize, x: &mut [T]);
 }
 
@@ -868,13 +872,13 @@ where
     }
 }
 
+/// Map any number of channels.
 pub struct Map<T, M, I, O> {
     f: M,
     routing: Routing,
     _marker: PhantomData<(T, I, O)>,
 }
 
-/// Map any number of channels.
 impl<T, M, I, O> Map<T, M, I, O>
 where
     T: Float,

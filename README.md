@@ -385,12 +385,14 @@ Verified frequency responses are available for all filters.
 | Opcode       | Type                   | Parameters   | Family       | Notes     |
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
 | `allpass`    | allpass (2nd order)    | frequency, Q | [Simper SVF](https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf) | |
+| `allpole_delay` | allpass (1st order) | frequency, delay | 1st order | Adjustable delay in samples. |
 | `bandpass`   | bandpass (2nd order)   | frequency, Q | Simper SVF   | |
 | `bell`       | peaking (2nd order)    | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
 | `butterpass` | lowpass (2nd order)    | frequency    | [biquad](https://en.wikipedia.org/wiki/Digital_biquad_filter) | [Butterworth](https://en.wikipedia.org/wiki/Butterworth_filter) lowpass has a maximally flat passband and monotonic frequency response. |
 | `dcblock`    | DC blocker (1st order) | frequency    | 1st order    | Zero centers signal, countering any constant offset ("direct current"). |
 | `follow`     | lowpass (3rd order)    | response time | nested 1st order | Smoothing filter with adjustable edge response time. |
 | `highpass`   | highpass (2nd order)   | frequency, Q | Simper SVF   | |
+| `highpole`   | highpass (1st order)   | frequency    | 1st order    | |
 | `highshelf`  | high shelf (2nd order) | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
 | `lowpass`    | lowpass (2nd order)    | frequency, Q | Simper SVF   | |
 | `lowpole`    | lowpass (1st order)    | frequency    | 1st order    | |
@@ -468,6 +470,7 @@ The type parameters in the table refer to the hacker prelude.
 | `allpass()`            | 3 (audio, frequency, Q) | 1 | Allpass filter (2nd order). |
 | `allpass_hz(f, q)`     |    1    |    1    | Allpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `allpass_q(q)`         | 2 (audio, frequency) | 1 | Allpass filter (2nd order) with Q `q`. |
+| `allpole_delay(delay)` |    1    |    1    | Allpass filter (1st order) with configurable `delay` (`delay` > 0) in samples. |
 | `bandpass()`           | 3 (audio, frequency, Q) | 1 | Bandpass filter (2nd order). |
 | `bandpass_hz(f, q)`    |    1    |    1    | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `bandpass_q(q)`        | 2 (audio, frequency) | 1 | Bandpass filter (2nd order) with Q `q`. |
@@ -500,6 +503,8 @@ The type parameters in the table refer to the hacker prelude.
 | `highpass()`           | 3 (audio, frequency, Q) | 1 | Highpass filter (2nd order). |
 | `highpass_hz(f, q)`    |    1    |    1    | Highpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `highpass_q(q)`        | 2 (audio, frequency) | 1 | Highpass filter (2nd order) with Q `q`. |
+| `highpole()`           | 2 (audio, frequency) | 1 | Highpass filter (1st order). |
+| `highpole_hz(f)`       |    1    |    1    | Highpass filter (1st order) with cutoff frequency `f` Hz. |
 | `highshelf()`          | 4 (audio, frequency, Q, gain) | 1 | High shelf filter (2nd order) with adjustable amplitude gain. |
 | `highshelf_hz(f, q, gain)`| 1    |    1    | High shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `highshelf_q(q, gain)` | 2 (audio, frequency) | 1 | High shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
@@ -851,4 +856,3 @@ shall be dual licensed as above, without any additional terms or conditions.
   Impose a default maximum sample rate to keep nested oversampling sensible.
 - `feedback_delay(delay, circuit)`. Feedback with explicit delay that enables block processing.
 - `melody(f, string)`: melody generator.
-- 1st order filters `highpole` and `allpole`.

@@ -302,7 +302,34 @@ pub fn lowpole<T: Float, F: Real>() -> An<Lowpole<T, F>> {
 pub fn lowpole_hz<T: Float, F: Real>(
     f: T,
 ) -> An<Pipe<T, Stack<T, Pass<T, U1>, Constant<T, U1>>, Lowpole<T, F>>> {
-    (pass::<T>() | constant(f)) >> An(Lowpole::<T, F>::new(convert(DEFAULT_SR), convert(f)))
+    (pass::<T>() | constant(f)) >> An(Lowpole::<T, F>::new(DEFAULT_SR, convert(f)))
+}
+
+/// Allpole filter with a configurable delay (delay > 0) in samples at DC.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn allpole_delay<T: Float, F: Float>(delay_in_samples: F) -> An<Allpole<T, F>> {
+    An(Allpole::new(DEFAULT_SR, delay_in_samples))
+}
+
+/// One-pole, one-zero highpass filter (1st order).
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Output 0: filtered audio
+#[inline]
+pub fn highpole<T: Float, F: Real>() -> An<Highpole<T, F>> {
+    An(Highpole::new(DEFAULT_SR, F::new(440)))
+}
+
+/// One-pole, one-zero highpass filter (1st order) with fixed cutoff frequency f.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+#[inline]
+pub fn highpole_hz<T: Float, F: Real>(
+    f: T,
+) -> An<Pipe<T, Stack<T, Pass<T, U1>, Constant<T, U1>>, Highpole<T, F>>> {
+    (pass::<T>() | constant(f)) >> An(Highpole::new(DEFAULT_SR, convert(f)))
 }
 
 /// Constant-gain bandpass resonator.
