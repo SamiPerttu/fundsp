@@ -121,18 +121,21 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
 }
 
 /// Butterworth lowpass filter.
+/// Number of inputs is `N`, either `U1` or `U2`.
 /// - Input 0: input signal
-/// - Input 1: cutoff frequency (Hz)
+/// - Input 1 (optional): cutoff frequency (Hz)
 /// - Output 0: filtered signal
-pub struct ButterLowpass<T: Float, F: Real> {
+pub struct ButterLowpass<T: Float, F: Real, N: Size<T>> {
+    _marker: std::marker::PhantomData<N>,
     biquad: Biquad<T, F>,
     sample_rate: F,
     cutoff: F,
 }
 
-impl<T: Float, F: Real> ButterLowpass<T, F> {
+impl<T: Float, F: Real, N: Size<T>> ButterLowpass<T, F, N> {
     pub fn new(sample_rate: f64, cutoff: F) -> Self {
         let mut node = ButterLowpass {
+            _marker: std::marker::PhantomData::default(),
             biquad: Biquad::new(),
             sample_rate: F::from_f64(sample_rate),
             cutoff: F::zero(),
@@ -147,10 +150,10 @@ impl<T: Float, F: Real> ButterLowpass<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
+impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
     const ID: u64 = 16;
     type Sample = T;
-    type Inputs = typenum::U2;
+    type Inputs = N;
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -166,9 +169,11 @@ impl<T: Float, F: Real> AudioNode for ButterLowpass<T, F> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let cutoff: F = convert(input[1]);
-        if cutoff != self.cutoff {
-            self.set_cutoff(cutoff);
+        if N::USIZE > 1 {
+            let cutoff: F = convert(input[1]);
+            if cutoff != self.cutoff {
+                self.set_cutoff(cutoff);
+            }
         }
         self.biquad.tick(&[input[0]].into())
     }
@@ -276,7 +281,7 @@ pub struct Lowpole<T: Float, F: Real, N: Size<T>> {
 impl<T: Float, F: Real, N: Size<T>> Lowpole<T, F, N> {
     pub fn new(sample_rate: f64, cutoff: F) -> Self {
         let mut node = Lowpole {
-            _marker: std::marker::PhantomData,
+            _marker: std::marker::PhantomData::default(),
             value: F::zero(),
             coeff: F::zero(),
             cutoff,
@@ -413,7 +418,7 @@ fn halfway_coeff<F: Real>(samples: F) -> F {
 /// Smoothing filter with adjustable edge response time.
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct Follow<T: Float, F: Real> {
     v3: F,
     v2: F,
@@ -716,7 +721,7 @@ impl<T: Float, F: Float, N: Size<T>> Allpole<T, F, N> {
     pub fn new(sample_rate: f64, delay: F) -> Self {
         assert!(delay > F::zero());
         let mut node = Allpole {
-            _marker: std::marker::PhantomData,
+            _marker: std::marker::PhantomData::default(),
             eta: F::zero(),
             x1: F::zero(),
             y1: F::zero(),
@@ -790,7 +795,7 @@ pub struct Highpole<T: Float, F: Real, N: Size<T>> {
 impl<T: Float, F: Real, N: Size<T>> Highpole<T, F, N> {
     pub fn new(sample_rate: f64, cutoff: F) -> Self {
         let mut node = Highpole {
-            _marker: std::marker::PhantomData,
+            _marker: std::marker::PhantomData::default(),
             x1: F::zero(),
             y1: F::zero(),
             coeff: F::zero(),

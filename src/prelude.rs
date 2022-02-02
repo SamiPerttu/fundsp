@@ -272,7 +272,7 @@ where
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn butterpass<T: Float, F: Real>() -> An<ButterLowpass<T, F>> {
+pub fn butterpass<T: Float, F: Real>() -> An<ButterLowpass<T, F, U2>> {
     An(ButterLowpass::new(convert(DEFAULT_SR), F::new(440)))
 }
 
@@ -280,10 +280,8 @@ pub fn butterpass<T: Float, F: Real>() -> An<ButterLowpass<T, F>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn butterpass_hz<T: Float, F: Real>(
-    f: T,
-) -> An<Pipe<T, Stack<T, Pass<T>, Constant<T, U1>>, ButterLowpass<T, F>>> {
-    (pass() | constant(f)) >> An(ButterLowpass::<T, F>::new(convert(DEFAULT_SR), convert(f)))
+pub fn butterpass_hz<T: Float, F: Real>(f: T) -> An<ButterLowpass<T, F, U1>> {
+    An(ButterLowpass::new(convert(DEFAULT_SR), convert(f)))
 }
 
 /// One-pole lowpass filter (1st order).

@@ -251,7 +251,7 @@ where
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn butterpass() -> An<ButterLowpass<f64, f64>> {
+pub fn butterpass() -> An<ButterLowpass<f64, f64, U2>> {
     An(ButterLowpass::new(DEFAULT_SR, 440.0))
 }
 
@@ -259,9 +259,7 @@ pub fn butterpass() -> An<ButterLowpass<f64, f64>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn butterpass_hz(
-    f: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U1>>, ButterLowpass<f64, f64>>> {
+pub fn butterpass_hz(f: f64) -> An<ButterLowpass<f64, f64, U1>> {
     super::prelude::butterpass_hz(f)
 }
 
