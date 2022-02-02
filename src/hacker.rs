@@ -284,11 +284,20 @@ pub fn lowpole_hz(
     super::prelude::lowpole_hz(f)
 }
 
-/// Allpole filter with a configurable delay (delay > 0) in samples at DC.
+/// Allpole filter with adjustable delay (delay > 0) in samples at DC.
+/// - Input 0: audio
+/// - Input 1: delay in samples
+/// - Output 0: filtered audio
+#[inline]
+pub fn allpole() -> An<Allpole<f64, f64, U2>> {
+    An(Allpole::new(DEFAULT_SR, 1.0))
+}
+
+/// Allpole filter with delay (delay > 0) in samples at DC.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn allpole_delay(delay_in_samples: f64) -> An<Allpole<f64, f64>> {
+pub fn allpole_delay(delay_in_samples: f64) -> An<Allpole<f64, f64, U1>> {
     An(Allpole::new(DEFAULT_SR, delay_in_samples))
 }
 

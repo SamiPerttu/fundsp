@@ -385,7 +385,7 @@ Verified frequency responses are available for all filters.
 | Opcode       | Type                   | Parameters   | Family       | Notes     |
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
 | `allpass`    | allpass (2nd order)    | frequency, Q | [Simper SVF](https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf) | |
-| `allpole_delay` | allpass (1st order) | frequency, delay | 1st order | Adjustable delay in samples. |
+| `allpole`    | allpass (1st order)    | frequency, delay | 1st order | Adjustable delay in samples. |
 | `bandpass`   | bandpass (2nd order)   | frequency, Q | Simper SVF   | |
 | `bell`       | peaking (2nd order)    | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
 | `butterpass` | lowpass (2nd order)    | frequency    | [biquad](https://en.wikipedia.org/wiki/Digital_biquad_filter) | [Butterworth](https://en.wikipedia.org/wiki/Butterworth_filter) lowpass has a maximally flat passband and monotonic frequency response. |
@@ -470,7 +470,8 @@ The type parameters in the table refer to the hacker prelude.
 | `allpass()`            | 3 (audio, frequency, Q) | 1 | Allpass filter (2nd order). |
 | `allpass_hz(f, q)`     |    1    |    1    | Allpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `allpass_q(q)`         | 2 (audio, frequency) | 1 | Allpass filter (2nd order) with Q `q`. |
-| `allpole_delay(delay)` |    1    |    1    | Allpass filter (1st order) with configurable `delay` (`delay` > 0) in samples. |
+| `allpole`              | 2 (audio, delay) | 1 | Allpass filter (1st order). 2nd input is delay in samples (`delay` > 0). |
+| `allpole_delay(delay)` |    1    |    1    | Allpass filter (1st order) with `delay` in samples (`delay` > 0). |
 | `bandpass()`           | 3 (audio, frequency, Q) | 1 | Bandpass filter (2nd order). |
 | `bandpass_hz(f, q)`    |    1    |    1    | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `bandpass_q(q)`        | 2 (audio, frequency) | 1 | Bandpass filter (2nd order) with Q `q`. |

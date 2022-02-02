@@ -695,19 +695,20 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
     }
 }
 
-/// 1st order allpass filter.
+/// 1st order allpass filter. The number of inputs is `N`, either `U1` or `U2`.
 /// - Input 0: input signal
+/// - Input 1 (optional): delay in samples (delay > 0)
 /// - Output 0: filtered signal
 #[derive(Default)]
-pub struct Allpole<T: Float, F: Float> {
-    _marker: std::marker::PhantomData<T>,
+pub struct Allpole<T: Float, F: Float, N: Size<T>> {
+    _marker: std::marker::PhantomData<(T, N)>,
     eta: F,
     x1: F,
     y1: F,
     sample_rate: F,
 }
 
-impl<T: Float, F: Float> Allpole<T, F> {
+impl<T: Float, F: Float, N: Size<T>> Allpole<T, F, N> {
     pub fn new(sample_rate: f64, delay: F) -> Self {
         assert!(delay > F::zero());
         let mut node = Allpole {
@@ -721,15 +722,16 @@ impl<T: Float, F: Float> Allpole<T, F> {
         node
     }
 
+    #[inline]
     pub fn set_delay(&mut self, delay: F) {
         self.eta = F::one() - delay / (F::one() + delay);
     }
 }
 
-impl<T: Float, F: Float> AudioNode for Allpole<T, F> {
+impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
     const ID: u64 = 46;
     type Sample = T;
-    type Inputs = typenum::U1;
+    type Inputs = N;
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -745,6 +747,9 @@ impl<T: Float, F: Float> AudioNode for Allpole<T, F> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
+        if N::USIZE > 1 {
+            self.set_delay(convert(input[1]));
+        }
         let x0 = convert(input[0]);
         let y0 = self.eta * (x0 - self.y1) + self.x1;
         self.x1 = x0;
