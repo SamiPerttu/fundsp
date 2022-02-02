@@ -195,17 +195,17 @@ pub trait AudioNode {
 
 /// Pass through inputs unchanged.
 #[derive(Default)]
-pub struct Pass<T, N> {
+pub struct MultiPass<T, N> {
     _marker: PhantomData<(T, N)>,
 }
 
-impl<T: Float, N: Size<T>> Pass<T, N> {
+impl<T: Float, N: Size<T>> MultiPass<T, N> {
     pub fn new() -> Self {
-        Pass::default()
+        MultiPass::default()
     }
 }
 
-impl<T: Float, N: Size<T>> AudioNode for Pass<T, N> {
+impl<T: Float, N: Size<T>> AudioNode for MultiPass<T, N> {
     const ID: u64 = 0;
     type Sample = T;
     type Inputs = N;
@@ -227,6 +227,46 @@ impl<T: Float, N: Size<T>> AudioNode for Pass<T, N> {
         for i in 0..self.inputs() {
             output[i][..size].clone_from_slice(&input[i][..size]);
         }
+    }
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        input.clone()
+    }
+}
+
+/// Pass through input unchanged.
+#[derive(Default)]
+pub struct Pass<T> {
+    _marker: PhantomData<T>,
+}
+
+impl<T: Float> Pass<T> {
+    pub fn new() -> Self {
+        Pass::default()
+    }
+}
+
+// Note. We have separate Pass and MultiPass structs
+// because it helps a little with type inference.
+impl<T: Float> AudioNode for Pass<T> {
+    const ID: u64 = 48;
+    type Sample = T;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        *input
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        output[0][..size].clone_from_slice(&input[0][..size]);
     }
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         input.clone()

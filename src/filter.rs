@@ -400,7 +400,7 @@ fn logistic<T: Real>(x: T) -> T {
 }
 
 fn halfway_coeff<F: Real>(samples: F) -> F {
-    // This approximation is accurate to 0.5% when 1 <= response_samples <= 1.0e5.
+    // This approximation is accurate to 0.5% when 1 <= response_samples <= 500_000.
     let r0 = log(max(F::one(), samples)) - F::from_f64(0.861624594696583);
     let r1 = logistic(r0);
     let r2 = r1 * F::from_f64(1.13228543863477) - F::from_f64(0.1322853859);
@@ -727,7 +727,7 @@ impl<T: Float, F: Float> Allpole<T, F> {
 }
 
 impl<T: Float, F: Float> AudioNode for Allpole<T, F> {
-    const ID: u64 = 45;
+    const ID: u64 = 46;
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
@@ -797,7 +797,7 @@ impl<T: Float, F: Real> Highpole<T, F> {
 }
 
 impl<T: Float, F: Real> AudioNode for Highpole<T, F> {
-    const ID: u64 = 18;
+    const ID: u64 = 47;
     type Sample = T;
     type Inputs = typenum::U2;
     type Outputs = typenum::U1;

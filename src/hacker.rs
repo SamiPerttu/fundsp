@@ -163,14 +163,14 @@ pub fn multizero<U: Size<f64>>() -> An<Constant<f64, U>> {
 
 /// Mono pass-through.
 #[inline]
-pub fn pass() -> An<Pass<f64, U1>> {
+pub fn pass() -> An<Pass<f64>> {
     An(Pass::new())
 }
 
 /// Multichannel pass-through.
 #[inline]
-pub fn multipass<U: Size<f64>>() -> An<Pass<f64, U>> {
-    An(Pass::new())
+pub fn multipass<U: Size<f64>>() -> An<MultiPass<f64, U>> {
+    An(MultiPass::new())
 }
 
 /// Mono sink. Input is discarded.
@@ -214,36 +214,36 @@ pub fn sine_hz(f: f64) -> An<Pipe<f64, Constant<f64, U1>, Sine<f64>>> {
 #[inline]
 pub fn add<X: ConstantFrame<Sample = f64>>(
     x: X,
-) -> An<Binop<f64, FrameAdd<f64, X::Size>, Pass<f64, X::Size>, Constant<f64, X::Size>>>
+) -> An<Binop<f64, FrameAdd<f64, X::Size>, MultiPass<f64, X::Size>, Constant<f64, X::Size>>>
 where
     X::Size: Size<f64> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<f64>,
 {
-    An(Pass::<f64, X::Size>::new()) + dc(x)
+    An(MultiPass::<f64, X::Size>::new()) + dc(x)
 }
 
 /// Subtract constant from signal.
 #[inline]
 pub fn sub<X: ConstantFrame<Sample = f64>>(
     x: X,
-) -> An<Binop<f64, FrameSub<f64, X::Size>, Pass<f64, X::Size>, Constant<f64, X::Size>>>
+) -> An<Binop<f64, FrameSub<f64, X::Size>, MultiPass<f64, X::Size>, Constant<f64, X::Size>>>
 where
     X::Size: Size<f64> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<f64>,
 {
-    An(Pass::<f64, X::Size>::new()) - dc(x)
+    An(MultiPass::<f64, X::Size>::new()) - dc(x)
 }
 
 /// Multiply signal with constant.
 #[inline]
 pub fn mul<X: ConstantFrame<Sample = f64>>(
     x: X,
-) -> An<Binop<f64, FrameMul<f64, X::Size>, Pass<f64, X::Size>, Constant<f64, X::Size>>>
+) -> An<Binop<f64, FrameMul<f64, X::Size>, MultiPass<f64, X::Size>, Constant<f64, X::Size>>>
 where
     X::Size: Size<f64> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<f64>,
 {
-    An(Pass::<f64, X::Size>::new()) * dc(x)
+    An(MultiPass::<f64, X::Size>::new()) * dc(x)
 }
 
 /// Butterworth lowpass filter (2nd order).
@@ -261,7 +261,7 @@ pub fn butterpass() -> An<ButterLowpass<f64, f64>> {
 #[inline]
 pub fn butterpass_hz(
     f: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U1>>, ButterLowpass<f64, f64>>> {
+) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U1>>, ButterLowpass<f64, f64>>> {
     super::prelude::butterpass_hz(f)
 }
 
@@ -280,7 +280,7 @@ pub fn lowpole() -> An<Lowpole<f64, f64>> {
 #[inline]
 pub fn lowpole_hz(
     f: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U1>>, Lowpole<f64, f64>>> {
+) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U1>>, Lowpole<f64, f64>>> {
     super::prelude::lowpole_hz(f)
 }
 
@@ -307,7 +307,7 @@ pub fn highpole() -> An<Highpole<f64, f64>> {
 #[inline]
 pub fn highpole_hz(
     f: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U1>>, Highpole<f64, f64>>> {
+) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U1>>, Highpole<f64, f64>>> {
     (pass() | constant(f)) >> An(Highpole::new(DEFAULT_SR, f))
 }
 
@@ -328,7 +328,7 @@ pub fn resonator() -> An<Resonator<f64, f64>> {
 pub fn resonator_hz(
     center: f64,
     bandwidth: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U2>>, Resonator<f64, f64>>> {
+) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U2>>, Resonator<f64, f64>>> {
     super::prelude::resonator_hz(center, bandwidth)
 }
 
@@ -534,7 +534,7 @@ pub fn brown() -> An<
         Binop<
             f64,
             FrameMul<f64, U1>,
-            Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U1>>, Lowpole<f64, f64>>,
+            Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U1>>, Lowpole<f64, f64>>,
             Constant<f64, U1>,
         >,
     >,
@@ -553,7 +553,7 @@ pub fn goertzel() -> An<Goertzel<f64, f64>> {
 #[inline]
 pub fn goertzel_hz(
     f: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U1>, Constant<f64, U1>>, Goertzel<f64, f64>>> {
+) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U1>>, Goertzel<f64, f64>>> {
     super::prelude::goertzel_hz(f)
 }
 
@@ -798,13 +798,18 @@ pub fn reverb_stereo(
                                         Delay<f64>,
                                         Pipe<
                                             f64,
-                                            Stack<f64, Pass<f64, U1>, Constant<f64, U1>>,
+                                            Stack<f64, Pass<f64>, Constant<f64, U1>>,
                                             Lowpole<f64, f64>,
                                         >,
                                     >,
                                     DCBlock<f64, f64>,
                                 >,
-                                Binop<f64, FrameMul<f64, U1>, Pass<f64, U1>, Constant<f64, U1>>,
+                                Binop<
+                                    f64,
+                                    FrameMul<f64, U1>,
+                                    MultiPass<f64, U1>,
+                                    Constant<f64, U1>,
+                                >,
                             >,
                         >,
                         U32,
@@ -813,9 +818,9 @@ pub fn reverb_stereo(
                 >,
                 MultiJoin<f64, U2, U16>,
             >,
-            Binop<f64, FrameMul<f64, U2>, Pass<f64, U2>, Constant<f64, U2>>,
+            Binop<f64, FrameMul<f64, U2>, MultiPass<f64, U2>, Constant<f64, U2>>,
         >,
-        Binop<f64, FrameMul<f64, U2>, Pass<f64, U2>, Constant<f64, U2>>,
+        Binop<f64, FrameMul<f64, U2>, MultiPass<f64, U2>, Constant<f64, U2>>,
     >,
 > {
     super::prelude::reverb_stereo::<f64, f64>(wet, time)
@@ -885,7 +890,8 @@ pub fn lowpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, LowpassMode<f64>>> {
 #[inline]
 pub fn lowpass_q(
     q: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, LowpassMode<f64>>>> {
+) -> An<Pipe<f64, Stack<f64, MultiPass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, LowpassMode<f64>>>>
+{
     super::prelude::lowpass_q::<f64, f64>(q)
 }
 
@@ -914,7 +920,9 @@ pub fn highpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, HighpassMode<f64>>> 
 #[inline]
 pub fn highpass_q(
     q: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, HighpassMode<f64>>>> {
+) -> An<
+    Pipe<f64, Stack<f64, MultiPass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, HighpassMode<f64>>>,
+> {
     super::prelude::highpass_q::<f64, f64>(q)
 }
 
@@ -943,7 +951,9 @@ pub fn bandpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, BandpassMode<f64>>> 
 #[inline]
 pub fn bandpass_q(
     q: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, BandpassMode<f64>>>> {
+) -> An<
+    Pipe<f64, Stack<f64, MultiPass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, BandpassMode<f64>>>,
+> {
     super::prelude::bandpass_q::<f64, f64>(q)
 }
 
@@ -972,7 +982,8 @@ pub fn notch_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, NotchMode<f64>>> {
 #[inline]
 pub fn notch_q(
     q: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, NotchMode<f64>>>> {
+) -> An<Pipe<f64, Stack<f64, MultiPass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, NotchMode<f64>>>>
+{
     super::prelude::notch_q::<f64, f64>(q)
 }
 
@@ -1001,7 +1012,8 @@ pub fn peak_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, PeakMode<f64>>> {
 #[inline]
 pub fn peak_q(
     q: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, PeakMode<f64>>>> {
+) -> An<Pipe<f64, Stack<f64, MultiPass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, PeakMode<f64>>>>
+{
     super::prelude::peak_q::<f64, f64>(q)
 }
 
@@ -1030,7 +1042,8 @@ pub fn allpass_hz(f: f64, q: f64) -> An<FixedSvf<f64, f64, AllpassMode<f64>>> {
 #[inline]
 pub fn allpass_q(
     q: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, AllpassMode<f64>>>> {
+) -> An<Pipe<f64, Stack<f64, MultiPass<f64, U2>, Constant<f64, U1>>, Svf<f64, f64, AllpassMode<f64>>>>
+{
     super::prelude::allpass_q::<f64, f64>(q)
 }
 
@@ -1061,7 +1074,8 @@ pub fn bell_hz(f: f64, q: f64, gain: f64) -> An<FixedSvf<f64, f64, BellMode<f64>
 pub fn bell_q(
     q: f64,
     gain: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U2>>, Svf<f64, f64, BellMode<f64>>>> {
+) -> An<Pipe<f64, Stack<f64, MultiPass<f64, U2>, Constant<f64, U2>>, Svf<f64, f64, BellMode<f64>>>>
+{
     super::prelude::bell_q::<f64, f64>(q, gain)
 }
 
@@ -1092,7 +1106,9 @@ pub fn lowshelf_hz(f: f64, q: f64, gain: f64) -> An<FixedSvf<f64, f64, LowshelfM
 pub fn lowshelf_q(
     q: f64,
     gain: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U2>>, Svf<f64, f64, LowshelfMode<f64>>>> {
+) -> An<
+    Pipe<f64, Stack<f64, MultiPass<f64, U2>, Constant<f64, U2>>, Svf<f64, f64, LowshelfMode<f64>>>,
+> {
     super::prelude::lowshelf_q::<f64, f64>(q, gain)
 }
 
@@ -1123,8 +1139,9 @@ pub fn highshelf_hz(f: f64, q: f64, gain: f64) -> An<FixedSvf<f64, f64, Highshel
 pub fn highshelf_q(
     q: f64,
     gain: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64, U2>, Constant<f64, U2>>, Svf<f64, f64, HighshelfMode<f64>>>>
-{
+) -> An<
+    Pipe<f64, Stack<f64, MultiPass<f64, U2>, Constant<f64, U2>>, Svf<f64, f64, HighshelfMode<f64>>>,
+> {
     super::prelude::highshelf_q::<f64, f64>(q, gain)
 }
 
