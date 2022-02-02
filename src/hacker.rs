@@ -306,7 +306,7 @@ pub fn allpole_delay(delay_in_samples: f64) -> An<Allpole<f64, f64, U1>> {
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 #[inline]
-pub fn highpole() -> An<Highpole<f64, f64>> {
+pub fn highpole() -> An<Highpole<f64, f64, U2>> {
     An(Highpole::new(DEFAULT_SR, 440.0))
 }
 
@@ -314,10 +314,8 @@ pub fn highpole() -> An<Highpole<f64, f64>> {
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn highpole_hz(
-    f: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<f64, U1>>, Highpole<f64, f64>>> {
-    (pass() | constant(f)) >> An(Highpole::new(DEFAULT_SR, f))
+pub fn highpole_hz(f: f64) -> An<Highpole<f64, f64, U1>> {
+    An(Highpole::new(DEFAULT_SR, f))
 }
 
 /// Constant-gain bandpass resonator.

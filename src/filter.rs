@@ -695,7 +695,8 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
     }
 }
 
-/// 1st order allpass filter. The number of inputs is `N`, either `U1` or `U2`.
+/// 1st order allpass filter.
+/// The number of inputs is `N`, either `U1` or `U2`.
 /// - Input 0: input signal
 /// - Input 1 (optional): delay in samples (delay > 0)
 /// - Output 0: filtered signal
@@ -769,12 +770,13 @@ impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
 }
 
 /// One-pole, one-zero highpass filter.
+/// The number of inputs is `N`, either `U1` or `U2`.
 /// - Input 0: input signal
-/// - Input 1: cutoff frequency (Hz)
+/// - Input 1 (optional): cutoff frequency (Hz)
 /// - Output 0: filtered signal
 #[derive(Default)]
-pub struct Highpole<T: Float, F: Real> {
-    _marker: std::marker::PhantomData<T>,
+pub struct Highpole<T: Float, F: Real, N: Size<T>> {
+    _marker: std::marker::PhantomData<(T, N)>,
     x1: F,
     y1: F,
     coeff: F,
@@ -782,7 +784,7 @@ pub struct Highpole<T: Float, F: Real> {
     sample_rate: F,
 }
 
-impl<T: Float, F: Real> Highpole<T, F> {
+impl<T: Float, F: Real, N: Size<T>> Highpole<T, F, N> {
     pub fn new(sample_rate: f64, cutoff: F) -> Self {
         let mut node = Highpole {
             _marker: std::marker::PhantomData,
@@ -801,10 +803,10 @@ impl<T: Float, F: Real> Highpole<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for Highpole<T, F> {
+impl<T: Float, F: Real, N: Size<T>> AudioNode for Highpole<T, F, N> {
     const ID: u64 = 47;
     type Sample = T;
-    type Inputs = typenum::U2;
+    type Inputs = N;
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -821,9 +823,11 @@ impl<T: Float, F: Real> AudioNode for Highpole<T, F> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let cutoff: F = convert(input[1]);
-        if cutoff != self.cutoff {
-            self.set_cutoff(cutoff);
+        if N::USIZE > 1 {
+            let cutoff: F = convert(input[1]);
+            if cutoff != self.cutoff {
+                self.set_cutoff(cutoff);
+            }
         }
         let x0 = convert(input[0]);
         let y0 = self.coeff * (self.y1 + x0 - self.x1);
