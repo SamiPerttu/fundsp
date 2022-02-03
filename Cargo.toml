@@ -11,7 +11,7 @@ readme = "README.md"
 edition = "2021"
 
 [dependencies]
-generic-array = "0.14.4"
+generic-array = "0.14.5"
 numeric-array = "0.5.2"
 num-complex = "0.4.0"
 rustfft = "6.0.1"
