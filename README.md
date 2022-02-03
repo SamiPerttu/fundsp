@@ -592,10 +592,24 @@ The values in between are linearly interpolated.
 according to their first generic argument.
 They accept a generator function that is issued `i64` integers starting from 0.
 
+For example, to create 20 pseudorandom noise bands in 1 kHz...2 kHz:
+
+```rust
+use fundsp::hacker::*;
+let partials = bus::<U20, _, _>(|i| noise() >> resonator_hz(xerp(1_000.0, 2_000.0, rnd(i)), 20.0));
+```
+
 Similarly, `branchf`, `busf`, `pipef`, `sumf` and `stackf` accept a generator function
 that is issued values evenly distributed in the unit interval 0...1.
 The first node is issued the value 0 and the last node the value 1.
 If there is only one node, then it receives the value 0.5.
+
+For example, to distribute 20 noise bands evenly in 1 kHz...2 kHz:
+
+```rust
+use fundsp::hacker::*;
+let partials = busf::<U20, _, _>(|f| noise() >> resonator_hz(xerp(1_000.0, 2_000.0, f), 20.0));
+```
 
 #### Waveshaping Modes
 
@@ -748,16 +762,17 @@ Many functions in the prelude itself are defined as graph expressions.
 
 ---
 
-| Function                                 | Inputs | Outputs | Definition                                     |
-| ---------------------------------------- |:------:|:-------:| ---------------------------------------------- |
-| `goertzel_hz(f)`                         |   1    |    1    | `(pass() \| constant(f)) >> goertzel()`        |
-| `butterpass_hz(c)`                       |   1    |    1    | `(pass() \| constant(c)) >> butterpass()`      |
-| `lowpole_hz(c)`                          |   1    |    1    | `(pass() \| constant(c)) >> lowpole()`         |
-| `mls()`                                  |   -    |    1    | `mls_bits(29)`                                 |
-| `pink()`                                 |   -    |    1    | `white() >> pinkpass()`                        |
-| `resonator_hz(c, bw)`                    |   1    |    1    | `(pass() \| constant((c, bw))) >> resonator()` |
-| `sine_hz(f)`                             |   -    |    1    | `constant(f) >> sine()`                        |
-| `zero()`                                 |   -    |    1    | `constant(0.0)`                                |
+| Function                                 | Inputs  | Outputs | Definition                                     |
+| ---------------------------------------- |:-------:|:-------:| ---------------------------------------------- |
+| `brown()`                                |    -    |    1    | `white() >> lowpole_hz(10.0) * constant(13.7)` |
+| `goertzel_hz(f)`                         |    1    |    1    | `(pass() \| constant(f)) >> goertzel()`        |
+| `mls()`                                  |    -    |    1    | `mls_bits(29)`                                 |
+| `pink()`                                 |    -    |    1    | `white() >> pinkpass()`                        |
+| `saw_hz(f)`                              |    -    |    1    | `constant(f) >> saw()`                         |
+| `sine_hz(f)`                             |    -    |    1    | `constant(f) >> sine()`                        |
+| `square_hz(f)`                           |    -    |    1    | `constant(f) >> square()`                      |
+| `triangle_hz(f)`                         |    -    |    1    | `constant(f) >> triangle()`                    |
+| `zero()`                                 |    -    |    1    | `constant(0.0)`                                |
 
 ---
 
@@ -770,7 +785,7 @@ There are usually many ways to express a particular graph. The following express
 | Expression                                 | Is The Same As                  | Notes |
 | ------------------------------------------ | ------------------------------- | ----- |
 | `(pass() ^ mul(2.0)) >> sine() + sine()`   | `sine() & mul(2.0) >> sine()`   | Busing is often more convenient than explicit branching followed with summing. |
-| `--sink()-42.0^sink()&---sink()*3.14`      | `sink()`                        | Branching, busing, monitoring and arithmetic on sinks are no-ops. |
+| `--sink()-42.0^sink()&---sink()*3.14`      | `sink()`                        | Branching, busing and arithmetic on sinks are no-ops. |
 | `constant(0.0) \| dc(1.0)`                 | `constant((0.0, 1.0))`          | Stacking concatenates channels. |
 | `sink() \| zero()`                         | `zero() \| sink()`              | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
 | `(butterpass() ^ (sink() \| pass())) >> butterpass()` | `!butterpass() >> butterpass()`  | Running a manual bypass. |

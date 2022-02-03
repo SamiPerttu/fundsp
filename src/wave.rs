@@ -7,15 +7,15 @@ use crate::*;
 use rsor::Slice;
 
 /// Multichannel wave.
-pub struct Wave<F: Float> {
+pub struct Wave<T: Float> {
     /// Vector of channels. Each channel is stored in its own vector.
-    vec: Vec<Vec<F>>,
+    vec: Vec<Vec<T>>,
     /// Sample rate of the wave.
     sr: f64,
 }
 
-impl<F: Float> Wave<F> {
-    /// Creates an empty wave. `channels` > 0.
+impl<T: Float> Wave<T> {
+    /// Creates an empty wave with the specified number of channels (`channels` > 0).
     pub fn new(channels: usize, sample_rate: f64) -> Self {
         assert!(channels > 0);
         let mut vec = Vec::with_capacity(channels);
@@ -28,7 +28,8 @@ impl<F: Float> Wave<F> {
         }
     }
 
-    /// Creates an empty wave with the given `capacity`. `channels` > 0.
+    /// Creates an empty wave with the given `capacity` in samples
+    /// and number of channels (`channels` > 0).
     pub fn with_capacity(channels: usize, sample_rate: f64, capacity: usize) -> Self {
         assert!(channels > 0);
         let mut vec = Vec::with_capacity(channels);
@@ -57,22 +58,22 @@ impl<F: Float> Wave<F> {
     }
 
     /// Returns a reference to the requested channel.
-    pub fn channel(&self, channel: usize) -> &Vec<F> {
+    pub fn channel(&self, channel: usize) -> &Vec<T> {
         &self.vec[channel]
     }
 
     /// Returns a mutable reference to the requested channel.
-    pub fn channel_mut(&mut self, channel: usize) -> &mut Vec<F> {
+    pub fn channel_mut(&mut self, channel: usize) -> &mut Vec<T> {
         &mut self.vec[channel]
     }
 
     /// Sample accessor.
-    pub fn at(&self, channel: usize, index: usize) -> F {
+    pub fn at(&self, channel: usize, index: usize) -> T {
         self.vec[channel][index]
     }
 
     /// Set sample to value.
-    pub fn set(&mut self, channel: usize, index: usize, value: F) {
+    pub fn set(&mut self, channel: usize, index: usize, value: T) {
         self.vec[channel][index] = value;
     }
 
@@ -90,24 +91,26 @@ impl<F: Float> Wave<F> {
     pub fn resize(&mut self, length: usize) {
         if length != self.length() {
             for channel in 0..self.channels() {
-                self.vec[channel].resize(length, F::zero());
+                self.vec[channel].resize(length, T::zero());
             }
         }
     }
 
     /// Render wave from a generator `node`.
-    /// Does not reset `node` or set its sample rate or discard pre-delay.
+    /// Resets `node` and sets its sample rate.
+    /// Does not discard pre-delay.
     pub fn render<X>(sample_rate: f64, duration: f64, node: &mut An<X>) -> Self
     where
-        X: AudioNode<Sample = F>,
+        X: AudioNode<Sample = T>,
     {
         assert!(node.inputs() == 0);
         assert!(node.outputs() > 0);
+        node.reset(Some(sample_rate));
         let length = (duration * sample_rate).round() as usize;
-        let mut wave = Wave::<F>::with_capacity(node.outputs(), sample_rate, length);
+        let mut wave = Wave::<T>::with_capacity(node.outputs(), sample_rate, length);
         let mut i = 0;
-        let mut buffer = Wave::<F>::new(node.outputs(), sample_rate);
-        let mut reusable_slice = Slice::<[F]>::with_capacity(node.outputs());
+        let mut buffer = Wave::<T>::new(node.outputs(), sample_rate);
+        let mut reusable_slice = Slice::<[T]>::with_capacity(node.outputs());
         while i < length {
             let n = min(length - i, MAX_BUFFER_SIZE);
             buffer.resize(n);
@@ -120,24 +123,57 @@ impl<F: Float> Wave<F> {
         wave
     }
 
+    /// Render wave from a generator `node`.
+    /// Any pre-delay, as measured by signal latency, is discarded.
+    /// Resets `node` and sets its sample rate.
+    pub fn render_with_latency<X>(sample_rate: f64, duration: f64, node: &mut An<X>) -> Self
+    where
+        X: AudioNode<Sample = T>,
+    {
+        assert!(node.inputs() == 0);
+        assert!(node.outputs() > 0);
+        let latency = node.latency().unwrap_or_default();
+        // Round latency down to nearest sample.
+        let latency_samples = floor(latency) as usize;
+        let latency_duration = latency_samples as f64 / sample_rate;
+        // Round duration to nearest sample.
+        let duration_samples = round(duration * sample_rate) as usize;
+        let duration = duration_samples as f64 / sample_rate;
+        if latency_samples > 0 {
+            let latency_wave = Wave::render(sample_rate, duration + latency_duration, node);
+            let mut wave = Wave::with_capacity(node.outputs(), sample_rate, duration_samples);
+            wave.resize(duration_samples);
+            for channel in 0..wave.channels() {
+                for i in 0..duration_samples {
+                    wave.set(channel, i, latency_wave.at(channel, i + latency_samples));
+                }
+            }
+            wave
+        } else {
+            Wave::render(sample_rate, duration, node)
+        }
+    }
+
     /// Filter this wave with `node` and return the resulting wave.
-    /// Does not reset `node` or set its sample rate or discard pre-delay.
-    /// Zero input is used for the rest of the wave if
+    /// Resets `node` and sets its sample rate. Does not discard pre-delay.
+    /// The `node` must have as many inputs as there are channels in this wave.
+    /// All zeros input is used for the rest of the wave if
     /// the duration is greater than the duration of this wave.
     pub fn filter<X>(&self, duration: f64, node: &mut An<X>) -> Self
     where
-        X: AudioNode<Sample = F>,
+        X: AudioNode<Sample = T>,
     {
         assert!(node.inputs() == self.channels());
         assert!(node.outputs() > 0);
+        node.reset(Some(self.sample_rate()));
         let total_length = round(duration * self.sample_rate()) as usize;
         let input_length = min(total_length, self.length());
-        let mut wave = Wave::<F>::with_capacity(node.outputs(), self.sample_rate(), total_length);
+        let mut wave = Wave::<T>::with_capacity(node.outputs(), self.sample_rate(), total_length);
         let mut i = 0;
-        let mut input_buffer = Wave::<F>::new(self.channels(), self.sample_rate());
-        let mut reusable_input_slice = Slice::<[F]>::with_capacity(self.channels());
-        let mut output_buffer = Wave::<F>::new(node.outputs(), self.sample_rate());
-        let mut reusable_output_slice = Slice::<[F]>::with_capacity(node.outputs());
+        let mut input_buffer = Wave::<T>::new(self.channels(), self.sample_rate());
+        let mut reusable_input_slice = Slice::<[T]>::with_capacity(self.channels());
+        let mut output_buffer = Wave::<T>::new(node.outputs(), self.sample_rate());
+        let mut reusable_output_slice = Slice::<[T]>::with_capacity(node.outputs());
         // Filter from this wave.
         while i < input_length {
             let n = min(input_length - i, MAX_BUFFER_SIZE);
@@ -163,7 +199,7 @@ impl<F: Float> Wave<F> {
             input_buffer.resize(MAX_BUFFER_SIZE);
             for channel in 0..self.channels() {
                 for j in 0..MAX_BUFFER_SIZE {
-                    input_buffer.set(channel, j, F::zero());
+                    input_buffer.set(channel, j, T::zero());
                 }
             }
             while i < total_length {
@@ -182,5 +218,40 @@ impl<F: Float> Wave<F> {
             }
         }
         wave
+    }
+
+    /// Filter this wave with `node` and return the resulting wave.
+    /// Any pre-delay, as measured by signal latency, is discarded.
+    /// Resets `node` and sets its sample rate.
+    /// The `node` must have as many inputs as there are channels in this wave.
+    /// All zeros input is used for the rest of the wave if
+    /// the duration is greater than the duration of this wave.
+    pub fn filter_with_latency<X>(&self, duration: f64, node: &mut An<X>) -> Self
+    where
+        X: AudioNode<Sample = T>,
+    {
+        assert!(node.inputs() == self.channels());
+        assert!(node.outputs() > 0);
+        let latency = node.latency().unwrap_or_default();
+        // Round latency down to nearest sample.
+        let latency_samples = floor(latency) as usize;
+        let latency_duration = latency_samples as f64 / self.sample_rate();
+        // Round duration to nearest sample.
+        let duration_samples = round(duration * self.sample_rate()) as usize;
+        let duration = duration_samples as f64 / self.sample_rate();
+        if latency_samples > 0 {
+            let latency_wave = self.filter(duration + latency_duration, node);
+            let mut wave =
+                Wave::with_capacity(node.outputs(), self.sample_rate(), duration_samples);
+            wave.resize(duration_samples);
+            for channel in 0..wave.channels() {
+                for i in 0..duration_samples {
+                    wave.set(channel, i, latency_wave.at(channel, i + latency_samples));
+                }
+            }
+            wave
+        } else {
+            self.filter(duration, node)
+        }
     }
 }
