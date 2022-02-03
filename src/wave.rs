@@ -5,6 +5,25 @@ use crate::combinator::*;
 use crate::math::*;
 use crate::*;
 use rsor::Slice;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
+
+/// Write a 32-bit value to a WAV file.
+fn write32(file: &mut File, x: u32) -> std::io::Result<()> {
+    file.write_all(&[x as u8])?;
+    file.write_all(&[(x >> 8) as u8])?;
+    file.write_all(&[(x >> 16) as u8])?;
+    file.write_all(&[(x >> 24) as u8])?;
+    std::io::Result::Ok(())
+}
+
+/// Write a 16-bit value to a WAV file.
+fn write16(file: &mut File, x: u16) -> std::io::Result<()> {
+    file.write_all(&[x as u8])?;
+    file.write_all(&[(x >> 8) as u8])?;
+    std::io::Result::Ok(())
+}
 
 /// Multichannel wave.
 pub struct Wave<T: Float> {
@@ -80,6 +99,16 @@ impl<T: Float> Wave<T> {
     /// Length of the wave in samples.
     pub fn length(&self) -> usize {
         self.vec[0].len()
+    }
+
+    /// Length of the wave in samples.
+    pub fn len(&self) -> usize {
+        self.vec[0].len()
+    }
+
+    /// Returns whether this wave contains no samples.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Duration of the wave in seconds.
@@ -253,5 +282,38 @@ impl<T: Float> Wave<T> {
         } else {
             self.filter(duration, node)
         }
+    }
+
+    /// Saves the wave as a 16-bit WAV file.
+    pub fn save_wav(&self, path: &Path) -> std::io::Result<()> {
+        let mut file = File::create(path)?;
+        file.write_all(b"RIFF")?;
+        let data_length = 2 * self.channels() * self.length();
+        write32(&mut file, data_length as u32 + 36)?;
+        file.write_all(b"WAVE")?;
+        file.write_all(b"fmt ")?;
+        // Length of fmt block.
+        write32(&mut file, 16)?;
+        // Audio data format 1 = PCM.
+        write16(&mut file, 1)?;
+        write16(&mut file, self.channels() as u16)?;
+        let sample_rate = round(self.sample_rate()) as u32;
+        write32(&mut file, sample_rate)?;
+        // Data rate in bytes per second.
+        write32(&mut file, sample_rate * self.channels() as u32 * 2)?;
+        // Sample frame length in bytes.
+        write16(&mut file, self.channels() as u16 * 2)?;
+        // Bits per sample.
+        write16(&mut file, 16)?;
+        file.write_all(b"data")?;
+        // Length of data block.
+        write32(&mut file, data_length as u32)?;
+        for i in 0..self.length() {
+            for channel in 0..self.channels() {
+                let sample = round(clamp11(self.at(channel, i)) * T::from_f64(32767.49));
+                write16(&mut file, sample.to_i64() as u16)?;
+            }
+        }
+        std::io::Result::Ok(())
     }
 }
