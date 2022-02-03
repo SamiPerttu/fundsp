@@ -2,6 +2,7 @@
 
 use super::audionode::*;
 use super::math::*;
+use super::signal::*;
 use super::*;
 use numeric_array::*;
 
@@ -133,6 +134,12 @@ impl<T: Float> AudioNode for Mls<T> {
         self.hash = hash;
         self.reset(None);
     }
+
+    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = Signal::Latency(0.0);
+        output
+    }
 }
 
 /// White noise component.
@@ -173,5 +180,11 @@ impl<T: Float> AudioNode for Noise<T> {
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.reset(None);
+    }
+
+    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = Signal::Latency(0.0);
+        output
     }
 }

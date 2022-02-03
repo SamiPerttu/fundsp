@@ -11,9 +11,10 @@ pub enum Signal {
     Unknown,
     /// Constant signal with value.
     Value(f64),
-    /// Signal that is connected to input(s) with latency in samples.
+    /// Signal that is connected to inputs or generators with latency in samples.
     Latency(f64),
-    /// Signal that is connected to input(s) with complex frequency response and latency in samples.
+    /// Signal that is connected to inputs or generators
+    /// with complex frequency response and latency in samples.
     Response(Complex64, f64),
 }
 
@@ -24,8 +25,8 @@ impl Default for Signal {
 }
 
 impl Signal {
-    /// Filter signal using the transfer function `filter` while adding extra `latency`.
-    /// Latency is measured in samples.
+    /// Filter signal using the frequency response function `filter`
+    /// while adding extra `latency`. Latency is measured in samples.
     pub fn filter(&self, latency: f64, filter: impl Fn(Complex64) -> Complex64) -> Signal {
         match self {
             Signal::Latency(l) => Signal::Latency(l + latency),
