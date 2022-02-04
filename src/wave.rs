@@ -11,6 +11,7 @@ use std::path::Path;
 
 /// Write a 32-bit value to a WAV file.
 fn write32(file: &mut File, x: u32) -> std::io::Result<()> {
+    // WAV files are little endian.
     file.write_all(&[x as u8])?;
     file.write_all(&[(x >> 8) as u8])?;
     file.write_all(&[(x >> 16) as u8])?;
@@ -125,6 +126,31 @@ impl<T: Float> Wave<T> {
         }
     }
 
+    /// Peak amplitude of the wave.
+    pub fn amplitude(&self) -> T {
+        let mut peak = T::zero();
+        for channel in 0..self.channels() {
+            for i in 0..self.len() {
+                peak = max(peak, abs(self.at(channel, i)));
+            }
+        }
+        peak
+    }
+
+    /// Scales the wave to the range -1...1.
+    pub fn normalize(&mut self) {
+        let a = self.amplitude();
+        if a == T::zero() || a == T::one() {
+            return;
+        }
+        let z = T::one() / a;
+        for channel in 0..self.channels() {
+            for i in 0..self.len() {
+                self.set(channel, i, self.at(channel, i) * z);
+            }
+        }
+    }
+
     /// Render wave from a generator `node`.
     /// Resets `node` and sets its sample rate.
     /// Does not discard pre-delay.
@@ -155,7 +181,7 @@ impl<T: Float> Wave<T> {
     /// Render wave from a generator `node`.
     /// Any pre-delay, as measured by signal latency, is discarded.
     /// Resets `node` and sets its sample rate.
-    pub fn render_with_latency<X>(sample_rate: f64, duration: f64, node: &mut An<X>) -> Self
+    pub fn render_latency<X>(sample_rate: f64, duration: f64, node: &mut An<X>) -> Self
     where
         X: AudioNode<Sample = T>,
     {
@@ -255,7 +281,7 @@ impl<T: Float> Wave<T> {
     /// The `node` must have as many inputs as there are channels in this wave.
     /// All zeros input is used for the rest of the wave if
     /// the duration is greater than the duration of this wave.
-    pub fn filter_with_latency<X>(&self, duration: f64, node: &mut An<X>) -> Self
+    pub fn filter_latency<X>(&self, duration: f64, node: &mut An<X>) -> Self
     where
         X: AudioNode<Sample = T>,
     {
@@ -285,6 +311,7 @@ impl<T: Float> Wave<T> {
     }
 
     /// Saves the wave as a 16-bit WAV file.
+    /// Individual samples are clipped to the range -1...1.
     pub fn save_wav(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
         file.write_all(b"RIFF")?;
@@ -294,7 +321,7 @@ impl<T: Float> Wave<T> {
         file.write_all(b"fmt ")?;
         // Length of fmt block.
         write32(&mut file, 16)?;
-        // Audio data format 1 = PCM.
+        // Audio data format 1 = WAVE_FORMAT_PCM.
         write16(&mut file, 1)?;
         write16(&mut file, self.channels() as u16)?;
         let sample_rate = round(self.sample_rate()) as u32;
@@ -312,6 +339,41 @@ impl<T: Float> Wave<T> {
             for channel in 0..self.channels() {
                 let sample = round(clamp11(self.at(channel, i)) * T::from_f64(32767.49));
                 write16(&mut file, sample.to_i64() as u16)?;
+            }
+        }
+        std::io::Result::Ok(())
+    }
+
+    /// Saves the wave as a 32-bit float WAV file.
+    /// Samples are not clipped to any range but some
+    /// applications may expect the range to be -1...1.
+    pub fn save_wav_float(&self, path: &Path) -> std::io::Result<()> {
+        let mut file = File::create(path)?;
+        file.write_all(b"RIFF")?;
+        let data_length = 4 * self.channels() * self.length();
+        write32(&mut file, data_length as u32 + 36)?;
+        file.write_all(b"WAVE")?;
+        file.write_all(b"fmt ")?;
+        // Length of fmt block.
+        write32(&mut file, 16)?;
+        // Audio data format 3 = WAVE_FORMAT_IEEE_FLOAT.
+        write16(&mut file, 3)?;
+        write16(&mut file, self.channels() as u16)?;
+        let sample_rate = round(self.sample_rate()) as u32;
+        write32(&mut file, sample_rate)?;
+        // Data rate in bytes per second.
+        write32(&mut file, sample_rate * self.channels() as u32 * 4)?;
+        // Sample frame length in bytes.
+        write16(&mut file, self.channels() as u16 * 4)?;
+        // Bits per sample.
+        write16(&mut file, 32)?;
+        file.write_all(b"data")?;
+        // Length of data block.
+        write32(&mut file, data_length as u32)?;
+        for i in 0..self.length() {
+            for channel in 0..self.channels() {
+                let sample = self.at(channel, i);
+                file.write_all(&sample.to_f32().to_le_bytes())?;
             }
         }
         std::io::Result::Ok(())
