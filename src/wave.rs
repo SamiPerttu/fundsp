@@ -1,7 +1,6 @@
 //! Multichannel wave abstraction.
 
-use crate::audionode::*;
-use crate::combinator::*;
+use crate::audiounit::*;
 use crate::math::*;
 use crate::*;
 use rsor::Slice;
@@ -26,15 +25,15 @@ fn write16(file: &mut File, x: u16) -> std::io::Result<()> {
     std::io::Result::Ok(())
 }
 
-/// Multichannel wave.
-pub struct Wave<T: Float> {
+/// Multichannel double precision wave.
+pub struct Wave64 {
     /// Vector of channels. Each channel is stored in its own vector.
-    vec: Vec<Vec<T>>,
+    vec: Vec<Vec<f64>>,
     /// Sample rate of the wave.
     sr: f64,
 }
 
-impl<T: Float> Wave<T> {
+impl Wave64 {
     /// Creates an empty wave with the specified number of channels (`channels` > 0).
     pub fn new(channels: usize, sample_rate: f64) -> Self {
         assert!(channels > 0);
@@ -42,7 +41,7 @@ impl<T: Float> Wave<T> {
         for _i in 0..channels {
             vec.push(Vec::new());
         }
-        Wave {
+        Wave64 {
             vec,
             sr: sample_rate,
         }
@@ -56,7 +55,7 @@ impl<T: Float> Wave<T> {
         for _i in 0..channels {
             vec.push(Vec::with_capacity(capacity));
         }
-        Wave {
+        Wave64 {
             vec,
             sr: sample_rate,
         }
@@ -78,22 +77,22 @@ impl<T: Float> Wave<T> {
     }
 
     /// Returns a reference to the requested channel.
-    pub fn channel(&self, channel: usize) -> &Vec<T> {
+    pub fn channel(&self, channel: usize) -> &Vec<f64> {
         &self.vec[channel]
     }
 
     /// Returns a mutable reference to the requested channel.
-    pub fn channel_mut(&mut self, channel: usize) -> &mut Vec<T> {
+    pub fn channel_mut(&mut self, channel: usize) -> &mut Vec<f64> {
         &mut self.vec[channel]
     }
 
     /// Sample accessor.
-    pub fn at(&self, channel: usize, index: usize) -> T {
+    pub fn at(&self, channel: usize, index: usize) -> f64 {
         self.vec[channel][index]
     }
 
     /// Set sample to value.
-    pub fn set(&mut self, channel: usize, index: usize, value: T) {
+    pub fn set(&mut self, channel: usize, index: usize, value: f64) {
         self.vec[channel][index] = value;
     }
 
@@ -121,14 +120,14 @@ impl<T: Float> Wave<T> {
     pub fn resize(&mut self, length: usize) {
         if length != self.length() {
             for channel in 0..self.channels() {
-                self.vec[channel].resize(length, T::zero());
+                self.vec[channel].resize(length, 0.0);
             }
         }
     }
 
     /// Peak amplitude of the wave.
-    pub fn amplitude(&self) -> T {
-        let mut peak = T::zero();
+    pub fn amplitude(&self) -> f64 {
+        let mut peak = 0.0;
         for channel in 0..self.channels() {
             for i in 0..self.len() {
                 peak = max(peak, abs(self.at(channel, i)));
@@ -140,10 +139,10 @@ impl<T: Float> Wave<T> {
     /// Scales the wave to the range -1...1.
     pub fn normalize(&mut self) {
         let a = self.amplitude();
-        if a == T::zero() || a == T::one() {
+        if a == 0.0 || a == 1.0 {
             return;
         }
-        let z = T::one() / a;
+        let z = 1.0 / a;
         for channel in 0..self.channels() {
             for i in 0..self.len() {
                 self.set(channel, i, self.at(channel, i) * z);
@@ -154,18 +153,15 @@ impl<T: Float> Wave<T> {
     /// Render wave from a generator `node`.
     /// Resets `node` and sets its sample rate.
     /// Does not discard pre-delay.
-    pub fn render<X>(sample_rate: f64, duration: f64, node: &mut An<X>) -> Self
-    where
-        X: AudioNode<Sample = T>,
-    {
+    pub fn render(sample_rate: f64, duration: f64, node: &mut dyn AudioUnit64) -> Self {
         assert!(node.inputs() == 0);
         assert!(node.outputs() > 0);
         node.reset(Some(sample_rate));
         let length = (duration * sample_rate).round() as usize;
-        let mut wave = Wave::<T>::with_capacity(node.outputs(), sample_rate, length);
+        let mut wave = Wave64::with_capacity(node.outputs(), sample_rate, length);
         let mut i = 0;
-        let mut buffer = Wave::<T>::new(node.outputs(), sample_rate);
-        let mut reusable_slice = Slice::<[T]>::with_capacity(node.outputs());
+        let mut buffer = Wave64::new(node.outputs(), sample_rate);
+        let mut reusable_slice = Slice::<[f64]>::with_capacity(node.outputs());
         while i < length {
             let n = min(length - i, MAX_BUFFER_SIZE);
             buffer.resize(n);
@@ -181,10 +177,7 @@ impl<T: Float> Wave<T> {
     /// Render wave from a generator `node`.
     /// Any pre-delay, as measured by signal latency, is discarded.
     /// Resets `node` and sets its sample rate.
-    pub fn render_latency<X>(sample_rate: f64, duration: f64, node: &mut An<X>) -> Self
-    where
-        X: AudioNode<Sample = T>,
-    {
+    pub fn render_latency(sample_rate: f64, duration: f64, node: &mut dyn AudioUnit64) -> Self {
         assert!(node.inputs() == 0);
         assert!(node.outputs() > 0);
         let latency = node.latency().unwrap_or_default();
@@ -195,8 +188,8 @@ impl<T: Float> Wave<T> {
         let duration_samples = round(duration * sample_rate) as usize;
         let duration = duration_samples as f64 / sample_rate;
         if latency_samples > 0 {
-            let latency_wave = Wave::render(sample_rate, duration + latency_duration, node);
-            let mut wave = Wave::with_capacity(node.outputs(), sample_rate, duration_samples);
+            let latency_wave = Wave64::render(sample_rate, duration + latency_duration, node);
+            let mut wave = Wave64::with_capacity(node.outputs(), sample_rate, duration_samples);
             wave.resize(duration_samples);
             for channel in 0..wave.channels() {
                 for i in 0..duration_samples {
@@ -205,7 +198,7 @@ impl<T: Float> Wave<T> {
             }
             wave
         } else {
-            Wave::render(sample_rate, duration, node)
+            Wave64::render(sample_rate, duration, node)
         }
     }
 
@@ -214,21 +207,18 @@ impl<T: Float> Wave<T> {
     /// The `node` must have as many inputs as there are channels in this wave.
     /// All zeros input is used for the rest of the wave if
     /// the duration is greater than the duration of this wave.
-    pub fn filter<X>(&self, duration: f64, node: &mut An<X>) -> Self
-    where
-        X: AudioNode<Sample = T>,
-    {
+    pub fn filter(&self, duration: f64, node: &mut dyn AudioUnit64) -> Self {
         assert!(node.inputs() == self.channels());
         assert!(node.outputs() > 0);
         node.reset(Some(self.sample_rate()));
         let total_length = round(duration * self.sample_rate()) as usize;
         let input_length = min(total_length, self.length());
-        let mut wave = Wave::<T>::with_capacity(node.outputs(), self.sample_rate(), total_length);
+        let mut wave = Wave64::with_capacity(node.outputs(), self.sample_rate(), total_length);
         let mut i = 0;
-        let mut input_buffer = Wave::<T>::new(self.channels(), self.sample_rate());
-        let mut reusable_input_slice = Slice::<[T]>::with_capacity(self.channels());
-        let mut output_buffer = Wave::<T>::new(node.outputs(), self.sample_rate());
-        let mut reusable_output_slice = Slice::<[T]>::with_capacity(node.outputs());
+        let mut input_buffer = Wave64::new(self.channels(), self.sample_rate());
+        let mut reusable_input_slice = Slice::<[f64]>::with_capacity(self.channels());
+        let mut output_buffer = Wave64::new(node.outputs(), self.sample_rate());
+        let mut reusable_output_slice = Slice::<[f64]>::with_capacity(node.outputs());
         // Filter from this wave.
         while i < input_length {
             let n = min(input_length - i, MAX_BUFFER_SIZE);
@@ -254,7 +244,7 @@ impl<T: Float> Wave<T> {
             input_buffer.resize(MAX_BUFFER_SIZE);
             for channel in 0..self.channels() {
                 for j in 0..MAX_BUFFER_SIZE {
-                    input_buffer.set(channel, j, T::zero());
+                    input_buffer.set(channel, j, 0.0);
                 }
             }
             while i < total_length {
@@ -281,10 +271,7 @@ impl<T: Float> Wave<T> {
     /// The `node` must have as many inputs as there are channels in this wave.
     /// All zeros input is used for the rest of the wave if
     /// the duration is greater than the duration of this wave.
-    pub fn filter_latency<X>(&self, duration: f64, node: &mut An<X>) -> Self
-    where
-        X: AudioNode<Sample = T>,
-    {
+    pub fn filter_latency(&self, duration: f64, node: &mut dyn AudioUnit64) -> Self {
         assert!(node.inputs() == self.channels());
         assert!(node.outputs() > 0);
         let latency = node.latency().unwrap_or_default();
@@ -297,7 +284,7 @@ impl<T: Float> Wave<T> {
         if latency_samples > 0 {
             let latency_wave = self.filter(duration + latency_duration, node);
             let mut wave =
-                Wave::with_capacity(node.outputs(), self.sample_rate(), duration_samples);
+                Wave64::with_capacity(node.outputs(), self.sample_rate(), duration_samples);
             wave.resize(duration_samples);
             for channel in 0..wave.channels() {
                 for i in 0..duration_samples {
@@ -312,7 +299,7 @@ impl<T: Float> Wave<T> {
 
     /// Saves the wave as a 16-bit WAV file.
     /// Individual samples are clipped to the range -1...1.
-    pub fn save_wav(&self, path: &Path) -> std::io::Result<()> {
+    pub fn save_wav16(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
         file.write_all(b"RIFF")?;
         let data_length = 2 * self.channels() * self.length();
@@ -337,7 +324,7 @@ impl<T: Float> Wave<T> {
         write32(&mut file, data_length as u32)?;
         for i in 0..self.length() {
             for channel in 0..self.channels() {
-                let sample = round(clamp11(self.at(channel, i)) * T::from_f64(32767.49));
+                let sample = round(clamp11(self.at(channel, i)) * 32767.49);
                 write16(&mut file, sample.to_i64() as u16)?;
             }
         }
@@ -347,7 +334,7 @@ impl<T: Float> Wave<T> {
     /// Saves the wave as a 32-bit float WAV file.
     /// Samples are not clipped to any range but some
     /// applications may expect the range to be -1...1.
-    pub fn save_wav_float(&self, path: &Path) -> std::io::Result<()> {
+    pub fn save_wav32(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
         file.write_all(b"RIFF")?;
         let data_length = 4 * self.channels() * self.length();

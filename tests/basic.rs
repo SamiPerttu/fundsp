@@ -11,6 +11,7 @@
 
 extern crate fundsp;
 
+use fundsp::audiounit::*;
 use fundsp::hacker::*;
 
 /// Check that the stereo generator given is rendered identically
@@ -20,7 +21,8 @@ fn check_wave<X>(mut node: An<X>)
 where
     X: AudioNode<Sample = f64, Inputs = U0, Outputs = U2>,
 {
-    let wave = Wave::render(44100.0, 1.0, &mut node);
+    let wave = Wave64::render(44100.0, 1.0, &mut node);
+
     assert!(wave.channels() == 2);
     assert!(wave.length() == 44100);
     node.reset(None);
@@ -37,7 +39,7 @@ where
 /// Check that the stereo filter given is rendered identically
 /// via `process` (block processing) and `tick` (single sample processing).
 /// Also check that the generator is reset properly.
-fn check_wave_filter<X>(input: &Wave<f64>, mut node: An<X>)
+fn check_wave_filter<X>(input: &Wave64, mut node: An<X>)
 where
     X: AudioNode<Sample = f64, Inputs = U2, Outputs = U2>,
 {
@@ -183,7 +185,7 @@ fn test_basic() {
     check_wave(envelope(|t| exp(-t * 10.0)) | lfo(|t| sin(t * 10.0)));
 
     // Wave filtering, tick vs. process rendering, node reseting.
-    let input = Wave::render(44100.0, 1.0, &mut (noise() | noise()));
+    let input = Wave64::render(44100.0, 1.0, &mut (noise() | noise()));
     check_wave_filter(&input, butterpass_hz(1000.0) | lowpole_hz(100.0));
     check_wave_filter(&input, allpole_delay(0.5) | highpole_hz(500.0));
 

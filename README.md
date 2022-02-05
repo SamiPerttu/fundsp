@@ -85,7 +85,8 @@ Both systems operate on audio signals synchronously as an infinite stream.
 | Trait         | Sample Type              | Dispatch             | Allocation Strategy | Connectivity |
 | ------------- | ------------------------ | -------------------- | ------------------- | ------------ |
 | `AudioNode`   | generic (`f32` or `f64`) | static, inlined      | stack               | input and output arity fixed at compile time |
-| `AudioUnit`   | `f32` or `f64`           | dynamic, object safe | heap                | input and output arity fixed after construction |
+| `AudioUnit32` | `f32`                    | dynamic, object safe | heap                | input and output arity fixed after construction |
+| `AudioUnit64` | `f64`                    | -..-                 | -..-                | -..- |
 
 ---
 
@@ -101,7 +102,8 @@ Processing samples is easy in the `AudioNode` system. The `tick` method is for p
 sample frames, while the `process` method processes whole blocks.
 
 Mono samples can be retrieved with `get_mono` and `filter_mono` methods. The `get_mono` method
-returns the next sample from a zero input, while the `filter_mono` method filters the next sample from
+returns the next sample from a generator that has no inputs and one output,
+while the `filter_mono` method filters the next sample from
 a node that has one input and one output:
 
 ```rust
@@ -110,7 +112,8 @@ let out_sample = node.filter_mono(sample);
 ```
 
 Stereo samples can be retrieved with `get_stereo` and `filter_stereo` methods.
-The `get_stereo` method returns the next stereo sample pair from a zero input,
+The `get_stereo` method returns the next stereo sample pair from a generator that
+has no inputs and one or two outputs,
 while the `filter_stereo` method filters the next sample
 from a node that has two inputs and two outputs.
 

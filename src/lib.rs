@@ -242,13 +242,12 @@ pub mod math;
 pub mod noise;
 pub mod oscillator;
 pub mod prelude;
+pub mod sequencer;
 pub mod shape;
 pub mod signal;
 pub mod svf;
 pub mod wave;
 pub mod wavetable;
-
-pub use audionode::{AudioNode, Frame, Size};
 
 // For Frame::generate.
 pub use generic_array::sequence::GenericSequence;

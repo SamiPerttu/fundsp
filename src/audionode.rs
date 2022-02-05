@@ -90,56 +90,6 @@ pub trait AudioNode {
 
     // End of interface. There is no need to override the following.
 
-    /// Evaluate frequency response of `output` at `frequency` Hz.
-    /// Any linear response can be composed.
-    /// Return `None` if there is no response or it could not be calculated.
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
-        assert!(output < Self::Outputs::USIZE);
-        let mut input = new_signal_frame(self.inputs());
-        for i in 0..Self::Inputs::USIZE {
-            input[i] = Signal::Response(Complex64::new(1.0, 0.0), 0.0);
-        }
-        let response = self.route(&input, frequency);
-        match response[output] {
-            Signal::Response(rx, _) => Some(rx),
-            _ => None,
-        }
-    }
-
-    /// Evaluate frequency response of `output` in dB at `frequency Hz`.
-    /// Any linear response can be composed.
-    /// Return `None` if there is no response or it could not be calculated.
-    fn response_db(&self, output: usize, frequency: f64) -> Option<f64> {
-        assert!(output < Self::Outputs::USIZE);
-        self.response(output, frequency).map(|r| amp_db(r.norm()))
-    }
-
-    /// Causal latency in (fractional) samples.
-    /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
-    /// The latency can depend on the sample rate and is allowed to change after `reset`.
-    fn latency(&self) -> Option<f64> {
-        if self.outputs() == 0 {
-            return None;
-        }
-        let mut input = new_signal_frame(self.inputs());
-        for i in 0..Self::Inputs::USIZE {
-            input[i] = Signal::Latency(0.0);
-        }
-        // The frequency argument can be anything as there are no responses to propagate,
-        // only latencies. Latencies are never promoted to responses during signal routing.
-        let response = self.route(&input, 1.0);
-        // Return the minimum latency.
-        let mut result: Option<f64> = None;
-        for output in 0..self.outputs() {
-            match (result, response[output]) {
-                (None, Signal::Latency(x)) => result = Some(x),
-                (Some(r), Signal::Latency(x)) => result = Some(r.min(x)),
-                _ => (),
-            }
-        }
-        result
-    }
-
     /// Number of inputs.
     #[inline]
     fn inputs(&self) -> usize {
@@ -152,21 +102,23 @@ pub trait AudioNode {
         Self::Outputs::USIZE
     }
 
-    /// Retrieve the next mono sample from a zero input.
-    /// The node must have exactly 1 output.
+    /// Retrieve the next mono sample from a generator.
+    /// The node must have no inputs and exactly 1 output.
     #[inline]
     fn get_mono(&mut self) -> Self::Sample {
-        // TODO. Is there some way to make this constraint static.
-        assert!(Self::Outputs::USIZE == 1);
+        assert!(Self::Inputs::USIZE == 0 && Self::Outputs::USIZE == 1);
         let output = self.tick(&Frame::default());
         output[0]
     }
 
-    /// Retrieve the next stereo sample (left, right) from a zero input.
-    /// The node must have 1 or 2 outputs. If there is just one output, duplicate it.
+    /// Retrieve the next stereo sample (left, right) from a generator.
+    /// The node must have no inputs and 1 or 2 outputs.
+    /// If there is just one output, duplicate it.
     #[inline]
     fn get_stereo(&mut self) -> (Self::Sample, Self::Sample) {
-        assert!(Self::Outputs::USIZE == 1 || Self::Outputs::USIZE == 2);
+        assert!(
+            Self::Inputs::USIZE == 0 && (Self::Outputs::USIZE == 1 || Self::Outputs::USIZE == 2)
+        );
         let output = self.tick(&Frame::default());
         (
             output[0],
