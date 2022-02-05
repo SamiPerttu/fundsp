@@ -12,7 +12,9 @@ fn main() {
     let bassd_line = "x..xx...x..x.x..x..xx...x...xx..";
     let snare_line = "..x...x...x...x...x...x...x...xx";
 
-    let bassdrum = || envelope(|t| 200.0 * exp(-t * 5.0)) >> sine() >> shape(Shape::Tanh(2.0)) >> split::<U2>();
+    let bassdrum = || {
+        envelope(|t| 200.0 * exp(-t * 5.0)) >> sine() >> shape(Shape::Tanh(2.0)) >> split::<U2>()
+    };
 
     let snaredrum = || pink() * envelope(|t| exp(-t * 10.0)) >> split::<U2>();
 
