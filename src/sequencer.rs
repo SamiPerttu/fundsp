@@ -214,7 +214,7 @@ impl AudioUnit64 for Sequencer {
                         .process64(end_index - start_index, input, buffer_output);
                     for channel in 0..self.outputs {
                         for j in start_index..end_index {
-                            output[channel][j] = buffer_output[channel][j - start_index];
+                            output[channel][j] += buffer_output[channel][j - start_index];
                         }
                     }
                 }
