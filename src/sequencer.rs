@@ -221,6 +221,7 @@ impl AudioUnit64 for Sequencer {
                 i += 1;
             }
         }
+        self.time = end_time;
     }
 
     fn inputs(&self) -> usize {

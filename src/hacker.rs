@@ -11,6 +11,7 @@ pub use super::filter::*;
 pub use super::math::*;
 pub use super::noise::*;
 pub use super::oscillator::*;
+pub use super::sequencer::*;
 pub use super::shape::*;
 pub use super::signal::*;
 pub use super::svf::*;
