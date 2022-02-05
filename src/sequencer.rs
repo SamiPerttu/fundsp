@@ -11,46 +11,44 @@ use super::math::*;
 use super::signal::*;
 use super::*;
 
-pub struct Event64 {
-    pub unit: Box<dyn AudioUnit64>,
+pub struct Event {
+    pub unit: Au,
     pub start_time: f64,
     pub end_time: f64,
 }
 
-impl Event64 {
-    pub fn new(unit: Box<dyn AudioUnit64>, start_time: f64, end_time: f64) -> Self {
+impl Event {
+    pub fn new64(unit: Box<dyn AudioUnit64>, start_time: f64, end_time: f64) -> Self {
         Self {
-            unit,
+            unit: Au::Unit64(unit),
             start_time,
             end_time,
         }
     }
-    pub fn reset(&mut self, sample_rate: Option<f64>) {
-        self.unit.reset(sample_rate);
-    }
-    pub fn tick64(&mut self, input: &[f64], output: &mut [f64]) {
-        self.unit.tick(input, output);
-    }
-    pub fn process64(&mut self, size: usize, input: &[&[f64]], output: &mut [&mut [f64]]) {
-        self.unit.process(size, input, output);
+    pub fn new32(unit: Box<dyn AudioUnit32>, start_time: f64, end_time: f64) -> Self {
+        Self {
+            unit: Au::Unit32(unit),
+            start_time,
+            end_time,
+        }
     }
 }
 
-impl PartialEq for Event64 {
-    fn eq(&self, other: &Event64) -> bool {
+impl PartialEq for Event {
+    fn eq(&self, other: &Event) -> bool {
         self.start_time == other.start_time
     }
 }
 
-impl Eq for Event64 {}
+impl Eq for Event {}
 
-impl PartialOrd for Event64 {
-    fn partial_cmp(&self, other: &Event64) -> Option<Ordering> {
+impl PartialOrd for Event {
+    fn partial_cmp(&self, other: &Event) -> Option<Ordering> {
         other.start_time.partial_cmp(&self.start_time)
     }
 }
 
-impl Ord for Event64 {
+impl Ord for Event {
     fn cmp(&self, other: &Self) -> Ordering {
         if other.start_time > self.start_time {
             Ordering::Less
@@ -60,24 +58,26 @@ impl Ord for Event64 {
     }
 }
 
-pub struct Sequencer64 {
+pub struct Sequencer {
     // Unsorted.
-    active: Vec<Event64>,
+    active: Vec<Event>,
     // Sorted by start time.
-    ready: BinaryHeap<Event64>,
+    ready: BinaryHeap<Event>,
     // Unsorted.
-    past: Vec<Event64>,
+    past: Vec<Event>,
     outputs: usize,
     time: f64,
     sample_rate: f64,
     sample_duration: f64,
     _buffer32: Buffer<f32>,
-    buffer64: Buffer<f64>,
     _tick32: Vec<f32>,
+    buffer64: Buffer<f64>,
     tick64: Vec<f64>,
 }
 
-impl Sequencer64 {
+impl Sequencer {
+    /// Create a new sequencer. The sequencer has zero inputs.
+    /// The number of outputs is decided by the user.
     pub fn new(sample_rate: f64, outputs: usize) -> Self {
         Self {
             active: Vec::new(),
@@ -88,21 +88,27 @@ impl Sequencer64 {
             sample_rate,
             sample_duration: 1.0 / sample_rate,
             _buffer32: Buffer::new(),
-            buffer64: Buffer::new(),
             _tick32: vec![0.0; outputs],
+            buffer64: Buffer::new(),
             tick64: vec![0.0; outputs],
         }
     }
 
-    pub fn add_unit(&mut self, start_time: f64, end_time: f64, mut unit: Box<dyn AudioUnit64>) {
+    /// Add a 64-bit unit.
+    pub fn add64(&mut self, start_time: f64, end_time: f64, mut unit: Box<dyn AudioUnit64>) {
+        assert!(unit.inputs() == 0 && unit.outputs() == self.outputs);
         unit.reset(Some(self.sample_rate));
-        self.ready.push(Event64 {
-            unit,
-            start_time,
-            end_time,
-        });
+        self.ready.push(Event::new64(unit, start_time, end_time));
     }
 
+    /// Add a 32-bit unit.
+    pub fn add32(&mut self, start_time: f64, end_time: f64, mut unit: Box<dyn AudioUnit32>) {
+        assert!(unit.inputs() == 0 && unit.outputs() == self.outputs);
+        unit.reset(Some(self.sample_rate));
+        self.ready.push(Event::new32(unit, start_time, end_time));
+    }
+
+    /// Move units that start before the end time to the ready heap.
     fn ready_to_active(&mut self, next_end_time: f64) {
         while let Some(ready) = self.ready.peek() {
             if ready.start_time < next_end_time {
@@ -116,6 +122,8 @@ impl Sequencer64 {
     }
 
     fn do_reset(&mut self, sample_rate: Option<f64>) {
+        // Move everything to the active queue, then reset and move
+        // everything to the ready heap.
         while let Some(active) = self.past.pop() {
             self.active.push(active);
         }
@@ -132,16 +140,25 @@ impl Sequencer64 {
             }
         }
         for i in 0..self.active.len() {
-            self.active[i].reset(sample_rate);
+            self.active[i].unit.reset(sample_rate);
         }
         self.time = 0.0;
         while let Some(active) = self.active.pop() {
             self.ready.push(active);
         }
     }
+
+    pub fn do_route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        // Treat the sequencer as a generator.
+        let mut signal = new_signal_frame(self.outputs());
+        for i in 0..self.outputs() {
+            signal[i] = Signal::Latency(0.0);
+        }
+        signal
+    }
 }
 
-impl AudioUnit64 for Sequencer64 {
+impl AudioUnit64 for Sequencer {
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.do_reset(sample_rate);
     }
@@ -157,7 +174,7 @@ impl AudioUnit64 for Sequencer64 {
             if self.active[i].end_time <= self.time {
                 self.past.push(self.active.swap_remove(i));
             } else {
-                self.active[i].tick64(input, &mut self.tick64);
+                self.active[i].unit.tick64(input, &mut self.tick64);
                 for channel in 0..self.outputs {
                     output[channel] += self.tick64[channel];
                 }
@@ -192,7 +209,9 @@ impl AudioUnit64 for Sequencer64 {
                     round((self.active[i].end_time - self.time) * self.sample_rate) as usize
                 };
                 if end_index > start_index {
-                    self.active[i].process64(end_index - start_index, input, buffer_output);
+                    self.active[i]
+                        .unit
+                        .process64(end_index - start_index, input, buffer_output);
                     for channel in 0..self.outputs {
                         for j in start_index..end_index {
                             output[channel][j] = buffer_output[channel][j - start_index];
@@ -211,12 +230,7 @@ impl AudioUnit64 for Sequencer64 {
         self.outputs
     }
 
-    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        // Treat the sequencer as a generator.
-        let mut signal = new_signal_frame(self.outputs());
-        for i in 0..self.outputs() {
-            signal[i] = Signal::Latency(0.0);
-        }
-        signal
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.do_route(input, frequency)
     }
 }

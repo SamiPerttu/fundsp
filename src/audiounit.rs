@@ -1,4 +1,4 @@
-//! AudioUnit abstraction. WIP.
+//! `AudioUnit64` and `AudioUnit32` abstractions and a common wrapper `Au`.
 
 use super::audionode::*;
 use super::combinator::*;
@@ -167,6 +167,107 @@ pub trait AudioUnit32 {
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame;
 
     // End of interface. No need to override the following.
+
+    /// Evaluate frequency response of `output` at `frequency` Hz.
+    /// Any linear response can be composed.
+    /// Return `None` if there is no response or it could not be calculated.
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < self.outputs());
+        let mut input = new_signal_frame(self.inputs());
+        for i in 0..self.inputs() {
+            input[i] = Signal::Response(Complex64::new(1.0, 0.0), 0.0);
+        }
+        let response = self.route(&input, frequency);
+        match response[output] {
+            Signal::Response(rx, _) => Some(rx),
+            _ => None,
+        }
+    }
+
+    /// Evaluate frequency response of `output` in dB at `frequency Hz`.
+    /// Any linear response can be composed.
+    /// Return `None` if there is no response or it could not be calculated.
+    fn response_db(&self, output: usize, frequency: f64) -> Option<f64> {
+        assert!(output < self.outputs());
+        self.response(output, frequency).map(|r| amp_db(r.norm()))
+    }
+
+    /// Causal latency in (fractional) samples.
+    /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
+    /// The latency can depend on the sample rate and is allowed to change after `reset`.
+    fn latency(&self) -> Option<f64> {
+        if self.outputs() == 0 {
+            return None;
+        }
+        let mut input = new_signal_frame(self.inputs());
+        for i in 0..self.inputs() {
+            input[i] = Signal::Latency(0.0);
+        }
+        // The frequency argument can be anything as there are no responses to propagate,
+        // only latencies. Latencies are never promoted to responses during signal routing.
+        let response = self.route(&input, 1.0);
+        // Return the minimum latency.
+        let mut result: Option<f64> = None;
+        for output in 0..self.outputs() {
+            match (result, response[output]) {
+                (None, Signal::Latency(x)) => result = Some(x),
+                (Some(r), Signal::Latency(x)) => result = Some(r.min(x)),
+                _ => (),
+            }
+        }
+        result
+    }
+
+    /// Retrieve the next mono sample from a generator.
+    /// The node must have no inputs and 1 output.
+    #[inline]
+    fn get_mono(&mut self) -> f32 {
+        assert!(self.inputs() == 0 && self.outputs() == 1);
+        let mut output = [0.0];
+        self.tick(&[], &mut output);
+        output[0]
+    }
+
+    /// Retrieve the next stereo sample (left, right) from a generator.
+    /// The node must have no inputs and 1 or 2 outputs.
+    /// If there is just one output, duplicate it.
+    #[inline]
+    fn get_stereo(&mut self) -> (f32, f32) {
+        assert!(self.inputs() == 0);
+        match self.outputs() {
+            1 => {
+                let mut output = [0.0];
+                self.tick(&[], &mut output);
+                (output[0], output[0])
+            }
+            2 => {
+                let mut output = [0.0, 0.0];
+                self.tick(&[], &mut output);
+                (output[0], output[1])
+            }
+            _ => panic!("AudioUnit32::get_stereo(): Unit must have 1 or 2 outputs"),
+        }
+    }
+
+    /// Filter the next mono sample `x`.
+    /// The node must have exactly 1 input and 1 output.
+    #[inline]
+    fn filter_mono(&mut self, x: f32) -> f32 {
+        assert!(self.inputs() == 1 && self.outputs() == 1);
+        let mut output = [0.0];
+        self.tick(&[x], &mut output);
+        output[0]
+    }
+
+    /// Filter the next stereo sample `(x, y)`.
+    /// The node must have exactly 2 inputs and 2 outputs.
+    #[inline]
+    fn filter_stereo(&mut self, x: f32, y: f32) -> (f32, f32) {
+        assert!(self.inputs() == 2 && self.outputs() == 2);
+        let mut output = [0.0, 0.0];
+        self.tick(&[x, y], &mut output);
+        (output[0], output[1])
+    }
 }
 
 impl<X: AudioNode<Sample = f64>> AudioUnit64 for An<X>
@@ -223,26 +324,55 @@ where
     }
 }
 
-/*
-/// AudioUnit64 wrapper.
-pub struct Au64(pub Box<dyn AudioUnit64>);
+/// AudioUnit64/32 wrapper.
+pub enum Au {
+    Unit64(Box<dyn AudioUnit64>),
+    Unit32(Box<dyn AudioUnit32>),
+}
 
-impl core::ops::Deref for Au64 {
-    type Target = Box<dyn AudioUnit64>;
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl Au {
+    pub fn reset(&mut self, sample_rate: Option<f64>) {
+        match self {
+            Au::Unit64(x) => x.reset(sample_rate),
+            Au::Unit32(x) => x.reset(sample_rate),
+        }
+    }
+    pub fn tick64(&mut self, input: &[f64], output: &mut [f64]) {
+        if let Au::Unit64(x) = self {
+            x.tick(input, output);
+        }
+    }
+    pub fn tick32(&mut self, input: &[f32], output: &mut [f32]) {
+        if let Au::Unit32(x) = self {
+            x.tick(input, output);
+        }
+    }
+    pub fn process64(&mut self, size: usize, input: &[&[f64]], output: &mut [&mut [f64]]) {
+        if let Au::Unit64(x) = self {
+            x.process(size, input, output);
+        }
+    }
+    pub fn process32(&mut self, size: usize, input: &[&[f32]], output: &mut [&mut [f32]]) {
+        if let Au::Unit32(x) = self {
+            x.process(size, input, output);
+        }
+    }
+    pub fn inputs(&self) -> usize {
+        match self {
+            Au::Unit64(x) => x.inputs(),
+            Au::Unit32(x) => x.inputs(),
+        }
+    }
+    pub fn outputs(&self) -> usize {
+        match self {
+            Au::Unit64(x) => x.outputs(),
+            Au::Unit32(x) => x.outputs(),
+        }
+    }
+    pub fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        match self {
+            Au::Unit64(x) => x.route(input, frequency),
+            Au::Unit32(x) => x.route(input, frequency),
+        }
     }
 }
-
-impl core::ops::DerefMut for Au64 {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-pub fn au64<X: 'static + AudioUnit64>(x: X) -> Au64 {
-    Au64(Box::new(x))
-}
-*/
