@@ -363,6 +363,30 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
         }
     }
 
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        output[0][..size].clone_from_slice(&input[0][..size]);
+        if self.t < self.duration {
+            let mut phase = delerp(F::zero(), self.duration, self.t);
+            let phase_d = self.sample_duration / self.duration;
+            let end_time = self.t + F::new(size as i64) * self.sample_duration;
+            let end_index = if self.duration < end_time {
+                round((self.duration - self.t) / self.sample_duration).to_i64() as usize
+            } else {
+                size
+            };
+            for i in 0..end_index {
+                output[0][i] *= convert(smooth5(phase));
+                phase += phase_d;
+            }
+            self.t = end_time;
+        }
+    }
+
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         // We pretend that the declicker does not alter frequency response.

@@ -154,7 +154,7 @@ fn test_basic() {
     let mut rnd = AttoRand::new(0);
 
     // Wave rendering, tick vs. process rendering, node reseting.
-    check_wave(noise() | noise() + noise());
+    check_wave(noise() >> declick() | noise() + noise());
     check_wave(noise() * noise() | bus::<U4, _, _>(|i| mls_bits(10 + i)));
     check_wave(noise() & noise() | sine_hz(440.0) & -noise());
     check_wave(
@@ -165,7 +165,7 @@ fn test_basic() {
     check_wave(
         dc((110.0, 220.0, 440.0, 880.0)) >> multipass() >> (sink() | -sine() | sink() | sine()),
     );
-    check_wave(dc((110.0, 220.0)) >> pass() + pass() >> (sine() ^ saw()));
+    check_wave(dc((110.0, 220.0)) >> declick_s(0.1) + pass() >> (sine() ^ saw()));
     check_wave(dc((20.0, 40.0)) >> swap() >> pass() * pass() >> (sine() ^ square()));
     check_wave(
         dc((880.0, 440.0)) >> pass() - pass() >> branchf::<U2, _, _>(|f| (f - 0.5) * triangle()),
