@@ -17,11 +17,8 @@ determine analytic [frequency responses](https://en.wikipedia.org/wiki/Frequency
 for any [linear network](https://en.wikipedia.org/wiki/Linear_filter).
 
 FunDSP comes with a combinator environment containing
-a suite of audio components, math and utility functions and procedural generation tools.
-
-*This project is under construction*! It is already useful for experimentation.
-However, some standard components are missing and breakage can be expected
-as we continue to experiment with best practices.
+a suite of audio components, math and utility functions and
+procedural generation tools.
 
 ### Uses
 
@@ -94,7 +91,8 @@ Both systems operate on audio signals synchronously as an infinite stream.
 At the moment, block processing via `AudioNode::process` requires heap allocation.
 Some nodes may also use the heap for audio buffers and the like.
 
-The `AudioUnit` system is under construction and is not usable yet.
+The `AudioUnit` system is under construction; at the moment,
+`AudioUnit64` is in a usable condition.
 
 ### Processing
 
@@ -844,14 +842,8 @@ shall be dual licensed as above, without any additional terms or conditions.
 
 ---
 
-## Next Steps
-
-- Implement the dynamic `AudioUnit` system. Complex graph expressions can get cumbersome,
-  so we'd like to have an explicit graph interface there for adding units to a graph and connecting them.
-
 ## Future
 
-- Overload division operator as an arithmetic operator once foundational overhaul is complete.
 - Investigate whether adding more checking at compile time is possible by introducing
   opt-in signal units/modalities for `AudioNode` inputs and outputs.
   So if the user sends a constant marked `Hz` to an audio input, then that would fail at compile time.
