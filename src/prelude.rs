@@ -200,14 +200,14 @@ pub fn swap<T: Float>() -> An<Swap<T>> {
 /// - Input 0: frequency (Hz)
 /// - Output 0: sine wave
 #[inline]
-pub fn sine<T: Float>() -> An<Sine<T>> {
+pub fn sine<T: Real>() -> An<Sine<T>> {
     An(Sine::new(DEFAULT_SR))
 }
 
 /// Fixed sine oscillator at `f` Hz.
 /// - Output 0: sine wave
 #[inline]
-pub fn sine_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, Sine<T>>> {
+pub fn sine_hz<T: Real>(f: T) -> An<Pipe<T, Constant<T, U1>, Sine<T>>> {
     constant(f) >> sine()
 }
 

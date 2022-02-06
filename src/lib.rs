@@ -54,6 +54,7 @@ pub trait Num:
     fn max(self, other: Self) -> Self;
     fn pow(self, other: Self) -> Self;
     fn floor(self) -> Self;
+    fn fract(self) -> Self;
     fn ceil(self) -> Self;
     fn round(self) -> Self;
 }
@@ -72,6 +73,7 @@ macro_rules! impl_signed_num {
         #[inline] fn max(self, other: Self) -> Self { std::cmp::max(self, other) }
         #[inline] fn pow(self, other: Self) -> Self { <$t>::pow(self, other as u32) }
         #[inline] fn floor(self) -> Self { self }
+        #[inline] fn fract(self) -> Self { self }
         #[inline] fn ceil(self) -> Self { self }
         #[inline] fn round(self) -> Self { self }
     }) *
@@ -93,6 +95,7 @@ macro_rules! impl_unsigned_num {
         #[inline] fn max(self, other: Self) -> Self { std::cmp::max(self, other) }
         #[inline] fn pow(self, other: Self) -> Self { <$t>::pow(self, other as u32) }
         #[inline] fn floor(self) -> Self { self }
+        #[inline] fn fract(self) -> Self { self }
         #[inline] fn ceil(self) -> Self { self }
         #[inline] fn round(self) -> Self { self }
     }) *
@@ -114,6 +117,7 @@ macro_rules! impl_float_num {
         #[inline] fn max(self, other: Self) -> Self { <$t>::max(self, other) }
         #[inline] fn pow(self, other: Self) -> Self { <$t>::powf(self, other) }
         #[inline] fn floor(self) -> Self { <$t>::floor(self) }
+        #[inline] fn fract(self) -> Self { <$t>::fract(self) }
         #[inline] fn ceil(self) -> Self { <$t>::ceil(self) }
         #[inline] fn round(self) -> Self { <$t>::round(self) }
     }) *

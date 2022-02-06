@@ -27,6 +27,10 @@ pub fn floor<T: Num>(x: T) -> T {
     x.floor()
 }
 #[inline]
+pub fn fract<T: Num>(x: T) -> T {
+    x.fract()
+}
+#[inline]
 pub fn ceil<T: Num>(x: T) -> T {
     x.ceil()
 }

@@ -226,32 +226,32 @@ where
 
 /// Goertzel frequency detector.
 #[derive(Clone, Default)]
-pub struct Detector<F: Real> {
-    y1: F,
-    y2: F,
-    ccoeff: F,
-    scoeff: F,
+pub struct Detector<T: Real> {
+    y1: T,
+    y2: T,
+    ccoeff: T,
+    scoeff: T,
 }
-impl<F: Real> Detector<F> {
+impl<T: Real> Detector<T> {
     /// Reset detector.
     pub fn reset(&mut self) {
-        self.y1 = F::zero();
-        self.y2 = F::zero();
+        self.y1 = T::zero();
+        self.y2 = T::zero();
     }
     /// Select the frequency (in Hz).
-    pub fn set_frequency(&mut self, sample_rate: F, frequency: F) {
-        let f = F::from_f64(TAU) * frequency / sample_rate;
-        self.ccoeff = F::new(2) * cos(f);
+    pub fn set_frequency(&mut self, sample_rate: T, frequency: T) {
+        let f = T::from_f64(TAU) * frequency / sample_rate;
+        self.ccoeff = T::new(2) * cos(f);
         self.scoeff = sin(f);
     }
     /// Process one sample.
-    pub fn tick(&mut self, x: F) {
+    pub fn tick(&mut self, x: T) {
         let y0 = x + self.ccoeff * self.y1 - self.y2;
         self.y2 = self.y1;
         self.y1 = y0;
     }
     /// Current detected power at the selected frequency.
-    pub fn power(&self) -> F {
+    pub fn power(&self) -> T {
         squared(self.y2) + squared(self.y1) - self.ccoeff * self.y2 * self.y1
     }
 }
