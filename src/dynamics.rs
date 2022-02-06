@@ -217,7 +217,6 @@ where
         let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             // We pretend that the limiter does not alter the frequency response.
-            // TODO. Is this really the best option.
             output[i] = input[i].delay(self.reducer.length() as f64);
         }
         output
@@ -289,7 +288,6 @@ impl<T: Float, F: Real> AudioNode for Goertzel<T, F> {
         self.filter.reset();
         if let Some(sample_rate) = sample_rate {
             self.sample_rate = F::from_f64(sample_rate);
-            // TODO: Remain in a valid state?
             self.frequency = F::zero();
         }
     }

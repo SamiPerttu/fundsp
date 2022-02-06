@@ -40,7 +40,7 @@ fn main() {
 
     let wave = wave.filter(duration + 1.0, &mut (reverb_stereo(0.1, 3.0) * 3.0));
 
-    let wave = wave.filter(duration + 1.0, &mut (limiter_stereo((0.05, 0.2))));
+    let wave = wave.filter_latency(duration + 1.0, &mut (limiter_stereo((0.05, 0.2))));
 
     wave.save_wav16(std::path::Path::new("sequence.wav"));
 }
