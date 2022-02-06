@@ -345,6 +345,26 @@ impl AudioUnit64 for Sequencer {
                 self.past.push(self.active.swap_remove(i));
             } else {
                 self.active[i].unit.tick64(input, &mut self.tick64);
+                if self.active[i].fade_in > 0.0 {
+                    let fade_in = delerp(0.0, self.active[i].fade_in, self.time);
+                    if fade_in < 1.0 {
+                        for channel in 0..self.outputs {
+                            self.tick64[channel] *= smooth5(fade_in);
+                        }
+                    }
+                }
+                if self.active[i].fade_out > 0.0 {
+                    let fade_out = delerp(
+                        self.active[i].end_time - self.active[i].fade_out,
+                        self.active[i].end_time,
+                        self.time,
+                    );
+                    if fade_out > 0.0 {
+                        for channel in 0..self.outputs {
+                            self.tick64[channel] *= smooth5(1.0 - fade_out);
+                        }
+                    }
+                }
                 for channel in 0..self.outputs {
                     output[channel] += self.tick64[channel];
                 }
@@ -441,6 +461,26 @@ impl AudioUnit32 for Sequencer {
                 self.past.push(self.active.swap_remove(i));
             } else {
                 self.active[i].unit.tick32(input, &mut self.tick32);
+                if self.active[i].fade_in > 0.0 {
+                    let fade_in = delerp(0.0, self.active[i].fade_in, self.time) as f32;
+                    if fade_in < 1.0 {
+                        for channel in 0..self.outputs {
+                            self.tick32[channel] *= smooth5(fade_in);
+                        }
+                    }
+                }
+                if self.active[i].fade_out > 0.0 {
+                    let fade_out = delerp(
+                        self.active[i].end_time - self.active[i].fade_out,
+                        self.active[i].end_time,
+                        self.time,
+                    ) as f32;
+                    if fade_out > 0.0 {
+                        for channel in 0..self.outputs {
+                            self.tick32[channel] *= smooth5(1.0 - fade_out);
+                        }
+                    }
+                }
                 for channel in 0..self.outputs {
                     output[channel] += self.tick32[channel];
                 }

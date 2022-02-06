@@ -943,7 +943,6 @@ where
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        // Update parameters from input.
         let v0 = convert(input[0]);
         let v3 = v0 - self.ic2eq;
         let v1 = self.coeffs.a1 * self.ic1eq + self.coeffs.a2 * v3;
