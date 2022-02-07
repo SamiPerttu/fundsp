@@ -249,7 +249,8 @@ impl Sequencer {
         }
     }
 
-    /// Add a 64-bit unit.
+    /// Add a 64-bit unit event.
+    /// Fade in and fade out may overlap but may not exceed the duration of the event.
     pub fn add64(
         &mut self,
         start_time: f64,
@@ -259,6 +260,8 @@ impl Sequencer {
         mut unit: Box<dyn AudioUnit64>,
     ) {
         assert!(unit.inputs() == 0 && unit.outputs() == self.outputs);
+        let duration = end_time - start_time;
+        assert!(fade_in_time <= duration && fade_out_time <= duration);
         // Make sure the sample rate of the unit matches ours.
         unit.reset(Some(self.sample_rate));
         self.ready.push(Event::new64(
@@ -270,7 +273,8 @@ impl Sequencer {
         ));
     }
 
-    /// Add a 32-bit unit.
+    /// Add a 32-bit unit event.
+    /// Fade in and fade out may overlap but may not exceed the duration of the event.
     pub fn add32(
         &mut self,
         start_time: f64,
@@ -280,6 +284,8 @@ impl Sequencer {
         mut unit: Box<dyn AudioUnit32>,
     ) {
         assert!(unit.inputs() == 0 && unit.outputs() == self.outputs);
+        let duration = end_time - start_time;
+        assert!(fade_in_time <= duration && fade_out_time <= duration);
         // Make sure the sample rate of the unit matches ours.
         unit.reset(Some(self.sample_rate));
         self.ready.push(Event::new32(
@@ -294,6 +300,8 @@ impl Sequencer {
     /// Move units that start before the end time to the ready heap.
     fn ready_to_active(&mut self, next_end_time: f64) {
         while let Some(ready) = self.ready.peek() {
+            // Test whether start time rounded to a sample comes before the end time,
+            // which always falls on a sample.
             if ready.start_time < next_end_time - self.sample_duration * 0.5 {
                 if let Some(ready) = self.ready.pop() {
                     self.active.push(ready);

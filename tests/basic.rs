@@ -179,8 +179,8 @@ fn test_basic() {
     check_wave(envelope(|t| exp(-t * 10.0)) | lfo(|t| sin(t * 10.0)));
 
     let mut sequencer = Sequencer::new(44100.0, 2);
-    sequencer.add64(0.1, 0.2, 0.01, 0.01, Box::new(noise() | sine_hz(220.0)));
-    sequencer.add64(0.3, 0.4, 0.09, 0.09, Box::new(sine_hz(110.0) | noise()));
+    sequencer.add64(0.1, 0.2, 0.01, 0.02, Box::new(noise() | sine_hz(220.0)));
+    sequencer.add64(0.3, 0.4, 0.09, 0.08, Box::new(sine_hz(110.0) | noise()));
     check_wave(sequencer);
 
     // Wave filtering, tick vs. process rendering, node reseting.
