@@ -81,6 +81,7 @@ fn do_fade_in64(
     sample_duration: f64,
     time: f64,
     end_time: f64,
+    start_index: usize,
     end_index: usize,
     fade_duration: f64,
     fade_start_time: f64,
@@ -94,7 +95,12 @@ fn do_fade_in64(
             round((fade_end_time - time) / sample_duration) as usize
         };
         let fade_d = sample_duration / fade_duration;
-        let fade_phase = delerp(fade_start_time, fade_end_time, time);
+
+        let fade_phase = delerp(
+            fade_start_time,
+            fade_end_time,
+            time + start_index as f64 * sample_duration,
+        );
         for channel in 0..output.len() {
             let mut fade = fade_phase;
             for i in 0..fade_end_i {
@@ -110,6 +116,7 @@ fn do_fade_out64(
     sample_duration: f64,
     time: f64,
     end_time: f64,
+    _start_index: usize,
     end_index: usize,
     fade_duration: f64,
     fade_end_time: f64,
@@ -143,6 +150,7 @@ fn do_fade_in32(
     sample_duration: f64,
     time: f64,
     end_time: f64,
+    start_index: usize,
     end_index: usize,
     fade_duration: f64,
     fade_start_time: f64,
@@ -156,7 +164,11 @@ fn do_fade_in32(
             round((fade_end_time - time) / sample_duration) as usize
         };
         let fade_d = (sample_duration / fade_duration) as f32;
-        let fade_phase = delerp(fade_start_time, fade_end_time, time) as f32;
+        let fade_phase = delerp(
+            fade_start_time,
+            fade_end_time,
+            time + start_index as f64 * sample_duration,
+        ) as f32;
         for channel in 0..output.len() {
             let mut fade = fade_phase;
             for i in 0..fade_end_i {
@@ -172,6 +184,7 @@ fn do_fade_out32(
     sample_duration: f64,
     time: f64,
     end_time: f64,
+    _start_index: usize,
     end_index: usize,
     fade_duration: f64,
     fade_end_time: f64,
@@ -281,7 +294,7 @@ impl Sequencer {
     /// Move units that start before the end time to the ready heap.
     fn ready_to_active(&mut self, next_end_time: f64) {
         while let Some(ready) = self.ready.peek() {
-            if ready.start_time < next_end_time {
+            if ready.start_time < next_end_time - self.sample_duration * 0.5 {
                 if let Some(ready) = self.ready.pop() {
                     self.active.push(ready);
                 }
@@ -341,12 +354,16 @@ impl AudioUnit64 for Sequencer {
         self.ready_to_active(end_time);
         let mut i = 0;
         while i < self.active.len() {
-            if self.active[i].end_time <= self.time {
+            if self.active[i].end_time <= self.time + 0.5 * self.sample_duration {
                 self.past.push(self.active.swap_remove(i));
             } else {
                 self.active[i].unit.tick64(input, &mut self.tick64);
                 if self.active[i].fade_in > 0.0 {
-                    let fade_in = delerp(0.0, self.active[i].fade_in, self.time);
+                    let fade_in = delerp(
+                        self.active[i].start_time,
+                        self.active[i].start_time + self.active[i].fade_in,
+                        self.time,
+                    );
                     if fade_in < 1.0 {
                         for channel in 0..self.outputs {
                             self.tick64[channel] *= smooth5(fade_in);
@@ -406,6 +423,7 @@ impl AudioUnit64 for Sequencer {
                         self.sample_duration,
                         self.time,
                         end_time,
+                        start_index,
                         end_index,
                         self.active[i].fade_in,
                         self.active[i].start_time,
@@ -415,6 +433,7 @@ impl AudioUnit64 for Sequencer {
                         self.sample_duration,
                         self.time,
                         end_time,
+                        start_index,
                         end_index,
                         self.active[i].fade_out,
                         self.active[i].end_time,
@@ -457,12 +476,16 @@ impl AudioUnit32 for Sequencer {
         self.ready_to_active(end_time);
         let mut i = 0;
         while i < self.active.len() {
-            if self.active[i].end_time <= self.time {
+            if self.active[i].end_time <= self.time + 0.5 * self.sample_duration {
                 self.past.push(self.active.swap_remove(i));
             } else {
                 self.active[i].unit.tick32(input, &mut self.tick32);
                 if self.active[i].fade_in > 0.0 {
-                    let fade_in = delerp(0.0, self.active[i].fade_in, self.time) as f32;
+                    let fade_in = delerp(
+                        self.active[i].start_time,
+                        self.active[i].start_time + self.active[i].fade_in,
+                        self.time,
+                    ) as f32;
                     if fade_in < 1.0 {
                         for channel in 0..self.outputs {
                             self.tick32[channel] *= smooth5(fade_in);
@@ -522,6 +545,7 @@ impl AudioUnit32 for Sequencer {
                         self.sample_duration,
                         self.time,
                         end_time,
+                        start_index,
                         end_index,
                         self.active[i].fade_in,
                         self.active[i].start_time,
@@ -531,6 +555,7 @@ impl AudioUnit32 for Sequencer {
                         self.sample_duration,
                         self.time,
                         end_time,
+                        start_index,
                         end_index,
                         self.active[i].fade_out,
                         self.active[i].end_time,

@@ -9,7 +9,8 @@
     clippy::len_zero,
     clippy::double_neg,
     clippy::needless_range_loop,
-    clippy::manual_range_contains
+    clippy::manual_range_contains,
+    clippy::too_many_arguments
 )]
 
 #[macro_use]

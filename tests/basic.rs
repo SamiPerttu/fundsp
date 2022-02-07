@@ -17,10 +17,7 @@ use fundsp::hacker::*;
 /// Check that the stereo generator given is rendered identically
 /// via `process` (block processing) and `tick` (single sample processing).
 /// Also check that the generator is reset properly.
-fn check_wave<X>(mut node: An<X>)
-where
-    X: AudioNode<Sample = f64, Inputs = U0, Outputs = U2>,
-{
+fn check_wave(mut node: impl AudioUnit64) {
     let wave = Wave64::render(44100.0, 1.0, &mut node);
 
     assert!(wave.channels() == 2);
@@ -39,10 +36,7 @@ where
 /// Check that the stereo filter given is rendered identically
 /// via `process` (block processing) and `tick` (single sample processing).
 /// Also check that the generator is reset properly.
-fn check_wave_filter<X>(input: &Wave64, mut node: An<X>)
-where
-    X: AudioNode<Sample = f64, Inputs = U2, Outputs = U2>,
-{
+fn check_wave_filter(input: &Wave64, mut node: impl AudioUnit64) {
     let wave = input.filter(1.1, &mut node);
     assert!(wave.channels() == 2);
     assert!(wave.length() == 44100 + 4410);
@@ -183,6 +177,11 @@ fn test_basic() {
     );
     check_wave(dc((110.0, 0.5)) >> pulse() >> delay(0.1) | noise() >> delay(0.01));
     check_wave(envelope(|t| exp(-t * 10.0)) | lfo(|t| sin(t * 10.0)));
+
+    let mut sequencer = Sequencer::new(44100.0, 2);
+    sequencer.add64(0.1, 0.2, 0.01, 0.01, Box::new(noise() | sine_hz(220.0)));
+    sequencer.add64(0.3, 0.4, 0.09, 0.09, Box::new(sine_hz(110.0) | noise()));
+    check_wave(sequencer);
 
     // Wave filtering, tick vs. process rendering, node reseting.
     let input = Wave64::render(44100.0, 1.0, &mut (noise() | noise()));
