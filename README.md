@@ -534,6 +534,8 @@ The type parameters in the table refer to the hacker prelude.
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
 | `notch_hz(f, q)`       |    1    |    1    | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
 | `notch_q(q)`           | 2 (audio, frequency) | 1 | Notch filter (2nd order) with Q `q`. |
+| `pan()`                | 2 (audio, pan) | 2 | Mono-to-stereo equal power panner with pan in -1...1. |
+| `pan_to(pan)`          |    1    |    2    | Fixed mono-to-stereo equal power panner with pan in -1...1. |
 | `pass()`               |    1    |    1    | Passes signal through. |
 | `peak()`               | 3 (audio, frequency, Q) | 1 | Peaking filter (2nd order). |
 | `peak_hz(f, q)`        |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q`. |
@@ -547,7 +549,7 @@ The type parameters in the table refer to the hacker prelude.
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `reverb_stereo(wet, t)`|    2    |    2    | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
 | `saw()`                | 1 (pitch) |  1    | Bandlimited saw wave oscillator. |
-| `saw_hz(f)`            |    -    |    1    | Bandlimited Saw wave oscillator at `f` Hz. |
+| `saw_hz(f)`            |    -    |    1    | Bandlimited saw wave oscillator at `f` Hz. |
 | `shape(mode)`          |    1    |    1    | Shape signal with waveshaper mode `mode`. |
 | `shape_fn(f)`          |    1    |    1    | Shape signal with waveshaper function `f`, e.g., `tanh`. |
 | `sine()`               | 1 (pitch) |  1    | Sine oscillator. |
@@ -654,6 +656,7 @@ These are arguments to the `shape` opcode.
 | `exp10(x)`             | 10 to the power of `x` |
 | `exp2(x)`              | 2 to the power of `x` |
 | `floor(x)`             | floor function |
+| `fract(x)`             | fract function |
 | `id(x)`                | identity function (linear easing function) |
 | `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` with `t` in 0...1. |
 | `lerp11(x0, x1, t)`    | linear interpolation between `x0` and `x1` with `t` in -1...1. |

@@ -221,4 +221,7 @@ fn test_responses() {
             >> multisplit::<U3, U3>()
             >> sumf::<U9, _, _>(|f| highshelf_hz(f, 1.0 + f, 2.0 + f)),
     );
+    test_response(pan_to(0.5) >> join());
+    test_response(pan_to(0.0) >> join());
+    test_response(pan_to(-1.0) >> join());
 }

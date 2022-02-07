@@ -11,6 +11,7 @@ pub use super::filter::*;
 pub use super::math::*;
 pub use super::noise::*;
 pub use super::oscillator::*;
+pub use super::pan::*;
 pub use super::sequencer::*;
 pub use super::shape::*;
 pub use super::signal::*;
@@ -485,13 +486,27 @@ pub fn shape(mode: Shape<f64>) -> An<Shaper<f64>> {
 }
 
 /// Clip signal to -1...1.
+#[inline]
 pub fn clip() -> An<Shaper<f64>> {
     super::prelude::clip()
 }
 
 /// Clip signal to min...max.
+#[inline]
 pub fn clip_to(minimum: f64, maximum: f64) -> An<Shaper<f64>> {
     super::prelude::clip_to(minimum, maximum)
+}
+
+/// Equal power mono-to-stereo panner.
+#[inline]
+pub fn pan() -> An<Pan<f64, U2>> {
+    An(Pan::new(0.0))
+}
+
+/// Fixed equal power mono-to-stereo panner with pan value in -1...1.
+#[inline]
+pub fn pan_to(value: f64) -> An<Pan<f64, U1>> {
+    An(Pan::new(value))
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.
