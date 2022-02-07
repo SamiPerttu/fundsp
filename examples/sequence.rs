@@ -27,7 +27,7 @@ fn main() {
         let t0 = i as f64 / bpm_hz(bpm);
         let t1 = (i + 2) as f64 / bpm_hz(bpm);
         if bassd_line.as_bytes()[i] == b'x' {
-            sequencer.add64(t0, t1, 0.0, 0.5, Box::new(bassdrum()));
+            sequencer.add64(t0, t1, 0.0, 0.4, Box::new(bassdrum()));
         }
         if snare_line.as_bytes()[i] == b'x' {
             sequencer.add64(t0, t1, 0.0, 0.1, Box::new(snaredrum()));
