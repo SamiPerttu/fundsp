@@ -130,7 +130,7 @@ pub type U100 = numeric_array::typenum::U100;
 /// Constant node.
 /// Synonymous with `[dc]`.
 #[inline]
-pub fn constant<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<Constant<T, X::Size>>
+pub fn constant<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<Constant<X::Size, T>>
 where
     X::Size: Size<T>,
 {
@@ -141,7 +141,7 @@ where
 /// Synonymous with `constant`.
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
 #[inline]
-pub fn dc<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<Constant<T, X::Size>>
+pub fn dc<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<Constant<X::Size, T>>
 where
     X::Size: Size<T>,
 {
@@ -151,14 +151,14 @@ where
 /// Zero generator.
 /// - Output 0: zero
 #[inline]
-pub fn zero<T: Float>() -> An<Constant<T, U1>> {
+pub fn zero<T: Float>() -> An<Constant<U1, T>> {
     dc(T::new(0))
 }
 
 /// Multichannel zero generator.
 /// - Output(s): zero
 #[inline]
-pub fn multizero<T: Float, U: Size<T>>() -> An<Constant<T, U>> {
+pub fn multizero<N: Size<T>, T: Float>() -> An<Constant<N, T>> {
     An(Constant::new(Frame::splat(T::zero())))
 }
 
@@ -170,19 +170,19 @@ pub fn pass<T: Float>() -> An<Pass<T>> {
 
 /// Multichannel pass-through.
 #[inline]
-pub fn multipass<T: Float, U: Size<T>>() -> An<MultiPass<T, U>> {
+pub fn multipass<N: Size<T>, T: Float>() -> An<MultiPass<N, T>> {
     An(MultiPass::new())
 }
 
 /// Mono sink. Input is discarded.
 #[inline]
-pub fn sink<T: Float>() -> An<Sink<T, U1>> {
+pub fn sink<T: Float>() -> An<Sink<U1, T>> {
     An(Sink::new())
 }
 
 /// Multichannel sink. Inputs are discarded.
 #[inline]
-pub fn multisink<T: Float, U: Size<T>>() -> An<Sink<T, U>> {
+pub fn multisink<N: Size<T>, T: Float>() -> An<Sink<N, T>> {
     An(Sink::new())
 }
 
@@ -207,7 +207,7 @@ pub fn sine<T: Real>() -> An<Sine<T>> {
 /// Fixed sine oscillator at `f` Hz.
 /// - Output 0: sine wave
 #[inline]
-pub fn sine_hz<T: Real>(f: T) -> An<Pipe<T, Constant<T, U1>, Sine<T>>> {
+pub fn sine_hz<T: Real>(f: T) -> An<Pipe<T, Constant<U1, T>, Sine<T>>> {
     constant(f) >> sine()
 }
 
@@ -218,16 +218,16 @@ pub fn add<X: ConstantFrame>(
 ) -> An<
     Binop<
         X::Sample,
-        FrameAdd<X::Sample, X::Size>,
-        MultiPass<X::Sample, X::Size>,
-        Constant<X::Sample, X::Size>,
+        FrameAdd<X::Size, X::Sample>,
+        MultiPass<X::Size, X::Sample>,
+        Constant<X::Size, X::Sample>,
     >,
 >
 where
     X::Size: Size<X::Sample> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<X::Sample>,
 {
-    An(MultiPass::<X::Sample, X::Size>::new()) + dc(x)
+    An(MultiPass::<X::Size, X::Sample>::new()) + dc(x)
 }
 
 /// Subtract constant from signal.
@@ -237,16 +237,16 @@ pub fn sub<X: ConstantFrame>(
 ) -> An<
     Binop<
         X::Sample,
-        FrameSub<X::Sample, X::Size>,
-        MultiPass<X::Sample, X::Size>,
-        Constant<X::Sample, X::Size>,
+        FrameSub<X::Size, X::Sample>,
+        MultiPass<X::Size, X::Sample>,
+        Constant<X::Size, X::Sample>,
     >,
 >
 where
     X::Size: Size<X::Sample> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<X::Sample>,
 {
-    An(MultiPass::<X::Sample, X::Size>::new()) - dc(x)
+    An(MultiPass::<X::Size, X::Sample>::new()) - dc(x)
 }
 
 /// Multiply signal with constant.
@@ -256,16 +256,16 @@ pub fn mul<X: ConstantFrame>(
 ) -> An<
     Binop<
         X::Sample,
-        FrameMul<X::Sample, X::Size>,
-        MultiPass<X::Sample, X::Size>,
-        Constant<X::Sample, X::Size>,
+        FrameMul<X::Size, X::Sample>,
+        MultiPass<X::Size, X::Sample>,
+        Constant<X::Size, X::Sample>,
     >,
 >
 where
     X::Size: Size<X::Sample> + Add<U0>,
     <X::Size as Add<U0>>::Output: Size<X::Sample>,
 {
-    An(MultiPass::<X::Sample, X::Size>::new()) * dc(x)
+    An(MultiPass::<X::Size, X::Sample>::new()) * dc(x)
 }
 
 /// Butterworth lowpass filter (2nd order).
@@ -434,14 +434,14 @@ pub fn white<T: Float>() -> An<Noise<T>> {
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
 #[inline]
-pub fn tick<T: Float>() -> An<Tick<T, U1>> {
+pub fn tick<T: Float>() -> An<Tick<U1, T>> {
     An(Tick::new(convert(DEFAULT_SR)))
 }
 
 /// Multichannel single sample delay.
 /// - Inputs: signal.
 /// - Outputs: delayed signal.
-pub fn multitick<T: Float, N: Size<T>>() -> An<Tick<T, N>> {
+pub fn multitick<N: Size<T>, T: Float>() -> An<Tick<N, T>> {
     An(Tick::new(convert(DEFAULT_SR)))
 }
 
@@ -458,13 +458,13 @@ pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
 #[inline]
-pub fn feedback<T, X, N>(x: An<X>) -> An<Feedback<T, X, N, FrameId<T, N>>>
+pub fn feedback<N, T, X>(x: An<X>) -> An<Feedback<N, T, X, FrameId<N, T>>>
 where
+    N: Size<T>,
     T: Float,
     X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
-    N: Size<T>,
 {
     An(Feedback::new(x.0, FrameId::new()))
 }
@@ -570,7 +570,7 @@ pub fn pink<T: Float, F: Float>() -> An<Pipe<T, Noise<T>, Pinkpass<T, F>>> {
 /// Brown noise.
 #[inline]
 pub fn brown<T: Float, F: Real>(
-) -> An<Pipe<T, Noise<T>, Binop<T, FrameMul<T, U1>, Lowpole<T, F, U1>, Constant<T, U1>>>> {
+) -> An<Pipe<T, Noise<T>, Binop<T, FrameMul<U1, T>, Lowpole<T, F, U1>, Constant<U1, T>>>> {
     // Empirical normalization factor.
     white() >> lowpole_hz::<T, F>(T::from_f64(10.0)) * dc(T::from_f64(13.7))
 }
@@ -585,7 +585,7 @@ pub fn goertzel<T: Float, F: Real>() -> An<Goertzel<T, F>> {
 #[inline]
 pub fn goertzel_hz<T: Float, F: Real>(
     f: T,
-) -> An<Pipe<T, Stack<T, Pass<T>, Constant<T, U1>>, Goertzel<T, F>>> {
+) -> An<Pipe<T, Stack<T, Pass<T>, Constant<U1, T>>, Goertzel<T, F>>> {
     (pass() | constant(f)) >> goertzel::<T, F>()
 }
 
@@ -596,20 +596,20 @@ pub fn goertzel_hz<T: Float, F: Real>(
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
 #[inline]
-pub fn fdn<T, X, N>(x: An<X>) -> An<Feedback<T, X, N, FrameHadamard<T, N>>>
+pub fn fdn<N, T, X>(x: An<X>) -> An<Feedback<N, T, X, FrameHadamard<N, T>>>
 where
+    N: Size<T>,
     T: Float,
     X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
-    N: Size<T>,
 {
     An(Feedback::new(x.0, FrameHadamard::new()))
 }
 
 /// Bus `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn bus<T, N, X, F>(f: F) -> An<MultiBus<T, N, X>>
+pub fn bus<N, T, X, F>(f: F) -> An<MultiBus<N, T, X>>
 where
     T: Float,
     N: Size<T>,
@@ -627,11 +627,11 @@ where
 /// Bus `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn busf<T, N, X, F>(f: F) -> An<MultiBus<T, N, X>>
+pub fn busf<N, T, X, F>(f: F) -> An<MultiBus<N, T, X>>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
@@ -651,7 +651,7 @@ where
 
 /// Stack `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn stack<T, N, X, F>(f: F) -> An<MultiStack<T, N, X>>
+pub fn stack<N, T, X, F>(f: F) -> An<MultiStack<N, T, X>>
 where
     T: Float,
     N: Size<T>,
@@ -671,11 +671,11 @@ where
 /// Stack `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn stackf<T, N, X, F>(f: F) -> An<MultiStack<T, N, X>>
+pub fn stackf<N, T, X, F>(f: F) -> An<MultiStack<N, T, X>>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T> + Mul<N>,
     X::Outputs: Size<T> + Mul<N>,
@@ -697,11 +697,11 @@ where
 
 /// Branch into `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn branch<T, N, X, F>(f: F) -> An<MultiBranch<T, N, X>>
+pub fn branch<N, T, X, F>(f: F) -> An<MultiBranch<N, T, X>>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T> + Mul<N>,
@@ -715,11 +715,11 @@ where
 /// Branch into `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn branchf<T, N, X, F>(f: F) -> An<MultiBranch<T, N, X>>
+pub fn branchf<N, T, X, F>(f: F) -> An<MultiBranch<N, T, X>>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T> + Mul<N>,
@@ -739,7 +739,7 @@ where
 
 /// Mix together `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn sum<T, N, X, F>(f: F) -> An<Reduce<T, N, X, FrameAdd<T, X::Outputs>>>
+pub fn sum<N, T, X, F>(f: F) -> An<Reduce<N, T, X, FrameAdd<X::Outputs, T>>>
 where
     T: Float,
     N: Size<T>,
@@ -757,11 +757,11 @@ where
 /// Mix together `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn sumf<T, N, X, F>(f: F) -> An<Reduce<T, N, X, FrameAdd<T, X::Outputs>>>
+pub fn sumf<N, T, X, F>(f: F) -> An<Reduce<N, T, X, FrameAdd<X::Outputs, T>>>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T> + Mul<N>,
     X::Outputs: Size<T>,
@@ -781,11 +781,11 @@ where
 
 /// Chain together `N` similar nodes from indexed generator `f`.
 #[inline]
-pub fn pipe<T, N, X, F>(f: F) -> An<Chain<T, N, X>>
+pub fn pipe<N, T, X, F>(f: F) -> An<Chain<N, T, X>>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
@@ -798,11 +798,11 @@ where
 /// Chain together `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
 #[inline]
-pub fn pipef<T, N, X, F>(f: F) -> An<Chain<T, N, X>>
+pub fn pipef<N, T, X, F>(f: F) -> An<Chain<N, T, X>>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
@@ -821,29 +821,29 @@ where
 
 /// Split signal into N channels.
 #[inline]
-pub fn split<T, N>() -> An<Split<T, N>>
+pub fn split<N, T>() -> An<Split<N, T>>
 where
-    T: Float,
     N: Size<T>,
+    T: Float,
 {
     An(Split::new())
 }
 
 /// Split M channels into N branches. The output has M * N channels.
 #[inline]
-pub fn multisplit<T, M, N>() -> An<MultiSplit<T, M, N>>
+pub fn multisplit<M, N, T>() -> An<MultiSplit<M, N, T>>
 where
-    T: Float,
     M: Size<T> + Mul<N>,
     N: Size<T>,
     <M as Mul<N>>::Output: Size<T>,
+    T: Float,
 {
     An(MultiSplit::new())
 }
 
 /// Average N channels into one. Inverse of `split`.
 #[inline]
-pub fn join<T, N>() -> An<Join<T, N>>
+pub fn join<N, T>() -> An<Join<N, T>>
 where
     T: Float,
     N: Size<T>,
@@ -854,14 +854,14 @@ where
 /// Average `N` branches of `M` channels into one branch with `M` channels.
 /// The input has `M` * `N` channels. Inverse of `multisplit::<M, N>`.
 #[inline]
-pub fn multijoin<T, M, N>() -> An<MultiJoin<T, M, N>>
+pub fn multijoin<M, N, T>() -> An<MultiJoin<M, N, T>>
 where
-    T: Float,
     N: Size<T>,
     M: Size<T> + Mul<N>,
     <M as Mul<N>>::Output: Size<T>,
+    T: Float,
 {
-    An(MultiJoin::new())
+    An(MultiJoin::<M, N, T>::new())
 }
 
 /// Stereo reverb.
@@ -879,27 +879,27 @@ pub fn reverb_stereo<T, F>(
                 T,
                 Pipe<
                     T,
-                    MultiSplit<T, U2, U16>,
+                    MultiSplit<U2, U16, T>,
                     Feedback<
+                        U32,
                         T,
                         MultiStack<
-                            T,
                             U32,
+                            T,
                             Pipe<
                                 T,
                                 Pipe<T, Pipe<T, Delay<T>, Lowpole<T, F, U1>>, DCBlock<T, F>>,
-                                Binop<T, FrameMul<T, U1>, MultiPass<T, U1>, Constant<T, U1>>,
+                                Binop<T, FrameMul<U1, T>, MultiPass<U1, T>, Constant<U1, T>>,
                             >,
                         >,
-                        U32,
-                        FrameHadamard<T, U32>,
+                        FrameHadamard<U32, T>,
                     >,
                 >,
-                MultiJoin<T, U2, U16>,
+                MultiJoin<U2, U16, T>,
             >,
-            Binop<T, FrameMul<T, U2>, MultiPass<T, U2>, Constant<T, U2>>,
+            Binop<T, FrameMul<U2, T>, MultiPass<U2, T>, Constant<U2, T>>,
         >,
-        Binop<T, FrameMul<T, U2>, MultiPass<T, U2>, Constant<T, U2>>,
+        Binop<T, FrameMul<U2, T>, MultiPass<U2, T>, Constant<U2, T>>,
     >,
 >
 where
@@ -918,7 +918,7 @@ where
 
     let a = T::from_f64(pow(db_amp(-60.0), 0.03 / time));
 
-    let line = stack::<T, U32, _, _>(|i| {
+    let line = stack::<U32, T, _, _>(|i| {
         delay::<T>(DELAYS[i as usize])
             >> lowpole_hz::<T, F>(T::new(1600))
             >> dcblock_hz::<T, F>(F::new(5))
@@ -926,11 +926,11 @@ where
     });
 
     // The feedback structure.
-    let reverb = fdn::<T, _, U32>(line);
+    let reverb = fdn::<U32, T, _>(line);
 
     // Multiplex stereo into 32 channels, reverberate, then average them back.
     // Bus the reverb with the dry signal. Operator precedences work perfectly for us here.
-    multisplit::<T, U2, U16>() >> reverb >> multijoin::<T, U2, U16>() >> mul((wet, wet))
+    multisplit::<U2, U16, T>() >> reverb >> multijoin::<U2, U16, T>() >> mul((wet, wet))
         & mul((T::one() - wet, T::one() - wet))
 }
 
@@ -961,21 +961,21 @@ pub fn triangle<T: Float>() -> An<WaveSynth<'static, T, U1>> {
 /// Fixed saw wave oscillator at `f` Hz.
 /// - Output 0: saw wave
 #[inline]
-pub fn saw_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, WaveSynth<'static, T, U1>>> {
+pub fn saw_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
     constant(f) >> saw()
 }
 
 /// Fixed square wave oscillator at `f` Hz.
 /// - Output 0: square wave
 #[inline]
-pub fn square_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, WaveSynth<'static, T, U1>>> {
+pub fn square_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
     constant(f) >> square()
 }
 
 /// Fixed triangle wave oscillator at `f` Hz.
 /// - Output 0: triangle wave
 #[inline]
-pub fn triangle_hz<T: Float>(f: T) -> An<Pipe<T, Constant<T, U1>, WaveSynth<'static, T, U1>>> {
+pub fn triangle_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
     constant(f) >> triangle()
 }
 
@@ -1020,8 +1020,8 @@ pub fn lowpass_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, LowpassMod
 #[inline]
 pub fn lowpass_q<T: Float, F: Real>(
     q: T,
-) -> An<Pipe<T, Stack<T, MultiPass<T, U2>, Constant<T, U1>>, Svf<T, F, LowpassMode<F>>>> {
-    (multipass::<T, U2>() | dc(q))
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U1, T>>, Svf<T, F, LowpassMode<F>>>> {
+    (multipass::<U2, T>() | dc(q))
         >> An(Svf::new(
             LowpassMode::default(),
             &SvfParams {
@@ -1074,8 +1074,8 @@ pub fn highpass_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, HighpassM
 #[inline]
 pub fn highpass_q<T: Float, F: Real>(
     q: T,
-) -> An<Pipe<T, Stack<T, MultiPass<T, U2>, Constant<T, U1>>, Svf<T, F, HighpassMode<F>>>> {
-    (multipass::<T, U2>() | dc(q))
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U1, T>>, Svf<T, F, HighpassMode<F>>>> {
+    (multipass::<U2, T>() | dc(q))
         >> An(Svf::new(
             HighpassMode::default(),
             &SvfParams {
@@ -1128,8 +1128,8 @@ pub fn bandpass_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, BandpassM
 #[inline]
 pub fn bandpass_q<T: Float, F: Real>(
     q: T,
-) -> An<Pipe<T, Stack<T, MultiPass<T, U2>, Constant<T, U1>>, Svf<T, F, BandpassMode<F>>>> {
-    (multipass::<T, U2>() | dc(q))
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U1, T>>, Svf<T, F, BandpassMode<F>>>> {
+    (multipass::<U2, T>() | dc(q))
         >> An(Svf::new(
             BandpassMode::default(),
             &SvfParams {
@@ -1182,8 +1182,8 @@ pub fn notch_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, NotchMode<F>
 #[inline]
 pub fn notch_q<T: Float, F: Real>(
     q: T,
-) -> An<Pipe<T, Stack<T, MultiPass<T, U2>, Constant<T, U1>>, Svf<T, F, NotchMode<F>>>> {
-    (multipass::<T, U2>() | dc(q))
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U1, T>>, Svf<T, F, NotchMode<F>>>> {
+    (multipass::<U2, T>() | dc(q))
         >> An(Svf::new(
             NotchMode::default(),
             &SvfParams {
@@ -1236,8 +1236,8 @@ pub fn peak_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, PeakMode<F>>>
 #[inline]
 pub fn peak_q<T: Float, F: Real>(
     q: T,
-) -> An<Pipe<T, Stack<T, MultiPass<T, U2>, Constant<T, U1>>, Svf<T, F, PeakMode<F>>>> {
-    (multipass::<T, U2>() | dc(q))
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U1, T>>, Svf<T, F, PeakMode<F>>>> {
+    (multipass::<U2, T>() | dc(q))
         >> An(Svf::new(
             PeakMode::default(),
             &SvfParams {
@@ -1290,8 +1290,8 @@ pub fn allpass_hz<T: Float, F: Real>(f: T, q: T) -> An<FixedSvf<T, F, AllpassMod
 #[inline]
 pub fn allpass_q<T: Float, F: Real>(
     q: T,
-) -> An<Pipe<T, Stack<T, MultiPass<T, U2>, Constant<T, U1>>, Svf<T, F, AllpassMode<F>>>> {
-    (multipass::<T, U2>() | dc(q))
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U1, T>>, Svf<T, F, AllpassMode<F>>>> {
+    (multipass::<U2, T>() | dc(q))
         >> An(Svf::new(
             AllpassMode::default(),
             &SvfParams {
@@ -1346,8 +1346,8 @@ pub fn bell_hz<T: Float, F: Real>(f: T, q: T, gain: T) -> An<FixedSvf<T, F, Bell
 pub fn bell_q<T: Float, F: Real>(
     q: T,
     gain: T,
-) -> An<Pipe<T, Stack<T, MultiPass<T, U2>, Constant<T, U2>>, Svf<T, F, BellMode<F>>>> {
-    (multipass::<T, U2>() | dc((q, gain)))
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U2, T>>, Svf<T, F, BellMode<F>>>> {
+    (multipass::<U2, T>() | dc((q, gain)))
         >> An(Svf::new(
             BellMode::default(),
             &SvfParams {
@@ -1402,8 +1402,8 @@ pub fn lowshelf_hz<T: Float, F: Real>(f: T, q: T, gain: T) -> An<FixedSvf<T, F, 
 pub fn lowshelf_q<T: Float, F: Real>(
     q: T,
     gain: T,
-) -> An<Pipe<T, Stack<T, MultiPass<T, U2>, Constant<T, U2>>, Svf<T, F, LowshelfMode<F>>>> {
-    (multipass::<T, U2>() | dc((q, gain)))
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U2, T>>, Svf<T, F, LowshelfMode<F>>>> {
+    (multipass::<U2, T>() | dc((q, gain)))
         >> An(Svf::new(
             LowshelfMode::default(),
             &SvfParams {
@@ -1462,8 +1462,8 @@ pub fn highshelf_hz<T: Float, F: Real>(
 pub fn highshelf_q<T: Float, F: Real>(
     q: T,
     gain: T,
-) -> An<Pipe<T, Stack<T, MultiPass<T, U2>, Constant<T, U2>>, Svf<T, F, HighshelfMode<F>>>> {
-    (multipass::<T, U2>() | dc((q, gain)))
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U2, T>>, Svf<T, F, HighshelfMode<F>>>> {
+    (multipass::<U2, T>() | dc((q, gain)))
         >> An(Svf::new(
             HighshelfMode::default(),
             &SvfParams {
@@ -1489,10 +1489,10 @@ pub struct PulseWave<T: Float> {
                 Stack<
                     T,
                     Pass<T>,
-                    Pipe<T, Binop<T, FrameAdd<T, U1>, Pass<T>, Pass<T>>, PhaseSynth<'static, T>>,
+                    Pipe<T, Binop<T, FrameAdd<U1, T>, Pass<T>, Pass<T>>, PhaseSynth<'static, T>>,
                 >,
             >,
-            Binop<T, FrameSub<T, U1>, Pass<T>, Pass<T>>,
+            Binop<T, FrameSub<U1, T>, Pass<T>, Pass<T>>,
         >,
     >,
 }
@@ -1550,35 +1550,3 @@ impl<T: Float> AudioNode for PulseWave<T> {
 pub fn pulse<T: Float>() -> An<PulseWave<T>> {
     An(PulseWave::new())
 }
-
-/*
-// Note. This causes compilation times to blow up with Rust 1.58.0.
-/// Pulse wave oscillator.
-/// - Input 0: frequency in Hz
-/// - Input 1: pulse duty cycle in 0...1
-/// - Output 0: pulse wave
-#[inline]
-pub fn pulse<T: Float>() -> An<
-    Pipe<
-        T,
-        Pipe<
-            T,
-            Stack<T, WaveSynth<'static, T, U2>, Pass<T>>,
-            Stack<
-                T,
-                Pass<T, U1>,
-                Pipe<
-                    T,
-                    Binop<T, FrameAdd<T, U1>, Pass<T>, Pass<T>>,
-                    PhaseSynth<'static, T>,
-                >,
-            >,
-        >,
-        Binop<T, FrameSub<T, U1>, Pass<T>, Pass<T>>,
-    >,
-> {
-    (An(WaveSynth::<'static, T, U2>::new(DEFAULT_SR, &SAW_TABLE)) | pass())
-        >> (pass() | (pass() + pass()) >> An(PhaseSynth::<'static, T>::new(DEFAULT_SR, &SAW_TABLE)))
-        >> pass() - pass()
-}
-*/

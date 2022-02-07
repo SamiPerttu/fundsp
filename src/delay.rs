@@ -8,12 +8,12 @@ use num_complex::Complex64;
 use numeric_array::typenum::*;
 
 /// Single sample delay.
-pub struct Tick<T: Float, N: Size<T>> {
+pub struct Tick<N: Size<T>, T: Float> {
     buffer: Frame<T, N>,
     sample_rate: f64,
 }
 
-impl<T: Float, N: Size<T>> Tick<T, N> {
+impl<N: Size<T>, T: Float> Tick<N, T> {
     pub fn new(sample_rate: f64) -> Self {
         Tick {
             buffer: Frame::default(),
@@ -22,7 +22,7 @@ impl<T: Float, N: Size<T>> Tick<T, N> {
     }
 }
 
-impl<T: Float, N: Size<T>> AudioNode for Tick<T, N> {
+impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
     const ID: u64 = 9;
     type Sample = T;
     type Inputs = N;

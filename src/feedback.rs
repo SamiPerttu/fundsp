@@ -8,17 +8,17 @@ use std::marker::PhantomData;
 
 /// Diffusive Hadamard feedback matrix.
 #[derive(Default)]
-pub struct FrameHadamard<T: Float, N: Size<T>> {
-    _marker: PhantomData<(T, N)>,
+pub struct FrameHadamard<N: Size<T>, T: Float> {
+    _marker: PhantomData<(N, T)>,
 }
 
-impl<T: Float, N: Size<T>> FrameHadamard<T, N> {
-    pub fn new() -> FrameHadamard<T, N> {
+impl<N: Size<T>, T: Float> FrameHadamard<N, T> {
+    pub fn new() -> FrameHadamard<N, T> {
         FrameHadamard::default()
     }
 }
 
-impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameHadamard<T, N> {
+impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameHadamard<N, T> {
     #[inline]
     fn unop(x: &Frame<T, N>) -> Frame<T, N> {
         let mut output = x.clone();
@@ -76,14 +76,14 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameHadamard<T, N> {
 
 /// Mix back output of contained node to its input.
 /// The contained node must have an equal number of inputs and outputs.
-pub struct Feedback<T, X, N, U>
+pub struct Feedback<N, T, X, U>
 where
+    N: Size<T>,
     T: Float,
     X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
-    N: Size<T>,
-    U: FrameUnop<T, X::Outputs>,
+    U: FrameUnop<X::Outputs, T>,
 {
     x: X,
     // Current feedback value.
@@ -93,14 +93,14 @@ where
     feedback: U,
 }
 
-impl<T, X, N, U> Feedback<T, X, N, U>
+impl<N, T, X, U> Feedback<N, T, X, U>
 where
+    N: Size<T>,
     T: Float,
     X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
-    N: Size<T>,
-    U: FrameUnop<T, X::Outputs>,
+    U: FrameUnop<X::Outputs, T>,
 {
     pub fn new(x: X, feedback: U) -> Self {
         let mut node = Feedback {
@@ -114,14 +114,14 @@ where
     }
 }
 
-impl<T, X, N, U> AudioNode for Feedback<T, X, N, U>
+impl<N, T, X, U> AudioNode for Feedback<N, T, X, U>
 where
+    N: Size<T>,
     T: Float,
     X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
-    N: Size<T>,
-    U: FrameUnop<T, X::Outputs>,
+    U: FrameUnop<X::Outputs, T>,
 {
     const ID: u64 = 11;
     type Sample = T;

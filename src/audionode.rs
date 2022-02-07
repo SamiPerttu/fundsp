@@ -16,6 +16,17 @@ impl<T, A: numeric_array::ArrayLength<T>> Size<T> for A {}
 /// Frames are used to transport audio data between `AudioNode` instances.
 pub type Frame<T, Size> = numeric_array::NumericArray<T, Size>;
 
+/*
+Order of type arguments in nodes:
+1. Basic input and output arities excepting filter input selector arities.
+2. Interface float type.
+3. Processing float type.
+4. Unary or binary operation type.
+5. Filter input selector arity.
+6. Contained node types.
+7. The rest in any order.
+*/
+
 /// Generic audio processor.
 /// `AudioNode` has a static number of inputs (`AudioNode::Inputs`) and outputs (`AudioNode::Outputs`).
 /// `AudioNode` processes samples of type `AudioNode::Sample`, chosen statically.
@@ -147,17 +158,17 @@ pub trait AudioNode {
 
 /// Pass through inputs unchanged.
 #[derive(Default)]
-pub struct MultiPass<T, N> {
-    _marker: PhantomData<(T, N)>,
+pub struct MultiPass<N, T> {
+    _marker: PhantomData<(N, T)>,
 }
 
-impl<T: Float, N: Size<T>> MultiPass<T, N> {
+impl<N: Size<T>, T: Float> MultiPass<N, T> {
     pub fn new() -> Self {
         MultiPass::default()
     }
 }
 
-impl<T: Float, N: Size<T>> AudioNode for MultiPass<T, N> {
+impl<N: Size<T>, T: Float> AudioNode for MultiPass<N, T> {
     const ID: u64 = 0;
     type Sample = T;
     type Inputs = N;
@@ -227,17 +238,17 @@ impl<T: Float> AudioNode for Pass<T> {
 
 /// Discard inputs.
 #[derive(Default)]
-pub struct Sink<T, N> {
-    _marker: PhantomData<(T, N)>,
+pub struct Sink<N, T> {
+    _marker: PhantomData<(N, T)>,
 }
 
-impl<T: Float, N: Size<T>> Sink<T, N> {
+impl<N: Size<T>, T: Float> Sink<N, T> {
     pub fn new() -> Self {
         Sink::default()
     }
 }
 
-impl<T: Float, N: Size<T>> AudioNode for Sink<T, N> {
+impl<N: Size<T>, T: Float> AudioNode for Sink<N, T> {
     const ID: u64 = 1;
     type Sample = T;
     type Inputs = N;
@@ -260,17 +271,17 @@ impl<T: Float, N: Size<T>> AudioNode for Sink<T, N> {
 }
 
 /// Output a constant value.
-pub struct Constant<T: Float, N: Size<T>> {
+pub struct Constant<N: Size<T>, T: Float> {
     output: Frame<T, N>,
 }
 
-impl<T: Float, N: Size<T>> Constant<T, N> {
+impl<N: Size<T>, T: Float> Constant<N, T> {
     pub fn new(output: Frame<T, N>) -> Self {
         Constant { output }
     }
 }
 
-impl<T: Float, N: Size<T>> AudioNode for Constant<T, N> {
+impl<N: Size<T>, T: Float> AudioNode for Constant<N, T> {
     const ID: u64 = 2;
     type Sample = T;
     type Inputs = U0;
@@ -303,16 +314,16 @@ impl<T: Float, N: Size<T>> AudioNode for Constant<T, N> {
 }
 
 /// Split input into `N` channels.
-pub struct Split<T, N> {
-    _marker: PhantomData<(T, N)>,
+pub struct Split<N, T> {
+    _marker: PhantomData<(N, T)>,
 }
 
 // Note. We have separate split and multisplit (and join and multijoin)
 // implementations because it helps with type inference.
-impl<T, N> Split<T, N>
+impl<N, T> Split<N, T>
 where
-    T: Float,
     N: Size<T>,
+    T: Float,
 {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
@@ -322,10 +333,10 @@ where
     }
 }
 
-impl<T, N> AudioNode for Split<T, N>
+impl<N, T> AudioNode for Split<N, T>
 where
-    T: Float,
     N: Size<T>,
+    T: Float,
 {
     const ID: u64 = 40;
     type Sample = T;
@@ -345,16 +356,16 @@ where
 }
 
 /// Split `M` inputs into `N` branches, with `M` * `N` outputs.
-pub struct MultiSplit<T, M, N> {
-    _marker: PhantomData<(T, M, N)>,
+pub struct MultiSplit<M, N, T> {
+    _marker: PhantomData<(M, N, T)>,
 }
 
-impl<T, M, N> MultiSplit<T, M, N>
+impl<M, N, T> MultiSplit<M, N, T>
 where
-    T: Float,
     M: Size<T> + Mul<N>,
     N: Size<T>,
     <M as Mul<N>>::Output: Size<T>,
+    T: Float,
 {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
@@ -364,12 +375,12 @@ where
     }
 }
 
-impl<T, M, N> AudioNode for MultiSplit<T, M, N>
+impl<M, N, T> AudioNode for MultiSplit<M, N, T>
 where
-    T: Float,
     M: Size<T> + Mul<N>,
     N: Size<T>,
     <M as Mul<N>>::Output: Size<T>,
+    T: Float,
 {
     const ID: u64 = 38;
     type Sample = T;
@@ -389,14 +400,14 @@ where
 }
 
 /// Join `N` channels into one by averaging. Inverse of `Split<T, N>`.
-pub struct Join<T, N> {
-    _marker: PhantomData<(T, N)>,
+pub struct Join<N, T> {
+    _marker: PhantomData<(N, T)>,
 }
 
-impl<T, N> Join<T, N>
+impl<N, T> Join<N, T>
 where
-    T: Float,
     N: Size<T>,
+    T: Float,
 {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
@@ -406,10 +417,10 @@ where
     }
 }
 
-impl<T, N> AudioNode for Join<T, N>
+impl<N, T> AudioNode for Join<N, T>
 where
-    T: Float,
     N: Size<T>,
+    T: Float,
 {
     const ID: u64 = 41;
     type Sample = T;
@@ -435,16 +446,16 @@ where
 
 /// Average `N` branches of `M` channels into one branch with `M` channels.
 /// The input has `M` * `N` channels. Inverse of `MultiSplit<T, M, N>`.
-pub struct MultiJoin<T, M, N> {
-    _marker: PhantomData<(T, M, N)>,
+pub struct MultiJoin<M, N, T> {
+    _marker: PhantomData<(M, N, T)>,
 }
 
-impl<T, M, N> MultiJoin<T, M, N>
+impl<M, N, T> MultiJoin<M, N, T>
 where
-    T: Float,
     M: Size<T> + Mul<N>,
     N: Size<T>,
     <M as Mul<N>>::Output: Size<T>,
+    T: Float,
 {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
@@ -454,12 +465,12 @@ where
     }
 }
 
-impl<T, M, N> AudioNode for MultiJoin<T, M, N>
+impl<M, N, T> AudioNode for MultiJoin<M, N, T>
 where
-    T: Float,
     M: Size<T> + Mul<N>,
     N: Size<T>,
     <M as Mul<N>>::Output: Size<T>,
+    T: Float,
 {
     const ID: u64 = 39;
     type Sample = T;
@@ -486,7 +497,7 @@ where
 }
 
 /// Provides binary operator implementations to the `Binop` node.
-pub trait FrameBinop<T: Float, N: Size<T>> {
+pub trait FrameBinop<N: Size<T>, T: Float> {
     /// Do binary op (x op y) channelwise.
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
     /// Do binary op (x op y) on signals.
@@ -497,17 +508,17 @@ pub trait FrameBinop<T: Float, N: Size<T>> {
 
 /// Addition operator.
 #[derive(Default)]
-pub struct FrameAdd<T: Float, N: Size<T>> {
-    _marker: PhantomData<(T, N)>,
+pub struct FrameAdd<N: Size<T>, T: Float> {
+    _marker: PhantomData<(N, T)>,
 }
 
-impl<T: Float, N: Size<T>> FrameAdd<T, N> {
-    pub fn new() -> FrameAdd<T, N> {
+impl<N: Size<T>, T: Float> FrameAdd<N, T> {
+    pub fn new() -> FrameAdd<N, T> {
         FrameAdd::default()
     }
 }
 
-impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
+impl<N: Size<T>, T: Float> FrameBinop<N, T> for FrameAdd<N, T> {
     #[inline]
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
         x + y
@@ -525,17 +536,17 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameAdd<T, N> {
 
 /// Subtraction operator.
 #[derive(Default)]
-pub struct FrameSub<T: Float, N: Size<T>> {
-    _marker: PhantomData<(T, N)>,
+pub struct FrameSub<N: Size<T>, T: Float> {
+    _marker: PhantomData<(N, T)>,
 }
 
-impl<T: Float, N: Size<T>> FrameSub<T, N> {
-    pub fn new() -> FrameSub<T, N> {
+impl<N: Size<T>, T: Float> FrameSub<N, T> {
+    pub fn new() -> FrameSub<N, T> {
         FrameSub::default()
     }
 }
 
-impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
+impl<N: Size<T>, T: Float> FrameBinop<N, T> for FrameSub<N, T> {
     #[inline]
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
         x - y
@@ -553,17 +564,17 @@ impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameSub<T, N> {
 
 /// Multiplication operator.
 #[derive(Default)]
-pub struct FrameMul<T: Float, N: Size<T>> {
-    _marker: PhantomData<(T, N)>,
+pub struct FrameMul<N: Size<T>, T: Float> {
+    _marker: PhantomData<(N, T)>,
 }
 
-impl<T: Float, N: Size<T>> FrameMul<T, N> {
-    pub fn new() -> FrameMul<T, N> {
+impl<N: Size<T>, T: Float> FrameMul<N, T> {
+    pub fn new() -> FrameMul<N, T> {
         FrameMul::default()
     }
 }
 
-impl<T: Float, N: Size<T>> FrameBinop<T, N> for FrameMul<T, N> {
+impl<N: Size<T>, T: Float> FrameBinop<N, T> for FrameMul<N, T> {
     #[inline]
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N> {
         x * y
@@ -617,7 +628,7 @@ where
     T: Float,
     X: AudioNode<Sample = T>,
     Y: AudioNode<Sample = T, Outputs = X::Outputs>,
-    B: FrameBinop<T, X::Outputs>,
+    B: FrameBinop<X::Outputs, T>,
     X::Inputs: Size<T> + Add<Y::Inputs>,
     X::Outputs: Size<T>,
     Y::Inputs: Size<T>,
@@ -662,7 +673,7 @@ where
     T: Float,
     X: AudioNode<Sample = T>,
     Y: AudioNode<Sample = T, Outputs = X::Outputs>,
-    B: FrameBinop<T, X::Outputs>,
+    B: FrameBinop<X::Outputs, T>,
     X::Outputs: Size<T>,
     X::Inputs: Size<T> + Add<Y::Inputs>,
     Y::Inputs: Size<T>,
@@ -723,7 +734,7 @@ where
 }
 
 /// Provides unary operator implementations to the `Unop` node.
-pub trait FrameUnop<T: Float, N: Size<T>> {
+pub trait FrameUnop<N: Size<T>, T: Float> {
     /// Do unary op channelwise.
     fn unop(x: &Frame<T, N>) -> Frame<T, N>;
     /// Do unary op on signal.
@@ -734,17 +745,17 @@ pub trait FrameUnop<T: Float, N: Size<T>> {
 
 /// Negation operator.
 #[derive(Default)]
-pub struct FrameNeg<T: Float, N: Size<T>> {
-    _marker: PhantomData<(T, N)>,
+pub struct FrameNeg<N: Size<T>, T: Float> {
+    _marker: PhantomData<(N, T)>,
 }
 
-impl<T: Float, N: Size<T>> FrameNeg<T, N> {
-    pub fn new() -> FrameNeg<T, N> {
+impl<N: Size<T>, T: Float> FrameNeg<N, T> {
+    pub fn new() -> FrameNeg<N, T> {
         FrameNeg::default()
     }
 }
 
-impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
+impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameNeg<N, T> {
     #[inline]
     fn unop(x: &Frame<T, N>) -> Frame<T, N> {
         -x
@@ -766,17 +777,17 @@ impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameNeg<T, N> {
 
 /// Identity op.
 #[derive(Default)]
-pub struct FrameId<T: Float, N: Size<T>> {
-    _marker: PhantomData<(T, N)>,
+pub struct FrameId<N: Size<T>, T: Float> {
+    _marker: PhantomData<(N, T)>,
 }
 
-impl<T: Float, N: Size<T>> FrameId<T, N> {
-    pub fn new() -> FrameId<T, N> {
+impl<N: Size<T>, T: Float> FrameId<N, T> {
+    pub fn new() -> FrameId<N, T> {
         FrameId::default()
     }
 }
 
-impl<T: Float, N: Size<T>> FrameUnop<T, N> for FrameId<T, N> {
+impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameId<N, T> {
     #[inline]
     fn unop(x: &Frame<T, N>) -> Frame<T, N> {
         x.clone()
@@ -800,7 +811,7 @@ impl<T, X, U> Unop<T, X, U>
 where
     T: Float,
     X: AudioNode<Sample = T>,
-    U: FrameUnop<T, X::Outputs>,
+    U: FrameUnop<X::Outputs, T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
 {
@@ -820,7 +831,7 @@ impl<T, X, U> AudioNode for Unop<T, X, U>
 where
     T: Float,
     X: AudioNode<Sample = T>,
-    U: FrameUnop<T, X::Outputs>,
+    U: FrameUnop<X::Outputs, T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
 {
@@ -1442,11 +1453,11 @@ impl<X: AudioNode> AudioNode for Thru<X> {
 }
 
 /// Mix together a bunch of similar nodes sourcing from the same inputs.
-pub struct MultiBus<T, N, X>
+pub struct MultiBus<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
@@ -1456,11 +1467,11 @@ where
     buffer: Buffer<T>,
 }
 
-impl<T, N, X> MultiBus<T, N, X>
+impl<N, T, X> MultiBus<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
@@ -1487,11 +1498,11 @@ where
     }
 }
 
-impl<T, N, X> AudioNode for MultiBus<T, N, X>
+impl<N, T, X> AudioNode for MultiBus<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
@@ -1561,26 +1572,26 @@ where
 }
 
 /// Stack a bunch of similar nodes in parallel.
-pub struct MultiStack<T, N, X>
+pub struct MultiStack<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T> + Mul<N>,
     X::Outputs: Size<T> + Mul<N>,
     <X::Inputs as Mul<N>>::Output: Size<T>,
     <X::Outputs as Mul<N>>::Output: Size<T>,
 {
-    _marker: PhantomData<(T, N)>,
+    _marker: PhantomData<(N, T)>,
     x: Frame<X, N>,
 }
 
-impl<T, N, X> MultiStack<T, N, X>
+impl<N, T, X> MultiStack<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T> + Mul<N>,
     X::Outputs: Size<T> + Mul<N>,
@@ -1608,11 +1619,11 @@ where
     }
 }
 
-impl<T, N, X> AudioNode for MultiStack<T, N, X>
+impl<N, T, X> AudioNode for MultiStack<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T> + Mul<N>,
     X::Outputs: Size<T> + Mul<N>,
@@ -1691,16 +1702,16 @@ where
 /// Combine outputs of a bunch of similar nodes with a binary operation.
 /// Inputs are disjoint.
 /// Outputs are combined channel-wise.
-pub struct Reduce<T, N, X, B>
+pub struct Reduce<N, T, X, B>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T> + Mul<N>,
     X::Outputs: Size<T>,
     <X::Inputs as Mul<N>>::Output: Size<T>,
-    B: FrameBinop<T, X::Outputs>,
+    B: FrameBinop<X::Outputs, T>,
 {
     x: Frame<X, N>,
     #[allow(dead_code)]
@@ -1709,16 +1720,16 @@ where
     _marker: PhantomData<T>,
 }
 
-impl<T, N, X, B> Reduce<T, N, X, B>
+impl<N, T, X, B> Reduce<N, T, X, B>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T> + Mul<N>,
     X::Outputs: Size<T>,
     <X::Inputs as Mul<N>>::Output: Size<T>,
-    B: FrameBinop<T, X::Outputs>,
+    B: FrameBinop<X::Outputs, T>,
 {
     pub fn new(x: Frame<X, N>, b: B) -> Self {
         let mut node = Reduce {
@@ -1743,16 +1754,16 @@ where
     }
 }
 
-impl<T, N, X, B> AudioNode for Reduce<T, N, X, B>
+impl<N, T, X, B> AudioNode for Reduce<N, T, X, B>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T> + Mul<N>,
     X::Outputs: Size<T>,
     <X::Inputs as Mul<N>>::Output: Size<T>,
-    B: FrameBinop<T, X::Outputs>,
+    B: FrameBinop<X::Outputs, T>,
 {
     const ID: u64 = 32;
     type Sample = T;
@@ -1828,11 +1839,11 @@ where
 }
 
 /// Branch into a bunch of similar nodes in parallel.
-pub struct MultiBranch<T, N, X>
+pub struct MultiBranch<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T> + Mul<N>,
@@ -1842,11 +1853,11 @@ where
     x: Frame<X, N>,
 }
 
-impl<T, N, X> MultiBranch<T, N, X>
+impl<N, T, X> MultiBranch<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T> + Mul<N>,
@@ -1873,11 +1884,11 @@ where
     }
 }
 
-impl<T, N, X> AudioNode for MultiBranch<T, N, X>
+impl<N, T, X> AudioNode for MultiBranch<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T> + Mul<N>,
@@ -1942,11 +1953,11 @@ where
 }
 
 /// Chain together a bunch of similar nodes.
-pub struct Chain<T, N, X>
+pub struct Chain<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
@@ -1957,11 +1968,11 @@ where
     _marker: PhantomData<T>,
 }
 
-impl<T, N, X> Chain<T, N, X>
+impl<N, T, X> Chain<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
@@ -1989,11 +2000,11 @@ where
     }
 }
 
-impl<T, N, X> AudioNode for Chain<T, N, X>
+impl<N, T, X> AudioNode for Chain<N, T, X>
 where
-    T: Float,
     N: Size<T>,
     N: Size<X>,
+    T: Float,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,

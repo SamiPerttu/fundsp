@@ -182,7 +182,7 @@ where
     X: AudioNode,
     X::Outputs: Size<X::Sample>,
 {
-    type Output = An<Unop<X::Sample, X, FrameNeg<X::Sample, X::Outputs>>>;
+    type Output = An<Unop<X::Sample, X, FrameNeg<X::Outputs, X::Sample>>>;
     #[inline]
     fn neg(self) -> Self::Output {
         An(Unop::new(self.0, FrameNeg::new()))
@@ -212,7 +212,7 @@ where
     Y::Inputs: Size<Y::Sample>,
     <X::Inputs as Add<Y::Inputs>>::Output: Size<X::Sample>,
 {
-    type Output = An<Binop<X::Sample, FrameAdd<X::Sample, X::Outputs>, X, Y>>;
+    type Output = An<Binop<X::Sample, FrameAdd<X::Outputs, X::Sample>, X, Y>>;
     #[inline]
     fn add(self, y: An<Y>) -> Self::Output {
         An(Binop::new(self.0, y.0, FrameAdd::new()))
@@ -228,7 +228,7 @@ where
     X::Outputs: Size<f64>,
     <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = An<Binop<f64, FrameAdd<X::Sample, X::Outputs>, X, Constant<f64, X::Outputs>>>;
+    type Output = An<Binop<f64, FrameAdd<X::Outputs, X::Sample>, X, Constant<X::Outputs, f64>>>;
     #[inline]
     fn add(self, y: f64) -> Self::Output {
         An(Binop::new(
@@ -248,7 +248,7 @@ where
     X::Outputs: Size<f64>,
     <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = An<Binop<f64, FrameAdd<f64, X::Outputs>, Constant<f64, X::Outputs>, X>>;
+    type Output = An<Binop<f64, FrameAdd<X::Outputs, f64>, Constant<X::Outputs, f64>, X>>;
     #[inline]
     fn add(self, y: An<X>) -> Self::Output {
         An(Binop::new(
@@ -268,7 +268,7 @@ where
     X::Outputs: Size<f32>,
     <X::Inputs as Add<U0>>::Output: Size<f32>,
 {
-    type Output = An<Binop<f32, FrameAdd<X::Sample, X::Outputs>, X, Constant<f32, X::Outputs>>>;
+    type Output = An<Binop<f32, FrameAdd<X::Outputs, X::Sample>, X, Constant<X::Outputs, f32>>>;
     #[inline]
     fn add(self, y: f32) -> Self::Output {
         An(Binop::new(
@@ -288,7 +288,7 @@ where
     X::Outputs: Size<f32>,
     <X::Inputs as Add<U0>>::Output: Size<f32>,
 {
-    type Output = An<Binop<f32, FrameAdd<f32, X::Outputs>, Constant<f32, X::Outputs>, X>>;
+    type Output = An<Binop<f32, FrameAdd<X::Outputs, f32>, Constant<X::Outputs, f32>, X>>;
     #[inline]
     fn add(self, y: An<X>) -> Self::Output {
         An(Binop::new(
@@ -309,7 +309,7 @@ where
     Y::Inputs: Size<Y::Sample>,
     <X::Inputs as Add<Y::Inputs>>::Output: Size<X::Sample>,
 {
-    type Output = An<Binop<X::Sample, FrameSub<X::Sample, X::Outputs>, X, Y>>;
+    type Output = An<Binop<X::Sample, FrameSub<X::Outputs, X::Sample>, X, Y>>;
     #[inline]
     fn sub(self, y: An<Y>) -> Self::Output {
         An(Binop::new(self.0, y.0, FrameSub::new()))
@@ -325,7 +325,7 @@ where
     X::Outputs: Size<f64>,
     <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = An<Binop<f64, FrameSub<f64, X::Outputs>, X, Constant<f64, X::Outputs>>>;
+    type Output = An<Binop<f64, FrameSub<X::Outputs, f64>, X, Constant<X::Outputs, f64>>>;
     #[inline]
     fn sub(self, y: f64) -> Self::Output {
         An(Binop::new(
@@ -345,7 +345,7 @@ where
     X::Outputs: Size<f64>,
     <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = An<Binop<f64, FrameSub<f64, X::Outputs>, Constant<f64, X::Outputs>, X>>;
+    type Output = An<Binop<f64, FrameSub<X::Outputs, f64>, Constant<X::Outputs, f64>, X>>;
     #[inline]
     fn sub(self, y: An<X>) -> Self::Output {
         An(Binop::new(
@@ -365,7 +365,7 @@ where
     X::Outputs: Size<f32>,
     <X::Inputs as Add<U0>>::Output: Size<f32>,
 {
-    type Output = An<Binop<f32, FrameSub<f32, X::Outputs>, X, Constant<f32, X::Outputs>>>;
+    type Output = An<Binop<f32, FrameSub<X::Outputs, f32>, X, Constant<X::Outputs, f32>>>;
     #[inline]
     fn sub(self, y: f32) -> Self::Output {
         An(Binop::new(
@@ -385,7 +385,7 @@ where
     X::Outputs: Size<f32>,
     <X::Inputs as Add<U0>>::Output: Size<f32>,
 {
-    type Output = An<Binop<f32, FrameSub<f32, X::Outputs>, Constant<f32, X::Outputs>, X>>;
+    type Output = An<Binop<f32, FrameSub<X::Outputs, f32>, Constant<X::Outputs, f32>, X>>;
     #[inline]
     fn sub(self, y: An<X>) -> Self::Output {
         An(Binop::new(
@@ -406,7 +406,7 @@ where
     Y::Inputs: Size<Y::Sample>,
     <X::Inputs as Add<Y::Inputs>>::Output: Size<X::Sample>,
 {
-    type Output = An<Binop<X::Sample, FrameMul<X::Sample, X::Outputs>, X, Y>>;
+    type Output = An<Binop<X::Sample, FrameMul<X::Outputs, X::Sample>, X, Y>>;
     #[inline]
     fn mul(self, y: An<Y>) -> Self::Output {
         An(Binop::new(self.0, y.0, FrameMul::new()))
@@ -422,7 +422,7 @@ where
     X::Outputs: Size<f64>,
     <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = An<Binop<f64, FrameMul<f64, X::Outputs>, X, Constant<f64, X::Outputs>>>;
+    type Output = An<Binop<f64, FrameMul<X::Outputs, f64>, X, Constant<X::Outputs, f64>>>;
     #[inline]
     fn mul(self, y: f64) -> Self::Output {
         An(Binop::new(
@@ -442,7 +442,7 @@ where
     X::Outputs: Size<f64>,
     <X::Inputs as Add<U0>>::Output: Size<f64>,
 {
-    type Output = An<Binop<f64, FrameMul<f64, X::Outputs>, Constant<f64, X::Outputs>, X>>;
+    type Output = An<Binop<f64, FrameMul<X::Outputs, f64>, Constant<X::Outputs, f64>, X>>;
     #[inline]
     fn mul(self, y: An<X>) -> Self::Output {
         An(Binop::new(
@@ -462,7 +462,7 @@ where
     X::Outputs: Size<f32>,
     <X::Inputs as Add<U0>>::Output: Size<f32>,
 {
-    type Output = An<Binop<f32, FrameMul<f32, X::Outputs>, X, Constant<f32, X::Outputs>>>;
+    type Output = An<Binop<f32, FrameMul<X::Outputs, f32>, X, Constant<X::Outputs, f32>>>;
     #[inline]
     fn mul(self, y: f32) -> Self::Output {
         An(Binop::new(
@@ -482,7 +482,7 @@ where
     X::Outputs: Size<f32>,
     <X::Inputs as Add<U0>>::Output: Size<f32>,
 {
-    type Output = An<Binop<f32, FrameMul<f32, X::Outputs>, Constant<f32, X::Outputs>, X>>;
+    type Output = An<Binop<f32, FrameMul<X::Outputs, f32>, Constant<X::Outputs, f32>, X>>;
     #[inline]
     fn mul(self, y: An<X>) -> Self::Output {
         An(Binop::new(
