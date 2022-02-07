@@ -9,19 +9,48 @@ use std::io::prelude::*;
 use std::path::Path;
 
 /// Write a 32-bit value to a WAV file.
+#[inline]
 fn write32(file: &mut File, x: u32) -> std::io::Result<()> {
     // WAV files are little endian.
-    file.write_all(&[x as u8])?;
-    file.write_all(&[(x >> 8) as u8])?;
-    file.write_all(&[(x >> 16) as u8])?;
-    file.write_all(&[(x >> 24) as u8])?;
+    file.write_all(&[x as u8, (x >> 8) as u8, (x >> 16) as u8, (x >> 24) as u8])?;
     std::io::Result::Ok(())
 }
 
 /// Write a 16-bit value to a WAV file.
+#[inline]
 fn write16(file: &mut File, x: u16) -> std::io::Result<()> {
-    file.write_all(&[x as u8])?;
-    file.write_all(&[(x >> 8) as u8])?;
+    file.write_all(&[x as u8, (x >> 8) as u8])?;
+    std::io::Result::Ok(())
+}
+
+// Write WAV header, including the header of the data block.
+fn write_wav_header(
+    file: &mut File,
+    data_length: usize,
+    format: u16,
+    channels: usize,
+    sample_rate: usize,
+) -> std::io::Result<()> {
+    file.write_all(b"RIFF")?;
+    write32(file, data_length as u32 + 36)?;
+    file.write_all(b"WAVE")?;
+    file.write_all(b"fmt ")?;
+    // Length of fmt block.
+    write32(file, 16)?;
+    // Audio data format 1 = WAVE_FORMAT_PCM, 3 = WAVE_FORMAT_IEEE_FLOAT.
+    write16(file, format)?;
+    write16(file, channels as u16)?;
+    write32(file, sample_rate as u32)?;
+    // Data rate in bytes per second.
+    let sample_bytes = if format == 1 { 2 } else { 4 };
+    write32(file, (sample_rate * channels) as u32 * sample_bytes)?;
+    // Sample frame length in bytes.
+    write16(file, channels as u16 * 2)?;
+    // Bits per sample.
+    write16(file, 16)?;
+    file.write_all(b"data")?;
+    // Length of data block.
+    write32(file, data_length as u32)?;
     std::io::Result::Ok(())
 }
 
@@ -301,27 +330,14 @@ impl Wave64 {
     /// Individual samples are clipped to the range -1...1.
     pub fn save_wav16(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
-        file.write_all(b"RIFF")?;
         let data_length = 2 * self.channels() * self.length();
-        write32(&mut file, data_length as u32 + 36)?;
-        file.write_all(b"WAVE")?;
-        file.write_all(b"fmt ")?;
-        // Length of fmt block.
-        write32(&mut file, 16)?;
-        // Audio data format 1 = WAVE_FORMAT_PCM.
-        write16(&mut file, 1)?;
-        write16(&mut file, self.channels() as u16)?;
-        let sample_rate = round(self.sample_rate()) as u32;
-        write32(&mut file, sample_rate)?;
-        // Data rate in bytes per second.
-        write32(&mut file, sample_rate * self.channels() as u32 * 2)?;
-        // Sample frame length in bytes.
-        write16(&mut file, self.channels() as u16 * 2)?;
-        // Bits per sample.
-        write16(&mut file, 16)?;
-        file.write_all(b"data")?;
-        // Length of data block.
-        write32(&mut file, data_length as u32)?;
+        write_wav_header(
+            &mut file,
+            data_length,
+            1,
+            self.channels(),
+            round(self.sample_rate()) as usize,
+        )?;
         for i in 0..self.length() {
             for channel in 0..self.channels() {
                 let sample = round(clamp11(self.at(channel, i)) * 32767.49);
@@ -336,27 +352,14 @@ impl Wave64 {
     /// applications may expect the range to be -1...1.
     pub fn save_wav32(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
-        file.write_all(b"RIFF")?;
         let data_length = 4 * self.channels() * self.length();
-        write32(&mut file, data_length as u32 + 36)?;
-        file.write_all(b"WAVE")?;
-        file.write_all(b"fmt ")?;
-        // Length of fmt block.
-        write32(&mut file, 16)?;
-        // Audio data format 3 = WAVE_FORMAT_IEEE_FLOAT.
-        write16(&mut file, 3)?;
-        write16(&mut file, self.channels() as u16)?;
-        let sample_rate = round(self.sample_rate()) as u32;
-        write32(&mut file, sample_rate)?;
-        // Data rate in bytes per second.
-        write32(&mut file, sample_rate * self.channels() as u32 * 4)?;
-        // Sample frame length in bytes.
-        write16(&mut file, self.channels() as u16 * 4)?;
-        // Bits per sample.
-        write16(&mut file, 32)?;
-        file.write_all(b"data")?;
-        // Length of data block.
-        write32(&mut file, data_length as u32)?;
+        write_wav_header(
+            &mut file,
+            data_length,
+            3,
+            self.channels(),
+            round(self.sample_rate()) as usize,
+        )?;
         for i in 0..self.length() {
             for channel in 0..self.channels() {
                 let sample = self.at(channel, i);
@@ -643,27 +646,14 @@ impl Wave32 {
     /// Individual samples are clipped to the range -1...1.
     pub fn save_wav16(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
-        file.write_all(b"RIFF")?;
         let data_length = 2 * self.channels() * self.length();
-        write32(&mut file, data_length as u32 + 36)?;
-        file.write_all(b"WAVE")?;
-        file.write_all(b"fmt ")?;
-        // Length of fmt block.
-        write32(&mut file, 16)?;
-        // Audio data format 1 = WAVE_FORMAT_PCM.
-        write16(&mut file, 1)?;
-        write16(&mut file, self.channels() as u16)?;
-        let sample_rate = round(self.sample_rate()) as u32;
-        write32(&mut file, sample_rate)?;
-        // Data rate in bytes per second.
-        write32(&mut file, sample_rate * self.channels() as u32 * 2)?;
-        // Sample frame length in bytes.
-        write16(&mut file, self.channels() as u16 * 2)?;
-        // Bits per sample.
-        write16(&mut file, 16)?;
-        file.write_all(b"data")?;
-        // Length of data block.
-        write32(&mut file, data_length as u32)?;
+        write_wav_header(
+            &mut file,
+            data_length,
+            1,
+            self.channels(),
+            round(self.sample_rate()) as usize,
+        )?;
         for i in 0..self.length() {
             for channel in 0..self.channels() {
                 let sample = round(clamp11(self.at(channel, i)) * 32767.49);
@@ -678,27 +668,14 @@ impl Wave32 {
     /// applications may expect the range to be -1...1.
     pub fn save_wav32(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
-        file.write_all(b"RIFF")?;
         let data_length = 4 * self.channels() * self.length();
-        write32(&mut file, data_length as u32 + 36)?;
-        file.write_all(b"WAVE")?;
-        file.write_all(b"fmt ")?;
-        // Length of fmt block.
-        write32(&mut file, 16)?;
-        // Audio data format 3 = WAVE_FORMAT_IEEE_FLOAT.
-        write16(&mut file, 3)?;
-        write16(&mut file, self.channels() as u16)?;
-        let sample_rate = round(self.sample_rate()) as u32;
-        write32(&mut file, sample_rate)?;
-        // Data rate in bytes per second.
-        write32(&mut file, sample_rate * self.channels() as u32 * 4)?;
-        // Sample frame length in bytes.
-        write16(&mut file, self.channels() as u16 * 4)?;
-        // Bits per sample.
-        write16(&mut file, 32)?;
-        file.write_all(b"data")?;
-        // Length of data block.
-        write32(&mut file, data_length as u32)?;
+        write_wav_header(
+            &mut file,
+            data_length,
+            3,
+            self.channels(),
+            round(self.sample_rate()) as usize,
+        )?;
         for i in 0..self.length() {
             for channel in 0..self.channels() {
                 let sample = self.at(channel, i);
