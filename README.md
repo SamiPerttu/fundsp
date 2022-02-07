@@ -91,8 +91,7 @@ Both systems operate on audio signals synchronously as an infinite stream.
 At the moment, block processing via `AudioNode::process` requires heap allocation.
 Some nodes may also use the heap for audio buffers and the like.
 
-The `AudioUnit` system is under construction; at the moment,
-`AudioUnit64` is in a usable condition.
+The purpose of the `AudioUnit` system is to grant more flexibility in dynamic situations.
 
 ### Processing
 

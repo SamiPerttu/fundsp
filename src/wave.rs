@@ -330,10 +330,9 @@ impl Wave64 {
     /// Individual samples are clipped to the range -1...1.
     pub fn save_wav16(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
-        let data_length = 2 * self.channels() * self.length();
         write_wav_header(
             &mut file,
-            data_length,
+            2 * self.channels() * self.length(),
             1,
             self.channels(),
             round(self.sample_rate()) as usize,
@@ -352,10 +351,9 @@ impl Wave64 {
     /// applications may expect the range to be -1...1.
     pub fn save_wav32(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
-        let data_length = 4 * self.channels() * self.length();
         write_wav_header(
             &mut file,
-            data_length,
+            4 * self.channels() * self.length(),
             3,
             self.channels(),
             round(self.sample_rate()) as usize,
@@ -646,10 +644,9 @@ impl Wave32 {
     /// Individual samples are clipped to the range -1...1.
     pub fn save_wav16(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
-        let data_length = 2 * self.channels() * self.length();
         write_wav_header(
             &mut file,
-            data_length,
+            2 * self.channels() * self.length(),
             1,
             self.channels(),
             round(self.sample_rate()) as usize,
@@ -668,10 +665,9 @@ impl Wave32 {
     /// applications may expect the range to be -1...1.
     pub fn save_wav32(&self, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
-        let data_length = 4 * self.channels() * self.length();
         write_wav_header(
             &mut file,
-            data_length,
+            4 * self.channels() * self.length(),
             3,
             self.channels(),
             round(self.sample_rate()) as usize,
