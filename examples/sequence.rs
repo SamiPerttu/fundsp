@@ -22,6 +22,7 @@ fn main() {
 
     let length = bassd_line.as_bytes().len();
     let bpm = 128.0 * 4.0;
+    let duration = length as f64 / bpm_hz(bpm) + 2.0;
 
     for i in 0..length {
         let t0 = i as f64 / bpm_hz(bpm);
@@ -33,8 +34,6 @@ fn main() {
             sequencer.add64(t0, t1, 0.0, 0.1, Box::new(snaredrum()));
         }
     }
-
-    let duration = length as f64 / bpm_hz(bpm) + 2.0;
 
     let wave = Wave64::render(sample_rate, duration, &mut sequencer);
 
@@ -52,7 +51,7 @@ fn main() {
 
     let wave = wave.filter(duration, &mut (reverb_stereo(0.1, 2.0) * 3.0));
 
-    let wave = wave.filter_latency(duration, &mut (limiter_stereo((0.1, 0.2))));
+    let wave = wave.filter_latency(duration, &mut (limiter_stereo((0.05, 0.20))));
 
     wave.save_wav16(std::path::Path::new("sequence.wav"));
 }
