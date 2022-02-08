@@ -45,7 +45,7 @@ fn main() {
                 | pass()
                 | lfo(|t| lerp11(0.001, 0.003, sin_hz(0.4, t))))
                 >> (tap(0.001, 0.003) | tap(0.001, 0.003))
-                >> (shape(Shape::Tanh(1.0)) | shape(Shape::Tanh(1.0))),
+                >> (shape(Shape::Tanh(0.9)) | shape(Shape::Tanh(0.9))),
         );
 
     let wave = wave.filter(duration, &mut delay_fx);
