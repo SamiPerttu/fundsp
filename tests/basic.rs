@@ -183,8 +183,8 @@ fn test_basic() {
     sequencer.add64(0.3, 0.4, 0.09, 0.08, Box::new(sine_hz(110.0) | noise()));
     check_wave(sequencer);
 
-    check_wave((noise() | envelope(|t| t / 2.0)) >> pan());
-    check_wave(noise() >> pan_to(-0.5));
+    check_wave((noise() | envelope(|t| t / 2.0)) >> panner());
+    check_wave(noise() >> pan(-0.5));
 
     // Wave filtering, tick vs. process rendering, node reseting.
     let input = Wave64::render(44100.0, 1.0, &mut (noise() | noise()));

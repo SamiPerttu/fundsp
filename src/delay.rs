@@ -57,6 +57,8 @@ impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
 }
 
 /// Fixed delay.
+/// Input 0: input
+/// Output 0: delayed input
 pub struct Delay<T: Float> {
     buffer: Vec<T>,
     i: usize,
@@ -119,6 +121,85 @@ impl<T: Float> AudioNode for Delay<T> {
                 -TAU * self.buffer.len() as f64 * frequency / self.sample_rate,
             )
         });
+        output
+    }
+}
+
+/// Variable delay line using cubic interpolation.
+/// Input 0: input
+/// Input 1: delay amount in seconds.
+/// Output 0: delayed input
+pub struct Tap<T: Float> {
+    buffer: Vec<T>,
+    i: usize,
+    sample_rate: f64,
+    min_delay: f64,
+    max_delay: f64,
+}
+
+impl<T: Float> Tap<T> {
+    pub fn new(sample_rate: f64, min_delay: f64, max_delay: f64) -> Tap<T> {
+        let mut node = Tap {
+            buffer: vec![],
+            i: 0,
+            sample_rate,
+            min_delay,
+            max_delay,
+        };
+        node.reset(Some(sample_rate));
+        node
+    }
+}
+
+impl<T: Float> AudioNode for Tap<T> {
+    const ID: u64 = 50;
+    type Sample = T;
+    type Inputs = U2;
+    type Outputs = U1;
+
+    #[inline]
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sample_rate) = sample_rate {
+            let buffer_length = ceil(self.max_delay * sample_rate) + 2.0;
+            let buffer_length = (buffer_length as usize).next_power_of_two();
+            self.sample_rate = sample_rate;
+            self.buffer.resize(buffer_length, T::zero());
+        }
+        self.i = 0;
+        for x in self.buffer.iter_mut() {
+            *x = T::zero();
+        }
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let tap = clamp(self.min_delay, self.max_delay, input[1].to_f64()) * self.sample_rate;
+        let tap_floor = floor(tap);
+        let mask = self.buffer.len() - 1;
+        let tap_i1 = self.i + (self.buffer.len() - tap_floor as usize);
+        let tap_i0 = (tap_i1 + 1) & mask;
+        let tap_i2 = (tap_i1 - 1) & mask;
+        let tap_i3 = (tap_i1 - 2) & mask;
+        let tap_i1 = tap_i1 & mask;
+        let tap_d = tap - tap_floor;
+        let output = spline(
+            self.buffer[tap_i0],
+            self.buffer[tap_i1],
+            self.buffer[tap_i2],
+            self.buffer[tap_i3],
+            T::from_f64(tap_d),
+        );
+        self.buffer[self.i] = input[0];
+        self.i = (self.i + 1) & mask;
+        [output].into()
+    }
+
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = input[0].distort(self.min_delay * self.sample_rate);
         output
     }
 }

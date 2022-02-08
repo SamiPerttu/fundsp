@@ -454,6 +454,15 @@ pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
     An(Delay::new(t, DEFAULT_SR))
 }
 
+/// Tapped delay line with cubic interpolation.
+/// Minimum and maximum delay times are in seconds.
+/// - Input 0: signal.
+/// - Input 1: delay amount in seconds.
+/// - Output 0: delayed signal.
+pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<T>> {
+    An(Tap::new(DEFAULT_SR, min_delay, max_delay))
+}
+
 /// Mix output of enclosed circuit `x` back to its input.
 /// Feedback circuit `x` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
@@ -540,14 +549,14 @@ pub fn clip_to<T: Real>(minimum: T, maximum: T) -> An<Shaper<T>> {
 
 /// Equal power mono-to-stereo panner.
 #[inline]
-pub fn pan<T: Real>() -> An<Pan<T, U2>> {
-    An(Pan::new(T::zero()))
+pub fn panner<T: Real>() -> An<Panner<T, U2>> {
+    An(Panner::new(T::zero()))
 }
 
 /// Fixed equal power mono-to-stereo panner with pan value in -1...1.
 #[inline]
-pub fn pan_to<T: Real>(value: T) -> An<Pan<T, U1>> {
-    An(Pan::new(value))
+pub fn pan<T: Real>(pan: T) -> An<Panner<T, U1>> {
+    An(Panner::new(pan))
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.

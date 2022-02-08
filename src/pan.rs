@@ -19,13 +19,13 @@ fn pan_weights<T: Real>(value: T) -> (T, T) {
 /// Input 1 (optional): pan value in -1...1
 /// Output 0: left output
 /// Output 1: right output
-pub struct Pan<T: Real, N: Size<T>> {
+pub struct Panner<T: Real, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
     left_weight: T,
     right_weight: T,
 }
 
-impl<T: Real, N: Size<T>> Pan<T, N> {
+impl<T: Real, N: Size<T>> Panner<T, N> {
     pub fn new(value: T) -> Self {
         let (left_weight, right_weight) = pan_weights(value);
         Self {
@@ -36,7 +36,7 @@ impl<T: Real, N: Size<T>> Pan<T, N> {
     }
 }
 
-impl<T: Real, N: Size<T>> AudioNode for Pan<T, N> {
+impl<T: Real, N: Size<T>> AudioNode for Panner<T, N> {
     const ID: u64 = 49;
     type Sample = T;
     type Inputs = N;
