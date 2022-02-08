@@ -16,7 +16,7 @@ fn main() {
         || envelope(|t| 200.0 * exp(-t * 5.0)) >> sine() >> shape(Shape::Tanh(2.0)) >> pan(0.0);
 
     let env = || envelope(|t| exp(-t * 10.0));
-    let snaredrum = || (pink() * env() | pink() * env());
+    let snaredrum = || pink() * env() | pink() * env();
 
     let mut sequencer = Sequencer::new(sample_rate, 2);
 
