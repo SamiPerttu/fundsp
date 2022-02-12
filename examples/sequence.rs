@@ -37,18 +37,6 @@ fn main() {
 
     let wave = Wave64::render(sample_rate, duration, &mut sequencer);
 
-    let mut delay_fx = (pass() | pass())
-        & feedback(
-            (pass()
-                | lfo(|t| lerp11(0.001, 0.003, sin_hz(0.3, t)))
-                | pass()
-                | lfo(|t| lerp11(0.001, 0.003, sin_hz(0.4, t))))
-                >> (tap(0.001, 0.003) | tap(0.001, 0.003))
-                >> (shape(Shape::Tanh(0.9)) | shape(Shape::Tanh(0.9))),
-        );
-
-    let wave = wave.filter(duration, &mut delay_fx);
-
     let wave = wave.filter(duration, &mut (reverb_stereo(0.1, 2.0) * 3.0));
 
     let wave = wave.filter_latency(duration, &mut (limiter_stereo((0.05, 0.20))));

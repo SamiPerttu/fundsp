@@ -672,7 +672,6 @@ These are arguments to the `shape` opcode.
 | `rnd(i)`               | pseudorandom number in 0...1 from integer `i` |
 | `round(x)`             | round `x` to nearest integer |
 | `semitone(x)`          | convert interval `x` semitones to frequency ratio |
-| `sigmoid(sharpness)(x)`| smooth sigmoidal easing function with shape parameter `sharpness` in 0...1. |
 | `signum(x)`            | sign of `x` |
 | `sin(x)`               | sin |
 | `sin_hz(f, t)`         | sine that oscillates at `f` Hz at time `t` seconds |
@@ -688,7 +687,6 @@ These are arguments to the `shape` opcode.
 | `spline(x0, x1, x2, x3, t)` | [Catmull-Rom](https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Catmull%E2%80%93Rom_spline) cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `spline_mono(x0, x1, x2, x3, t)` | [monotonic cubic interpolation](https://en.wikipedia.org/wiki/Monotone_cubic_interpolation) between `x1` and `x2`, taking `x0` and `x3` into account |
 | `spline_noise(seed, x)`| value noise in -1...1 interpolated with a cubic spline, with one interpolation point per integer cell |
-| `steps(n, ease)(x)`    | staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
 | `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
@@ -707,14 +705,12 @@ These math functions have the shape of an easing function.
 | `cubed(x)`             | cube of `x` |
 | `downarc(x)`           | concave quarter circle easing curve (inverse function of `uparc` in 0...1) |
 | `id(x)`                | identity function (linear easing function) |
-| `sigmoid(sharpness)(x)`| smooth sigmoidal easing function with shape parameter `sharpness` in 0...1. |
 | `smooth3(x)`           | smooth cubic easing polynomial |
 | `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
 | `smooth7(x)`           | smooth 7th degree easing polynomial |
 | `smooth9(x)`           | smooth 9th degree easing polynomial |
 | `squared(x)`           | square of `x` |
 | `sqrt(x)`              | square root of `x` |
-| `steps(n, ease)(x)`    | staircase function from easing function `ease` with `n` copies per integer cell; easing function when `n` is integer |
 | `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
 
 ---
@@ -842,31 +838,3 @@ or <a href="LICENSE-MIT">MIT license</a> at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in FunDSP by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
-
----
-
-## Future
-
-- Investigate whether adding more checking at compile time is possible by introducing
-  opt-in signal units/modalities for `AudioNode` inputs and outputs.
-  So if the user sends a constant marked `Hz` to an audio input, then that would fail at compile time.
-- Implement conversion of graph to diagram (normalize operators to associative form).
-  Layout and display a graph as a diagram and show the signals flowing in it.
-  Allow user to poke at `plug` nodes while audio is playing.
-- Compartmentalize the preludes so the user can choose to include them in parts.
-
-### TODO: Components
-
-- FIR filters.
-- `pluck`
-- Fractional delay line using an allpass filter (the standard delay should remain sample accurate only to not introduce extra
-  processing).
-- Variable delay and feedback lines.
-- `plug(tag)`. Mono parameter source.
-  Tag is an arbitrary tag type. Tag can include metainformation about parameter.
-  Add `AudioNode` interfaces: `gather()` and `set(tag, value)`.
-  The former returns all information about enclosed parameters and their current values.
-- `oversample(n, x)`. Oversample enclosed circuit `x` by `n`.
-  Impose a default maximum sample rate to keep nested oversampling sensible.
-- `feedback_delay(delay, circuit)`. Feedback with explicit delay that enables block processing.
-- `melody(f, string)`: melody generator.

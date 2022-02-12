@@ -67,6 +67,8 @@ pub struct Delay<T: Float> {
 }
 
 impl<T: Float> Delay<T> {
+    /// Create a new fixed delay. The `length` of the line,
+    /// which is specified in seconds, is rounded to the nearest sample.
     pub fn new(length: f64, sample_rate: f64) -> Delay<T> {
         let mut node = Delay {
             buffer: vec![],
@@ -138,6 +140,7 @@ pub struct Tap<T: Float> {
 }
 
 impl<T: Float> Tap<T> {
+    /// Create a tapped delay line. Minimum and maximum delays are specified in seconds.
     pub fn new(sample_rate: f64, min_delay: f64, max_delay: f64) -> Tap<T> {
         let mut node = Tap {
             buffer: vec![],

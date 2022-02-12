@@ -526,32 +526,6 @@ pub fn ease_noise<T: Float>(ease: impl SegmentInterpolator<T>, seed: i64, x: T) 
     ease.interpolate(fx, y1, fx + T::one(), y2, dx)
 }
 
-/// Smooth sigmoidal easing function with `sharpness` in 0...1.
-/// At sharpness 0 it is linear (the identity function),
-/// while at sharpness 1 it is nearly a step fade.
-pub fn sigmoid<T: Float>(sharpness: T) -> impl Fn(T) -> T + Clone {
-    let power = squared(sharpness) * (T::new(100) + T::new(900) * cubed(sharpness));
-    move |x| {
-        if x < T::from_f32(0.5) {
-            T::from_f32(0.5) * pow(x * T::new(2), power)
-        } else {
-            T::one() - T::from_f32(0.5) * pow((T::one() - x) * T::new(2), power)
-        }
-    }
-}
-
-/// Creates a staircase function from easing function `f` with `n` copies per integer cell.
-/// The result is an easing function when `n` is integer.
-#[inline]
-pub fn steps<T: Float, F: Fn(T) -> T + Clone>(n: T, f: F) -> impl Fn(T) -> T + Clone {
-    move |x| {
-        let x = x * n;
-        let ix = floor(x);
-        let fx = f(x - ix);
-        (fx + ix) / n
-    }
-}
-
 /// 1-D spline noise in -1...1 with frequency of 1.
 /// Value noise interpolated with a cubic spline.
 /// The noise follows a roughly triangular distribution in -1...1.
@@ -570,5 +544,7 @@ pub fn spline_noise<T: Float>(seed: i64, x: T) -> T {
     let y2 = get_point(seed, ix.wrapping_add(1));
     let y3 = get_point(seed, ix.wrapping_add(2));
 
-    spline(y0, y1, y2, y3, dx)
+    // The divisor brings the final result into the range -1...1.
+    // Maximum overshoot occurs with spline(-1.0, 1.0, 1.0, -1.0, 0.5).
+    spline(y0, y1, y2, y3, dx) / T::from_f32(1.25)
 }
