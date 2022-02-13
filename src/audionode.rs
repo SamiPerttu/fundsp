@@ -75,7 +75,7 @@ pub trait AudioNode {
         }
     }
 
-    /// Set node hash. Override this to use the hash.
+    /// Set node pseudorandom phase hash. Override this to use the hash.
     /// This is called from `ping`. It should not be called by users.
     /// The default implementation does nothing.
     fn set_hash(&mut self, _hash: u64) {}
@@ -350,6 +350,16 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         Frame::splat(input[0])
     }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        for channel in 0..N::USIZE {
+            output[channel][..size].clone_from_slice(&input[0][..size]);
+        }
+    }
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Split.propagate(input, self.outputs())
     }
@@ -393,6 +403,16 @@ where
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         Frame::generate(|i| input[i % M::USIZE])
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        for channel in 0..M::USIZE * N::USIZE {
+            output[channel][..size].clone_from_slice(&input[channel % M::USIZE][..size]);
+        }
     }
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Split.propagate(input, self.outputs())
@@ -438,7 +458,22 @@ where
         }
         [output / T::new(N::I64)].into()
     }
-
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        let z = T::one() / T::new(N::I64);
+        for i in 0..size {
+            output[0][i] = input[0][i] * z;
+        }
+        for channel in 1..N::USIZE {
+            for i in 0..size {
+                output[channel][i] += input[channel][i] * z;
+            }
+        }
+    }
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Join.propagate(input, self.outputs())
     }
@@ -490,7 +525,24 @@ where
             output / T::new(N::I64)
         })
     }
-
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        let z = T::one() / T::new(N::I64);
+        for channel in 0..M::USIZE {
+            for i in 0..size {
+                output[channel][i] = input[channel][i] * z;
+            }
+        }
+        for channel in M::USIZE..M::USIZE * N::USIZE {
+            for i in 0..size {
+                output[channel % M::USIZE][i] += input[channel][i] * z;
+            }
+        }
+    }
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Join.propagate(input, self.outputs())
     }

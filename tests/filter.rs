@@ -223,5 +223,5 @@ fn test_responses() {
     );
     test_response(pan(0.5) >> join());
     test_response(pan(0.0) >> join());
-    test_response(pan(-1.0) >> join());
+    test_response(pan(-1.0) >> multijoin::<U1, U2>());
 }

@@ -524,7 +524,7 @@ The type parameters in the table refer to the hacker prelude.
 | `mls()`                |    -    |    1    | White MLS noise source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
 | `mul(x)`               |   `x`   |   `x`   | Multiplies signal with constant `x`. |
-| `multijoin::<M, N>()`  | `M * N` |   `M`   | Joins `N` branches of `M` channels into one. Inverse of `multisplit`. |
+| `multijoin::<M, N>()`  | `M * N` |   `M`   | Average `N` branches of `M` channels into one. Inverse of `multisplit`. |
 | `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
 | `multisink::<U>()`     |   `U`   |    -    | Consumes multichannel signal. |
 | `multisplit::<M, N>()` |   `M`   | `M * N` | Splits `M` channels into `N` branches. |

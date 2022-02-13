@@ -169,11 +169,18 @@ fn test_basic() {
             | ((mls() | dc(880.0)) >> !butterpass() >> butterpass()),
     );
     check_wave(
+        (noise() | dc(440.0)) >> pipe::<U4, _, _>(|_| !peak_q(1.0)) >> bell_q(1.0, 2.0)
+            | ((mls() | dc(880.0)) >> !lowshelf_q(1.0, 0.5) >> highshelf_q(2.0, 2.0)),
+    );
+    check_wave(
         (noise() | dc(440.0)) >> pipe::<U4, _, _>(|_| !lowpass_q(1.0)) >> highpass_q(1.0)
             | ((mls() | dc(880.0)) >> !bandpass_q(1.0) >> notch_q(2.0)),
     );
     check_wave(
         dc((440.0, 880.0)) >> multisplit::<U2, U5>() >> sum::<U10, _, _>(|_| sine()) | noise(),
+    );
+    check_wave(
+        dc((440.0, 880.0)) >> multisplit::<U2, U3>() >> multijoin::<U2, U3>() >> (sine() | sine()),
     );
     check_wave(dc((110.0, 0.5)) >> pulse() >> delay(0.1) | noise() >> delay(0.01));
     check_wave(envelope(|t| exp(-t * 10.0)) | lfo(|t| sin(t * 10.0)));
@@ -181,6 +188,8 @@ fn test_basic() {
     let mut sequencer = Sequencer::new(44100.0, 2);
     sequencer.add64(0.1, 0.2, 0.01, 0.02, Box::new(noise() | sine_hz(220.0)));
     sequencer.add64(0.3, 0.4, 0.09, 0.08, Box::new(sine_hz(110.0) | noise()));
+    sequencer.add64(0.25, 0.5, 0.0, 0.01, Box::new(mls() | noise()));
+    sequencer.add64(0.6, 0.7, 0.01, 0.0, Box::new(noise() | mls()));
     check_wave(sequencer);
 
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
