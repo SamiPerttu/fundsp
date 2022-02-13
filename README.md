@@ -493,7 +493,7 @@ The type parameters in the table refer to the hacker prelude.
 | `dcblock_hz(f)`        |    1    |    1    | Zero centers signal with cutoff frequency `f`. |
 | `declick()`            |    1    |    1    | Apply 10 ms of fade-in to signal. |
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
-| `delay(t)`             |    1    |    1    | Delay of `t` seconds. |
+| `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
 | `envelope(f)`          |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `feedback(x)`          |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
 | `fdn(x)`               |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
@@ -528,6 +528,7 @@ The type parameters in the table refer to the hacker prelude.
 | `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
 | `multisink::<U>()`     |   `U`   |    -    | Consumes multichannel signal. |
 | `multisplit::<M, N>()` |   `M`   | `M * N` | Splits `M` channels into `N` branches. |
+| `multitap::<N>(min_delay, max_delay)` | `N` (audio, delay...) | 1 | Tapped delay line with cubic interpolation. Number of taps is `N` minus one. |
 | `multitick::<U>()`     |   `U`   |   `U`   | Multichannel single sample delay. |
 | `multizero::<U>()`     |    -    |   `U`   | Multichannel zero signal. |
 | `noise()`              |    -    |    1    | White noise source. Synonymous with `white`. |

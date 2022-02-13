@@ -447,6 +447,7 @@ pub fn multitick<N: Size<T>, T: Float>() -> An<Tick<N, T>> {
 }
 
 /// Fixed delay of `t` seconds.
+/// Delay time is rounded to the nearest sample.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
 #[inline]
@@ -457,9 +458,19 @@ pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
 /// Tapped delay line with cubic interpolation.
 /// Minimum and maximum delay times are in seconds.
 /// - Input 0: signal.
-/// - Input 1: delay amount in seconds.
+/// - Input 1: delay time in seconds.
 /// - Output 0: delayed signal.
-pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<T>> {
+pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<U2, T>> {
+    An(Tap::new(DEFAULT_SR, min_delay, max_delay))
+}
+
+/// Tapped delay line with cubic interpolation.
+/// The number of taps is the number of inputs `N` minus one.
+/// Minimum and maximum delay times are in seconds.
+/// - Input 0: signal.
+/// - Inputs 1...: delay time in seconds.
+/// - Output 0: delayed signal.
+pub fn multitap<N: Size<T>, T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<N, T>> {
     An(Tap::new(DEFAULT_SR, min_delay, max_delay))
 }
 

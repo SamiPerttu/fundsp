@@ -6,6 +6,7 @@ use super::signal::*;
 use super::*;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
+use std::marker::PhantomData;
 
 /// Single sample delay.
 pub struct Tick<N: Size<T>, T: Float> {
@@ -128,36 +129,39 @@ impl<T: Float> AudioNode for Delay<T> {
 }
 
 /// Variable delay line using cubic interpolation.
+/// The number of taps is the number of inputs `N` minus one.
 /// Input 0: input
-/// Input 1: delay amount in seconds.
+/// Inputs 1...: delay amount in seconds.
 /// Output 0: delayed input
-pub struct Tap<T: Float> {
+pub struct Tap<N: Size<T>, T: Float> {
     buffer: Vec<T>,
     i: usize,
     sample_rate: f64,
     min_delay: f64,
     max_delay: f64,
+    _marker: PhantomData<N>,
 }
 
-impl<T: Float> Tap<T> {
+impl<N: Size<T>, T: Float> Tap<N, T> {
     /// Create a tapped delay line. Minimum and maximum delays are specified in seconds.
-    pub fn new(sample_rate: f64, min_delay: f64, max_delay: f64) -> Tap<T> {
+    pub fn new(sample_rate: f64, min_delay: f64, max_delay: f64) -> Self {
         let mut node = Tap {
             buffer: vec![],
             i: 0,
             sample_rate,
             min_delay,
             max_delay,
+            _marker: PhantomData::default(),
         };
         node.reset(Some(sample_rate));
         node
     }
 }
 
-impl<T: Float> AudioNode for Tap<T> {
+impl<N: Size<T>, T: Float> AudioNode for Tap<N, T> {
     const ID: u64 = 50;
     type Sample = T;
-    type Inputs = U2;
+    type Inputs = N;
     type Outputs = U1;
 
     #[inline]
@@ -179,22 +183,26 @@ impl<T: Float> AudioNode for Tap<T> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let tap = clamp(self.min_delay, self.max_delay, input[1].to_f64()) * self.sample_rate;
-        let tap_floor = floor(tap);
         let mask = self.buffer.len() - 1;
-        let tap_i1 = self.i + (self.buffer.len() - tap_floor as usize);
-        let tap_i0 = (tap_i1 + 1) & mask;
-        let tap_i2 = (tap_i1 - 1) & mask;
-        let tap_i3 = (tap_i1 - 2) & mask;
-        let tap_i1 = tap_i1 & mask;
-        let tap_d = tap - tap_floor;
-        let output = spline(
-            self.buffer[tap_i0],
-            self.buffer[tap_i1],
-            self.buffer[tap_i2],
-            self.buffer[tap_i3],
-            T::from_f64(tap_d),
-        );
+        let mut output = T::zero();
+        for tap_i in 1..N::USIZE {
+            let tap =
+                clamp(self.min_delay, self.max_delay, input[tap_i].to_f64()) * self.sample_rate;
+            let tap_floor = floor(tap);
+            let tap_i1 = self.i + (self.buffer.len() - tap_floor as usize);
+            let tap_i0 = (tap_i1 + 1) & mask;
+            let tap_i2 = (tap_i1 - 1) & mask;
+            let tap_i3 = (tap_i1 - 2) & mask;
+            let tap_i1 = tap_i1 & mask;
+            let tap_d = tap - tap_floor;
+            output += spline(
+                self.buffer[tap_i0],
+                self.buffer[tap_i1],
+                self.buffer[tap_i2],
+                self.buffer[tap_i3],
+                T::from_f64(tap_d),
+            );
+        }
         self.buffer[self.i] = input[0];
         self.i = (self.i + 1) & mask;
         [output].into()
