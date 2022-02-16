@@ -528,7 +528,7 @@ The type parameters in the table refer to the hacker prelude.
 | `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
 | `multisink::<U>()`     |   `U`   |    -    | Consumes multichannel signal. |
 | `multisplit::<M, N>()` |   `M`   | `M * N` | Splits `M` channels into `N` branches. |
-| `multitap::<N>(min_delay, max_delay)` | `N` (audio, delay...) | 1 | Tapped delay line with cubic interpolation. Number of taps is `N` minus one. |
+| `multitap::<N>(min_delay, max_delay)` | `N + 1` (audio, delay...) | 1 | Tapped delay line with cubic interpolation. Number of taps is `N`. |
 | `multitick::<U>()`     |   `U`   |   `U`   | Multichannel single sample delay. |
 | `multizero::<U>()`     |    -    |   `U`   | Multichannel zero signal. |
 | `noise()`              |    -    |    1    | White noise source. Synonymous with `white`. |

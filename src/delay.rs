@@ -129,11 +129,16 @@ impl<T: Float> AudioNode for Delay<T> {
 }
 
 /// Variable delay line using cubic interpolation.
-/// The number of taps is the number of inputs `N` minus one.
+/// The number of taps is `N`.
 /// Input 0: input
-/// Inputs 1...: delay amount in seconds.
+/// Inputs 1...N: delay amount in seconds.
 /// Output 0: delayed input
-pub struct Tap<N: Size<T>, T: Float> {
+pub struct Tap<N, T>
+where
+    T: Float,
+    N: Size<T> + Add<U1>,
+    <N as Add<U1>>::Output: Size<T>,
+{
     buffer: Vec<T>,
     i: usize,
     sample_rate: f64,
@@ -142,7 +147,12 @@ pub struct Tap<N: Size<T>, T: Float> {
     _marker: PhantomData<N>,
 }
 
-impl<N: Size<T>, T: Float> Tap<N, T> {
+impl<N, T> Tap<N, T>
+where
+    T: Float,
+    N: Size<T> + Add<U1>,
+    <N as Add<U1>>::Output: Size<T>,
+{
     /// Create a tapped delay line. Minimum and maximum delays are specified in seconds.
     pub fn new(sample_rate: f64, min_delay: f64, max_delay: f64) -> Self {
         let mut node = Tap {
@@ -158,10 +168,15 @@ impl<N: Size<T>, T: Float> Tap<N, T> {
     }
 }
 
-impl<N: Size<T>, T: Float> AudioNode for Tap<N, T> {
+impl<N, T> AudioNode for Tap<N, T>
+where
+    T: Float,
+    N: Size<T> + Add<U1>,
+    <N as Add<U1>>::Output: Size<T>,
+{
     const ID: u64 = 50;
     type Sample = T;
-    type Inputs = N;
+    type Inputs = Sum<N, U1>;
     type Outputs = U1;
 
     #[inline]
@@ -185,7 +200,7 @@ impl<N: Size<T>, T: Float> AudioNode for Tap<N, T> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         let mask = self.buffer.len() - 1;
         let mut output = T::zero();
-        for tap_i in 1..N::USIZE {
+        for tap_i in 1..N::USIZE + 1 {
             let tap =
                 clamp(self.min_delay, self.max_delay, input[tap_i].to_f64()) * self.sample_rate;
             let tap_floor = floor(tap);

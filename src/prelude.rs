@@ -460,17 +460,22 @@ pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
 /// - Input 0: signal.
 /// - Input 1: delay time in seconds.
 /// - Output 0: delayed signal.
-pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<U2, T>> {
+pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<U1, T>> {
     An(Tap::new(DEFAULT_SR, min_delay, max_delay))
 }
 
 /// Tapped delay line with cubic interpolation.
-/// The number of taps is the number of inputs `N` minus one.
+/// The number of taps is `N`.
 /// Minimum and maximum delay times are in seconds.
 /// - Input 0: signal.
-/// - Inputs 1...: delay time in seconds.
+/// - Inputs 1...N: delay time in seconds.
 /// - Output 0: delayed signal.
-pub fn multitap<N: Size<T>, T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<N, T>> {
+pub fn multitap<N, T>(min_delay: f64, max_delay: f64) -> An<Tap<N, T>>
+where
+    T: Float,
+    N: Size<T> + Add<U1>,
+    <N as Add<U1>>::Output: Size<T>,
+{
     An(Tap::new(DEFAULT_SR, min_delay, max_delay))
 }
 
