@@ -128,7 +128,6 @@ where
     type Inputs = N;
     type Outputs = N;
 
-    #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.reset(sample_rate);
         self.value = Frame::default();
@@ -152,7 +151,6 @@ where
         output
     }
 
-    #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.x.ping(probe, hash.hash(Self::ID))
     }

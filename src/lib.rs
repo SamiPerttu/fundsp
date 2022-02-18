@@ -246,6 +246,7 @@ pub mod hacker;
 pub mod math;
 pub mod noise;
 pub mod oscillator;
+pub mod oversample;
 pub mod pan;
 pub mod prelude;
 pub mod sequencer;

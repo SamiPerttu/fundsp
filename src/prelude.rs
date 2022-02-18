@@ -11,6 +11,7 @@ pub use super::filter::*;
 pub use super::math::*;
 pub use super::noise::*;
 pub use super::oscillator::*;
+pub use super::oversample::*;
 pub use super::pan::*;
 pub use super::sequencer::*;
 pub use super::shape::*;
@@ -479,12 +480,25 @@ where
     An(Tap::new(DEFAULT_SR, min_delay, max_delay))
 }
 
-/// Mix output of enclosed circuit `x` back to its input.
-/// Feedback circuit `x` must have an equal number of inputs and outputs.
+/// Oversample enclosed `node` by `ratio` (`ratio` > 1).
+/// - Inputs and outputs: from enclosed `node`.
+pub fn oversample<T, F, X>(ratio: i64, node: An<X>) -> An<Oversampler<T, F, X>>
+where
+    T: Float,
+    F: Real,
+    X: AudioNode<Sample = T>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+{
+    An(Oversampler::new(DEFAULT_SR, ratio, node.0))
+}
+
+/// Mix output of enclosed circuit `node` back to its input.
+/// Feedback circuit `node` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
-/// - Outputs: `x` output signal.
+/// - Outputs: `node` output signal.
 #[inline]
-pub fn feedback<N, T, X>(x: An<X>) -> An<Feedback<N, T, X, FrameId<N, T>>>
+pub fn feedback<N, T, X>(node: An<X>) -> An<Feedback<N, T, X, FrameId<N, T>>>
 where
     N: Size<T>,
     T: Float,
@@ -492,7 +506,7 @@ where
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
 {
-    An(Feedback::new(x.0, FrameId::new()))
+    An(Feedback::new(node.0, FrameId::new()))
 }
 
 /// Transform channels freely. Accounted as non-linear processing for signal flow.
