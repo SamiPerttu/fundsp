@@ -242,6 +242,7 @@ pub mod dynamics;
 pub mod envelope;
 pub mod feedback;
 pub mod filter;
+pub mod fir;
 pub mod hacker;
 pub mod math;
 pub mod noise;

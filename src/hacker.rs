@@ -8,6 +8,7 @@ pub use super::dynamics::*;
 pub use super::envelope::*;
 pub use super::feedback::*;
 pub use super::filter::*;
+pub use super::fir::*;
 pub use super::math::*;
 pub use super::noise::*;
 pub use super::oscillator::*;
@@ -391,6 +392,14 @@ pub fn noise() -> An<Noise<f64>> {
 #[inline]
 pub fn white() -> An<Noise<f64>> {
     An(Noise::new())
+}
+
+/// FIR filter.
+/// - Input 0: signal.
+/// - Output 0: filtered signal.
+#[inline]
+pub fn fir<X: ConstantFrame<Sample = f64>>(weights: X) -> An<Fir<f64, X::Size>> {
+    An(Fir::new(weights))
 }
 
 /// Single sample delay.

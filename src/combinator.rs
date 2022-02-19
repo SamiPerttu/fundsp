@@ -12,6 +12,14 @@ pub trait ConstantFrame: Clone {
     fn convert(self) -> Frame<Self::Sample, Self::Size>;
 }
 
+impl<T: Float, N: Size<T>> ConstantFrame for Frame<T, N> {
+    type Sample = T;
+    type Size = N;
+    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+        self
+    }
+}
+
 impl<T: Float> ConstantFrame for T {
     type Sample = T;
     type Size = U1;

@@ -54,9 +54,13 @@ fn main() {
     remove_string(&mut arg, "envelope::");
     remove_string(&mut arg, "feedback::");
     remove_string(&mut arg, "filter::");
+    remove_string(&mut arg, "fir::");
     remove_string(&mut arg, "math::");
     remove_string(&mut arg, "noise::");
     remove_string(&mut arg, "oscillator::");
+    remove_string(&mut arg, "oversample::");
+    remove_string(&mut arg, "pan::");
+    remove_string(&mut arg, "sequencer::");
     remove_string(&mut arg, "shape::");
     remove_string(&mut arg, "signal::");
     remove_string(&mut arg, "svf::");

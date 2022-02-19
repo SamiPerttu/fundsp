@@ -390,6 +390,7 @@ Verified frequency responses are available for all filters.
 | `bell`       | peaking (2nd order)    | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
 | `butterpass` | lowpass (2nd order)    | frequency    | [biquad](https://en.wikipedia.org/wiki/Digital_biquad_filter) | [Butterworth](https://en.wikipedia.org/wiki/Butterworth_filter) lowpass has a maximally flat passband and monotonic frequency response. |
 | `dcblock`    | DC blocker (1st order) | frequency    | 1st order    | Zero centers signal, countering any constant offset ("direct current"). |
+| `fir`        | FIR                    | -            | [FIR](https://en.wikipedia.org/wiki/Finite_impulse_response) | |
 | `follow`     | lowpass (3rd order)    | response time | nested 1st order | Smoothing filter with adjustable edge response time. |
 | `highpass`   | highpass (2nd order)   | frequency, Q | Simper SVF   | |
 | `highpole`   | highpass (1st order)   | frequency    | 1st order    | |
@@ -495,8 +496,9 @@ The type parameters in the table refer to the hacker prelude.
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
 | `envelope(f)`          |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
-| `feedback(x)`          |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
 | `fdn(x)`               |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
+| `feedback(x)`          |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
+| `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))` |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
 | `follow((a, r))`       |    1    |    1    | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
@@ -743,6 +745,7 @@ Some examples of graph expressions.
 | `pass() \| mul(0.0)`                     |   2    |    2    | -..-                                          |
 | `mul((1.0, 0.0))`                        |   2    |    2    | -..-                                          |
 | `(pass() & tick()) * 0.5`                |   1    |    1    | 2-point averaging FIR filter                  |
+| `fir((0.5, 0.5))`                        |   1    |    1    | -..-                                          |
 | `!butterpass() >> lowpole()`             |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
 | `!butterpass() >> !butterpass() >> butterpass()`  | 2 | 1   | triple lowpass filter in series (6th order)   |
 | `!resonator() >> resonator()`            |   3    |    1    | double resonator in series (4th order)        |
