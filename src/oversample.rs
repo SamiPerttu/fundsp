@@ -34,6 +34,13 @@ impl<T: Float, F: Real> Lowpass<T, F> {
                 .tick(&self.lp3.tick(&self.lp2.tick(&self.lp1.tick(&[x].into())))),
         )[0]
     }
+    pub fn reset(&mut self, sample_rate: Option<f64>) {
+        self.lp1.reset(sample_rate);
+        self.lp2.reset(sample_rate);
+        self.lp3.reset(sample_rate);
+        self.lp4.reset(sample_rate);
+        self.lp5.reset(sample_rate);
+    }
 }
 
 pub struct Oversampler<T, F, X>
@@ -107,6 +114,12 @@ where
     fn reset(&mut self, sample_rate: Option<f64>) {
         let inner_sr = sample_rate.map(|sr| sr * self.ratio as f64);
         self.x.reset(inner_sr);
+        for lp in self.inp.iter_mut() {
+            lp.reset(inner_sr);
+        }
+        for lp in self.outp.iter_mut() {
+            lp.reset(inner_sr);
+        }
     }
 
     #[inline]
