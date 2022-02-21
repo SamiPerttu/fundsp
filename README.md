@@ -537,7 +537,7 @@ The type parameters in the table refer to the hacker prelude.
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
 | `notch_hz(f, q)`       |    1    |    1    | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
 | `notch_q(q)`           | 2 (audio, frequency) | 1 | Notch filter (2nd order) with Q `q`. |
-| `oversample(ratio, x)` |   `x`   |   `x`   | Oversample enclosed node `x` by `ratio` (`ratio` > 1). |
+| `oversample(x)`        |   `x`   |   `x`   | 2x oversample enclosed node `x`. |
 | `pan(pan)`             |    1    |    2    | Fixed mono-to-stereo equal power panner with pan in -1...1. |
 | `panner()`             | 2 (audio, pan) | 2 | Mono-to-stereo equal power panner with pan in -1...1. |
 | `pass()`               |    1    |    1    | Passes signal through. |

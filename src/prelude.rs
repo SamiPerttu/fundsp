@@ -129,6 +129,34 @@ pub type U97 = numeric_array::typenum::U97;
 pub type U98 = numeric_array::typenum::U98;
 pub type U99 = numeric_array::typenum::U99;
 pub type U100 = numeric_array::typenum::U100;
+pub type U101 = numeric_array::typenum::U101;
+pub type U102 = numeric_array::typenum::U102;
+pub type U103 = numeric_array::typenum::U103;
+pub type U104 = numeric_array::typenum::U104;
+pub type U105 = numeric_array::typenum::U105;
+pub type U106 = numeric_array::typenum::U106;
+pub type U107 = numeric_array::typenum::U107;
+pub type U108 = numeric_array::typenum::U108;
+pub type U109 = numeric_array::typenum::U109;
+pub type U110 = numeric_array::typenum::U110;
+pub type U111 = numeric_array::typenum::U111;
+pub type U112 = numeric_array::typenum::U112;
+pub type U113 = numeric_array::typenum::U113;
+pub type U114 = numeric_array::typenum::U114;
+pub type U115 = numeric_array::typenum::U115;
+pub type U116 = numeric_array::typenum::U116;
+pub type U117 = numeric_array::typenum::U117;
+pub type U118 = numeric_array::typenum::U118;
+pub type U119 = numeric_array::typenum::U119;
+pub type U120 = numeric_array::typenum::U120;
+pub type U121 = numeric_array::typenum::U121;
+pub type U122 = numeric_array::typenum::U122;
+pub type U123 = numeric_array::typenum::U123;
+pub type U124 = numeric_array::typenum::U124;
+pub type U125 = numeric_array::typenum::U125;
+pub type U126 = numeric_array::typenum::U126;
+pub type U127 = numeric_array::typenum::U127;
+pub type U128 = numeric_array::typenum::U128;
 
 /// Constant node.
 /// Synonymous with `[dc]`.
@@ -489,17 +517,18 @@ where
     An(Tap::new(DEFAULT_SR, min_delay, max_delay))
 }
 
-/// Oversample enclosed `node` by `ratio` (`ratio` > 1).
-/// - Inputs and outputs: from enclosed `node`.
-pub fn oversample<T, F, X>(ratio: i64, node: An<X>) -> An<Oversampler<T, F, X>>
+/// 2x oversample enclosed `node`.
+/// - Inputs and outputs: from `node`.
+pub fn oversample<T, X>(node: An<X>) -> An<Oversampler<T, X>>
 where
     T: Float,
-    F: Real,
     X: AudioNode<Sample = T>,
     X::Inputs: Size<T>,
     X::Outputs: Size<T>,
+    X::Inputs: Size<Frame<T, U128>>,
+    X::Outputs: Size<Frame<T, U128>>,
 {
-    An(Oversampler::new(DEFAULT_SR, ratio, node.0))
+    An(Oversampler::new(DEFAULT_SR, node.0))
 }
 
 /// Mix output of enclosed circuit `node` back to its input.
