@@ -7,8 +7,8 @@ use super::*;
 use numeric_array::typenum::*;
 
 /*
-Coefficients from https://fiiir.com/, a Kaiser windowed filter
-with normalized frequency cutoff 0.22 and 0.06 transition band.
+Coefficients from https://fiiir.com/, a Kaiser windowed filter with
+normalized frequency cutoff 0.22, transition band 0.06 and 80 dB stopband attenuation.
 Gain is -1.5 dB at 0.21 (18522 Hz @ 88.2 kHz) and -79 dB at 0.25.
 */
 const HALFBAND_LEN: usize = 85;
@@ -101,7 +101,7 @@ const HALFBAND: [f32; HALFBAND_LEN] = [
     0.000020220200441046,
 ];
 
-pub fn tick_even<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
+fn tick_even<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
     let j = j + 0x80 - HALFBAND_LEN;
     let mut output = T::zero();
     for i in 0..HALFBAND_LEN / 2 + 1 {
@@ -110,7 +110,7 @@ pub fn tick_even<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
     output * T::new(2)
 }
 
-pub fn tick_odd<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
+fn tick_odd<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
     let j = j + 0x80 - HALFBAND_LEN;
     let mut output = T::zero();
     for i in 0..HALFBAND_LEN / 2 {
@@ -119,7 +119,7 @@ pub fn tick_odd<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
     output * T::new(2)
 }
 
-pub fn tick<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
+fn tick<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
     let j = j + 0x80 - HALFBAND_LEN;
     let mut output = T::zero();
     for i in 0..HALFBAND_LEN {
