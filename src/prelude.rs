@@ -179,6 +179,13 @@ where
     An(Constant::new(x.convert()))
 }
 
+/// Tagged constant. Outputs the (scalar) value of the tag.
+/// - Output 0: value
+#[inline]
+pub fn tag<T: Float>(tag: Tag, value: T) -> An<Tagged<T>> {
+    An(Tagged::new(tag, value))
+}
+
 /// Zero generator.
 /// - Output 0: zero
 #[inline]
@@ -429,6 +436,44 @@ where
     R::Size: Size<T>,
 {
     An(Envelope::new(F::from_f64(0.002), DEFAULT_SR, f))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, x)` with `t` in seconds.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `lfo2`.
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
+pub fn envelope2<T, F, E, R>(f: E) -> An<Envelope2<T, F, E, R>>
+where
+    T: Float,
+    F: Float,
+    E: Fn(F, F) -> R,
+    R: ConstantFrame<Sample = F>,
+    R::Size: Size<F>,
+    R::Size: Size<T>,
+{
+    // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
+    // Therefore, sampling at 500 Hz means these signals are fairly well represented.
+    // While we represent time in double precision internally, it is often okay to use single precision
+    // in envelopes, as local component time typically does not get far from origin.
+    An(Envelope2::new(F::from_f64(0.002), DEFAULT_SR, f))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, x)` with `t` in seconds.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `envelope2`.
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
+pub fn lfo2<T, F, E, R>(f: E) -> An<Envelope2<T, F, E, R>>
+where
+    T: Float,
+    F: Float,
+    E: Fn(F, F) -> R,
+    R: ConstantFrame<Sample = F>,
+    R::Size: Size<F>,
+    R::Size: Size<T>,
+{
+    An(Envelope2::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.

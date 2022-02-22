@@ -34,6 +34,15 @@ pub trait AudioUnit64 {
     /// from inputs to outputs. Return output signal.
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame;
 
+    /// Set parameter to value. The default implementation does nothing.
+    fn set(&mut self, _parameter: Tag, _value: f64) {}
+
+    /// Query parameter value. The first matching parameter is returned.
+    /// The default implementation returns None.
+    fn get(&self, _parameter: Tag) -> Option<f64> {
+        None
+    }
+
     // End of interface. No need to override the following.
 
     /// Evaluate frequency response of `output` at `frequency` Hz.
@@ -166,6 +175,15 @@ pub trait AudioUnit32 {
     /// from inputs to outputs. Return output signal.
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame;
 
+    /// Set parameter to value. The default implementation does nothing.
+    fn set(&mut self, _parameter: Tag, _value: f64) {}
+
+    /// Query parameter value. The first matching parameter is returned.
+    /// The default implementation returns None.
+    fn get(&self, _parameter: Tag) -> Option<f64> {
+        None
+    }
+
     // End of interface. No need to override the following.
 
     /// Evaluate frequency response of `output` at `frequency` Hz.
@@ -295,6 +313,12 @@ where
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.0.route(input, frequency)
     }
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.0.set(parameter, value);
+    }
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.0.get(parameter)
+    }
 }
 
 impl<X: AudioNode<Sample = f32>> AudioUnit32 for An<X>
@@ -321,6 +345,12 @@ where
     }
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.0.route(input, frequency)
+    }
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.0.set(parameter, value);
+    }
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.0.get(parameter)
     }
 }
 
@@ -373,6 +403,20 @@ impl Au {
         match self {
             Au::Unit64(x) => x.route(input, frequency),
             Au::Unit32(x) => x.route(input, frequency),
+        }
+    }
+
+    pub fn set(&mut self, parameter: Tag, value: f64) {
+        match self {
+            Au::Unit64(x) => x.set(parameter, value),
+            Au::Unit32(x) => x.set(parameter, value),
+        }
+    }
+
+    pub fn get(&self, parameter: Tag) -> Option<f64> {
+        match self {
+            Au::Unit64(x) => x.get(parameter),
+            Au::Unit32(x) => x.get(parameter),
         }
     }
 }

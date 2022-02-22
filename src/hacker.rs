@@ -179,6 +179,13 @@ where
     An(Constant::new(x.convert()))
 }
 
+/// Tagged constant. Outputs the (scalar) value of the tag.
+/// - Output 0: value
+#[inline]
+pub fn tag(tag: Tag, value: f64) -> An<Tagged<f64>> {
+    An(Tagged::new(tag, value))
+}
+
 /// Zero generator.
 /// - Output 0: zero
 #[inline]
@@ -390,6 +397,34 @@ where
     R::Size: Size<f64>,
 {
     An(Envelope::new(0.002, DEFAULT_SR, f))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, input)` with `t` in seconds.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `lfo2`.
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
+pub fn envelope2<E, R>(f: E) -> An<Envelope2<f64, f64, E, R>>
+where
+    E: Fn(f64, f64) -> R,
+    R: ConstantFrame<Sample = f64>,
+    R::Size: Size<f64>,
+{
+    An(Envelope2::new(0.002, DEFAULT_SR, f))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, value)` with `t` in seconds.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `envelope2`.
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
+pub fn lfo2<E, R>(f: E) -> An<Envelope2<f64, f64, E, R>>
+where
+    E: Fn(f64, f64) -> R,
+    R: ConstantFrame<Sample = f64>,
+    R::Size: Size<f64>,
+{
+    An(Envelope2::new(0.002, DEFAULT_SR, f))
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.

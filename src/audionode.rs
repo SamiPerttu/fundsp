@@ -16,6 +16,9 @@ impl<T, A: numeric_array::ArrayLength<T>> Size<T> for A {}
 /// Frames are used to transport audio data between `AudioNode` instances.
 pub type Frame<T, Size> = numeric_array::NumericArray<T, Size>;
 
+/// Tags are identified with parameters. Parameter values are always `f64`.
+pub type Tag = i64;
+
 /*
 Order of type arguments in nodes:
 1. Basic input and output arities excepting filter input selector arities.
@@ -97,6 +100,15 @@ pub trait AudioNode {
     /// Default implementation marks all outputs unknown.
     fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         new_signal_frame(self.outputs())
+    }
+
+    /// Set parameter value recursively. The default implementation does nothing.
+    fn set(&mut self, _parameter: Tag, _value: f64) {}
+
+    /// Query parameter value recursively. The first matching parameter is returned.
+    /// The default implementation returns `None`.
+    fn get(&self, _parameter: Tag) -> Option<f64> {
+        None
     }
 
     // End of interface. There is no need to override the following.
@@ -276,8 +288,17 @@ pub struct Constant<N: Size<T>, T: Float> {
 }
 
 impl<N: Size<T>, T: Float> Constant<N, T> {
+    /// Construct constant.
     pub fn new(output: Frame<T, N>) -> Self {
         Constant { output }
+    }
+    /// Set the value of the constant.
+    pub fn set_value(&mut self, output: Frame<T, N>) {
+        self.output = output;
+    }
+    /// Get the value of the constant.
+    pub fn value(&self) -> Frame<T, N> {
+        self.output.clone()
     }
 }
 
@@ -294,6 +315,7 @@ impl<N: Size<T>, T: Float> AudioNode for Constant<N, T> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.output.clone()
     }
+
     fn process(
         &mut self,
         size: usize,
@@ -304,12 +326,78 @@ impl<N: Size<T>, T: Float> AudioNode for Constant<N, T> {
             output[i][..size].fill(self.output[i]);
         }
     }
+
     fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             output[i] = Signal::Value(self.output[i].to_f64());
         }
         output
+    }
+}
+
+/// Output a tagged constant.
+pub struct Tagged<T: Float> {
+    tag: Tag,
+    value: T,
+}
+
+impl<T: Float> Tagged<T> {
+    /// Construct constant whose value can be set and queried via the tag.
+    pub fn new(tag: Tag, value: T) -> Self {
+        Tagged { tag, value }
+    }
+    /// Set the value of the constant.
+    pub fn set_value(&mut self, value: T) {
+        self.value = value;
+    }
+    /// Get the value of the constant.
+    pub fn value(&self) -> T {
+        self.value
+    }
+}
+
+impl<T: Float> AudioNode for Tagged<T> {
+    const ID: u64 = 54;
+    type Sample = T;
+    type Inputs = U0;
+    type Outputs = U1;
+
+    #[inline]
+    fn tick(
+        &mut self,
+        _input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        [self.value].into()
+    }
+
+    fn process(
+        &mut self,
+        size: usize,
+        _input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        output[0][..size].fill(self.value);
+    }
+
+    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = Signal::Value(self.value.to_f64());
+        output
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        if self.tag == parameter {
+            self.value = T::from_f64(value);
+        }
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        if self.tag == parameter {
+            Some(self.value.to_f64())
+        } else {
+            None
+        }
     }
 }
 
@@ -783,6 +871,15 @@ where
         }
         signal_x
     }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.x.set(parameter, value);
+        self.y.set(parameter, value);
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.x.get(parameter).or_else(|| self.y.get(parameter))
+    }
 }
 
 /// Provides unary operator implementations to the `Unop` node.
@@ -925,6 +1022,14 @@ where
         }
         signal_x
     }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.x.set(parameter, value);
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.x.get(parameter)
+    }
 }
 
 /// Map any number of channels.
@@ -1046,6 +1151,7 @@ where
         self.x.reset(sample_rate);
         self.y.reset(sample_rate);
     }
+
     #[inline]
     fn tick(
         &mut self,
@@ -1053,6 +1159,7 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.y.tick(&self.x.tick(input))
     }
+
     fn process(
         &mut self,
         size: usize,
@@ -1064,12 +1171,22 @@ where
         self.y
             .process(size, self.buffer.get_ref(self.y.inputs()), output);
     }
-    #[inline]
+
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
+
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.y.route(&self.x.route(input, frequency), frequency)
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.x.set(parameter, value);
+        self.y.set(parameter, value);
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.x.get(parameter).or_else(|| self.y.get(parameter))
     }
 }
 
@@ -1179,7 +1296,7 @@ where
             &mut output[X::Outputs::USIZE..],
         );
     }
-    #[inline]
+
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
@@ -1194,6 +1311,15 @@ where
         signal_x[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
         signal_x
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.x.set(parameter, value);
+        self.y.set(parameter, value);
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.x.get(parameter).or_else(|| self.y.get(parameter))
     }
 }
 
@@ -1304,6 +1430,15 @@ where
             .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
         signal_x
     }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.x.set(parameter, value);
+        self.y.set(parameter, value);
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.x.get(parameter).or_else(|| self.y.get(parameter))
+    }
 }
 
 /// Mix together `X` and `Y` sourcing from the same inputs.
@@ -1379,6 +1514,7 @@ where
         self.x.reset(sample_rate);
         self.y.reset(sample_rate);
     }
+
     #[inline]
     fn tick(
         &mut self,
@@ -1388,6 +1524,7 @@ where
         let output_y = self.y.tick(input);
         output_x + output_y
     }
+
     fn process(
         &mut self,
         size: usize,
@@ -1405,7 +1542,7 @@ where
             }
         }
     }
-    #[inline]
+
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
@@ -1417,6 +1554,15 @@ where
             signal_x[i] = signal_x[i].combine_linear(signal_y[i], 0.0, |x, y| x + y, |x, y| x + y);
         }
         signal_x
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.x.set(parameter, value);
+        self.y.set(parameter, value);
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.x.get(parameter).or_else(|| self.y.get(parameter))
     }
 }
 
@@ -1501,6 +1647,14 @@ impl<X: AudioNode> AudioNode for Thru<X> {
         output[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&input[X::Outputs::USIZE..Self::Outputs::USIZE]);
         output
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.x.set(parameter, value);
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.x.get(parameter)
     }
 }
 
@@ -1620,6 +1774,21 @@ where
             }
         }
         output
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        for x in self.x.iter_mut() {
+            x.set(parameter, value);
+        }
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        for x in self.x.iter() {
+            if let Some(value) = x.get(parameter) {
+                return Some(value);
+            }
+        }
+        None
     }
 }
 
@@ -1748,6 +1917,21 @@ where
                 .copy_from_slice(&output_i[0..X::Outputs::USIZE]);
         }
         output
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        for x in self.x.iter_mut() {
+            x.set(parameter, value);
+        }
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        for x in self.x.iter() {
+            if let Some(value) = x.get(parameter) {
+                return Some(value);
+            }
+        }
+        None
     }
 }
 
@@ -1888,6 +2072,21 @@ where
         }
         output
     }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        for x in self.x.iter_mut() {
+            x.set(parameter, value);
+        }
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        for x in self.x.iter() {
+            if let Some(value) = x.get(parameter) {
+                return Some(value);
+            }
+        }
+        None
+    }
 }
 
 /// Branch into a bunch of similar nodes in parallel.
@@ -1980,7 +2179,7 @@ where
             out_channel = next_out_channel;
         }
     }
-    #[inline]
+
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         let mut hash = hash.hash(Self::ID);
         for x in self.x.iter_mut() {
@@ -2001,6 +2200,21 @@ where
                 .copy_from_slice(&output_i[0..X::Outputs::USIZE]);
         }
         output
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        for x in self.x.iter_mut() {
+            x.set(parameter, value);
+        }
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        for x in self.x.iter() {
+            if let Some(value) = x.get(parameter) {
+                return Some(value);
+            }
+        }
+        None
     }
 }
 
@@ -2122,7 +2336,7 @@ where
             }
         }
     }
-    #[inline]
+
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         let mut hash = hash.hash(Self::ID);
         for x in self.x.iter_mut() {
@@ -2137,6 +2351,21 @@ where
             output = self.x[i].route(&output, frequency);
         }
         output
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        for x in self.x.iter_mut() {
+            x.set(parameter, value);
+        }
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        for x in self.x.iter() {
+            if let Some(value) = x.get(parameter) {
+                return Some(value);
+            }
+        }
+        None
     }
 }
 

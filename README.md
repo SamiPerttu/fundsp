@@ -496,6 +496,7 @@ The type parameters in the table refer to the hacker prelude.
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
 | `envelope(f)`          |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
+| `envelope2(f)`         |    1    |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `lfo2`. |
 | `fdn(x)`               |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
 | `feedback(x)`          |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
 | `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))` |
@@ -513,6 +514,7 @@ The type parameters in the table refer to the hacker prelude.
 | `highshelf_q(q, gain)` | 2 (audio, frequency) | 1 | High shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `join::<U>()`          |   `U`   |    1    | Average together `U` channels. Inverse of `split`. |
 | `lfo(f)`               |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
+| `lfo2(f)`              |    1    |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `envelope2`. |
 | `limiter((a, r))`      |    1    |    1    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `limiter_stereo((a, r))`|   2    |    2    | Stereo look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
@@ -568,6 +570,7 @@ The type parameters in the table refer to the hacker prelude.
 | `sum::<U, _, _>(f)`    | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `swap()`               |    2    |    2    | Swap stereo channels. |
+| `tag(id, value)`       |    -    |    1    | Tagged constant with tag `id` (`i64`) and initial value `value` (`f64`). |
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
 | `tick()`               |    1    |    1    | Single sample delay. |
 | `triangle()`           | 1 (pitch) |  1    | Bandlimited triangle wave oscillator. |
@@ -628,6 +631,13 @@ These are arguments to the `shape` opcode.
 - `Shape::Softsign(hardness)`: Apply `softsign` distortion with configurable hardness. Argument to `softsign` is multiplied by the hardness value.
 - `Shape::Crush(levels)`: Apply a staircase function with configurable number of levels per unit.
 - `Shape::SoftCrush(levels)`: Apply a smooth staircase function with configurable number of levels per unit.
+
+#### Tagged Constants
+
+Tagged single channel constants can be instantiated with `tag(id, value)`, where `id` is `i64` and the initial value `value` is `f64`.
+
+Tagged constants enable a simple parameter system where a value can be set (recursively) with `set(tag, value)` and queried (recursively) with `get(tag)`. `set` sets all matching parameters to the value, while `get` retrieves the first matching
+parameter, if any.
 
 ---
 
