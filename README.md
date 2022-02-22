@@ -832,7 +832,7 @@ noise() & constant(440.0) >> sine()
 is represented as
 
 ```rust
-An<Bus<f64, Noise<f64>, Pipe<f64, Constant<f64, U1>, Sine<f64>>>>
+An<Bus<f64, Noise<f64>, Pipe<f64, Constant<U1, f64>, Sine<f64>>>>
 ```
 
 The compiler reports these types in an opaque form.
