@@ -527,6 +527,7 @@ The type parameters in the table refer to the hacker prelude.
 | `lowshelf_q(q, gain)`  | 2 (audio, frequency) | 1 | Low shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `mls()`                |    -    |    1    | White MLS noise source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
+| `monitor(id)`          |    1    |    1    | Pass-through node that retains the latest value passed through as a parameter that can be queried. |
 | `mul(x)`               |   `x`   |   `x`   | Multiplies signal with constant `x`. |
 | `multijoin::<M, N>()`  | `M * N` |   `M`   | Average `N` branches of `M` channels into one. Inverse of `multisplit`. |
 | `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
@@ -573,6 +574,7 @@ The type parameters in the table refer to the hacker prelude.
 | `tag(id, value)`       |    -    |    1    | Tagged constant with tag `id` (`i64`) and initial value `value` (`f64`). |
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
 | `tick()`               |    1    |    1    | Single sample delay. |
+| `timer(id)`            |    -    |    -    | Timer node that presents time as a parameter that can be set and queried. |
 | `triangle()`           | 1 (pitch) |  1    | Bandlimited triangle wave oscillator. |
 | `triangle_hz(f)`       |    -    |    1    | Bandlimited triangle wave oscillator at `f` Hz. |
 | `white()`              |    -    |    1    | White noise source. Synonymous with `noise`. |
@@ -756,6 +758,7 @@ Some examples of graph expressions.
 | `mul((1.0, 0.0))`                        |   2    |    2    | -..-                                          |
 | `(pass() & tick()) * 0.5`                |   1    |    1    | 2-point averaging FIR filter                  |
 | `fir((0.5, 0.5))`                        |   1    |    1    | -..-                                          |
+| `fir(Frame::from([0.5, 0.5]))`           |   1    |    1    | -..-                                          |
 | `!butterpass() >> lowpole()`             |   2    |    1    | 2nd order and 1-pole lowpass filters in series (3rd order) |
 | `!butterpass() >> !butterpass() >> butterpass()`  | 2 | 1   | triple lowpass filter in series (6th order)   |
 | `!resonator() >> resonator()`            |   3    |    1    | double resonator in series (4th order)        |

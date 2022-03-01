@@ -212,6 +212,18 @@ pub fn multipass<N: Size<f64>>() -> An<MultiPass<N, f64>> {
     An(MultiPass::new())
 }
 
+/// Timer node. An empty node that presents time as a parameter.
+#[inline]
+pub fn timer(tag: Tag) -> An<Timer<f64>> {
+    An(Timer::new(DEFAULT_SR, tag))
+}
+
+/// Monitor node. Passes through input and retains the latest input as a parameter.
+#[inline]
+pub fn monitor(tag: Tag) -> An<Monitor<f64>> {
+    An(Monitor::new(tag))
+}
+
 /// Mono sink. Input is discarded.
 #[inline]
 pub fn sink() -> An<Sink<U1, f64>> {

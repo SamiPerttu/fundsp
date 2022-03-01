@@ -193,7 +193,7 @@ fn test_basic() {
     check_wave(sequencer);
 
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
-    check_wave(noise() >> pan(-0.5));
+    check_wave(noise() >> monitor(0) >> pan(-0.5) | timer(1));
     check_wave(tag(0, 5.0) >> lfo2(|t, x| t * x) | tag(1, 1.0));
 
     // Wave filtering, tick vs. process rendering, node reseting.

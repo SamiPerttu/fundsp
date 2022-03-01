@@ -65,7 +65,7 @@ pub trait AudioNode {
         input: &[&[Self::Sample]],
         output: &mut [&mut [Self::Sample]],
     ) {
-        debug_assert!(size <= MAX_BUFFER_SIZE);
+        debug_assert!(size > 0 && size <= MAX_BUFFER_SIZE);
         debug_assert!(input.len() == self.inputs());
         debug_assert!(output.len() == self.outputs());
         debug_assert!(input.iter().all(|x| x.len() >= size));
@@ -245,6 +245,131 @@ impl<T: Float> AudioNode for Pass<T> {
     }
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         input.clone()
+    }
+}
+
+/// Pass through input unchanged.
+/// Latest input value can be queried as a read-only parameter.
+#[derive(Default)]
+pub struct Monitor<T> {
+    _marker: PhantomData<T>,
+    tag: Tag,
+    value: T,
+}
+
+impl<T: Float> Monitor<T> {
+    /// Create a new monitor node.
+    pub fn new(tag: Tag) -> Self {
+        Self {
+            _marker: PhantomData::default(),
+            tag,
+            value: T::zero(),
+        }
+    }
+}
+
+impl<T: Float> AudioNode for Monitor<T> {
+    const ID: u64 = 56;
+    type Sample = T;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        self.value = input[0];
+        *input
+    }
+
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.value = input[0][size - 1];
+        output[0][..size].clone_from_slice(&input[0][..size]);
+    }
+
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        input.clone()
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        if self.tag == parameter {
+            Some(self.value.to_f64())
+        } else {
+            None
+        }
+    }
+}
+
+/// Present time as a parameter. The time can be set as well.
+#[derive(Default)]
+pub struct Timer<T> {
+    _marker: PhantomData<T>,
+    tag: Tag,
+    time: f64,
+    sample_duration: f64,
+}
+
+impl<T: Float> Timer<T> {
+    /// Create a new timer node. Current time can be read by querying the tag.
+    pub fn new(sample_rate: f64, tag: Tag) -> Self {
+        Self {
+            _marker: PhantomData::default(),
+            tag,
+            time: 0.0,
+            sample_duration: 1.0 / sample_rate,
+        }
+    }
+}
+
+impl<T: Float> AudioNode for Timer<T> {
+    const ID: u64 = 57;
+    type Sample = T;
+    type Inputs = U0;
+    type Outputs = U0;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.time = 0.0;
+        if let Some(sr) = sample_rate {
+            self.sample_duration = 1.0 / sr;
+        }
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        self.time += self.sample_duration;
+        *input
+    }
+
+    fn process(
+        &mut self,
+        size: usize,
+        _input: &[&[Self::Sample]],
+        _output: &mut [&mut [Self::Sample]],
+    ) {
+        self.time += size as f64 * self.sample_duration;
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        if self.tag == parameter {
+            self.time = value;
+        }
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        if self.tag == parameter {
+            Some(self.time)
+        } else {
+            None
+        }
     }
 }
 
