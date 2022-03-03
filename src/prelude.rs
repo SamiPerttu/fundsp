@@ -609,15 +609,16 @@ where
 /// # Example
 /// ```
 /// # use fundsp::prelude::*;
-/// let my_sum = map(|i: &Frame<f64, U2>| Frame::<f64, U1>::splat(i[0] + i[1]));
+/// let my_max = map(|i: &Frame<f64, U2>| max(i[0], i[1]));
 /// ```
 #[inline]
 pub fn map<T, M, I, O>(f: M) -> An<Map<T, M, I, O>>
 where
     T: Float,
-    M: Fn(&Frame<T, I>) -> Frame<T, O>,
+    M: Fn(&Frame<T, I>) -> O,
     I: Size<T>,
-    O: Size<T>,
+    O: ConstantFrame<Sample = T>,
+    O::Size: Size<T>,
 {
     An(Map::new(f, Routing::Arbitrary))
 }

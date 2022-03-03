@@ -525,6 +525,7 @@ The type parameters in the table refer to the hacker prelude.
 | `lowshelf()`           | 4 (audio, frequency, Q, gain) | 1 | Low shelf filter (2nd order) with adjustable amplitude gain. |
 | `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `lowshelf_q(q, gain)`  | 2 (audio, frequency) | 1 | Low shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
+| `map(f)`               |   `f`   |   `f`   | Map channels freely, e.g., `map(\|i: &Frame<f64, U2>\| max(i[0], i[1]))` |
 | `mls()`                |    -    |    1    | White MLS noise source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
 | `monitor(id)`          |    1    |    1    | Pass-through node that retains the latest value passed through as a parameter that can be queried. |
@@ -634,12 +635,17 @@ These are arguments to the `shape` opcode.
 - `Shape::Crush(levels)`: Apply a staircase function with configurable number of levels per unit.
 - `Shape::SoftCrush(levels)`: Apply a smooth staircase function with configurable number of levels per unit.
 
-#### Tagged Constants
+#### Tagged Constants As Parameters
 
 Tagged single channel constants can be instantiated with `tag(id, value)`, where `id` is `i64` and the initial value `value` is `f64`.
 
-Tagged constants enable a simple parameter system where a value can be set (recursively) with `set(tag, value)` and queried (recursively) with `get(tag)`. `set` sets all matching parameters to the value, while `get` retrieves the first matching
+Tagged constants enable a simple parameter system where a value can be set (recursively) with `set(id, value)` and queried (recursively) with `get(id)`. `set` sets all matching parameters to the value, while `get` retrieves the first matching
 parameter, if any.
+
+The `timer(id)` opcode instantiates current time in seconds as a parameter that can be queried.
+It has no inputs or outputs; it can be added to any node by stacking.
+
+The `monitor(id)` opcode is a pass-through node that presents the latest value passed through as a parameter.
 
 ---
 

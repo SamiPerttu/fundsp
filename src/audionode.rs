@@ -1,6 +1,7 @@
 //! The central `AudioNode` abstraction and basic components.
 
 use super::buffer::*;
+use super::combinator::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
@@ -632,7 +633,7 @@ where
     }
 }
 
-/// Join `N` channels into one by averaging. Inverse of `Split<T, N>`.
+/// Join `N` channels into one by averaging. Inverse of `Split<N, T>`.
 pub struct Join<N, T> {
     _marker: PhantomData<(N, T)>,
 }
@@ -693,7 +694,7 @@ where
 }
 
 /// Average `N` branches of `M` channels into one branch with `M` channels.
-/// The input has `M` * `N` channels. Inverse of `MultiSplit<T, M, N>`.
+/// The input has `M` * `N` channels. Inverse of `MultiSplit<M, N, T>`.
 pub struct MultiJoin<M, N, T> {
     _marker: PhantomData<(M, N, T)>,
 }
@@ -1167,15 +1168,16 @@ pub struct Map<T, M, I, O> {
 impl<T, M, I, O> Map<T, M, I, O>
 where
     T: Float,
-    M: Fn(&Frame<T, I>) -> Frame<T, O>,
+    M: Fn(&Frame<T, I>) -> O,
     I: Size<T>,
-    O: Size<T>,
+    O: ConstantFrame<Sample = T>,
+    O::Size: Size<T>,
 {
     pub fn new(f: M, routing: Routing) -> Self {
         Self {
             f,
             routing,
-            _marker: PhantomData,
+            _marker: PhantomData::default(),
         }
     }
 }
@@ -1183,25 +1185,26 @@ where
 impl<T, M, I, O> AudioNode for Map<T, M, I, O>
 where
     T: Float,
-    M: Fn(&Frame<T, I>) -> Frame<T, O>,
+    M: Fn(&Frame<T, I>) -> O,
     I: Size<T>,
-    O: Size<T>,
+    O: ConstantFrame<Sample = T>,
+    O::Size: Size<T>,
 {
     const ID: u64 = 5;
     type Sample = T;
     type Inputs = I;
-    type Outputs = O;
+    type Outputs = O::Size;
 
     #[inline]
     fn tick(
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        (self.f)(input)
+        (self.f)(input).convert()
     }
 
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        self.routing.propagate(input, O::USIZE)
+        self.routing.propagate(input, O::Size::USIZE)
     }
 }
 

@@ -120,7 +120,7 @@ impl<T: Real> AudioNode for Buzz<T> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.phase = (self.phase + input[0] * self.sample_duration).fract();
-        let n = ceil(T::new(22_050) / input[0]);
+        let n = floor(T::new(22_050) / input[0]);
         Frame::from([dsf(
             self.phase * T::from_f64(TAU),
             self.phase * T::from_f64(TAU),

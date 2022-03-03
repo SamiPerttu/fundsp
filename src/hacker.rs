@@ -557,14 +557,15 @@ where
 /// # Example
 /// ```
 /// # use fundsp::hacker::*;
-/// let my_sum = map(|i: &Frame<f64, U2>| Frame::<f64, U1>::splat(i[0] + i[1]));
+/// let my_max = map(|i: &Frame<f64, U2>| max(i[0], i[1]));
 /// ```
 #[inline]
 pub fn map<M, I, O>(f: M) -> An<Map<f64, M, I, O>>
 where
-    M: Fn(&Frame<f64, I>) -> Frame<f64, O>,
+    M: Fn(&Frame<f64, I>) -> O,
     I: Size<f64>,
-    O: Size<f64>,
+    O: ConstantFrame<Sample = f64>,
+    O::Size: Size<f64>,
 {
     An(Map::new(f, Routing::Arbitrary))
 }
