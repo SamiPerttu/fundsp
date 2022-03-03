@@ -693,14 +693,14 @@ pub fn follow<T: Float, F: Real, S: ScalarOrPair<Sample = F>>(t: S) -> An<AFollo
 /// Look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
 #[inline]
-pub fn limiter<T: Float, S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<T, U1, S>> {
+pub fn limiter<T: Real, S: ScalarOrPair<Sample = T>>(time: S) -> An<Limiter<T, U1, S>> {
     An(Limiter::new(DEFAULT_SR, time))
 }
 
 /// Stereo look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
 #[inline]
-pub fn limiter_stereo<T: Float, S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<T, U2, S>> {
+pub fn limiter_stereo<T: Real, S: ScalarOrPair<Sample = T>>(time: S) -> An<Limiter<T, U2, S>> {
     An(Limiter::new(DEFAULT_SR, time))
 }
 
