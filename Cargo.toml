@@ -25,6 +25,7 @@ anyhow = "1.0.55"
 
 [features]
 default = []
+hacker_32 = []
 
 [[example]]
 name = "beep"
@@ -41,3 +42,6 @@ path = "examples/sequence.rs"
 [[example]]
 name = "type"
 path = "examples/type.rs"
+
+[package.metadata.docs.rs]
+rustc-args = ["--all-features", "--cfg", "docsrs"]
