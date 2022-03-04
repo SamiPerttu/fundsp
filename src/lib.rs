@@ -1,3 +1,4 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
 //! FunDSP is an audio processing and synthesis library.
 //!
 //! See `README.md` in crate root folder for an overview.
@@ -244,6 +245,9 @@ pub mod feedback;
 pub mod filter;
 pub mod fir;
 pub mod hacker;
+#[cfg(feature = "hacker_32")]
+#[cfg_attr(docsrs, doc(cfg(feature = "hacker_32")))]
+pub mod hacker_32;
 pub mod math;
 pub mod noise;
 pub mod oscillator;

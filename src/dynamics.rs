@@ -109,25 +109,25 @@ where
 /// Look-ahead limiter.
 pub struct Limiter<T, N, S>
 where
-    T: Float,
+    T: Real,
     N: Size<T>,
-    S: ScalarOrPair<Sample = f64>,
+    S: ScalarOrPair<Sample = T>,
 {
     lookahead: f64,
     #[allow(dead_code)]
     release: f64,
     sample_rate: f64,
     reducer: ReduceBuffer<T, Maximum<T>>,
-    follower: AFollow<T, f64, S>,
+    follower: AFollow<T, T, S>,
     buffer: Vec<Frame<T, N>>,
     index: usize,
 }
 
 impl<T, N, S> Limiter<T, N, S>
 where
-    T: Float,
+    T: Real,
     N: Size<T>,
-    S: ScalarOrPair<Sample = f64>,
+    S: ScalarOrPair<Sample = T>,
 {
     fn advance(&mut self) {
         self.index += 1;
@@ -147,12 +147,18 @@ where
     pub fn new(sample_rate: f64, time: S) -> Self {
         let (lookahead, release) = time.broadcast();
         Limiter {
-            lookahead,
-            release,
+            lookahead: lookahead.to_f64(),
+            release: release.to_f64(),
             sample_rate,
-            follower: AFollow::new(sample_rate, S::construct(lookahead * 0.4, release * 0.4)),
+            follower: AFollow::new(
+                sample_rate,
+                S::construct(
+                    lookahead * convert::<f64, T>(0.4),
+                    release * convert::<f64, T>(0.4),
+                ),
+            ),
             buffer: vec![],
-            reducer: Self::new_buffer(sample_rate, lookahead),
+            reducer: Self::new_buffer(sample_rate, lookahead.to_f64()),
             index: 0,
         }
     }
@@ -160,9 +166,9 @@ where
 
 impl<T, N, S> AudioNode for Limiter<T, N, S>
 where
-    T: Float,
+    T: Real,
     N: Size<T>,
-    S: ScalarOrPair<Sample = f64>,
+    S: ScalarOrPair<Sample = T>,
 {
     const ID: u64 = 25;
     type Sample = T;
@@ -197,7 +203,7 @@ where
             if self.buffer.len() == self.reducer.length() {
                 // When the buffer is full, start following from its total peak.
                 // TODO: follow the log value instead.
-                self.follower.set_value(self.reducer.total().to_f64());
+                self.follower.set_value(self.reducer.total());
             }
             self.advance();
             Frame::default()
@@ -209,7 +215,7 @@ where
                 .filter_mono(max(T::one(), self.reducer.total() * T::from_f64(1.15)));
             self.advance();
             let limit = self.follower.value();
-            output * Frame::splat(T::from_f64(1.0 / limit))
+            output * Frame::splat(T::from_f64(1.0) / limit)
         }
     }
 
