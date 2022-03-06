@@ -492,8 +492,14 @@ pub fn multitick<N: Size<f32>>() -> An<Tick<N, f32>> {
     An(Tick::new(convert(DEFAULT_SR)))
 }
 
-#[doc(inline)]
-use hacker::hacker::Delay;
+/// Fixed delay of `t` seconds.
+/// Delay time is rounded to the nearest sample.
+/// - Input 0: signal.
+/// - Output 0: delayed signal.
+#[inline]
+pub fn delay(t: f32) -> An<Delay<f32>> {
+    An(Delay::new(t as f64, DEFAULT_SR))
+}
 
 /// Tapped delay line with cubic interpolation.
 /// Minimum and maximum delay times are in seconds.
@@ -547,18 +553,13 @@ where
 }
 
 /// Transform channels freely. Accounted as non-linear processing for signal flow.
-///
-/// # Example
-/// ```
-/// # use fundsp::hacker::*;
-/// let my_sum = map(|i: &Frame<f32, U2>| Frame::<f32, U1>::splat(i[0] + i[1]));
-/// ```
 #[inline]
 pub fn map<M, I, O>(f: M) -> An<Map<f32, M, I, O>>
 where
-    M: Fn(&Frame<f32, I>) -> Frame<f32, O>,
+    M: Fn(&Frame<f32, I>) -> O,
     I: Size<f32>,
-    O: Size<f32>,
+    O: ConstantFrame<Sample = f32>,
+    O::Size: Size<f32>,
 {
     An(Map::new(f, Routing::Arbitrary))
 }
@@ -941,19 +942,41 @@ pub fn reverb_stereo(
     super::prelude::reverb_stereo::<f32, f32>(wet, time)
 }
 
+/// Saw-like discrete summation formula oscillator.
+/// Roughness in 0...1 is the attenuation of successive partials.
+/// - Input 0: frequency in Hz
+/// - Output 0: DSF wave
+pub fn dsf_saw(roughness: f32) -> An<Dsf<f32>> {
+    An(Dsf::new(DEFAULT_SR, 1.0, roughness))
+}
+
+/// Square-like discrete summation formula oscillator.
+/// Roughness in 0...1 is the attenuation of successive partials.
+/// - Input 0: frequency in Hz
+/// - Output 0: DSF wave
+pub fn dsf_square(roughness: f32) -> An<Dsf<f32>> {
+    An(Dsf::new(DEFAULT_SR, 2.0, roughness))
+}
+
 /// Saw wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: saw wave
 #[inline]
 pub fn saw() -> An<WaveSynth<'static, f32, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
 }
 
 /// Square wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: square wave
 #[inline]
 pub fn square() -> An<WaveSynth<'static, f32, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
 }
 
 /// Triangle wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: triangle wave
 #[inline]
 pub fn triangle() -> An<WaveSynth<'static, f32, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))

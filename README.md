@@ -495,6 +495,8 @@ The type parameters in the table refer to the hacker prelude.
 | `declick()`            |    1    |    1    | Apply 10 ms of fade-in to signal. |
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
+| `dsf_saw(roughness)`   | 1 (frequency) | 1 | Saw-like discrete summation formula oscillator with roughness in 0...1. |
+| `dsf_square(roughness)`| 1 (frequency) | 1 | Square-like discrete summation formula oscillator with roughness in 0...1. |
 | `envelope(f)`          |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `envelope2(f)`         |    1    |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `lfo2`. |
 | `fdn(x)`               |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
@@ -525,7 +527,7 @@ The type parameters in the table refer to the hacker prelude.
 | `lowshelf()`           | 4 (audio, frequency, Q, gain) | 1 | Low shelf filter (2nd order) with adjustable amplitude gain. |
 | `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `lowshelf_q(q, gain)`  | 2 (audio, frequency) | 1 | Low shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
-| `map(f)`               |   `f`   |   `f`   | Map channels freely, e.g., `map(\|i: &Frame<f64, U2>\| max(i[0], i[1]))` |
+| `map(f)`               |   `f`   |   `f`   | Map channels freely, e.g., `map(\|i: &Frame<f64, U2>\| max(i[0], i[1]))`. |
 | `mls()`                |    -    |    1    | White MLS noise source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
 | `monitor(id)`          |    1    |    1    | Pass-through node that retains the latest value passed through as a parameter that can be queried. |
@@ -552,19 +554,19 @@ The type parameters in the table refer to the hacker prelude.
 | `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave). |
 | `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain together `U` nodes from indexed generator `f`. |
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain together `U` nodes from fractional generator `f`. |
-| `pulse()`              | 2 (pitch, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
+| `pulse()`              | 2 (frequency, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `reverb_stereo(wet, t)`|    2    |    2    | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
-| `saw()`                | 1 (pitch) |  1    | Bandlimited saw wave oscillator. |
+| `saw()`                | 1 (frequency) | 1 | Bandlimited saw wave oscillator. |
 | `saw_hz(f)`            |    -    |    1    | Bandlimited saw wave oscillator at `f` Hz. |
 | `shape(mode)`          |    1    |    1    | Shape signal with waveshaper mode `mode`. |
 | `shape_fn(f)`          |    1    |    1    | Shape signal with waveshaper function `f`, e.g., `tanh`. |
-| `sine()`               | 1 (pitch) |  1    | Sine oscillator. |
+| `sine()`               | 1 (frequency) | 1 | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
 | `sink()`               |    1    |    -    | Consumes signal. |
 | `split::<U>()`         |    1    |   `U`   | Split signal into `U` channels. |
-| `square()`             | 1 (pitch) |  1    | Bandlimited square wave oscillator. |
+| `square()`             | 1 (frequency) | 1 | Bandlimited square wave oscillator. |
 | `square_hz(f)`         |    -    |    1    | Bandlimited square wave oscillator at frequency `f` Hz. |
 | `stack::<U, _, _>(f)`  | `U * f` | `U * f` | Stack `U` nodes from indexed generator `f`. |
 | `stackf::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
@@ -576,7 +578,7 @@ The type parameters in the table refer to the hacker prelude.
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
 | `tick()`               |    1    |    1    | Single sample delay. |
 | `timer(id)`            |    -    |    -    | Timer node that presents time as a parameter that can be set and queried. |
-| `triangle()`           | 1 (pitch) |  1    | Bandlimited triangle wave oscillator. |
+| `triangle()`           | 1 (frequency) | 1 | Bandlimited triangle wave oscillator. |
 | `triangle_hz(f)`       |    -    |    1    | Bandlimited triangle wave oscillator at `f` Hz. |
 | `white()`              |    -    |    1    | White noise source. Synonymous with `noise`. |
 | `zero()`               |    -    |    1    | Zero signal. |

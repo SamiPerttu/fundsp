@@ -32,7 +32,7 @@ impl<T: Real> AudioNode for Sine<T> {
         self.phase = T::from_f64(rnd(self.hash as i64));
         if let Some(sr) = sample_rate {
             self.sample_duration = T::from_f64(1.0 / sr);
-        };
+        }
     }
 
     #[inline]
@@ -70,38 +70,41 @@ impl<T: Real> AudioNode for Sine<T> {
     }
 }
 
-/// Discrete summation formula. Returns sum, of i in [0, n], of a ** i * sin(f + i * d).
-fn dsf<T: Real>(f: T, d: T, a: T, n: T) -> T {
-    // Note: beware of division by zero, which results when a = 1 and d = 0.
+/// Discrete summation formula. Returns sum, of i in [0, n], of r ** i * sin(f + i * d).
+fn dsf<T: Real>(f: T, d: T, r: T, n: T) -> T {
+    // Note: beware of division by zero, which results when r = 1 and d = 0.
     // Formula is from Moorer, J. A., The Synthesis of Complex Audio Spectra by Means of Discrete Summation Formulae, 1976.
     (sin(f)
-        - a * sin(f - d)
-        - pow(a, n + T::one()) * (sin(f + (n + T::one()) * d) - a * sin(f + n * d)))
-        / (T::one() + a * a - T::new(2) * a * cos(d))
+        - r * sin(f - d)
+        - pow(r, n + T::one()) * (sin(f + (n + T::one()) * d) - r * sin(f + n * d)))
+        / (T::one() + r * r - T::new(2) * r * cos(d))
 }
 
-/// Buzz oscillator. WIP.
-pub struct Buzz<T: Real> {
+/// DSF oscillator.
+pub struct Dsf<T: Real> {
     phase: T,
-    attenuation: T,
+    roughness: T,
+    harmonic_spacing: T,
     sample_duration: T,
     hash: u64,
 }
 
-impl<T: Real> Buzz<T> {
-    pub fn new(sample_rate: f64, attenuation: T) -> Self {
-        let mut buzz = Buzz {
+impl<T: Real> Dsf<T> {
+    pub fn new(sample_rate: f64, harmonic_spacing: T, roughness: T) -> Self {
+        let roughness = clamp(T::from_f64(0.0001), T::from_f64(0.9999), roughness);
+        let mut node = Dsf {
             phase: T::zero(),
-            attenuation,
+            roughness,
+            harmonic_spacing,
             sample_duration: T::zero(),
             hash: 0,
         };
-        buzz.reset(Some(sample_rate));
-        buzz
+        node.reset(Some(sample_rate));
+        node
     }
 }
 
-impl<T: Real> AudioNode for Buzz<T> {
+impl<T: Real> AudioNode for Dsf<T> {
     const ID: u64 = 55;
     type Sample = T;
     type Inputs = typenum::U1;
@@ -111,7 +114,7 @@ impl<T: Real> AudioNode for Buzz<T> {
         self.phase = T::from_f64(rnd(self.hash as i64));
         if let Some(sr) = sample_rate {
             self.sample_duration = T::from_f64(1.0 / sr);
-        };
+        }
     }
 
     #[inline]
@@ -120,11 +123,11 @@ impl<T: Real> AudioNode for Buzz<T> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.phase = (self.phase + input[0] * self.sample_duration).fract();
-        let n = floor(T::new(22_050) / input[0]);
+        let n = floor(T::new(22_050) / input[0] / self.harmonic_spacing);
         Frame::from([dsf(
             self.phase * T::from_f64(TAU),
-            self.phase * T::from_f64(TAU),
-            self.attenuation,
+            self.phase * T::from_f64(TAU) * self.harmonic_spacing,
+            self.roughness,
             n,
         )])
     }

@@ -948,19 +948,41 @@ pub fn reverb_stereo(
     super::prelude::reverb_stereo::<f64, f64>(wet, time)
 }
 
+/// Saw-like discrete summation formula oscillator.
+/// Roughness in 0...1 is the attenuation of successive partials.
+/// - Input 0: frequency in Hz
+/// - Output 0: DSF wave
+pub fn dsf_saw(roughness: f64) -> An<Dsf<f64>> {
+    An(Dsf::new(DEFAULT_SR, 1.0, roughness))
+}
+
+/// Square-like discrete summation formula oscillator.
+/// Roughness in 0...1 is the attenuation of successive partials.
+/// - Input 0: frequency in Hz
+/// - Output 0: DSF wave
+pub fn dsf_square(roughness: f64) -> An<Dsf<f64>> {
+    An(Dsf::new(DEFAULT_SR, 2.0, roughness))
+}
+
 /// Saw wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: saw wave
 #[inline]
 pub fn saw() -> An<WaveSynth<'static, f64, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
 }
 
 /// Square wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: square wave
 #[inline]
 pub fn square() -> An<WaveSynth<'static, f64, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
 }
 
 /// Triangle wave oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: triangle wave
 #[inline]
 pub fn triangle() -> An<WaveSynth<'static, f64, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))

@@ -85,8 +85,9 @@ where
         let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
         (pitch, duty)
     }) >> pulse();
+    //let c = dc(110.0) >> dsf_saw(0.99);
     //let c = dc(110.0) >> triangle();
-    //let c = lfo(|t| xerp11(20.0, 2000.0, sin_hz(0.1, t))) >> square() >> lowpole_hz(1000.0);
+    //let c = lfo(|t| xerp11(20.0, 2000.0, sin_hz(0.1, t))) >> dsf_square(0.99) >> lowpole_hz(1000.0);
     //let c = dc(110.0) >> square();
 
     //let c = c
@@ -94,11 +95,10 @@ where
     //    >> bandpass();
 
     // Test ease_noise.
-    //let c = lfo(|t| xerp11(50.0, 5000.0, ease_noise(uparc, 0, t))) >> triangle();
+    //let c = lfo(|t| xerp11(50.0, 5000.0, ease_noise(smooth9, 0, t))) >> triangle();
 
     // Waveshapers.
-    //let c = c >> shape_fn(steps(10.0, sigmoid(0.5)));
-    //let c = c >> shape_fn(|x| tanh(x * 10.0));
+    //let c = c >> shape_fn(|x| tanh(x * 5.0));
 
     let mut c = c
         >> declick() >> dcblock()
@@ -106,13 +106,11 @@ where
         //>> (dcblock() | dcblock())
         >> split::<U2>()
         //>> reverb_stereo(0.2, 5.0)
-        >> limiter_stereo((1.0, 10.0));
+        >> limiter_stereo((1.0, 5.0));
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));
 
-    //let mut next_value = move || { let v = c.get(); assert!(v.is_nan() == false && abs(v) < 1.0e6); v };
     let mut next_value = move || c.get_stereo();
-    //let mut next_value = c.as_mono_fn();
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 

@@ -381,7 +381,7 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
             let phase_d = self.sample_duration / self.duration;
             let end_time = self.t + F::new(size as i64) * self.sample_duration;
             let end_index = if self.duration < end_time {
-                round((self.duration - self.t) / self.sample_duration).to_i64() as usize
+                ceil((self.duration - self.t) / self.sample_duration).to_i64() as usize
             } else {
                 size
             };
