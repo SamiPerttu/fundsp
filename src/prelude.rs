@@ -1038,7 +1038,7 @@ pub fn reverb_stereo<T, F>(
                             T,
                             Pipe<
                                 T,
-                                Pipe<T, Pipe<T, Delay<T>, Lowpole<T, F, U1>>, DCBlock<T, F>>,
+                                Pipe<T, Pipe<T, Delay<T>, Fir<T, U2>>, DCBlock<T, F>>,
                                 Binop<T, FrameMul<U1, T>, MultiPass<U1, T>, Constant<U1, T>>,
                             >,
                         >,
@@ -1070,7 +1070,7 @@ where
 
     let line = stack::<U32, T, _, _>(|i| {
         delay::<T>(DELAYS[i as usize])
-            >> lowpole_hz::<T, F>(T::new(1600))
+            >> fir((T::from_f32(0.5), T::from_f32(0.5)))
             >> dcblock_hz::<T, F>(F::new(5))
             >> mul(a)
     });
@@ -1082,6 +1082,38 @@ where
     // Bus the reverb with the dry signal. Operator precedences work perfectly for us here.
     multisplit::<U2, U16, T>() >> reverb >> multijoin::<U2, U16, T>() >> mul((wet, wet))
         & mul((T::one() - wet, T::one() - wet))
+}
+
+/// Saw-like discrete summation formula oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: roughness in 0...1 is the attenuation of successive partials.
+/// - Output 0: DSF wave
+pub fn dsf_saw<T: Real>() -> An<Dsf<T, U2>> {
+    An(Dsf::new(DEFAULT_SR, T::new(1), T::from_f32(0.5)))
+}
+
+/// Saw-like discrete summation formula oscillator.
+/// Roughness in 0...1 is the attenuation of successive partials.
+/// - Input 0: frequency in Hz
+/// - Output 0: DSF wave
+pub fn dsf_saw_r<T: Real>(roughness: T) -> An<Dsf<T, U1>> {
+    An(Dsf::new(DEFAULT_SR, T::new(1), roughness))
+}
+
+/// Square-like discrete summation formula oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: roughness in 0...1 is the attenuation of successive partials.
+/// - Output 0: DSF wave
+pub fn dsf_square<T: Real>() -> An<Dsf<T, U2>> {
+    An(Dsf::new(DEFAULT_SR, T::new(2), T::from_f32(0.5)))
+}
+
+/// Square-like discrete summation formula oscillator.
+/// Roughness in 0...1 is the attenuation of successive partials.
+/// - Input 0: frequency in Hz
+/// - Output 0: DSF wave
+pub fn dsf_square_r<T: Real>(roughness: T) -> An<Dsf<T, U1>> {
+    An(Dsf::new(DEFAULT_SR, T::new(2), roughness))
 }
 
 /// Saw wave oscillator.

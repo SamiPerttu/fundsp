@@ -495,8 +495,10 @@ The type parameters in the table refer to the hacker prelude.
 | `declick()`            |    1    |    1    | Apply 10 ms of fade-in to signal. |
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
-| `dsf_saw(roughness)`   | 1 (frequency) | 1 | Saw-like discrete summation formula oscillator with roughness in 0...1. |
-| `dsf_square(roughness)`| 1 (frequency) | 1 | Square-like discrete summation formula oscillator with roughness in 0...1. |
+| `dsf_saw()`            | 2 (frequency, roughness) | 1 | Saw-like discrete summation formula oscillator. |
+| `dsf_saw_r(roughness)` | 1 (frequency) | 1 | Saw-like discrete summation formula oscillator with roughness in 0...1. |
+| `dsf_square()`         | 2 (frequency, roughness) | 1 | Square-like discrete summation formula oscillator. |
+| `dsf_square_r(roughness)`| 1 (frequency) | 1 | Square-like discrete summation formula oscillator with roughness in 0...1. |
 | `envelope(f)`          |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `envelope2(f)`         |    1    |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `lfo2`. |
 | `fdn(x)`               |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |

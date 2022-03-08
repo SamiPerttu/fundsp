@@ -245,7 +245,7 @@ pub mod feedback;
 pub mod filter;
 pub mod fir;
 pub mod hacker;
-pub mod hacker_32;
+pub mod hacker32;
 pub mod math;
 pub mod noise;
 pub mod oscillator;

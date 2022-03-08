@@ -5,8 +5,11 @@ use super::math::*;
 use super::signal::*;
 use super::*;
 use numeric_array::*;
+use std::marker::PhantomData;
 
 /// Sine oscillator.
+/// - Input 0: frequency in Hz.
+/// - Output 0: sine wave.
 #[derive(Default)]
 pub struct Sine<T: Real> {
     phase: T,
@@ -80,34 +83,49 @@ fn dsf<T: Real>(f: T, d: T, r: T, n: T) -> T {
         / (T::one() + r * r - T::new(2) * r * cos(d))
 }
 
-/// DSF oscillator.
-pub struct Dsf<T: Real> {
+/// DSF oscillator. Number of inputs is `N`, either 1 or 2.
+/// - Input 0: frequency in Hz.
+/// - Input 1 (optional): roughness in 0...1 is the attenuation of successive partials.
+/// - Output 0: DSF wave.
+pub struct Dsf<T: Real, N: Size<T>> {
     phase: T,
     roughness: T,
     harmonic_spacing: T,
     sample_duration: T,
     hash: u64,
+    _marker: PhantomData<N>,
 }
 
-impl<T: Real> Dsf<T> {
+impl<T: Real, N: Size<T>> Dsf<T, N> {
     pub fn new(sample_rate: f64, harmonic_spacing: T, roughness: T) -> Self {
-        let roughness = clamp(T::from_f64(0.0001), T::from_f64(0.9999), roughness);
         let mut node = Dsf {
             phase: T::zero(),
             roughness,
             harmonic_spacing,
             sample_duration: T::zero(),
             hash: 0,
+            _marker: PhantomData::default(),
         };
         node.reset(Some(sample_rate));
+        node.set_roughness(roughness);
         node
+    }
+
+    /// Roughness accessor.
+    #[inline]
+    pub fn roughness(&self) -> T { self.roughness }
+
+    /// Set roughness. Roughness in 0...1 is the attenuation of successive partials.
+    #[inline]
+    pub fn set_roughness(&mut self, roughness: T) {
+        self.roughness = clamp(T::from_f64(0.0001), T::from_f64(0.9999), roughness);
     }
 }
 
-impl<T: Real> AudioNode for Dsf<T> {
+impl<T: Real, N: Size<T>> AudioNode for Dsf<T, N> {
     const ID: u64 = 55;
     type Sample = T;
-    type Inputs = typenum::U1;
+    type Inputs = N;
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -122,6 +140,9 @@ impl<T: Real> AudioNode for Dsf<T> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
+        if N::USIZE > 1 {
+            self.set_roughness(input[1]);
+        }
         self.phase = (self.phase + input[0] * self.sample_duration).fract();
         let n = floor(T::new(22_050) / input[0] / self.harmonic_spacing);
         Frame::from([dsf(

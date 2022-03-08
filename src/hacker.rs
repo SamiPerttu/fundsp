@@ -182,8 +182,8 @@ where
 /// Tagged constant. Outputs the (scalar) value of the tag.
 /// - Output 0: value
 #[inline]
-pub fn tag(tag: Tag, value: f64) -> An<Tagged<f64>> {
-    An(Tagged::new(tag, value))
+pub fn tag(id: Tag, value: f64) -> An<Tagged<f64>> {
+    An(Tagged::new(id, value))
 }
 
 /// Zero generator.
@@ -922,11 +922,7 @@ pub fn reverb_stereo(
                             f64,
                             Pipe<
                                 f64,
-                                Pipe<
-                                    f64,
-                                    Pipe<f64, Delay<f64>, Lowpole<f64, f64, U1>>,
-                                    DCBlock<f64, f64>,
-                                >,
+                                Pipe<f64, Pipe<f64, Delay<f64>, Fir<f64, U2>>, DCBlock<f64, f64>>,
                                 Binop<
                                     f64,
                                     FrameMul<U1, f64>,
@@ -949,18 +945,34 @@ pub fn reverb_stereo(
 }
 
 /// Saw-like discrete summation formula oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: roughness in 0...1 is the attenuation of successive partials.
+/// - Output 0: DSF wave
+pub fn dsf_saw() -> An<Dsf<f64, U2>> {
+    An(Dsf::new(DEFAULT_SR, 1.0, 0.5))
+}
+
+/// Saw-like discrete summation formula oscillator.
 /// Roughness in 0...1 is the attenuation of successive partials.
 /// - Input 0: frequency in Hz
 /// - Output 0: DSF wave
-pub fn dsf_saw(roughness: f64) -> An<Dsf<f64>> {
+pub fn dsf_saw_r(roughness: f64) -> An<Dsf<f64, U1>> {
     An(Dsf::new(DEFAULT_SR, 1.0, roughness))
+}
+
+/// Square-like discrete summation formula oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: roughness in 0...1 is the attenuation of successive partials.
+/// - Output 0: DSF wave
+pub fn dsf_square() -> An<Dsf<f64, U2>> {
+    An(Dsf::new(DEFAULT_SR, 2.0, 0.5))
 }
 
 /// Square-like discrete summation formula oscillator.
 /// Roughness in 0...1 is the attenuation of successive partials.
 /// - Input 0: frequency in Hz
 /// - Output 0: DSF wave
-pub fn dsf_square(roughness: f64) -> An<Dsf<f64>> {
+pub fn dsf_square_r(roughness: f64) -> An<Dsf<f64, U1>> {
     An(Dsf::new(DEFAULT_SR, 2.0, roughness))
 }
 

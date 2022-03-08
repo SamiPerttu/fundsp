@@ -182,8 +182,8 @@ where
 /// Tagged constant. Outputs the (scalar) value of the tag.
 /// - Output 0: value
 #[inline]
-pub fn tag(tag: Tag, value: f32) -> An<Tagged<f32>> {
-    An(Tagged::new(tag, value))
+pub fn tag(id: Tag, value: f32) -> An<Tagged<f32>> {
+    An(Tagged::new(id, value))
 }
 
 /// Zero generator.
@@ -553,6 +553,12 @@ where
 }
 
 /// Transform channels freely. Accounted as non-linear processing for signal flow.
+///
+/// # Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// let my_max = map(|i: &Frame<f32, U2>| max(i[0], i[1]));
+/// ```
 #[inline]
 pub fn map<M, I, O>(f: M) -> An<Map<f32, M, I, O>>
 where
@@ -916,11 +922,7 @@ pub fn reverb_stereo(
                             f32,
                             Pipe<
                                 f32,
-                                Pipe<
-                                    f32,
-                                    Pipe<f32, Delay<f32>, Lowpole<f32, f32, U1>>,
-                                    DCBlock<f32, f32>,
-                                >,
+                                Pipe<f32, Pipe<f32, Delay<f32>, Fir<f32, U2>>, DCBlock<f32, f32>>,
                                 Binop<
                                     f32,
                                     FrameMul<U1, f32>,
@@ -943,18 +945,34 @@ pub fn reverb_stereo(
 }
 
 /// Saw-like discrete summation formula oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: roughness in 0...1 is the attenuation of successive partials.
+/// - Output 0: DSF wave
+pub fn dsf_saw() -> An<Dsf<f32, U2>> {
+    An(Dsf::new(DEFAULT_SR, 1.0, 0.5))
+}
+
+/// Saw-like discrete summation formula oscillator.
 /// Roughness in 0...1 is the attenuation of successive partials.
 /// - Input 0: frequency in Hz
 /// - Output 0: DSF wave
-pub fn dsf_saw(roughness: f32) -> An<Dsf<f32>> {
+pub fn dsf_saw_r(roughness: f32) -> An<Dsf<f32, U1>> {
     An(Dsf::new(DEFAULT_SR, 1.0, roughness))
+}
+
+/// Square-like discrete summation formula oscillator.
+/// - Input 0: frequency in Hz
+/// - Input 1: roughness in 0...1 is the attenuation of successive partials.
+/// - Output 0: DSF wave
+pub fn dsf_square() -> An<Dsf<f32, U2>> {
+    An(Dsf::new(DEFAULT_SR, 2.0, 0.5))
 }
 
 /// Square-like discrete summation formula oscillator.
 /// Roughness in 0...1 is the attenuation of successive partials.
 /// - Input 0: frequency in Hz
 /// - Output 0: DSF wave
-pub fn dsf_square(roughness: f32) -> An<Dsf<f32>> {
+pub fn dsf_square_r(roughness: f32) -> An<Dsf<f32, U1>> {
     An(Dsf::new(DEFAULT_SR, 2.0, roughness))
 }
 
