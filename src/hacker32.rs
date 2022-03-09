@@ -976,6 +976,16 @@ pub fn dsf_square_r(roughness: f32) -> An<Dsf<f32, U1>> {
     An(Dsf::new(DEFAULT_SR, 2.0, roughness))
 }
 
+/// Karplus-Strong plucked string oscillator with `frequency` in Hz.
+/// - Output 0: oscillator output
+pub fn pluck(frequency: f32, gain_per_second: f32) -> An<Pluck<f32>> {
+    An(Pluck::new(
+        DEFAULT_SR,
+        frequency as f64,
+        gain_per_second as f64,
+    ))
+}
+
 /// Saw wave oscillator.
 /// - Input 0: frequency in Hz
 /// - Output 0: saw wave

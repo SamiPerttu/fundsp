@@ -85,6 +85,7 @@ where
         let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
         (pitch, duty)
     }) >> pulse();
+    //let c = pluck(60.0, 0.9);
     //let c = dc(110.0) >> dsf_saw(0.99);
     //let c = dc(110.0) >> triangle();
     //let c = lfo(|t| xerp11(20.0, 2000.0, sin_hz(0.1, t))) >> dsf_square(0.99) >> lowpole_hz(1000.0);
