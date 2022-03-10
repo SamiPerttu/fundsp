@@ -8,6 +8,14 @@ use super::*;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
 
+/// Create a 3-point symmetric FIR from desired gain at the Nyquist frequency.
+/// Results in a monotonic low-pass filter when `gain_at_nyquist` <= 1.
+pub fn fir3<T: Float>(gain_at_nyquist: T) -> Fir<T, U3> {
+    let alpha = (gain_at_nyquist + T::new(1)) / T::new(2);
+    let beta = (T::new(1) - alpha) / T::new(2);
+    Fir::new((beta, alpha, beta))
+}
+
 /// FIR filter.
 /// - Input 0: input signal
 /// - Output 0: filtered signal

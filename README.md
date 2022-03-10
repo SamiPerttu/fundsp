@@ -556,7 +556,7 @@ The type parameters in the table refer to the hacker prelude.
 | `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave). |
 | `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain together `U` nodes from indexed generator `f`. |
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain together `U` nodes from fractional generator `f`. |
-| `pluck(f, gain)`       |    -    |    1    | Karplus-Strong plucked string oscillator with frequency `f` Hz and gain per second `gain` (`gain` <= 1). |
+| `pluck(f, gain, damping)` | 1 (excitation) | 1 | Karplus-Strong plucked string oscillator with frequency `f` Hz, `gain` per second (`gain` <= 1) and high frequency `damping` in 0...1. |
 | `pulse()`              | 2 (frequency, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |

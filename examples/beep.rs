@@ -60,51 +60,51 @@ where
     //let c = mls() >> lowpole_hz(400.0) >> lowpole_hz(400.0);
     //let c = (mls() | dc(500.0)) >> butterpass();
     //let c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
-    //let c = (((mls() | dc(800.0) | dc(50.0)) >> resonator()) | dc(800.0) | dc(50.0)) >> resonator();
-    //let c = (mls() | dc((200.0, 10.0))) >> resonator() & (mls() | dc((400.0, 20.0))) >> resonator() & (mls() | dc((800.0, 30.0))) >> resonator();
     //let c = pink();
+
     //let f = 110.0;
     //let m = 5.0;
     //let c = sine_hz(f) * f * m + f >> sine();
-    //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.9);
 
     // Risset glissando.
     /*let c = stack::<U20, _, _>(|i| {
-            lfo(move |t| {
-                let f = lerp(-0.5, 0.5, rnd(i))
-                    + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0);
-                let a = smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0));
-                (a, f)
-            }) >> pass() * sine() * 10.0
-        }) >> multijoin::<U1, U20>()
-            >> pinkpass();
+        lfo(move |t| {
+            let f = lerp(-0.5, 0.5, rnd(i))
+                + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0);
+            let a = smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0));
+            (a, f)
+        }) >> pass() * sine() * 10.0
+    }) >> multijoin::<U1, U20>()
+        >> pinkpass();
     */
+
     // Pulse wave.
     let c = lfo(|t| {
         let pitch = 110.0;
         let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
         (pitch, duty)
     }) >> pulse();
-    //let c = pluck(60.0, 0.9);
-    //let c = dc(110.0) >> dsf_saw(0.99);
-    //let c = dc(110.0) >> triangle();
-    //let c = lfo(|t| xerp11(20.0, 2000.0, sin_hz(0.1, t))) >> dsf_square(0.99) >> lowpole_hz(1000.0);
-    //let c = dc(110.0) >> square();
 
-    //let c = c
-    //    >> (pass() | envelope(|t| xerp(1000.0, 20000.0, sin_hz(0.0666, t))) | dc(10.0))
-    //    >> bandpass();
+    //let c = zero() >> pluck(220.0, 0.8, 0.8);
+    //let c = dc(110.0) >> dsf_saw_r(0.99);
+    //let c = dc(110.0) >> triangle();
+    //let c = lfo(|t| xerp11(20.0, 2000.0, sin_hz(0.1, t))) >> dsf_square_r(0.99) >> lowpole_hz(1000.0);
+    //let c = dc(110.0) >> square();
 
     // Test ease_noise.
     //let c = lfo(|t| xerp11(50.0, 5000.0, ease_noise(smooth9, 0, t))) >> triangle();
+
+    //let c = c
+    //    >> (pass() | envelope(|t| xerp(500.0, 20000.0, sin_hz(0.0666, t))) | dc(10.0))
+    //    >> bandpass();
+
+    //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.5);
 
     // Waveshapers.
     //let c = c >> shape_fn(|x| tanh(x * 5.0));
 
     let mut c = c
         >> declick() >> dcblock()
-        //>> (declick() | declick())
-        //>> (dcblock() | dcblock())
         >> split::<U2>()
         //>> reverb_stereo(0.2, 5.0)
         >> limiter_stereo((1.0, 5.0));

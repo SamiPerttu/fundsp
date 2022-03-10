@@ -1117,12 +1117,19 @@ pub fn dsf_square_r<T: Real>(roughness: T) -> An<Dsf<T, U1>> {
 }
 
 /// Karplus-Strong plucked string oscillator with `frequency` in Hz.
+/// High frequency damping is in 0...1.
+/// - Input 0: string excitation
 /// - Output 0: oscillator output
-pub fn pluck<T: Float>(frequency: T, gain_per_second: T) -> An<Pluck<T>> {
+pub fn pluck<T: Float>(
+    frequency: T,
+    gain_per_second: T,
+    high_frequency_damping: T,
+) -> An<Pluck<T>> {
     An(Pluck::new(
         DEFAULT_SR,
-        frequency.to_f64(),
-        gain_per_second.to_f64(),
+        frequency,
+        gain_per_second,
+        high_frequency_damping,
     ))
 }
 

@@ -977,9 +977,16 @@ pub fn dsf_square_r(roughness: f64) -> An<Dsf<f64, U1>> {
 }
 
 /// Karplus-Strong plucked string oscillator with `frequency` in Hz.
+/// High frequency damping is in 0...1.
+/// - Input 0: string excitation
 /// - Output 0: oscillator output
-pub fn pluck(frequency: f64, gain_per_second: f64) -> An<Pluck<f64>> {
-    An(Pluck::new(DEFAULT_SR, frequency, gain_per_second))
+pub fn pluck(frequency: f64, gain_per_second: f64, high_frequency_damping: f64) -> An<Pluck<f64>> {
+    An(Pluck::new(
+        DEFAULT_SR,
+        frequency,
+        gain_per_second,
+        high_frequency_damping,
+    ))
 }
 
 /// Saw wave oscillator.

@@ -1,8 +1,8 @@
 //! Oscillator components.
 
 use super::audionode::*;
-use super::filter::Allpole;
-use super::fir::Fir;
+use super::filter::*;
+use super::fir::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
@@ -169,26 +169,33 @@ impl<T: Real, N: Size<T>> AudioNode for Dsf<T, N> {
 }
 
 /// Karplus-Strong oscillator.
+/// - Input 0: string excitation.
 /// - Output 0: plucked string.
 pub struct Pluck<T: Float> {
-    damping: Fir<T, typenum::U2>,
+    damping: Fir<T, typenum::U3>,
     tuning: Allpole<T, T, typenum::U1>,
     line: Vec<T>,
     gain: T,
     pos: usize,
     hash: u64,
-    frequency: f64,
+    frequency: T,
     sample_rate: f64,
     initialized: bool,
 }
 
 impl<T: Float> Pluck<T> {
-    pub fn new(sample_rate: f64, frequency: f64, gain_per_second: f64) -> Self {
+    // Create new Karplus-Strong oscillator. High frequency damping is in 0...1.
+    pub fn new(
+        sample_rate: f64,
+        frequency: T,
+        gain_per_second: T,
+        high_frequency_damping: T,
+    ) -> Self {
         Self {
-            damping: Fir::new((T::from_f32(0.5), T::from_f32(0.5))),
+            damping: fir3(T::one() - high_frequency_damping),
             tuning: Allpole::new(sample_rate, T::one()),
             line: Vec::new(),
-            gain: T::from_f64(pow(gain_per_second, 1.0 / frequency)),
+            gain: T::from_f64(pow(gain_per_second.to_f64(), 1.0 / frequency.to_f64())),
             pos: 0,
             hash: 0,
             frequency,
@@ -200,8 +207,8 @@ impl<T: Float> Pluck<T> {
     fn initialize_line(&mut self) {
         // Allpass filter delay is in epsilon ... epsilon + 1.
         let epsilon = 0.2;
-        // Damping filter delay is 0.5 samples.
-        let total_delay = self.sample_rate / self.frequency - 0.5;
+        // Damping filter delay is 1 sample.
+        let total_delay = self.sample_rate / self.frequency.to_f64() - 1.0;
         let loop_delay = floor(total_delay - epsilon);
         let allpass_delay = total_delay - loop_delay;
         self.tuning = Allpole::new(self.sample_rate, T::from_f64(allpass_delay));
@@ -218,7 +225,7 @@ impl<T: Float> Pluck<T> {
 impl<T: Float> AudioNode for Pluck<T> {
     const ID: u64 = 58;
     type Sample = T;
-    type Inputs = typenum::U0;
+    type Inputs = typenum::U1;
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -232,12 +239,12 @@ impl<T: Float> AudioNode for Pluck<T> {
     #[inline]
     fn tick(
         &mut self,
-        _input: &Frame<Self::Sample, Self::Inputs>,
+        input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         if !self.initialized {
             self.initialize_line();
         }
-        let output = self.line[self.pos] * self.gain;
+        let output = self.line[self.pos] * self.gain + input[0];
         let output = self.damping.filter_mono(output);
         let output = self.tuning.filter_mono(output);
         self.line[self.pos] = output;
