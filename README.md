@@ -385,7 +385,7 @@ Verified frequency responses are available for all filters.
 | Opcode       | Type                   | Parameters   | Family       | Notes     |
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
 | `allpass`    | allpass (2nd order)    | frequency, Q | [Simper SVF](https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf) | |
-| `allpole`    | allpass (1st order)    | frequency, delay | 1st order | Adjustable delay in samples. |
+| `allpole`    | allpass (1st order)    | delay        | 1st order | Adjustable delay in samples. |
 | `bandpass`   | bandpass (2nd order)   | frequency, Q | Simper SVF   | |
 | `bell`       | peaking (2nd order)    | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
 | `butterpass` | lowpass (2nd order)    | frequency    | [biquad](https://en.wikipedia.org/wiki/Digital_biquad_filter) | [Butterworth](https://en.wikipedia.org/wiki/Butterworth_filter) lowpass has a maximally flat passband and monotonic frequency response. |
@@ -419,7 +419,7 @@ use fundsp::hacker::*;
 let mut equalizer = pipe::<U12, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f64, 1.0, db_amp(0.0)));
 ```
 
-The type of the equalizer is `An<Chain<f64, U12, FixedSvf<f64, f64, BellMode<f64>>>>`.
+The type of the equalizer is `An<Chain<U12, f64, FixedSvf<f64, f64, BellMode<f64>>>>`.
 The equalizer is ready to use immediately. Filter samples:
 
 ```rust
