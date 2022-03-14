@@ -11,7 +11,8 @@
     clippy::double_neg,
     clippy::needless_range_loop,
     clippy::manual_range_contains,
-    clippy::too_many_arguments
+    clippy::too_many_arguments,
+    clippy::comparison_chain
 )]
 
 #[macro_use]
@@ -251,7 +252,9 @@ pub mod noise;
 pub mod oscillator;
 pub mod oversample;
 pub mod pan;
+pub mod pattern;
 pub mod prelude;
+pub mod scale;
 pub mod sequencer;
 pub mod shape;
 pub mod signal;

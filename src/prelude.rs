@@ -453,6 +453,7 @@ where
 /// Control envelope from time-varying, input dependent function `f(t, x)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `lfo2`.
+/// - Input 0: x
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
 pub fn envelope2<T, F, E, R>(f: E) -> An<Envelope2<T, F, E, R>>
@@ -474,6 +475,7 @@ where
 /// Control envelope from time-varying, input dependent function `f(t, x)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `envelope2`.
+/// - Input 0: x
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
 pub fn lfo2<T, F, E, R>(f: E) -> An<Envelope2<T, F, E, R>>
@@ -486,6 +488,46 @@ where
     R::Size: Size<T>,
 {
     An(Envelope2::new(F::from_f64(0.002), DEFAULT_SR, f))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, x, y)` with `t` in seconds.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `lfo3`.
+/// - Input 0: x
+/// - Input 1: y
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
+pub fn envelope3<T, F, E, R>(f: E) -> An<Envelope3<T, F, E, R>>
+where
+    T: Float,
+    F: Float,
+    E: Fn(F, F, F) -> R,
+    R: ConstantFrame<Sample = F>,
+    R::Size: Size<F>,
+    R::Size: Size<T>,
+{
+    // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
+    // Therefore, sampling at 500 Hz means these signals are fairly well represented.
+    // While we represent time in double precision internally, it is often okay to use single precision
+    // in envelopes, as local component time typically does not get far from origin.
+    An(Envelope3::new(F::from_f64(0.002), DEFAULT_SR, f))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, x)` with `t` in seconds.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `envelope3`.
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
+pub fn lfo3<T, F, E, R>(f: E) -> An<Envelope3<T, F, E, R>>
+where
+    T: Float,
+    F: Float,
+    E: Fn(F, F, F) -> R,
+    R: ConstantFrame<Sample = F>,
+    R::Size: Size<F>,
+    R::Size: Size<T>,
+{
+    An(Envelope3::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.

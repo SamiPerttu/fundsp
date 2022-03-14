@@ -411,9 +411,10 @@ where
     An(Envelope::new(0.002, DEFAULT_SR, f))
 }
 
-/// Control envelope from time-varying, input dependent function `f(t, input)` with `t` in seconds.
+/// Control envelope from time-varying, input dependent function `f(t, x)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `lfo2`.
+/// - Input 0: x
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
 pub fn envelope2<E, R>(f: E) -> An<Envelope2<f32, f32, E, R>>
@@ -425,9 +426,10 @@ where
     An(Envelope2::new(0.002, DEFAULT_SR, f))
 }
 
-/// Control envelope from time-varying, input dependent function `f(t, value)` with `t` in seconds.
+/// Control envelope from time-varying, input dependent function `f(t, x)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `envelope2`.
+/// - Input 0: x
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
 pub fn lfo2<E, R>(f: E) -> An<Envelope2<f32, f32, E, R>>
@@ -437,6 +439,38 @@ where
     R::Size: Size<f32>,
 {
     An(Envelope2::new(0.002, DEFAULT_SR, f))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, x, y)` with `t` in seconds.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `lfo3`.
+/// - Input 0: x
+/// - Input 1: y
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
+pub fn envelope3<E, R>(f: E) -> An<Envelope3<f32, f32, E, R>>
+where
+    E: Fn(f32, f32, f32) -> R,
+    R: ConstantFrame<Sample = f32>,
+    R::Size: Size<f32>,
+{
+    An(Envelope3::new(0.002, DEFAULT_SR, f))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, x, y)` with `t` in seconds.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `envelope3`.
+/// - Input 0: x
+/// - Input 1: y
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+#[inline]
+pub fn lfo3<E, R>(f: E) -> An<Envelope3<f32, f32, E, R>>
+where
+    E: Fn(f32, f32, f32) -> R,
+    R: ConstantFrame<Sample = f32>,
+    R::Size: Size<f32>,
+{
+    An(Envelope3::new(0.002, DEFAULT_SR, f))
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence.
