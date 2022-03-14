@@ -137,20 +137,21 @@ In both systems, a component `A` can be reinitialized with a new sample rate: `A
 
 ## Audio Processing Environment
 
-FunDSP prelude defines a convenient combinator environment for audio processing.
+FunDSP preludes define convenient combinator environments for audio processing.
 
-There are two name-level compatible versions of the prelude.
+There are three name-level compatible versions of the prelude.
 
 The default environment (`fundsp::prelude`) offers a generic interface.
 It is flexible and attempts to conform to Rust practices.
 
-The hacker environment (`fundsp::hacker`) for audio hacking
+The 64-bit hacker environment (`fundsp::hacker`) for audio hacking
 is fully 64-bit to minimize type annotations and maximize audio quality.
 The hacker interface uses 1 floating point type (`f64`) and 1 integer type (`i64`) only.
 
-An application interfacing `fundsp` will likely pick the default environment for maximum flexibility,
-while experimenters will be drawn to the succinctness of the hacker prelude.
+The 32-bit hacker environment (`fundsp::hacker32`) aims to offer
+maximum processing speed.
 
+An application interfacing `fundsp` can mix and match preludes as needed.
 The aims of the environments are:
 
 - Minimize the number of characters needed to type to express an idiom.
