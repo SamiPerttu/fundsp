@@ -4,7 +4,10 @@ use super::audionode::*;
 use super::combinator::*;
 use super::math::*;
 use super::signal::*;
+use super::*;
+
 use num_complex::Complex64;
+use rsor::Slice;
 
 /// AudioUnit64 is a double precision audio processor with an object safe interface.
 /// Once constructed, it has a fixed number of inputs and outputs.
@@ -418,5 +421,147 @@ impl Au {
             Au::Unit64(x) => x.get(parameter),
             Au::Unit32(x) => x.get(parameter),
         }
+    }
+}
+
+/// A double precision big block adapter.
+/// The adapter enables calls to `process` with arbitrary buffer sizes.
+pub struct BigBlockAdapter64 {
+    source: Box<dyn AudioUnit64>,
+    input: Vec<Vec<f64>>,
+    output: Vec<Vec<f64>>,
+    input_slice: Slice<[f64]>,
+    output_slice: Slice<[f64]>,
+}
+
+impl BigBlockAdapter64 {
+    /// Create a new big block adapter.
+    pub fn new(source: Box<dyn AudioUnit64>) -> Self {
+        let input = vec![Vec::new(); source.inputs()];
+        let output = vec![Vec::new(); source.outputs()];
+        Self { source, input, output, input_slice: Slice::new(), output_slice: Slice::new() }
+    }
+}
+
+impl AudioUnit64 for BigBlockAdapter64 {
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.source.reset(sample_rate);
+    }
+    fn tick(&mut self, input: &[f64], output: &mut [f64]) {
+        self.source.tick(input, output);
+    }
+    fn process(&mut self, size: usize, input: &[&[f64]], output: &mut [&mut [f64]]) {
+        if size > MAX_BUFFER_SIZE {
+            for input_buffer in self.input.iter_mut() {
+                input_buffer.resize(MAX_BUFFER_SIZE, 0.0);
+            }
+            for output_buffer in self.output.iter_mut() {
+                output_buffer.resize(MAX_BUFFER_SIZE, 0.0);
+            }
+            let mut i = 0;
+            while i < size {
+                let n = min(size - i, MAX_BUFFER_SIZE);
+                for input_i in 0 .. self.input.len() {
+                    for j in 0 .. n {
+                        self.input[input_i][j] = input[input_i][i + j];
+                    }
+                }
+                self.source.process(n, self.input_slice.from_refs(&self.input), self.output_slice.from_muts(&mut self.output));
+                for output_i in 0 .. self.output.len() {
+                    for j in 0 .. n {
+                        output[output_i][i + j] = self.output[output_i][j];
+                    }
+                }
+                i += n;
+            }
+        } else {
+            self.source.process(size, input, output);
+        }
+    }
+    fn inputs(&self) -> usize {
+        self.source.inputs()
+    }
+    fn outputs(&self) -> usize {
+        self.source.outputs()
+    }
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.source.route(input, frequency)
+    }
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.source.set(parameter, value);
+    }
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.source.get(parameter)
+    }
+}
+
+/// A single precision big block adapter.
+/// The adapter enables calls to `process` with arbitrary buffer sizes.
+pub struct BigBlockAdapter32 {
+    source: Box<dyn AudioUnit32>,
+    input: Vec<Vec<f32>>,
+    output: Vec<Vec<f32>>,
+    input_slice: Slice<[f32]>,
+    output_slice: Slice<[f32]>,
+}
+
+impl BigBlockAdapter32 {
+    /// Create a new big block adapter.
+    pub fn new(source: Box<dyn AudioUnit32>) -> Self {
+        let input = vec![Vec::new(); source.inputs()];
+        let output = vec![Vec::new(); source.outputs()];
+        Self { source, input, output, input_slice: Slice::new(), output_slice: Slice::new() }
+    }
+}
+
+impl AudioUnit32 for BigBlockAdapter32 {
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.source.reset(sample_rate);
+    }
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
+        self.source.tick(input, output);
+    }
+    fn process(&mut self, size: usize, input: &[&[f32]], output: &mut [&mut [f32]]) {
+        if size > MAX_BUFFER_SIZE {
+            for input_buffer in self.input.iter_mut() {
+                input_buffer.resize(MAX_BUFFER_SIZE, 0.0);
+            }
+            for output_buffer in self.output.iter_mut() {
+                output_buffer.resize(MAX_BUFFER_SIZE, 0.0);
+            }
+            let mut i = 0;
+            while i < size {
+                let n = min(size - i, MAX_BUFFER_SIZE);
+                for input_i in 0 .. self.input.len() {
+                    for j in 0 .. n {
+                        self.input[input_i][j] = input[input_i][i + j];
+                    }
+                }
+                self.source.process(n, self.input_slice.from_refs(&self.input), self.output_slice.from_muts(&mut self.output));
+                for output_i in 0 .. self.output.len() {
+                    for j in 0 .. n {
+                        output[output_i][i + j] = self.output[output_i][j];
+                    }
+                }
+                i += n;
+            }
+        } else {
+            self.source.process(size, input, output);
+        }
+    }
+    fn inputs(&self) -> usize {
+        self.source.inputs()
+    }
+    fn outputs(&self) -> usize {
+        self.source.outputs()
+    }
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.source.route(input, frequency)
+    }
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.source.set(parameter, value);
+    }
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.source.get(parameter)
     }
 }
