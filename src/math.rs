@@ -430,6 +430,11 @@ impl AttoRand {
             state: seed ^ 0x5555555555555555,
         }
     }
+    /// Generator state.
+    #[inline]
+    pub fn state(&self) -> u64 {
+        self.state
+    }
     /// Hashes `data`. Consumes self and returns a new `AttoRand`.
     #[inline]
     pub fn hash(self, data: u64) -> Self {
@@ -559,10 +564,11 @@ pub fn fractal_noise<T: Float>(seed: i64, octaves: i64, roughness: T, x: T) -> T
     let mut total_weight = T::zero();
     let mut frequency = T::one();
     let mut result = T::zero();
-    for octave in 0..octaves {
+    let mut random = AttoRand::new(seed as u64);
+    for _octave in 0..octaves {
         // Employ a pseudorandom offset for each octave.
-        let octave_x = x * frequency + T::from_f64(rnd(seed.wrapping_add(octave)));
-        result += octave_weight * spline_noise(seed, octave_x);
+        let octave_x = x * frequency + random.get01();
+        result += octave_weight * spline_noise(random.state() as i64, octave_x);
         total_weight += octave_weight;
         octave_weight *= roughness;
         frequency *= T::new(2);
