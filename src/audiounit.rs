@@ -5,10 +5,9 @@ use super::combinator::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
-
+use duplicate::duplicate_item;
 use num_complex::Complex64;
 use rsor::Slice;
-use duplicate::duplicate_item;
 
 /// An audio processor with an object safe interface.
 /// Once constructed, it has a fixed number of inputs and outputs.

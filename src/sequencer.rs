@@ -1,15 +1,14 @@
 //! Sequencer unit.
 
-use std::cmp::Eq;
-use std::cmp::Ord;
-use std::cmp::Ordering;
-use std::collections::BinaryHeap;
-
 use super::audiounit::*;
 use super::buffer::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
+use std::cmp::Eq;
+use std::cmp::Ord;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 
 pub struct Event {
     pub unit: Au,
