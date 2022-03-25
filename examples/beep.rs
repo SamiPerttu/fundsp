@@ -78,7 +78,7 @@ where
     // Waveshapers.
     //let c = c >> shape_fn(|x| tanh(x * 5.0));
 
-    //let c = (c | lfo(|t| (xerp11(100.0, 5000.0, sin_hz(0.05, t)), 0.5))) >> moog();
+    //let c = (c | lfo(|t| (xerp11(100.0, 5000.0, sin_hz(0.1, t)), 0.8))) >> moog();
 
     let mut c = c
         >> declick() >> dcblock()

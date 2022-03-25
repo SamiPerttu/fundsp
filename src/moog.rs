@@ -10,12 +10,12 @@ use numeric_array::*;
 /// The number of inputs is `N`, either `U1` or `U3`.
 /// - Input 0: input signal
 /// - Input 1 (optional): cutoff frequency (Hz)
-/// - Input 2 (optional): resonance in 0...1
+/// - Input 2 (optional): Q
 /// - Output 0: filtered signal
 #[derive(Default)]
 pub struct Moog<T: Float, F: Real, N: Size<T>> {
     _marker: std::marker::PhantomData<(T, N)>,
-    resonance: F,
+    q: F,
     cutoff: F,
     sample_rate: F,
     rez: F,
@@ -25,36 +25,31 @@ pub struct Moog<T: Float, F: Real, N: Size<T>> {
     stage1: F,
     stage2: F,
     stage3: F,
-    delay0: F,
-    delay1: F,
-    delay2: F,
-    delay3: F,
+    px: F,
+    ps0: F,
+    ps1: F,
+    ps2: F,
 }
 
 impl<T: Float, F: Real, N: Size<T>> Moog<T, F, N> {
-    pub fn new(sample_rate: f64, cutoff: F, resonance: F) -> Self {
+    pub fn new(sample_rate: f64, cutoff: F, q: F) -> Self {
         let mut node = Self {
             sample_rate: convert(sample_rate),
             ..Self::default()
         };
-        node.set_cutoff(cutoff);
-        node.set_resonance(resonance);
+        node.set_cutoff_q(cutoff, q);
         node
     }
     #[inline]
-    pub fn set_cutoff(&mut self, cutoff: F) {
+    pub fn set_cutoff_q(&mut self, cutoff: F, q: F) {
         self.cutoff = cutoff;
+        self.q = q;
         let c = F::new(2) * cutoff / self.sample_rate;
         self.p = c * (F::from_f64(1.8) - F::from_f64(0.8) * c);
         self.k = F::new(2) * sin(c * F::from_f64(PI * 0.5)) - F::one();
-        self.set_resonance(self.resonance);
-    }
-    #[inline]
-    pub fn set_resonance(&mut self, resonance: F) {
-        self.resonance = resonance;
         let t1 = (F::one() - self.p) * F::from_f64(1.386249);
         let t2 = F::new(12) + t1 * t1;
-        self.rez = resonance * (t2 + F::new(6) * t1) / (t2 - F::new(6) * t1);
+        self.rez = q * (t2 + F::new(6) * t1) / (t2 - F::new(6) * t1);
     }
 }
 
@@ -67,7 +62,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
             self.sample_rate = convert(sample_rate);
-            self.set_cutoff(self.cutoff);
+            self.set_cutoff_q(self.cutoff, self.q);
         }
     }
 
@@ -77,21 +72,20 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         if N::USIZE > 1 {
-            self.resonance = convert(input[2]);
-            self.set_cutoff(convert(input[1]));
+            self.set_cutoff_q(convert(input[1]), convert(input[2]));
         }
 
         let x = -self.rez * self.stage3 + convert(input[0]);
 
-        self.stage0 = x * self.p + self.delay0 * self.p - self.k * self.stage0;
-        self.stage1 = self.stage0 * self.p + self.delay1 * self.p - self.k * self.stage1;
-        self.stage2 = self.stage1 * self.p + self.delay2 * self.p - self.k * self.stage2;
-        self.stage3 = tanh(self.stage2 * self.p + self.delay3 * self.p - self.k * self.stage3);
+        self.stage0 = (x + self.px) * self.p - self.k * self.stage0;
+        self.stage1 = (self.stage0 + self.ps0) * self.p - self.k * self.stage1;
+        self.stage2 = (self.stage1 + self.ps1) * self.p - self.k * self.stage2;
+        self.stage3 = tanh((self.stage2 + self.ps2) * self.p - self.k * self.stage3);
 
-        self.delay0 = x;
-        self.delay1 = self.stage0;
-        self.delay2 = self.stage1;
-        self.delay3 = self.stage2;
+        self.px = x;
+        self.ps0 = self.stage0;
+        self.ps1 = self.stage1;
+        self.ps2 = self.stage2;
 
         [convert(self.stage3)].into()
     }

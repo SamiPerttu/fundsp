@@ -416,7 +416,7 @@ pub fn resonator_hz<T: Float, F: Real>(center: T, bandwidth: T) -> An<Resonator<
 /// Moog resonant lowpass filter.
 /// - Input 0: input signal
 /// - Input 1: cutoff frequency (Hz)
-/// - Input 2: resonance in 0...1
+/// - Input 2: Q
 /// - Output 0: filtered signal
 #[inline]
 pub fn moog<T: Float, F: Real>() -> An<Moog<T, F, U3>> {

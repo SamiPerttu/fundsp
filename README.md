@@ -409,7 +409,7 @@ Verified frequency responses are available for all linear filters.
 
 | Opcode       | Type                   | Parameters   | Family       | Notes     |
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
-| `moog`       | lowpass (4th order)    | frequency, resonance | Moog ladder |    |
+| `moog`       | lowpass (4th order)    | frequency, Q | Moog ladder  |           |
 
 ---
 
@@ -543,7 +543,7 @@ The type parameters in the table refer to the hacker prelude.
 | `mls()`                |    -    |    1    | White [MLS noise](https://en.wikipedia.org/wiki/Maximum_length_sequence) source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
 | `monitor(id)`          |    1    |    1    | Pass-through node that retains the latest value passed through as a parameter that can be queried. |
-| `moog()`               | 3 (audio, frequency, resonance) | 1 | Moog resonant lowpass filter with `resonance` in 0...1. |
+| `moog()`               | 3 (audio, frequency, Q) | 1 | Moog resonant lowpass filter (4th order). |
 | `mul(x)`               |   `x`   |   `x`   | Multiplies signal with constant `x`. |
 | `multijoin::<M, N>()`  | `M * N` |   `M`   | Average `N` branches of `M` channels into one. Inverse of `multisplit`. |
 | `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
