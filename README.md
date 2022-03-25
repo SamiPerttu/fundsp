@@ -544,7 +544,7 @@ The type parameters in the table refer to the hacker prelude.
 | `multitap::<N>(min_delay, max_delay)` | `N + 1` (audio, delay...) | 1 | Tapped delay line with cubic interpolation. Number of taps is `N`. |
 | `multitick::<U>()`     |   `U`   |   `U`   | Multichannel single sample delay. |
 | `multizero::<U>()`     |    -    |   `U`   | Multichannel zero signal. |
-| `noise()`              |    -    |    1    | White noise source. Synonymous with `white`. |
+| `noise()`              |    -    |    1    | [White noise](https://en.wikipedia.org/wiki/White_noise) source. Synonymous with `white`. |
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
 | `notch_hz(f, q)`       |    1    |    1    | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
 | `notch_q(q)`           | 2 (audio, frequency) | 1 | Notch filter (2nd order) with Q `q`. |
@@ -555,7 +555,7 @@ The type parameters in the table refer to the hacker prelude.
 | `peak()`               | 3 (audio, frequency, Q) | 1 | Peaking filter (2nd order). |
 | `peak_hz(f, q)`        |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q`. |
 | `peak_q(q)`            | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q`. |
-| `pink()`               |    -    |    1    | Pink noise. |
+| `pink()`               |    -    |    1    | [Pink noise](https://en.wikipedia.org/wiki/Pink_noise) source. |
 | `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave). |
 | `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain together `U` nodes from indexed generator `f`. |
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain together `U` nodes from fractional generator `f`. |
@@ -586,7 +586,7 @@ The type parameters in the table refer to the hacker prelude.
 | `timer(id)`            |    -    |    -    | Timer node that presents time as a parameter that can be set and queried. |
 | `triangle()`           | 1 (frequency) | 1 | Bandlimited triangle wave oscillator. |
 | `triangle_hz(f)`       |    -    |    1    | Bandlimited triangle wave oscillator at `f` Hz. |
-| `white()`              |    -    |    1    | White noise source. Synonymous with `noise`. |
+| `white()`              |    -    |    1    | [White noise](https://en.wikipedia.org/wiki/White_noise) source. Synonymous with `noise`. |
 | `zero()`               |    -    |    1    | Zero signal. |
 
 #### Subsampled Controls
@@ -688,9 +688,10 @@ The `monitor(id)` opcode is a pass-through node that presents the latest value p
 | `exp2(x)`              | 2 to the power of `x` |
 | `floor(x)`             | floor function |
 | `fract(x)`             | fract function |
+| `fractal_noise(seed, octaves, roughness, x)` | fractal spline noise (`octaves` > 0, `roughness` > 0) |
 | `id(x)`                | identity function (linear easing function) |
-| `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` with `t` in 0...1. |
-| `lerp11(x0, x1, t)`    | linear interpolation between `x0` and `x1` with `t` in -1...1. |
+| `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` with `t` in 0...1 |
+| `lerp11(x0, x1, t)`    | linear interpolation between `x0` and `x1` with `t` in -1...1 |
 | `log(x)`               | natural logarithm |
 | `log10(x)`             | base 10 logarithm |
 | `log2(x)`              | binary logarithm |

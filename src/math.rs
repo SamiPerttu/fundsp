@@ -548,3 +548,24 @@ pub fn spline_noise<T: Float>(seed: i64, x: T) -> T {
     // Maximum overshoot occurs with spline(-1.0, 1.0, 1.0, -1.0, 0.5).
     spline(y0, y1, y2, y3, dx) / T::from_f32(1.25)
 }
+
+/// 1-D fractal spline noise in -1...1.
+/// Sums octaves (`octaves` > 0) of spline noise.
+/// The lowest frequency of the noise is 1, with each successive octave doubling in frequency.
+/// Roughness (`roughness` > 0) is the multiplicative weighting of successive octaves.
+pub fn fractal_noise<T: Float>(seed: i64, octaves: i64, roughness: T, x: T) -> T {
+    assert!(octaves > 0);
+    let mut octave_weight = T::one();
+    let mut total_weight = T::zero();
+    let mut frequency = T::one();
+    let mut result = T::zero();
+    for octave in 0..octaves {
+        // Employ a pseudorandom offset for each octave.
+        let octave_x = x * frequency + T::from_f64(rnd(seed.wrapping_add(octave)));
+        result += octave_weight * spline_noise(seed, octave_x);
+        total_weight += octave_weight;
+        octave_weight *= roughness;
+        frequency *= T::new(2);
+    }
+    result / total_weight
+}
