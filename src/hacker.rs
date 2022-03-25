@@ -10,6 +10,7 @@ pub use super::feedback::*;
 pub use super::filter::*;
 pub use super::fir::*;
 pub use super::math::*;
+pub use super::moog::*;
 pub use super::noise::*;
 pub use super::oscillator::*;
 pub use super::oversample::*;
@@ -381,6 +382,16 @@ pub fn resonator() -> An<Resonator<f64, f64, U3>> {
 #[inline]
 pub fn resonator_hz(center: f64, bandwidth: f64) -> An<Resonator<f64, f64, U1>> {
     super::prelude::resonator_hz(center, bandwidth)
+}
+
+/// Moog resonant lowpass filter.
+/// - Input 0: input signal
+/// - Input 1: cutoff frequency (Hz)
+/// - Input 2: resonance in 0...1
+/// - Output 0: filtered signal
+#[inline]
+pub fn moog() -> An<Moog<f64, f64, U3>> {
+    An(Moog::new(DEFAULT_SR, 1000.0, 0.1))
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.

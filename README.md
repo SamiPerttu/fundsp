@@ -376,10 +376,9 @@ However, with appropriate scaling a 3-point FIR can vanish, too:
 assert!((0.5 * pass() & tick() & 0.5 * tick() >> tick()).response(0, 22050.0).unwrap().norm() < 1.0e-9);
 ```
 
-### List of Filters
+### List of Linear Filters
 
-All filters in the list are linear.
-Verified frequency responses are available for all filters.
+Verified frequency responses are available for all linear filters.
 
 ---
 
@@ -403,6 +402,14 @@ Verified frequency responses are available for all filters.
 | `peak`       | peaking (2nd order)    | frequency, Q | Simper SVF   | |
 | `pinkpass`   | lowpass (3 dB/octave)  | -            | mixed FIR / 1st order | Turns white noise into pink noise. |
 | `resonator`  | bandpass (2nd order)   | frequency, bandwidth | biquad | Gain stays constant as bandwidth is varied. |
+
+### List of Nonlinear Filters
+
+---
+
+| Opcode       | Type                   | Parameters   | Family       | Notes     |
+| ------------ | ---------------------- | ------------ | ------------ | --------- |
+| `moog`       | lowpass (4th order)    | frequency, resonance | Moog ladder |    |
 
 ---
 
@@ -536,6 +543,7 @@ The type parameters in the table refer to the hacker prelude.
 | `mls()`                |    -    |    1    | White [MLS noise](https://en.wikipedia.org/wiki/Maximum_length_sequence) source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
 | `monitor(id)`          |    1    |    1    | Pass-through node that retains the latest value passed through as a parameter that can be queried. |
+| `moog()`               | 3 (audio, frequency, resonance) | 1 | Moog resonant lowpass filter with `resonance` in 0...1. |
 | `mul(x)`               |   `x`   |   `x`   | Multiplies signal with constant `x`. |
 | `multijoin::<M, N>()`  | `M * N` |   `M`   | Average `N` branches of `M` channels into one. Inverse of `multisplit`. |
 | `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |

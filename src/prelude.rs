@@ -10,6 +10,7 @@ pub use super::feedback::*;
 pub use super::filter::*;
 pub use super::fir::*;
 pub use super::math::*;
+pub use super::moog::*;
 pub use super::noise::*;
 pub use super::oscillator::*;
 pub use super::oversample::*;
@@ -409,6 +410,20 @@ pub fn resonator_hz<T: Float, F: Real>(center: T, bandwidth: T) -> An<Resonator<
         convert(DEFAULT_SR),
         convert(center),
         convert(bandwidth),
+    ))
+}
+
+/// Moog resonant lowpass filter.
+/// - Input 0: input signal
+/// - Input 1: cutoff frequency (Hz)
+/// - Input 2: resonance in 0...1
+/// - Output 0: filtered signal
+#[inline]
+pub fn moog<T: Float, F: Real>() -> An<Moog<T, F, U3>> {
+    An(Moog::new(
+        convert(DEFAULT_SR),
+        F::new(1000),
+        F::from_f64(0.1),
     ))
 }
 
