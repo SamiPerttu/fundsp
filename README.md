@@ -533,7 +533,7 @@ The type parameters in the table refer to the hacker prelude.
 | `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `lowshelf_q(q, gain)`  | 2 (audio, frequency) | 1 | Low shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `map(f)`               |   `f`   |   `f`   | Map channels freely, e.g., `map(\|i: &Frame<f64, U2>\| max(i[0], i[1]))`. |
-| `mls()`                |    -    |    1    | White MLS noise source. |
+| `mls()`                |    -    |    1    | White [MLS noise](https://en.wikipedia.org/wiki/Maximum_length_sequence) source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
 | `monitor(id)`          |    1    |    1    | Pass-through node that retains the latest value passed through as a parameter that can be queried. |
 | `mul(x)`               |   `x`   |   `x`   | Multiplies signal with constant `x`. |
@@ -647,8 +647,9 @@ These are arguments to the `shape` opcode.
 
 Tagged single channel constants can be instantiated with `tag(id, value)`, where `id` is `i64` and the initial value `value` is `f64`.
 
-Tagged constants enable a simple parameter system where a value can be set (recursively) with `set(id, value)` and queried (recursively) with `get(id)`. `set` sets all matching parameters to the value, while `get` retrieves the first matching
-parameter, if any.
+Tagged constants enable a simple parameter system where a parameter can be set (recursively) with `set(id, value)`
+and queried (recursively) with `get(id)`. `set` sets all matching parameters to the value,
+while `get` retrieves the first matching parameter, if any.
 
 The `timer(id)` opcode instantiates current time in seconds as a parameter that can be queried.
 It has no inputs or outputs; it can be added to any node by stacking.
@@ -682,7 +683,7 @@ The `monitor(id)` opcode is a pass-through node that presents the latest value p
 | `dissonance_max(f)`    | maximally dissonant pure frequency above `f` Hz |
 | `downarc(x)`           | concave quarter circle easing curve (inverse function of `uparc` in 0...1) |
 | `ease_noise(ease, seed, x)` |  value noise in -1...1 interpolated with easing function `ease`, e.g., `smooth3` |
-| `ease_noise((rise, fall), seed, x)` | value noise in -1...1 interpolated with easing function `rise` in rising segments and `fall` in falling segments, e.g., `(uparc, id)` |
+| `ease_noise((rise, fall), seed, x)` | value noise in -1...1 interpolated with easing function `rise` in rising segments and `fall` in falling segments, e.g., `(uparc, downarc)` |
 | `exp(x)`               | exp |
 | `exp10(x)`             | 10 to the power of `x` |
 | `exp2(x)`              | 2 to the power of `x` |
