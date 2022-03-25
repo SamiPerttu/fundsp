@@ -427,6 +427,25 @@ pub fn moog<T: Float, F: Real>() -> An<Moog<T, F, U3>> {
     ))
 }
 
+/// Moog resonant lowpass filter with fixed Q.
+/// - Input 0: input signal
+/// - Input 1: cutoff frequency (Hz)
+/// - Output 0: filtered signal
+#[inline]
+pub fn moog_q<T: Float, F: Real>(
+    q: T,
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U1, T>>, Moog<T, F, U3>>> {
+    (multipass::<U2, T>() | dc(q)) >> An(Moog::new(convert(DEFAULT_SR), F::new(1000), convert(q)))
+}
+
+/// Moog resonant lowpass filter with fixed cutoff frequency and Q.
+/// - Input 0: input signal
+/// - Output 0: filtered signal
+#[inline]
+pub fn moog_hz<T: Float, F: Real>(frequency: F, q: F) -> An<Moog<T, F, U1>> {
+    An(Moog::new(convert(DEFAULT_SR), frequency, q))
+}
+
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `lfo`.
