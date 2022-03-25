@@ -859,7 +859,7 @@ An attached utility, `examples/type.rs`, can unscramble such opaque types.
 This invocation prints the above type:
 
 ```sh
-cargo run --example type -- "fundsp::combinator::An<Bus<f64, Noise<f64>, Pipe<f64, Constant<f64, typenum::uint::UInt<typenum::uint::UTerm, typenum::bit::B1>>, Sine<f64>>>>"
+cargo run --example type -- "fundsp::combinator::An<Bus<f64, Noise<f64>, Pipe<f64, Constant<typenum::uint::UInt<typenum::uint::UTerm, typenum::bit::B1>, f64>, Sine<f64>>>>"
 ```
 
 ---
