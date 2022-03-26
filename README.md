@@ -757,6 +757,16 @@ These math functions have the shape of an easing function.
 
 ---
 
+### Noise Functions
+
+![](fractal_noise.png "fractal_noise example")
+
+---
+
+![](ease_noise.png "ease_noise example")
+
+---
+
 ## Examples
 
 Some examples of graph expressions.

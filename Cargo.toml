@@ -22,7 +22,8 @@ duplicate = "0.4.0"
 
 [dev-dependencies]
 cpal = "0.13.5"
-anyhow = "1.0.55"
+anyhow = "1.0.56"
+plotters = "0.3.1"
 
 [features]
 default = []
@@ -42,6 +43,10 @@ path = "examples/sequence.rs"
 [[example]]
 name = "type"
 path = "examples/type.rs"
+
+[[example]]
+name = "plot"
+path = "examples/plot.rs"
 
 [package.metadata.docs.rs]
 rustc-args = ["--all-features", "--cfg", "docsrs"]
