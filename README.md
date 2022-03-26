@@ -761,8 +761,6 @@ These math functions have the shape of an easing function.
 
 ![](fractal_noise.png "fractal_noise example")
 
----
-
 ![](ease_noise.png "ease_noise example")
 
 ---
