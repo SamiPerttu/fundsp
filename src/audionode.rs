@@ -126,6 +126,56 @@ pub trait AudioNode {
         Self::Outputs::USIZE
     }
 
+    /// Evaluate frequency response of `output` at `frequency` Hz.
+    /// Any linear response can be composed.
+    /// Return `None` if there is no response or it could not be calculated.
+    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+        assert!(output < self.outputs());
+        let mut input = new_signal_frame(self.inputs());
+        for i in 0..self.inputs() {
+            input[i] = Signal::Response(Complex64::new(1.0, 0.0), 0.0);
+        }
+        let response = self.route(&input, frequency);
+        match response[output] {
+            Signal::Response(rx, _) => Some(rx),
+            _ => None,
+        }
+    }
+
+    /// Evaluate frequency response of `output` in dB at `frequency Hz`.
+    /// Any linear response can be composed.
+    /// Return `None` if there is no response or it could not be calculated.
+    fn response_db(&self, output: usize, frequency: f64) -> Option<f64> {
+        assert!(output < self.outputs());
+        self.response(output, frequency).map(|r| amp_db(r.norm()))
+    }
+
+    /// Causal latency in (fractional) samples.
+    /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
+    /// The latency can depend on the sample rate and is allowed to change after `reset`.
+    fn latency(&self) -> Option<f64> {
+        if self.outputs() == 0 {
+            return None;
+        }
+        let mut input = new_signal_frame(self.inputs());
+        for i in 0..self.inputs() {
+            input[i] = Signal::Latency(0.0);
+        }
+        // The frequency argument can be anything as there are no responses to propagate,
+        // only latencies. Latencies are never promoted to responses during signal routing.
+        let response = self.route(&input, 1.0);
+        // Return the minimum latency.
+        let mut result: Option<f64> = None;
+        for output in 0..self.outputs() {
+            match (result, response[output]) {
+                (None, Signal::Latency(x)) => result = Some(x),
+                (Some(r), Signal::Latency(x)) => result = Some(r.min(x)),
+                _ => (),
+            }
+        }
+        result
+    }
+
     /// Retrieve the next mono sample from a generator.
     /// The node must have no inputs and exactly 1 output.
     #[inline]

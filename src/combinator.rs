@@ -572,3 +572,108 @@ where
         An(Stack::new(self.0, y.0))
     }
 }
+
+impl<T, X> std::fmt::Debug for An<X>
+where
+    T: Float,
+    X: AudioNode<Sample = T>,
+{
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut string = String::new();
+
+        if self.inputs() > 0 && self.outputs() > 0 && self.response_db(0, 440.0).is_some() {
+            let scope = [
+                b"------------------------------------------------",
+                b"                                                ",
+                b"------------------------------------------------",
+                b"                                                ",
+                b"------------------------------------------------",
+                b"                                                ",
+                b"------------------------------------------------",
+                b"                                                ",
+                b"------------------------------------------------",
+                b"                                                ",
+                b"------------------------------------------------",
+                b"                                                ",
+                b"------------------------------------------------",
+            ];
+
+            let mut scope: Vec<_> = scope.iter().map(|x| x.to_vec()).collect();
+
+            let f: [f64; 48] = [
+                10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 120.0, 140.0, 160.0,
+                180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0,
+                1000.0, 1200.0, 1400.0, 1600.0, 1800.0, 2000.0, 2500.0, 3000.0, 3500.0, 4000.0,
+                4500.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 12000.0, 14000.0, 16000.0,
+                18000.0, 20000.0, 22000.0,
+            ];
+
+            let r: Vec<_> = f
+                .iter()
+                .map(|&f| (self.response_db(0, f).unwrap(), f))
+                .collect();
+
+            let epsilon_db = 1.0e-2;
+            let max_r = r.iter().fold((-f64::INFINITY, None), {
+                |acc, &x| {
+                    if abs(acc.0 - x.0) <= epsilon_db {
+                        (max(acc.0, x.0), None)
+                    } else if acc.0 > x.0 {
+                        acc
+                    } else {
+                        (x.0, Some(x.1))
+                    }
+                }
+            });
+            let max_db = ceil(max_r.0 / 10.0) * 10.0;
+
+            for i in 0..f.len() {
+                let row = (max_db - r[i].0) / 5.0;
+                let mut j = floor(row) as usize;
+                let mut c = if row - floor(row) <= 0.5 { b'*' } else { b'.' };
+                while j < scope.len() {
+                    scope[j][i] = c;
+                    j += 1;
+                    c = b'*';
+                }
+            }
+
+            for (row, ascii_line) in scope.into_iter().enumerate() {
+                let line = String::from_utf8(ascii_line).unwrap();
+                if row & 1 == 0 {
+                    let db = round(max_db - row as f64 * 5.0) as i64;
+                    string.push_str(&format!("{:3} dB {} {:3} dB\n", db, line, db));
+                } else {
+                    string.push_str(&format!("       {}\n", line));
+                }
+            }
+
+            string.push_str("       |   |    |    |     |    |    |     |    |    |\n");
+            string.push_str("       10  50   100  200   500  1k   2k    5k   10k  20k Hz\n\n");
+
+            string.push_str(&format!("Peak Magnitude : {:.2} dB", max_r.0));
+
+            match max_r.1 {
+                Some(frequency) => {
+                    string.push_str(&format!(" ({} Hz)\n", frequency as i64));
+                }
+                _ => {
+                    string.push('\n');
+                }
+            }
+        }
+
+        string.push_str(&format!("Inputs         : {}\n", self.inputs()));
+        string.push_str(&format!("Outputs        : {}\n", self.outputs()));
+        string.push_str(&format!(
+            "Latency        : {:.1} samples\n",
+            self.latency().unwrap_or(0.0)
+        ));
+        string.push_str(&format!(
+            "Footprint      : {} bytes\n",
+            std::mem::size_of::<X>()
+        ));
+
+        formatter.write_str(&string)
+    }
+}
