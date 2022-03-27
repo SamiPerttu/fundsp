@@ -400,3 +400,123 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
         output
     }
 }
+
+/// Metering modes.
+#[derive(Copy, Clone)]
+pub enum Meter {
+    Latest,
+    Peak(f64),
+    Rms(f64),
+    Goertzel(f64),
+}
+
+impl Meter {
+    pub fn latest_only(&self) -> bool {
+        matches!(self, Meter::Latest)
+    }
+}
+
+pub struct MeterState<T: Real> {
+    detector: Detector<T>,
+    state: T,
+}
+
+impl<T: Real> MeterState<T> {
+    pub fn new(meter: Meter, sample_rate: f64) -> Self {
+        let mut state = Self {
+            detector: Detector::default(),
+            state: T::zero(),
+        };
+        if let Meter::Goertzel(frequency) = meter {
+            state
+                .detector
+                .set_frequency(T::from_f64(sample_rate), T::from_f64(frequency))
+        }
+        state
+    }
+
+    /// Process an input sample. Returns the new meter state.
+    pub fn tick(&mut self, meter: Meter, value: T) {
+        match meter {
+            Meter::Latest => self.state = value,
+            Meter::Peak(smoothing) => self.state = max(self.state * convert(smoothing), abs(value)),
+            Meter::Rms(smoothing) => {
+                self.state =
+                    self.state * convert(smoothing) + value * value * convert(1.0 - smoothing)
+            }
+            Meter::Goertzel(_frequency) => self.detector.tick(value),
+        }
+    }
+
+    pub fn value(&self, meter: Meter) -> T {
+        match meter {
+            Meter::Latest => self.state,
+            Meter::Peak(_) => self.state,
+            Meter::Rms(_) => sqrt(self.state),
+            Meter::Goertzel(_) => self.detector.power(),
+        }
+    }
+}
+
+/// Pass through input unchanged.
+/// Latest input value can be queried as a read-only parameter.
+pub struct Monitor<T: Real> {
+    tag: Tag,
+    meter: Meter,
+    state: MeterState<T>,
+}
+
+impl<T: Real> Monitor<T> {
+    /// Create a new monitor node.
+    pub fn new(tag: Tag, sample_rate: f64, meter: Meter) -> Self {
+        Self {
+            tag,
+            meter,
+            state: MeterState::new(meter, sample_rate),
+        }
+    }
+}
+
+impl<T: Real> AudioNode for Monitor<T> {
+    const ID: u64 = 56;
+    type Sample = T;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        self.state.tick(self.meter, input[0]);
+        *input
+    }
+
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        if self.meter.latest_only() {
+            self.state.tick(self.meter, input[0][size - 1]);
+        } else {
+            for i in 0..size {
+                self.state.tick(self.meter, input[0][i]);
+            }
+        }
+        output[0][..size].clone_from_slice(&input[0][..size]);
+    }
+
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        input.clone()
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        if self.tag == parameter {
+            Some(self.state.value(self.meter).to_f64())
+        } else {
+            None
+        }
+    }
+}

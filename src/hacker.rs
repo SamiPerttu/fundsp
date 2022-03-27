@@ -221,8 +221,8 @@ pub fn timer(tag: Tag) -> An<Timer<f64>> {
 
 /// Monitor node. Passes through input and retains the latest input as a parameter.
 #[inline]
-pub fn monitor(tag: Tag) -> An<Monitor<f64>> {
-    An(Monitor::new(tag))
+pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f64>> {
+    An(Monitor::new(tag, DEFAULT_SR, meter))
 }
 
 /// Mono sink. Input is discarded.

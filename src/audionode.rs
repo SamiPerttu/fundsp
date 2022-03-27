@@ -299,64 +299,6 @@ impl<T: Float> AudioNode for Pass<T> {
     }
 }
 
-/// Pass through input unchanged.
-/// Latest input value can be queried as a read-only parameter.
-#[derive(Default)]
-pub struct Monitor<T> {
-    _marker: PhantomData<T>,
-    tag: Tag,
-    value: T,
-}
-
-impl<T: Float> Monitor<T> {
-    /// Create a new monitor node.
-    pub fn new(tag: Tag) -> Self {
-        Self {
-            _marker: PhantomData::default(),
-            tag,
-            value: T::zero(),
-        }
-    }
-}
-
-impl<T: Float> AudioNode for Monitor<T> {
-    const ID: u64 = 56;
-    type Sample = T;
-    type Inputs = U1;
-    type Outputs = U1;
-
-    #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        self.value = input[0];
-        *input
-    }
-
-    fn process(
-        &mut self,
-        size: usize,
-        input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
-        self.value = input[0][size - 1];
-        output[0][..size].clone_from_slice(&input[0][..size]);
-    }
-
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        input.clone()
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        if self.tag == parameter {
-            Some(self.value.to_f64())
-        } else {
-            None
-        }
-    }
-}
-
 /// Present time as a parameter. The time can be set as well.
 #[derive(Default)]
 pub struct Timer<T> {

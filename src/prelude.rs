@@ -221,8 +221,8 @@ pub fn timer<T: Float>(tag: Tag) -> An<Timer<T>> {
 
 /// Monitor node. Passes through input and retains the latest input as a parameter.
 #[inline]
-pub fn monitor<T: Float>(tag: Tag) -> An<Monitor<T>> {
-    An(Monitor::new(tag))
+pub fn monitor<T: Real>(meter: Meter, tag: Tag) -> An<Monitor<T>> {
+    An(Monitor::new(tag, DEFAULT_SR, meter))
 }
 
 /// Mono sink. Input is discarded.

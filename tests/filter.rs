@@ -224,7 +224,7 @@ fn test_responses() {
     test_response(pan(0.5) >> join());
     test_response(pan(0.0) >> join());
     test_response(pan(-1.0) >> multijoin::<U1, U2>());
-    test_response(fir((0.5, 0.5)) >> monitor(0));
+    test_response(fir((0.5, 0.5)) >> monitor(Meter::Latest, 0));
     test_response(fir((0.25, 0.5, 0.25)) | timer(0));
     test_response(fir((0.4, 0.3, 0.2, 0.1)));
 }

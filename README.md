@@ -129,7 +129,7 @@ It is useful to keep parameters independent of the sample rate, which we can the
 In addition to sample rate adjustments, natural units enable support for
 selective oversampling in nested sections that are easy to configure and modify.
 
-Some low-level components ignore the sample rate by design, such as the single sample delay `tick()`.
+Some low-level components ignore the sample rate by design, such as the single sample delay `tick`.
 
 The default sample rate is 44.1 kHz.
 In both systems, a component `A` can be reinitialized with a new sample rate: `A.reset(Some(sr))`.
@@ -405,11 +405,14 @@ Verified frequency responses are available for all linear filters.
 
 ### List of Nonlinear Filters
 
+Unlike linear filters, nonlinear filters may be sensitive to incoming signal level.
+Due to nonlinearity, we do not attempt to calculate frequency responses for these filters.
+
 ---
 
 | Opcode       | Type                   | Parameters   | Family       | Notes     |
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
-| `moog`       | lowpass (4th order)    | frequency, Q | Moog ladder  |           |
+| `moog`       | lowpass (4th order)    | frequency, Q | Moog ladder  | Sensitive to input level. |
 
 ---
 
@@ -542,7 +545,7 @@ The type parameters in the table refer to the hacker prelude.
 | `map(f)`               |   `f`   |   `f`   | Map channels freely, e.g., `map(\|i: &Frame<f64, U2>\| max(i[0], i[1]))`. |
 | `mls()`                |    -    |    1    | White [MLS noise](https://en.wikipedia.org/wiki/Maximum_length_sequence) source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
-| `monitor(id)`          |    1    |    1    | Pass-through node that retains the latest value passed through as a parameter that can be queried. |
+| `monitor(mode, id)`    |    1    |    1    | Pass-through node that analyzes data passed through as a parameter that can be queried. |
 | `moog()`               | 3 (audio, frequency, Q) | 1 | Moog resonant lowpass filter (4th order). |
 | `moog_hz(f, q)`        |    1    |    1    | Moog resonant lowpass filter (4th order) with cutoff frequency `f` and resonance `q`. |
 | `moog_q(q)`            | 2 (audio, frequency) | 1 | Moog resonant lowpass filter (4th order) with resonance `q`. |
@@ -664,7 +667,15 @@ while `get` retrieves the first matching parameter, if any.
 The `timer(id)` opcode instantiates current time in seconds as a parameter that can be queried.
 It has no inputs or outputs; it can be added to any node by stacking.
 
-The `monitor(id)` opcode is a pass-through node that presents the latest value passed through as a parameter.
+#### Monitor Modes
+
+The `monitor(mode, id)` opcode is a pass-through node that presents
+some aspect of data passed through as parameter `id`. Metering modes are:
+
+- `Meter::Latest`: Retains the latest value passed through.
+- `Meter::Peak(smoothing)`: Peak amplitude meter with `smoothing` as per-sample smoothing factor in 0...1.
+- `Meter::Rms(smoothing)`: Root mean square meter with `smoothing` as per-sample smoothing factor in 0...1.
+- `Meter::Goertzel(frequency)`: Detects presence of a single frequency. Outputs detected power.
 
 ---
 
