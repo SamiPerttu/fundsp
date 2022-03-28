@@ -494,7 +494,7 @@ impl<T: Real> MeterNode<T> {
 }
 
 impl<T: Real> AudioNode for MeterNode<T> {
-    const ID: u64 = 56;
+    const ID: u64 = 61;
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;

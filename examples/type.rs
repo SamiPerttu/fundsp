@@ -1,9 +1,9 @@
 /// This example utility "unscrambles" FunDSP type names reported from the compiler.
 ///
 /// For example,
-/// cargo run --example type -- "An<Bus<f64, Noise<f64>, Pipe<f64, fundsp::audionode::Constant<f64, typenum::uint::UInt<typenum::uint::UTerm, typenum::bit::B1>>, Sine<f64>>>>"
+/// cargo run --example type -- "An<Bus<f64, Noise<f64>, Pipe<f64, fundsp::audionode::Constant<typenum::uint::UInt<typenum::uint::UTerm, typenum::bit::B1>, f64>, Sine<f64>>>>"
 /// prints
-/// An<Bus<f64, Noise<f64>, Pipe<f64, Constant<f64, U1>, Sine<f64>>>>
+/// An<Bus<f64, Noise<f64>, Pipe<f64, Constant<U1, f64>, Sine<f64>>>>
 
 fn remove_string(text: &mut String, what: &str) {
     while let Some(position) = text.find(what) {
@@ -56,10 +56,12 @@ fn main() {
     remove_string(&mut arg, "filter::");
     remove_string(&mut arg, "fir::");
     remove_string(&mut arg, "math::");
+    remove_string(&mut arg, "moog::");
     remove_string(&mut arg, "noise::");
     remove_string(&mut arg, "oscillator::");
     remove_string(&mut arg, "oversample::");
     remove_string(&mut arg, "pan::");
+    remove_string(&mut arg, "prelude::");
     remove_string(&mut arg, "sequencer::");
     remove_string(&mut arg, "shape::");
     remove_string(&mut arg, "signal::");

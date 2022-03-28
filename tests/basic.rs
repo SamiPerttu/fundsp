@@ -205,6 +205,10 @@ fn test_basic() {
     check_wave_filter(&input, butterpass_hz(1000.0) | lowpole_hz(100.0));
     check_wave_filter(&input, allpole_delay(0.5) | highpole_hz(500.0));
     check_wave_filter(&input, pluck(60.0, 0.9, 0.8) | pluck(110.0, 0.5, 0.1));
+    check_wave_filter(
+        &input,
+        (pass() | dc((2000.0, 5.0, 0.8))) >> morph() | bell_hz(440.0, 1.0, 2.0),
+    );
 
     // Constants.
     let mut d = constant(1.0);

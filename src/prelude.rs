@@ -213,7 +213,8 @@ pub fn multipass<N: Size<T>, T: Float>() -> An<MultiPass<N, T>> {
     An(MultiPass::new())
 }
 
-/// Timer node. An empty node that presents time as a parameter.
+/// Timer node. A node with no inputs or outputs that presents time as a parameter.
+/// It can be added to any node by stacking.
 #[inline]
 pub fn timer<T: Float>(tag: Tag) -> An<Timer<T>> {
     An(Timer::new(DEFAULT_SR, tag))
@@ -360,7 +361,7 @@ pub fn lowpole_hz<T: Float, F: Real>(f: T) -> An<Lowpole<T, F, U1>> {
     An(Lowpole::new(DEFAULT_SR, convert(f)))
 }
 
-/// Allpole filter with a configurable delay (delay > 0) in samples at DC.
+/// Allpass filter with a configurable delay (delay > 0) in samples at DC.
 /// - Input 0: audio
 /// - Input 1: delay in samples
 /// - Output 0: filtered audio
@@ -369,7 +370,7 @@ pub fn allpole<T: Float, F: Float>() -> An<Allpole<T, F, U2>> {
     An(Allpole::new(DEFAULT_SR, F::new(1)))
 }
 
-/// Allpole filter with delay (delay > 0) in samples at DC.
+/// Allpass filter with delay (delay > 0) in samples at DC.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
@@ -451,38 +452,6 @@ pub fn moog_q<T: Float, F: Real>(
 #[inline]
 pub fn moog_hz<T: Float, F: Real>(frequency: F, q: F) -> An<Moog<T, F, U1>> {
     An(Moog::new(convert(DEFAULT_SR), frequency, q))
-}
-
-/// Morphing filter that morphs between lowpass, peak and highpass modes.
-/// - Input 0: input signal
-/// - Input 1: center frequency (Hz)
-/// - Input 2: Q
-/// - Input 3: morph in -1...1 (-1 = lowpass, 0 = peak, 1 = highpass)
-/// - Output 0: filtered signal
-pub fn morph<T: Real, F: Real>() -> An<
-    Bus<
-        T,
-        Stack<T, Svf<T, F, PeakMode<F>>, Sink<U1, T>>,
-        Pipe<
-            T,
-            Stack<T, Stack<T, Stack<T, Pass<T>, Sink<U1, T>>, Sink<U1, T>>, Shaper<T>>,
-            Binop<T, FrameMul<U1, T>, Pass<T>, Pass<T>>,
-        >,
-    >,
-> {
-    (peak() | sink()) & (pass() | sink() | sink() | clip()) >> pass() * pass()
-}
-
-/// Morphing filter with center frequency `f`, Q value `q`, and morph `morph`
-/// (-1 = lowpass, 0 = peaking, 1 = highpass).
-/// - Input 0: input signal
-/// - Output 0: filtered signal
-pub fn morph_hz<T: Real, F: Real>(
-    f: T,
-    q: T,
-    morph: T,
-) -> An<Bus<T, FixedSvf<T, F, PeakMode<F>>, Binop<T, FrameMul<U1, T>, Pass<T>, Constant<U1, T>>>> {
-    peak_hz(f, q) & pass() * dc(morph)
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
@@ -1863,4 +1832,103 @@ impl<T: Float> AudioNode for PulseWave<T> {
 #[inline]
 pub fn pulse<T: Float>() -> An<PulseWave<T>> {
     An(PulseWave::new())
+}
+
+/// Morphing filter that morphs between lowpass, peak and highpass modes.
+/// - Input 0: input signal
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Input 3: morph in -1...1 (-1 = lowpass, 0 = peak, 1 = highpass)
+/// - Output 0: filtered signal
+pub struct Morph<T: Float, F: Real> {
+    filter: Svf<T, F, PeakMode<F>>,
+    morph: T,
+}
+
+impl<T: Float, F: Real> Morph<T, F> {
+    pub fn new(sample_rate: f64, cutoff: F, q: F, morph: T) -> Self {
+        let params = SvfParams {
+            sample_rate: convert(sample_rate),
+            cutoff,
+            q,
+            gain: F::zero(),
+        };
+        let mut node = Self {
+            filter: Svf::new(PeakMode::new(), &params),
+            morph,
+        };
+        let hash = node.ping(true, AttoRand::new(Self::ID));
+        node.ping(false, hash);
+        node
+    }
+}
+
+impl<T: Float, F: Real> AudioNode for Morph<T, F> {
+    const ID: u64 = 62;
+    type Sample = T;
+    type Inputs = U4;
+    type Outputs = U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.filter.reset(sample_rate);
+    }
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        self.morph = input[3];
+        let filter_out = self.filter.tick(Frame::from_slice(&input[0..3]));
+        [(filter_out[0] + input[3] * input[0]) * T::from_f32(0.5)].into()
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.filter.process(size, &input[0..3], output);
+        for i in 0..size {
+            output[0][i] = (output[0][i] + input[0][i] * input[3][i]) * T::from_f32(0.5);
+        }
+        self.morph = input[3][size - 1];
+    }
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = self.filter.route(input, frequency);
+        output[0] = output[0].filter(0.0, |r| {
+            (r + Complex64::new(self.morph.to_f64(), 0.0)) * 0.5
+        });
+        output
+    }
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.filter.ping(probe, hash).hash(Self::ID)
+    }
+}
+
+/// Morphing filter that morphs between lowpass, peak and highpass modes.
+/// - Input 0: input signal
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Input 3: morph in -1...1 (-1 = lowpass, 0 = peak, 1 = highpass)
+/// - Output 0: filtered signal
+pub fn morph<T: Real, F: Real>() -> An<Morph<T, F>> {
+    An(Morph::new(DEFAULT_SR, F::new(440), F::one(), T::zero()))
+}
+
+/// Morphing filter with center frequency `f`, Q value `q`, and morph `morph`
+/// (-1 = lowpass, 0 = peaking, 1 = highpass).
+/// - Input 0: input signal
+/// - Output 0: filtered signal
+pub fn morph_hz<T: Real, F: Real>(
+    f: T,
+    q: T,
+    morph: T,
+) -> An<Pipe<T, Stack<T, Pass<T>, Constant<U3, T>>, Morph<T, F>>> {
+    (pass() | dc((f, q, morph)))
+        >> An(Morph::new(
+            DEFAULT_SR,
+            convert(f),
+            convert(q),
+            convert(morph),
+        ))
 }

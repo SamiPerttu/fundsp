@@ -229,4 +229,6 @@ fn test_responses() {
     test_response(fir((0.4, 0.3, 0.2, 0.1)));
     test_response(morph_hz(1000.0, 1.0, 0.5));
     test_response(morph_hz(2000.0, 2.0, -0.5));
+    test_response((pass() | dc((1000.0, 0.5, 0.5))) >> morph());
+    test_response((pass() | dc((500.0, 2.0, -1.0))) >> morph());
 }

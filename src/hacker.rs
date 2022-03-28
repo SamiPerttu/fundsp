@@ -213,7 +213,8 @@ pub fn multipass<N: Size<f64>>() -> An<MultiPass<N, f64>> {
     An(MultiPass::new())
 }
 
-/// Timer node. An empty node that presents time as a parameter.
+/// Timer node. A node with no inputs or outputs that presents time as a parameter.
+/// It can be added to any node by stacking.
 #[inline]
 pub fn timer(tag: Tag) -> An<Timer<f64>> {
     An(Timer::new(DEFAULT_SR, tag))
@@ -339,7 +340,7 @@ pub fn lowpole_hz(f: f64) -> An<Lowpole<f64, f64, U1>> {
     super::prelude::lowpole_hz(f)
 }
 
-/// Allpole filter with adjustable delay (delay > 0) in samples at DC.
+/// Allpass filter with adjustable delay (delay > 0) in samples at DC.
 /// - Input 0: audio
 /// - Input 1: delay in samples
 /// - Output 0: filtered audio
@@ -348,7 +349,7 @@ pub fn allpole() -> An<Allpole<f64, f64, U2>> {
     An(Allpole::new(DEFAULT_SR, 1.0))
 }
 
-/// Allpole filter with delay (delay > 0) in samples at DC.
+/// Allpass filter with delay (delay > 0) in samples at DC.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
@@ -426,21 +427,7 @@ pub fn moog_hz(frequency: f64, q: f64) -> An<Moog<f64, f64, U1>> {
 /// - Input 2: Q
 /// - Input 3: morph in -1...1 (-1 = lowpass, 0 = peak, 1 = highpass)
 /// - Output 0: filtered signal
-pub fn morph() -> An<
-    Bus<
-        f64,
-        Stack<f64, Svf<f64, f64, PeakMode<f64>>, Sink<U1, f64>>,
-        Pipe<
-            f64,
-            Stack<
-                f64,
-                Stack<f64, Stack<f64, Pass<f64>, Sink<U1, f64>>, Sink<U1, f64>>,
-                Shaper<f64>,
-            >,
-            Binop<f64, FrameMul<U1, f64>, Pass<f64>, Pass<f64>>,
-        >,
-    >,
-> {
+pub fn morph() -> An<super::prelude::Morph<f64, f64>> {
     super::prelude::morph()
 }
 
@@ -452,14 +439,8 @@ pub fn morph_hz(
     f: f64,
     q: f64,
     morph: f64,
-) -> An<
-    Bus<
-        f64,
-        FixedSvf<f64, f64, PeakMode<f64>>,
-        Binop<f64, FrameMul<U1, f64>, Pass<f64>, Constant<U1, f64>>,
-    >,
-> {
-    peak_hz(f, q) & pass() * morph
+) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<U3, f64>>, super::prelude::Morph<f64, f64>>> {
+    super::prelude::morph_hz(f, q, morph)
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.

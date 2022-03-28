@@ -213,13 +213,16 @@ pub fn multipass<N: Size<f32>>() -> An<MultiPass<N, f32>> {
     An(MultiPass::new())
 }
 
-/// Timer node. An empty node that presents time as a parameter.
+/// Timer node. A node with no inputs or outputs that presents time as a parameter.
+/// It can be added to any node by stacking.
 #[inline]
 pub fn timer(tag: Tag) -> An<Timer<f32>> {
     An(Timer::new(DEFAULT_SR, tag))
 }
 
 /// Monitor node. Passes through input and retains the latest input as a parameter.
+/// -Input 0: input signal
+/// -Output 0: input signal passed through
 #[inline]
 pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f32>> {
     An(Monitor::new(tag, DEFAULT_SR, meter))
@@ -227,6 +230,8 @@ pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f32>> {
 
 /// Meter node.
 /// Outputs a summary of the input according to the chosen metering mode.
+/// -Input 0: input signal
+/// -Output 0: signal summary
 #[inline]
 pub fn meter(meter: Meter) -> An<MeterNode<f32>> {
     An(MeterNode::new(DEFAULT_SR, meter))
@@ -339,7 +344,7 @@ pub fn lowpole_hz(f: f32) -> An<Lowpole<f32, f32, U1>> {
     super::prelude::lowpole_hz(f)
 }
 
-/// Allpole filter with adjustable delay (delay > 0) in samples at DC.
+/// Allpass filter with adjustable delay (delay > 0) in samples at DC.
 /// - Input 0: audio
 /// - Input 1: delay in samples
 /// - Output 0: filtered audio
@@ -348,7 +353,7 @@ pub fn allpole() -> An<Allpole<f32, f32, U2>> {
     An(Allpole::new(DEFAULT_SR, 1.0))
 }
 
-/// Allpole filter with delay (delay > 0) in samples at DC.
+/// Allpass filter with delay (delay > 0) in samples at DC.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
@@ -426,21 +431,7 @@ pub fn moog_hz(frequency: f32, q: f32) -> An<Moog<f32, f32, U1>> {
 /// - Input 2: Q
 /// - Input 3: morph in -1...1 (-1 = lowpass, 0 = peak, 1 = highpass)
 /// - Output 0: filtered signal
-pub fn morph() -> An<
-    Bus<
-        f32,
-        Stack<f32, Svf<f32, f32, PeakMode<f32>>, Sink<U1, f32>>,
-        Pipe<
-            f32,
-            Stack<
-                f32,
-                Stack<f32, Stack<f32, Pass<f32>, Sink<U1, f32>>, Sink<U1, f32>>,
-                Shaper<f32>,
-            >,
-            Binop<f32, FrameMul<U1, f32>, Pass<f32>, Pass<f32>>,
-        >,
-    >,
-> {
+pub fn morph() -> An<super::prelude::Morph<f32, f32>> {
     super::prelude::morph()
 }
 
@@ -452,14 +443,8 @@ pub fn morph_hz(
     f: f32,
     q: f32,
     morph: f32,
-) -> An<
-    Bus<
-        f32,
-        FixedSvf<f32, f32, PeakMode<f32>>,
-        Binop<f32, FrameMul<U1, f32>, Pass<f32>, Constant<U1, f32>>,
-    >,
-> {
-    peak_hz(f, q) & pass() * morph
+) -> An<Pipe<f32, Stack<f32, Pass<f32>, Constant<U3, f32>>, super::prelude::Morph<f32, f32>>> {
+    super::prelude::morph_hz(f, q, morph)
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.

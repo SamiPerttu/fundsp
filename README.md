@@ -398,7 +398,7 @@ Verified frequency responses are available for all linear filters.
 | `lowpass`    | lowpass (2nd order)    | frequency, Q | Simper SVF   | |
 | `lowpole`    | lowpass (1st order)    | frequency    | 1st order    | |
 | `lowshelf`   | low shelf (2nd order)  | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
-| `morph`      | morphing (2nd order)   | frequency, Q, morph | Simper SVF | Morphs between lowpass, peak and highpass modes. |
+| `morph`      | morphing (2nd order)   | frequency, Q, morph | Simper SVF | Morphs between lowpass, peaking and highpass modes. |
 | `notch`      | notch (2nd order)      | frequency, Q | Simper SVF   | |
 | `peak`       | peaking (2nd order)    | frequency, Q | Simper SVF   | |
 | `pinkpass`   | lowpass (3 dB/octave)  | -            | mixed FIR / 1st order | Turns white noise into pink noise. |
