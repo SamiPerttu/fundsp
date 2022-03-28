@@ -132,7 +132,8 @@ selective oversampling in nested sections that are easy to configure and modify.
 Some low-level components ignore the sample rate by design, such as the single sample delay `tick`.
 
 The default sample rate is 44.1 kHz.
-In both systems, a component `A` can be reinitialized with a new sample rate: `A.reset(Some(sr))`.
+In both systems, a component `A` can be reinitialized
+with a new sample rate: `A.reset(Some(sample_rate))`.
 
 
 ## Audio Processing Environment
