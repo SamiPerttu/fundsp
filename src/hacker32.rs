@@ -225,6 +225,13 @@ pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f32>> {
     An(Monitor::new(tag, DEFAULT_SR, meter))
 }
 
+/// Meter node.
+/// Outputs a summary of the input according to the chosen metering mode.
+#[inline]
+pub fn meter(meter: Meter) -> An<MeterNode<f32>> {
+    An(MeterNode::new(DEFAULT_SR, meter))
+}
+
 /// Mono sink. Input is discarded.
 #[inline]
 pub fn sink() -> An<Sink<U1, f32>> {
@@ -411,6 +418,48 @@ pub fn moog_q(
 #[inline]
 pub fn moog_hz(frequency: f32, q: f32) -> An<Moog<f32, f32, U1>> {
     An(Moog::new(DEFAULT_SR, frequency, q))
+}
+
+/// Morphing filter that morphs between lowpass, peak and highpass modes.
+/// - Input 0: input signal
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Input 3: morph in -1...1 (-1 = lowpass, 0 = peak, 1 = highpass)
+/// - Output 0: filtered signal
+pub fn morph() -> An<
+    Bus<
+        f32,
+        Stack<f32, Svf<f32, f32, PeakMode<f32>>, Sink<U1, f32>>,
+        Pipe<
+            f32,
+            Stack<
+                f32,
+                Stack<f32, Stack<f32, Pass<f32>, Sink<U1, f32>>, Sink<U1, f32>>,
+                Shaper<f32>,
+            >,
+            Binop<f32, FrameMul<U1, f32>, Pass<f32>, Pass<f32>>,
+        >,
+    >,
+> {
+    super::prelude::morph()
+}
+
+/// Morphing filter with center frequency `f`, Q value `q`, and morph `morph`
+/// (-1 = lowpass, 0 = peaking, 1 = highpass).
+/// - Input 0: input signal
+/// - Output 0: filtered signal
+pub fn morph_hz(
+    f: f32,
+    q: f32,
+    morph: f32,
+) -> An<
+    Bus<
+        f32,
+        FixedSvf<f32, f32, PeakMode<f32>>,
+        Binop<f32, FrameMul<U1, f32>, Pass<f32>, Constant<U1, f32>>,
+    >,
+> {
+    peak_hz(f, q) & pass() * morph
 }
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.

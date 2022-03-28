@@ -398,6 +398,7 @@ Verified frequency responses are available for all linear filters.
 | `lowpass`    | lowpass (2nd order)    | frequency, Q | Simper SVF   | |
 | `lowpole`    | lowpass (1st order)    | frequency    | 1st order    | |
 | `lowshelf`   | low shelf (2nd order)  | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
+| `morph`      | morphing (2nd order)   | frequency, Q, morph | Simper SVF | Morphs between lowpass, peak and highpass modes. |
 | `notch`      | notch (2nd order)      | frequency, Q | Simper SVF   | |
 | `peak`       | peaking (2nd order)    | frequency, Q | Simper SVF   | |
 | `pinkpass`   | lowpass (3 dB/octave)  | -            | mixed FIR / 1st order | Turns white noise into pink noise. |
@@ -543,12 +544,15 @@ The type parameters in the table refer to the hacker prelude.
 | `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `lowshelf_q(q, gain)`  | 2 (audio, frequency) | 1 | Low shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `map(f)`               |   `f`   |   `f`   | Map channels freely, e.g., `map(\|i: &Frame<f64, U2>\| max(i[0], i[1]))`. |
+| `meter(mode)`          |    1    | 1 (meter) | Analyzes input and outputs a summary according to the metering mode. |
 | `mls()`                |    -    |    1    | White [MLS noise](https://en.wikipedia.org/wiki/Maximum_length_sequence) source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
 | `monitor(mode, id)`    |    1    |    1    | Pass-through node that analyzes data passed through as a parameter that can be queried. |
 | `moog()`               | 3 (audio, frequency, Q) | 1 | Moog resonant lowpass filter (4th order). |
 | `moog_hz(f, q)`        |    1    |    1    | Moog resonant lowpass filter (4th order) with cutoff frequency `f` and resonance `q`. |
 | `moog_q(q)`            | 2 (audio, frequency) | 1 | Moog resonant lowpass filter (4th order) with resonance `q`. |
+| `morph`                | 4 (audio, frequency, Q, morph) | 1 | Morphing filter with morph input in -1...1 (-1 = lowpass, 0 = peaking, 1 = highpass) |
+| `morph_hz(f, q, morph)` |   1    |    1    | Morphing filter with center frequency `f`, Q `q` and morph `morph` (-1 = lowpass, 0 = peaking, 1 = highpass) |
 | `mul(x)`               |   `x`   |   `x`   | Multiplies signal with constant `x`. |
 | `multijoin::<M, N>()`  | `M * N` |   `M`   | Average `N` branches of `M` channels into one. Inverse of `multisplit`. |
 | `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
@@ -596,7 +600,7 @@ The type parameters in the table refer to the hacker prelude.
 | `tag(id, value)`       |    -    |    1    | Tagged constant with tag `id` (`i64`) and initial value `value` (`f64`). |
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
 | `tick()`               |    1    |    1    | Single sample delay. |
-| `timer(id)`            |    -    |    -    | Timer node that presents time as a parameter that can be set and queried. |
+| `timer(id)`            |    -    |    -    | Timer node that presents time as a parameter that can be queried. |
 | `triangle()`           | 1 (frequency) | 1 | Bandlimited triangle wave oscillator. |
 | `triangle_hz(f)`       |    -    |    1    | Bandlimited triangle wave oscillator at `f` Hz. |
 | `white()`              |    -    |    1    | [White noise](https://en.wikipedia.org/wiki/White_noise) source. Synonymous with `noise`. |
@@ -667,15 +671,17 @@ while `get` retrieves the first matching parameter, if any.
 The `timer(id)` opcode instantiates current time in seconds as a parameter that can be queried.
 It has no inputs or outputs; it can be added to any node by stacking.
 
-#### Monitor Modes
+#### Metering Modes
 
 The `monitor(mode, id)` opcode is a pass-through node that presents
 some aspect of data passed through as parameter `id`. Metering modes are:
 
-- `Meter::Latest`: Retains the latest value passed through.
+- `Meter::Sample`: Retains the latest value passed through.
 - `Meter::Peak(smoothing)`: Peak amplitude meter with `smoothing` as per-sample smoothing factor in 0...1.
 - `Meter::Rms(smoothing)`: Root mean square meter with `smoothing` as per-sample smoothing factor in 0...1.
-- `Meter::Goertzel(frequency)`: Detects presence of a single frequency. Outputs detected power.
+- `Meter::Detect(frequency)`: Detects presence of a single frequency. Outputs detected power.
+
+The same modes are used in the `meter` opcode.
 
 ---
 

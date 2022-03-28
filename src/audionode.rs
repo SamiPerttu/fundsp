@@ -299,7 +299,7 @@ impl<T: Float> AudioNode for Pass<T> {
     }
 }
 
-/// Present time as a parameter. The time can be set as well.
+/// Present time as a parameter.
 #[derive(Default)]
 pub struct Timer<T> {
     _marker: PhantomData<T>,
@@ -349,12 +349,6 @@ impl<T: Float> AudioNode for Timer<T> {
         _output: &mut [&mut [Self::Sample]],
     ) {
         self.time += size as f64 * self.sample_duration;
-    }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        if self.tag == parameter {
-            self.time = value;
-        }
     }
 
     fn get(&self, parameter: Tag) -> Option<f64> {

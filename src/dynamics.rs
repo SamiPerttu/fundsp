@@ -404,15 +404,20 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
 /// Metering modes.
 #[derive(Copy, Clone)]
 pub enum Meter {
-    Latest,
+    /// Latest value.
+    Sample,
+    /// Peak meter with per-sample smoothing in 0...1.
     Peak(f64),
+    /// RMS meter with per-sample smoothing in 0...1.
     Rms(f64),
-    Goertzel(f64),
+    /// Frequency detector with frequency in Hz.
+    Detect(f64),
 }
 
 impl Meter {
+    /// Whether the meter mode depends only on the latest sample.
     pub fn latest_only(&self) -> bool {
-        matches!(self, Meter::Latest)
+        matches!(self, Meter::Sample)
     }
 }
 
@@ -422,12 +427,13 @@ pub struct MeterState<T: Real> {
 }
 
 impl<T: Real> MeterState<T> {
+    /// Creates a new MeterState for the given metering mode.
     pub fn new(meter: Meter, sample_rate: f64) -> Self {
         let mut state = Self {
             detector: Detector::default(),
             state: T::zero(),
         };
-        if let Meter::Goertzel(frequency) = meter {
+        if let Meter::Detect(frequency) = meter {
             state
                 .detector
                 .set_frequency(T::from_f64(sample_rate), T::from_f64(frequency))
@@ -435,26 +441,96 @@ impl<T: Real> MeterState<T> {
         state
     }
 
-    /// Process an input sample. Returns the new meter state.
+    /// Resets meter state.
+    pub fn reset(&mut self, meter: Meter, sample_rate: Option<f64>) {
+        self.state = T::zero();
+        if let Some(sr) = sample_rate {
+            if let Meter::Detect(frequency) = meter {
+                self.detector.set_frequency(convert(sr), convert(frequency));
+            }
+        }
+    }
+
+    /// Process an input sample.
     pub fn tick(&mut self, meter: Meter, value: T) {
         match meter {
-            Meter::Latest => self.state = value,
+            Meter::Sample => self.state = value,
             Meter::Peak(smoothing) => self.state = max(self.state * convert(smoothing), abs(value)),
             Meter::Rms(smoothing) => {
                 self.state =
                     self.state * convert(smoothing) + value * value * convert(1.0 - smoothing)
             }
-            Meter::Goertzel(_frequency) => self.detector.tick(value),
+            Meter::Detect(_frequency) => self.detector.tick(value),
         }
     }
 
+    /// Current meter value.
     pub fn value(&self, meter: Meter) -> T {
         match meter {
-            Meter::Latest => self.state,
+            Meter::Sample => self.state,
             Meter::Peak(_) => self.state,
             Meter::Rms(_) => sqrt(self.state),
-            Meter::Goertzel(_) => self.detector.power(),
+            Meter::Detect(_) => self.detector.power(),
         }
+    }
+}
+
+/// Meters the input and outputs a summary according to the chosen metering mode.
+pub struct MeterNode<T: Real> {
+    meter: Meter,
+    state: MeterState<T>,
+    sample_rate: f64,
+}
+
+impl<T: Real> MeterNode<T> {
+    /// Create a new monitor node.
+    pub fn new(sample_rate: f64, meter: Meter) -> Self {
+        Self {
+            meter,
+            state: MeterState::new(meter, sample_rate),
+            sample_rate,
+        }
+    }
+}
+
+impl<T: Real> AudioNode for MeterNode<T> {
+    const ID: u64 = 56;
+    type Sample = T;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sr) = sample_rate {
+            self.sample_rate = sr;
+        }
+        self.state.reset(self.meter, sample_rate);
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        self.state.tick(self.meter, input[0]);
+        [convert(self.state.value(self.meter))].into()
+    }
+
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        for i in 0..size {
+            self.state.tick(self.meter, input[0][i]);
+            output[0][i] = convert(self.state.value(self.meter));
+        }
+    }
+
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = input[0].distort(0.0);
+        output
     }
 }
 
@@ -464,6 +540,7 @@ pub struct Monitor<T: Real> {
     tag: Tag,
     meter: Meter,
     state: MeterState<T>,
+    sample_rate: f64,
 }
 
 impl<T: Real> Monitor<T> {
@@ -473,6 +550,7 @@ impl<T: Real> Monitor<T> {
             tag,
             meter,
             state: MeterState::new(meter, sample_rate),
+            sample_rate,
         }
     }
 }
@@ -482,6 +560,13 @@ impl<T: Real> AudioNode for Monitor<T> {
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sr) = sample_rate {
+            self.sample_rate = sr;
+        }
+        self.state.reset(self.meter, sample_rate);
+    }
 
     #[inline]
     fn tick(

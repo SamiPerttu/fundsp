@@ -196,7 +196,7 @@ fn test_basic() {
     check_wave(sequencer);
 
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
-    check_wave(noise() >> monitor(Meter::Latest, 0) >> pan(-0.5) | timer(1));
+    check_wave(noise() >> monitor(Meter::Sample, 0) >> pan(-0.5) | timer(1));
     check_wave(tag(0, 5.0) >> lfo2(|t, x| t * x) | tag(1, 1.0));
     check_wave((tag(0, 5.0) | tag(1, 3.0)) >> lfo3(|t, x, y| t * x * y) | tag(1, 1.0));
 
