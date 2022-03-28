@@ -66,6 +66,8 @@ pub struct Wave48 {
     vec: Vec<Vec<f48>>,
     /// Sample rate of the wave.
     sr: f64,
+    /// Slice of references. This is only allocated if it is used.
+    slice: Slice<[f48]>,
 }
 
 #[duplicate_item(
@@ -84,6 +86,7 @@ impl Wave48 {
         Self {
             vec,
             sr: sample_rate,
+            slice: Slice::new(),
         }
     }
 
@@ -98,6 +101,7 @@ impl Wave48 {
         Self {
             vec,
             sr: sample_rate,
+            slice: Slice::new(),
         }
     }
 
@@ -116,14 +120,24 @@ impl Wave48 {
         self.vec.len()
     }
 
-    /// Returns a reference to the requested channel.
+    /// Return a reference to the requested channel.
     pub fn channel(&self, channel: usize) -> &Vec<f48> {
         &self.vec[channel]
     }
 
-    /// Returns a mutable reference to the requested channel.
+    /// Return a mutable reference to the requested channel.
     pub fn channel_mut(&mut self, channel: usize) -> &mut Vec<f48> {
         &mut self.vec[channel]
+    }
+
+    /// Return a reference to the channels vector as a slice of slices.
+    pub fn channels_ref(&mut self) -> &[&[f48]] {
+        self.slice.from_refs(&self.vec)
+    }
+
+    /// Return a mutable reference to the channels vector as a slice of slices.
+    pub fn channels_mut(&mut self) -> &mut [&mut [f48]] {
+        self.slice.from_muts(&mut self.vec)
     }
 
     /// Sample accessor.

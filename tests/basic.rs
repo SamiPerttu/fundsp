@@ -33,6 +33,25 @@ fn check_wave(mut node: impl AudioUnit64) {
     }
 }
 
+/// Check that the stereo generator given is rendered identically
+/// via a big block adapter (block processing) and `tick` (single sample processing).
+/// Also check that the generator is reset properly.
+fn check_wave_big(node: Box<dyn AudioUnit64>) {
+    let mut wave = Wave64::with_capacity(2, 44100.0, 44100);
+    wave.resize(44100);
+    let mut big = BigBlockAdapter64::new(node);
+    big.process(44100, &[], wave.channels_mut());
+    big.reset(None);
+    for i in 0..44100 {
+        let (tick_x, tick_y) = big.get_stereo();
+        let process_x = wave.at(0, i);
+        let process_y = wave.at(1, i);
+        let tolerance = 1.0e-9;
+        assert!(tick_x - tolerance <= process_x && tick_x + tolerance >= process_x);
+        assert!(tick_y - tolerance <= process_y && tick_y + tolerance >= process_y);
+    }
+}
+
 /// Check that the stereo filter given is rendered identically
 /// via `process` (block processing) and `tick` (single sample processing).
 /// Also check that the generator is reset properly.
@@ -185,8 +204,12 @@ fn test_basic() {
     check_wave(
         dc((440.0, 880.0)) >> multisplit::<U2, U3>() >> multijoin::<U2, U3>() >> (sine() | sine()),
     );
-    check_wave(dc((110.0, 0.5)) >> pulse() >> delay(0.1) | noise() >> delay(0.01));
-    check_wave(envelope(|t| exp(-t * 10.0)) | lfo(|t| sin(t * 10.0)));
+    check_wave_big(Box::new(
+        dc((110.0, 0.5)) >> pulse() >> delay(0.1) | noise() >> delay(0.01),
+    ));
+    check_wave_big(Box::new(
+        envelope(|t| exp(-t * 10.0)) | lfo(|t| sin(t * 10.0)),
+    ));
 
     let mut sequencer = Sequencer::new(44100.0, 2);
     sequencer.add64(0.1, 0.2, 0.01, 0.02, Box::new(noise() | sine_hz(220.0)));

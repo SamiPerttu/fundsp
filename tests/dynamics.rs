@@ -58,7 +58,7 @@ fn test_dynamics() {
     // Test monitor and meter for consistency.
     let mut m1 = monitor(Meter::Sample, 0);
     let mut m2 = meter(Meter::Sample);
-    for _ in 0 .. 10000 {
+    for _ in 0..10000 {
         let x = rnd.get01();
         let x1 = m1.filter_mono(x);
         let x2 = m2.filter_mono(x);
@@ -67,7 +67,7 @@ fn test_dynamics() {
     }
     let mut m1 = monitor(Meter::Peak(0.99), 0);
     let mut m2 = meter(Meter::Peak(0.99));
-    for _ in 0 .. 10000 {
+    for _ in 0..10000 {
         let x = rnd.get01();
         let x1 = m1.filter_mono(x);
         let x2 = m2.filter_mono(x);

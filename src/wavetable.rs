@@ -64,7 +64,6 @@ where
         }
     }
 
-    // TODO. Are we supposed to cache these.
     let fft = Radix4::new(length, FftDirection::Inverse);
     fft.process(&mut a);
 
