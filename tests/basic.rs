@@ -207,7 +207,7 @@ fn test_basic() {
     check_wave_filter(&input, pluck(60.0, 0.9, 0.8) | pluck(110.0, 0.5, 0.1));
     check_wave_filter(
         &input,
-        (pass() | dc((2000.0, 5.0, 0.8))) >> morph() | bell_hz(440.0, 1.0, 2.0),
+        (pass() | dc((2000.0, 5.0, 0.8))) >> morph() | morph_hz(440.0, 1.0, 0.0),
     );
 
     // Constants.

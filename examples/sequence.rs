@@ -9,8 +9,8 @@ use fundsp::hacker::*;
 
 fn main() {
     let sample_rate = 44100.0;
-    let bassd_line = "x.....x.x.......xx....x...xx....x.....x.x.......x.......x.x....xx";
-    let snare_line = "....x......xx.......x.......x.......x.......x.......x......xx.xxx";
+    let bassd_line = "x.....x.x.......xx....x...xx....x.....x.x.......x.......x.x.....x";
+    let snare_line = "....x.......x.......x.......x.......x.......x.......x......xx.xxx";
 
     let bassdrum =
         || envelope(|t| 200.0 * exp(-t * 5.0)) >> sine() >> shape(Shape::Tanh(2.0)) >> pan(0.0);

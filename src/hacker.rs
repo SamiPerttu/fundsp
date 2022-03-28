@@ -161,6 +161,7 @@ pub type U128 = numeric_array::typenum::U128;
 
 /// Constant node.
 /// Synonymous with `[dc]`.
+/// - Output(s): constant
 #[inline]
 pub fn constant<X: ConstantFrame<Sample = f64>>(x: X) -> An<Constant<X::Size, f64>>
 where
@@ -172,6 +173,7 @@ where
 /// Constant node.
 /// Synonymous with `constant`.
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
+/// - Output(s): constant
 #[inline]
 pub fn dc<X: ConstantFrame<Sample = f64>>(x: X) -> An<Constant<X::Size, f64>>
 where
@@ -220,7 +222,10 @@ pub fn timer(tag: Tag) -> An<Timer<f64>> {
     An(Timer::new(DEFAULT_SR, tag))
 }
 
-/// Monitor node. Passes through input and retains the latest input as a parameter.
+/// Monitor node. Passes through input and presents as a parameter
+/// an aspect of the input signal according to the chosen metering mode.
+/// -Input 0: input signal
+/// -Output 0: input signal
 #[inline]
 pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f64>> {
     An(Monitor::new(tag, DEFAULT_SR, meter))
@@ -228,6 +233,8 @@ pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f64>> {
 
 /// Meter node.
 /// Outputs a summary of the input according to the chosen metering mode.
+/// -Input 0: input signal
+/// -Output 0: input signal summary
 #[inline]
 pub fn meter(meter: Meter) -> An<MeterNode<f64>> {
     An(MeterNode::new(DEFAULT_SR, meter))
@@ -667,66 +674,91 @@ where
 /// Keeps a signal zero centered.
 /// Filter cutoff `c` is usually somewhere below the audible range.
 /// The default blocker cutoff is 10 Hz.
+/// - Input 0: input signal
+/// - Output 0: signal with DC removed.
 #[inline]
 pub fn dcblock_hz(c: f64) -> An<DCBlock<f64, f64>> {
     An(DCBlock::new(DEFAULT_SR, c))
 }
 
 /// Keeps a signal zero centered.
+/// - Input 0: input signal
+/// - Output 0: signal with DC removed.
 #[inline]
 pub fn dcblock() -> An<DCBlock<f64, f64>> {
     dcblock_hz(10.0)
 }
 
 /// Apply 10 ms of fade-in to signal at time zero.
+/// - Input 0: input signal
+/// - Output 0: signal with fade-in.
 #[inline]
 pub fn declick() -> An<Declick<f64, f64>> {
     super::prelude::declick()
 }
 
 /// Apply `t` seconds of fade-in to signal at time zero.
+/// - Input 0: input signal
+/// - Output 0: signal with fade-in.
 #[inline]
 pub fn declick_s(t: f64) -> An<Declick<f64, f64>> {
     super::prelude::declick_s(t)
 }
 
 /// Shape signal with a waveshaper function.
+/// - Input 0: input signal
+/// - Output 0: shaped signal
 #[inline]
 pub fn shape_fn<S: Fn(f64) -> f64>(f: S) -> An<ShaperFn<f64, S>> {
     super::prelude::shape_fn(f)
 }
 
-/// Shape signal.
+/// Shape signal according to shaping mode.
+/// - Input 0: input signal
+/// - Output 0: shaped signal
 #[inline]
 pub fn shape(mode: Shape<f64>) -> An<Shaper<f64>> {
     super::prelude::shape(mode)
 }
 
 /// Clip signal to -1...1.
+/// - Input 0: input signal
+/// - Output 0: clipped signal
 #[inline]
 pub fn clip() -> An<Shaper<f64>> {
     super::prelude::clip()
 }
 
 /// Clip signal to min...max.
+/// - Input 0: input signal
+/// - Output 0: clipped signal
 #[inline]
 pub fn clip_to(minimum: f64, maximum: f64) -> An<Shaper<f64>> {
     super::prelude::clip_to(minimum, maximum)
 }
 
 /// Equal power mono-to-stereo panner.
+/// - Input 0: input signal
+/// - Input 1: pan in -1...1 (left to right).
+/// - Output 0: left channel
+/// - Output 1: right channel
 #[inline]
 pub fn panner() -> An<Panner<f64, U2>> {
     An(Panner::new(0.0))
 }
 
 /// Fixed equal power mono-to-stereo panner with pan value in -1...1.
+/// - Input 0: input signal
+/// - Output 0: left channel
+/// - Output 1: right channel
 #[inline]
 pub fn pan(pan: f64) -> An<Panner<f64, U1>> {
     An(Panner::new(pan))
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.
+/// - Input 0: input signal
+/// - Output 0: smoothed signal
 #[inline]
 pub fn follow<S: ScalarOrPair<Sample = f64>>(t: S) -> An<AFollow<f64, f64, S>> {
     An(AFollow::new(DEFAULT_SR, t))
@@ -734,6 +766,8 @@ pub fn follow<S: ScalarOrPair<Sample = f64>>(t: S) -> An<AFollow<f64, f64, S>> {
 
 /// Look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
+/// - Input 0: input signal
+/// - Output 0: signal limited to -1...1
 #[inline]
 pub fn limiter<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64, U1, S>> {
     An(Limiter::new(DEFAULT_SR, time))
@@ -741,24 +775,32 @@ pub fn limiter<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64, U1, S>
 
 /// Stereo look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
+/// - Input 0: left input signal
+/// - Input 1: right input signal
+/// - Output 0: left signal limited to -1...1
+/// - Output 0: right signal limited to -1...1
 #[inline]
 pub fn limiter_stereo<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64, U2, S>> {
     An(Limiter::new(DEFAULT_SR, time))
 }
 
 /// Pinking filter.
+/// - Input 0: input signal
+/// - Output 0: filtered signal
 #[inline]
 pub fn pinkpass() -> An<Pinkpass<f64, f64>> {
     An(Pinkpass::new(DEFAULT_SR))
 }
 
 /// Pink noise.
+/// - Output 0: pink noise
 #[inline]
 pub fn pink() -> An<Pipe<f64, Noise<f64>, Pinkpass<f64, f64>>> {
     super::prelude::pink()
 }
 
 /// Brown noise.
+/// - Output 0: brown noise
 #[inline]
 pub fn brown() -> An<
     Pipe<f64, Noise<f64>, Binop<f64, FrameMul<U1, f64>, Lowpole<f64, f64, U1>, Constant<U1, f64>>>,
@@ -768,12 +810,17 @@ pub fn brown() -> An<
 }
 
 /// Frequency detector.
+/// - Input 0: input signal
+/// - Input 1: frequency to detect (Hz)
+/// - Output 0: signal power at the chosen frequency
 #[inline]
 pub fn goertzel() -> An<Goertzel<f64, f64>> {
     An(Goertzel::new(DEFAULT_SR))
 }
 
 /// Frequency detector of frequency `f` Hz.
+/// - Input 0: input signal
+/// - Output 0: signal power at the chosen frequency
 #[inline]
 pub fn goertzel_hz(
     f: f64,
@@ -995,6 +1042,10 @@ where
 /// Stereo reverb.
 /// `wet` in 0...1 is balance of reverb mixed in, for example, 0.1.
 /// `time` is approximate reverberation time to -60 dB in seconds.
+/// - Input 0: left input signal
+/// - Input 1: right input signal
+/// - Output 0: reverberated left signal
+/// - Output 1: reverberated right signal
 pub fn reverb_stereo(
     wet: f64,
     time: f64,

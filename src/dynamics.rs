@@ -476,6 +476,8 @@ impl<T: Real> MeterState<T> {
 }
 
 /// Meters the input and outputs a summary according to the chosen metering mode.
+/// - Input 0: input signal
+/// - Output 0: input summary
 pub struct MeterNode<T: Real> {
     meter: Meter,
     state: MeterState<T>,
@@ -483,7 +485,7 @@ pub struct MeterNode<T: Real> {
 }
 
 impl<T: Real> MeterNode<T> {
-    /// Create a new monitor node.
+    /// Create a new metering node.
     pub fn new(sample_rate: f64, meter: Meter) -> Self {
         Self {
             meter,
@@ -535,7 +537,7 @@ impl<T: Real> AudioNode for MeterNode<T> {
 }
 
 /// Pass through input unchanged.
-/// Latest input value can be queried as a read-only parameter.
+/// Summary of the input signal can be queried as a read-only parameter.
 pub struct Monitor<T: Real> {
     tag: Tag,
     meter: Meter,
