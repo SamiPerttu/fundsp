@@ -54,4 +54,24 @@ fn test_dynamics() {
         // Check that the response is limited and has sufficient range.
         assert!(value >= 0.90 && value <= 1.00);
     }
+
+    // Test monitor and meter for consistency.
+    let mut m1 = monitor(Meter::Sample, 0);
+    let mut m2 = meter(Meter::Sample);
+    for _ in 0 .. 10000 {
+        let x = rnd.get01();
+        let x1 = m1.filter_mono(x);
+        let x2 = m2.filter_mono(x);
+        assert!(x > 0.0 && x == x1 && x == x2);
+        assert_eq!(m1.get(0).unwrap(), x2);
+    }
+    let mut m1 = monitor(Meter::Peak(0.99), 0);
+    let mut m2 = meter(Meter::Peak(0.99));
+    for _ in 0 .. 10000 {
+        let x = rnd.get01();
+        let x1 = m1.filter_mono(x);
+        let x2 = m2.filter_mono(x);
+        assert!(x > 0.0 && x == x1 && x2 > 0.0);
+        assert_eq!(m1.get(0).unwrap(), x2);
+    }
 }
