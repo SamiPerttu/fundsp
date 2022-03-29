@@ -49,4 +49,5 @@ name = "plot"
 path = "examples/plot.rs"
 
 [package.metadata.docs.rs]
-rustc-args = ["--all-features", "--cfg", "docsrs"]
+all-features = true
+rustc-args = ["--cfg", "docsrs"]
