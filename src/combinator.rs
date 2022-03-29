@@ -637,7 +637,7 @@ where
                     c = b'*';
                 }
             }
-            
+
             for (row, ascii_line) in scope.into_iter().enumerate() {
                 let line = String::from_utf8(ascii_line).unwrap();
                 if row & 1 == 0 {
