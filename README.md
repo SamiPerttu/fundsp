@@ -900,6 +900,13 @@ cargo run --example type -- "fundsp::combinator::An<Bus<f64, Noise<f64>, Pipe<f6
 
 ---
 
+## Rust Audio Discord
+
+To discuss FunDSP and other topics, come hang out with us at the
+[Rust Audio Discord](https://discord.gg/3hfDXS6hhQ).
+
+---
+
 ## License
 
 Licensed under either of <a href="LICENSE-APACHE">Apache License, Version 2.0</a>
