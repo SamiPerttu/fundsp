@@ -629,7 +629,7 @@ where
 
             for i in 0..f.len() {
                 let row = (max_db - r[i].0) / 5.0;
-                let mut j = floor(row) as usize;
+                let mut j = ceil(row) as usize;
                 let mut c = if row - floor(row) <= 0.5 { b'*' } else { b'.' };
                 while j < scope.len() {
                     scope[j][i] = c;
@@ -637,7 +637,7 @@ where
                     c = b'*';
                 }
             }
-
+            
             for (row, ascii_line) in scope.into_iter().enumerate() {
                 let line = String::from_utf8(ascii_line).unwrap();
                 if row & 1 == 0 {
