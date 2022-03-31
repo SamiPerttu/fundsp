@@ -1,4 +1,5 @@
 #![allow(
+    dead_code,
     clippy::precedence,
     clippy::type_complexity,
     clippy::float_cmp,
@@ -7,9 +8,7 @@
     clippy::many_single_char_names,
     clippy::manual_range_contains
 )]
-#![allow(dead_code)]
 
-extern crate fundsp;
 extern crate num_complex;
 extern crate rustfft;
 

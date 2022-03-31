@@ -880,6 +880,7 @@ data between nodes, is `AudioNode::Sample`.
 
 The preludes employ the wrapper type `An<X: AudioNode>`
 containing operator overloads and other trait implementations.
+The wrapper also implements either of `AudioUnit32` or `AudioUnit64` traits.
 
 The type encoding is straightforward. As an example, in the hacker prelude
 
@@ -899,6 +900,19 @@ This invocation prints the above type:
 
 ```sh
 cargo run --example type -- "fundsp::combinator::An<Bus<f64, Noise<f64>, Pipe<f64, Constant<typenum::uint::UInt<typenum::uint::UTerm, typenum::bit::B1>, f64>, Sine<f64>>>>"
+```
+
+It is also possible to declare the return type as an `impl AudioNode`.
+However, this type is also opaque and cannot be stored as an `AudioNode`;
+conversion to `AudioUnit32` or `AudioUnit64` may be necessary in this case.
+
+Declaring the full arity in the signature does enable use of the node
+in further combinations. For example:
+
+```rust
+fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
+    pass() ^ pass() ^ pass() ^ pass()
+}
 ```
 
 ---

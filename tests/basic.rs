@@ -1,4 +1,5 @@
 #![allow(
+    dead_code,
     clippy::precedence,
     clippy::type_complexity,
     clippy::float_cmp,
@@ -7,9 +8,6 @@
     clippy::many_single_char_names,
     clippy::manual_range_contains
 )]
-#![allow(dead_code)]
-
-extern crate fundsp;
 
 use fundsp::audiounit::*;
 use fundsp::hacker::*;
@@ -68,14 +66,6 @@ fn check_wave_filter(input: &Wave64, mut node: impl AudioUnit64) {
         assert!(tick_x - tolerance <= process_x && tick_x + tolerance >= process_x);
         assert!(tick_y - tolerance <= process_y && tick_y + tolerance >= process_y);
     }
-}
-
-/// New nodes can be defined with the following return signature.
-/// Declaring the full arity in the signature enables use of the node
-/// in further combinations, as does the full type name.
-/// Signatures with generic number of channels can be challenging to write.
-fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
-    pass() ^ pass() ^ pass() ^ pass()
 }
 
 /// Attempt to test two nodes for equality.
@@ -258,7 +248,6 @@ fn test_basic() {
     let x = 3.0;
     let y = -4.0;
     let z = 5.0;
-    assert!(is_equal(&mut rnd, &mut split_quad(), &mut split_quad()));
 
     // Test bus vs. branch equivalence.
     assert!(is_equal(

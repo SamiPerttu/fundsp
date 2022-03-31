@@ -1,15 +1,5 @@
-#![allow(
-    clippy::precedence,
-    clippy::type_complexity,
-    clippy::float_cmp,
-    clippy::len_zero,
-    clippy::double_neg,
-    clippy::many_single_char_names,
-    clippy::manual_range_contains
-)]
+#![allow(clippy::manual_range_contains)]
 #![allow(dead_code)]
-
-extern crate fundsp;
 
 use fundsp::dynamics::*;
 use fundsp::hacker::*;
