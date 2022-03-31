@@ -15,6 +15,6 @@ pub fn risset_glissando(up: bool) -> An<impl AudioNode<Sample = f64, Inputs = U0
             let a = smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0));
             (a, f)
         }) >> pass() * sine()
-    }) >> multijoin::<U8, U5>() >> multijoin::<U2, U4>()
+    }) >> multijoin::<U2, U20>()
         >> (pinkpass() | pinkpass())
 }
