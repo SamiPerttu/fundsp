@@ -40,18 +40,6 @@ where
     //let m = 5.0;
     //let c = sine_hz(f) * f * m + f >> sine();
 
-    // Risset glissando.
-    /*let c = stack::<U20, _, _>(|i| {
-        lfo(move |t| {
-            let f = lerp(-0.5, 0.5, rnd(i))
-                + xerp(20.0, 20480.0, (t * 0.1 + i as f64 * 0.5) % 10.0 / 10.0);
-            let a = smooth3(sin_hz(0.05, (t * 0.1 + i as f64 * 0.5) % 10.0));
-            (a, f)
-        }) >> pass() * sine() * 10.0
-    }) >> multijoin::<U1, U20>()
-        >> pinkpass();
-    */
-
     // Pulse wave.
     let c = lfo(|t| {
         let pitch = 110.0;

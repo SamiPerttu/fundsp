@@ -259,6 +259,7 @@ pub mod scale;
 pub mod sequencer;
 pub mod shape;
 pub mod signal;
+pub mod sound;
 pub mod svf;
 pub mod wave;
 pub mod wavetable;
