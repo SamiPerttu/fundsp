@@ -41,11 +41,11 @@ where
     //let c = sine_hz(f) * f * m + f >> sine();
 
     // Pulse wave.
-    let c = lfo(|t| {
+    /* let c = lfo(|t| {
         let pitch = 110.0;
         let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
         (pitch, duty)
-    }) >> pulse();
+    }) >> pulse(); */
 
     //let c = zero() >> pluck(220.0, 0.8, 0.8);
     //let c = dc(110.0) >> dsf_saw_r(0.99);
@@ -67,9 +67,11 @@ where
 
     //let c = (c | lfo(|t| (xerp11(100.0, 5000.0, sin_hz(0.1, t)), 0.8))) >> moog();
 
+    let c = fundsp::sound::risset_glissando(true);
+
     let mut c = c
-        >> declick() >> dcblock()
-        >> split::<U2>()
+        >> (declick() | declick()) >> (dcblock() | dcblock())
+        //>> split::<U2>()
         //>> reverb_stereo(0.2, 5.0)
         >> limiter_stereo((1.0, 5.0));
     //let mut c = c * 0.1;
