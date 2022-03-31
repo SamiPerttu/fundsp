@@ -1,5 +1,4 @@
-extern crate fundsp;
-
+//! Show FunDSP Debug trait output.
 use fundsp::hacker::*;
 
 fn main() {

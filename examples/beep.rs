@@ -1,14 +1,13 @@
+//! Make some noise via cpal.
 #![allow(clippy::precedence)]
 
 extern crate anyhow;
 extern crate cpal;
-extern crate fundsp;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 use fundsp::hacker::*;
 
-#[cfg_attr(target_os = "android", ndk_glue::main(backtrace = "full"))]
 fn main() {
     let host = cpal::default_host();
 

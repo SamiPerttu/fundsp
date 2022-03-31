@@ -91,11 +91,13 @@ Both systems operate on audio signals synchronously as an infinite stream.
 At the moment, block processing via `AudioNode::process` requires heap allocation.
 Some nodes may also use the heap for audio buffers and the like.
 
-The purpose of the `AudioUnit` system is to grant more flexibility in dynamic situations.
+The purpose of the `AudioUnit` system is to grant more flexibility in dynamic situations:
+decisions about input and output arities and contents can be deferred to runtime.
 
 ### Processing
 
-Processing samples is easy in the `AudioNode` system. The `tick` method is for processing single
+Processing samples is easy in both `AudioNode` and `AudioUnit` systems.
+The `tick` method is for processing single
 sample frames, while the `process` method processes whole blocks.
 
 Mono samples can be retrieved with `get_mono` and `filter_mono` methods. The `get_mono` method
@@ -127,7 +129,8 @@ With control signals and parameters in general, we prefer to use natural units l
 It is useful to keep parameters independent of the sample rate, which we can then adjust as we like.
 
 In addition to sample rate adjustments, natural units enable support for
-selective oversampling in nested sections that are easy to configure and modify.
+selective oversampling (the `oversample` component)
+in nested sections that are easy to configure and modify.
 
 Some low-level components ignore the sample rate by design, such as the single sample delay `tick`.
 

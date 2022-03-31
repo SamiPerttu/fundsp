@@ -3,8 +3,6 @@
 #![allow(unused_must_use)]
 #![allow(clippy::precedence)]
 
-extern crate fundsp;
-
 use fundsp::hacker::*;
 
 fn main() {

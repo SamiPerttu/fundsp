@@ -1,4 +1,4 @@
-extern crate fundsp;
+//! Plot ease_noise.png and fractal_noise.png for documentation.
 
 use fundsp::hacker32::*;
 use plotters::prelude::*;
