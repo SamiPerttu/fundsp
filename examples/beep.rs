@@ -38,7 +38,7 @@ where
 
     //let f = 110.0;
     //let m = 5.0;
-    //let c = sine_hz(f) * f * m + f >> sine();
+    //let c = oversample(sine_hz(f) * f * m + f >> sine()) >> pan(0.0);
 
     // Pulse wave.
     /* let c = lfo(|t| {
@@ -60,10 +60,10 @@ where
     //    >> (pass() | envelope(|t| xerp(500.0, 20000.0, sin_hz(0.0666, t))) | dc(10.0))
     //    >> bandpass();
 
-    //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.5);
-
     // Waveshapers.
     //let c = c >> shape_fn(|x| tanh(x * 5.0));
+
+    //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.5);
 
     //let c = (c | lfo(|t| (xerp11(100.0, 5000.0, sin_hz(0.1, t)), 0.8))) >> moog();
 
