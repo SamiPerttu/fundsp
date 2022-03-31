@@ -2,10 +2,8 @@
 
 use super::hacker::*;
 
-/// Sound 001. Risset Glissando.
+/// Sound 001. Risset Glissando, stereo.
 /// The direction of sound is `up` (true) or down (false).
-/// - Output 0: left channel
-/// - Output 1: right channel
 pub fn risset_glissando(up: bool) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U2>> {
     stack::<U40, _, _>(|i| {
         lfo(move |t| {
