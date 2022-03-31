@@ -1,9 +1,6 @@
 //! Make some noise via cpal.
 #![allow(clippy::precedence)]
 
-extern crate anyhow;
-extern crate cpal;
-
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 use fundsp::hacker::*;
@@ -41,11 +38,11 @@ where
     //let c = oversample(sine_hz(f) * f * m + f >> sine()) >> pan(0.0);
 
     // Pulse wave.
-    /* let c = lfo(|t| {
-        let pitch = 110.0;
-        let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
-        (pitch, duty)
-    }) >> pulse(); */
+    // let c = lfo(|t| {
+    //    let pitch = 110.0;
+    //    let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
+    //    (pitch, duty)
+    //}) >> pulse();
 
     //let c = zero() >> pluck(220.0, 0.8, 0.8);
     //let c = dc(110.0) >> dsf_saw_r(0.99);
@@ -57,8 +54,8 @@ where
     //let c = lfo(|t| xerp11(50.0, 5000.0, ease_noise(smooth9, 0, t))) >> triangle();
 
     //let c = c
-    //    >> (pass() | envelope(|t| xerp(500.0, 20000.0, sin_hz(0.0666, t))) | dc(10.0))
-    //    >> bandpass();
+    //    >> (pass() | envelope(|t| xerp(500.0, 20000.0, sin_hz(0.0666, t))))
+    //    >> bandpass_q(1.0);
 
     // Waveshapers.
     //let c = c >> shape_fn(|x| tanh(x * 5.0));
