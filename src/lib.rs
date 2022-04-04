@@ -249,6 +249,7 @@ pub mod hacker;
 pub mod hacker32;
 pub mod math;
 pub mod moog;
+pub mod net;
 pub mod noise;
 pub mod oscillator;
 pub mod oversample;

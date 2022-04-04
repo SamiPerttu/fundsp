@@ -38,11 +38,11 @@ where
     //let c = oversample(sine_hz(f) * f * m + f >> sine()) >> pan(0.0);
 
     // Pulse wave.
-    // let c = lfo(|t| {
-    //    let pitch = 110.0;
-    //    let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
-    //    (pitch, duty)
-    //}) >> pulse();
+    let c = lfo(|t| {
+        let pitch = 110.0;
+        let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
+        (pitch, duty)
+    }) >> pulse();
 
     //let c = zero() >> pluck(220.0, 0.8, 0.8);
     //let c = dc(110.0) >> dsf_saw_r(0.99);
@@ -60,15 +60,16 @@ where
     // Waveshapers.
     //let c = c >> shape_fn(|x| tanh(x * 5.0));
 
-    //let c = c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.5);
+    //let c = c & c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.5);
 
-    //let c = (c | lfo(|t| (xerp11(100.0, 5000.0, sin_hz(0.1, t)), 0.8))) >> moog();
+    let c = (c | lfo(|t| (xerp11(110.0, 11000.0, sin_hz(0.15, t)), 0.6))) >> moog();
 
-    let c = fundsp::sound::risset_glissando(true);
+    let c = c >> split::<U2>();
+
+    //let c = fundsp::sound::risset_glissando(false);
 
     let mut c = c
         >> (declick() | declick()) >> (dcblock() | dcblock())
-        //>> split::<U2>()
         //>> reverb_stereo(0.2, 5.0)
         >> limiter_stereo((1.0, 5.0));
     //let mut c = c * 0.1;

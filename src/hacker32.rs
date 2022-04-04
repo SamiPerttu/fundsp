@@ -11,6 +11,7 @@ pub use super::filter::*;
 pub use super::fir::*;
 pub use super::math::*;
 pub use super::moog::*;
+pub use super::net::*;
 pub use super::noise::*;
 pub use super::oscillator::*;
 pub use super::oversample::*;

@@ -87,6 +87,27 @@ where
     true
 }
 
+/// Attempt to test two stereo filters for equality.
+fn is_equal_unit<X, Y>(rnd: &mut AttoRand, x: &mut X, y: &mut Y) -> bool
+where
+    X: AudioUnit64,
+    Y: AudioUnit64,
+{
+    assert!(2 == y.inputs() && x.inputs() == 2);
+    assert!(x.outputs() == 2 && 2 == y.outputs());
+
+    for _ in 0..1000 {
+        let input0 = (rnd.get() & 0xf) as f64;
+        let input1 = (rnd.get() & 0xf) as f64;
+        let output_x = x.filter_stereo(input0, input1);
+        let output_y = y.filter_stereo(input0, input1);
+        if output_x != output_y {
+            return false;
+        }
+    }
+    true
+}
+
 /// Check that the outputs of a node are all unique.
 fn outputs_diverge<X>(rnd: &mut AttoRand, x: &mut An<X>) -> bool
 where
@@ -265,6 +286,50 @@ fn test_basic() {
         &mut ((pass() ^ mul(y) ^ add(w) ^ sub(x)) >> add(z) + sub(x) + mul(y) + add(z)),
         &mut (add(z) & mul(y) >> sub(x) & add(w) >> mul(y) & sub(x) >> add(z))
     ));
+
+    // Nodes vs. networks.
+    let mut pass_through = pass() | pass();
+    let mut pass_through_net = Net64::new(2, 2);
+    pass_through_net.join(edge(Port::Global(0), Port::Global(0)));
+    pass_through_net.join(edge(Port::Global(1), Port::Global(1)));
+    assert!(is_equal_unit(
+        &mut rnd,
+        &mut pass_through,
+        &mut pass_through_net
+    ));
+
+    let mut swap_through = swap();
+    let mut swap_through_net = Net64::new(2, 2);
+    swap_through_net.join(edge(Port::Global(0), Port::Global(1)));
+    swap_through_net.join(edge(Port::Global(1), Port::Global(0)));
+    assert!(is_equal_unit(
+        &mut rnd,
+        &mut swap_through,
+        &mut swap_through_net
+    ));
+
+    let mut multiply_2_3 = mul(2.0) | mul(3.0);
+    let mut multiply_net = Net64::new(2, 2);
+    multiply_net.add(Box::new(mul(2.0)));
+    multiply_net.add(Box::new(mul(3.0)));
+    multiply_net.connect_input(0, 0, 0);
+    multiply_net.connect_input(1, 1, 0);
+    multiply_net.connect_output(0, 0, 0);
+    multiply_net.connect_output(1, 0, 1);
+    assert!(is_equal_unit(
+        &mut rnd,
+        &mut multiply_2_3,
+        &mut multiply_net
+    ));
+
+    let mut add_2_3 = add((2.0, 3.0));
+    let mut add_net = Net64::new(2, 2);
+    add_net.add(Box::new(add((2.0, 3.0))));
+    add_net.add(Box::new(multipass::<U2>()));
+    add_net.pipe_input(0);
+    add_net.pipe(0, 1);
+    add_net.pipe_output(1);
+    assert!(is_equal_unit(&mut rnd, &mut add_2_3, &mut add_net));
 
     // Test multichannel constants vs. stacked constants.
     assert!(is_equal(
