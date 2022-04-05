@@ -82,10 +82,12 @@ fn is_equal_response(x: Complex64, y: Complex64) -> bool {
         ) <= phase_tolerance
 }
 
-fn test_response<X>(mut filter: An<X>)
+fn test_response<X>(mut filter: X)
 where
-    X: AudioNode<Sample = f64, Inputs = U1, Outputs = U1>,
+    X: AudioUnit64, // AudioNode<Sample = f64, Inputs = U1, Outputs = U1>,
 {
+    assert!(filter.inputs() == 1 && filter.outputs() == 1);
+
     let length = 0x10000;
     let sample_rate = 44_100.0;
 
@@ -230,4 +232,13 @@ fn test_responses() {
     test_response(morph_hz(2000.0, 2.0, -0.5));
     test_response((pass() | dc((1000.0, 0.5, 0.5))) >> morph());
     test_response((pass() | dc((500.0, 2.0, -1.0))) >> morph());
+
+    let mut net = Net64::new(1, 1);
+    net.chain(Box::new(lowpole_hz(1500.0)));
+    test_response(net);
+
+    let mut net = Net64::new(1, 1);
+    net.chain(Box::new(lowpole_hz(500.0)));
+    net.chain(Box::new(lowpole_hz(2500.0)));
+    test_response(net);
 }

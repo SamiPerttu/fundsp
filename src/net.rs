@@ -264,6 +264,17 @@ impl Net64 {
         }
         self.ordered = false;
     }
+
+    pub fn chain(&mut self, unit: Box<dyn AudioUnit64>) {
+        assert!(unit.inputs() == unit.outputs() && self.outputs() == unit.outputs());
+        let id = self.add(unit);
+        self.pipe_output(id);
+        if id > 0 {
+            self.pipe(id - 1, id);
+        } else {
+            self.pipe_input(id);
+        }
+    }
 }
 
 impl AudioUnit64 for Net64 {
@@ -287,7 +298,7 @@ impl AudioUnit64 for Net64 {
         }
         // Iterate units in network order.
         for node_index in self.order.iter() {
-            let mut vertex = Vertex64::new(*node_index, 1, 1);
+            let mut vertex = Vertex64::new(*node_index, 0, 0);
 
             std::mem::swap(&mut vertex, &mut self.vertex[*node_index]);
             for channel in 0..vertex.inputs() {
@@ -321,18 +332,18 @@ impl AudioUnit64 for Net64 {
         }
         // Iterate units in network order.
         for node_index in self.order.iter() {
-            let mut vertex = Vertex64::new(*node_index, 1, 1);
+            let mut vertex = Vertex64::new(*node_index, 0, 0);
 
             std::mem::swap(&mut vertex, &mut self.vertex[*node_index]);
             for channel in 0..vertex.inputs() {
                 match vertex.source[channel].source {
-                    Port::Zero => vertex.input.mut_at(channel).fill(0.0),
-                    Port::Global(port) => vertex.input.mut_at(channel).copy_from_slice(input[port]),
+                    Port::Zero => vertex.input.mut_at(channel)[..size].fill(0.0),
+                    Port::Global(port) => {
+                        vertex.input.mut_at(channel)[..size].copy_from_slice(&input[port][..size])
+                    }
                     Port::Local(source, port) => {
-                        vertex
-                            .input
-                            .mut_at(channel)
-                            .copy_from_slice(self.vertex[source].output.at(port));
+                        vertex.input.mut_at(channel)[..size]
+                            .copy_from_slice(&self.vertex[source].output.at(port)[..size]);
                     }
                 }
             }
@@ -345,11 +356,10 @@ impl AudioUnit64 for Net64 {
         // Then we set the global outputs.
         for channel in 0..output.len() {
             match self.output_edge[channel].source {
-                Port::Global(port) => output[channel].copy_from_slice(input[port]),
-                Port::Local(node, port) => {
-                    output[channel].copy_from_slice(self.vertex[node].output.at(port))
-                }
-                Port::Zero => output[channel].fill(0.0),
+                Port::Global(port) => output[channel][..size].copy_from_slice(&input[port][..size]),
+                Port::Local(node, port) => output[channel][..size]
+                    .copy_from_slice(&self.vertex[node].output.at(port)[..size]),
+                Port::Zero => output[channel][..size].fill(0.0),
             }
         }
     }
@@ -380,7 +390,7 @@ impl AudioUnit64 for Net64 {
                 Port::Global(port) => output_signal[channel] = input[port],
                 Port::Local(node, port) => {
                     output_signal[channel] = inner_signal[node][port];
-                },
+                }
                 Port::Zero => output_signal[channel] = Signal::Value(0.0),
             }
         }

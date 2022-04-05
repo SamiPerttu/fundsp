@@ -229,6 +229,14 @@ fn test_basic() {
     sequencer.add64(0.6, 0.7, 0.01, 0.0, Box::new(noise() | mls()));
     check_wave(sequencer);
 
+    let mut net = Net64::new(0, 2);
+    let id = net.add(Box::new(
+        noise() >> moog_hz(1500.0, 0.8) | noise() >> moog_hz(500.0, 0.4),
+    ));
+    net.connect_output(id, 0, 0);
+    net.connect_output(id, 1, 1);
+    check_wave(net);
+
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
     check_wave(noise() >> monitor(Meter::Sample, 0) >> pan(-0.5) | timer(1));
     check_wave(tag(0, 5.0) >> lfo2(|t, x| t * x) | tag(1, 1.0));

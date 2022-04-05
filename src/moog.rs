@@ -64,6 +64,14 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
             self.sample_rate = convert(sample_rate);
             self.set_cutoff_q(self.cutoff, self.q);
         }
+        self.stage0 = F::zero();
+        self.stage1 = F::zero();
+        self.stage2 = F::zero();
+        self.stage3 = F::zero();
+        self.px = F::zero();
+        self.ps0 = F::zero();
+        self.ps1 = F::zero();
+        self.ps2 = F::zero();
     }
 
     #[inline]
