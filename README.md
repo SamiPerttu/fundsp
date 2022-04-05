@@ -721,6 +721,7 @@ The same modes are used in the `meter` opcode.
 | `floor(x)`             | floor function |
 | `fract(x)`             | fract function |
 | `fractal_noise(seed, octaves, roughness, x)` | fractal spline noise (`octaves` > 0, `roughness` > 0) |
+| `fractal_ease_noise(ease, seed, octaves, roughness, x)` | fractal ease noise (`octaves` > 0, `roughness` > 0) interpolated with easing function `ease` |
 | `id(x)`                | identity function (linear easing function) |
 | `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` with `t` in 0...1 |
 | `lerp11(x0, x1, t)`    | linear interpolation between `x0` and `x1` with `t` in -1...1 |
@@ -783,6 +784,8 @@ These math functions have the shape of an easing function.
 ![](fractal_noise.png "fractal_noise example")
 
 ![](ease_noise.png "ease_noise example")
+
+![](fractal_ease_noise.png "fractal_ease_noise example")
 
 ---
 

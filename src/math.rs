@@ -575,3 +575,31 @@ pub fn fractal_noise<T: Float>(seed: i64, octaves: i64, roughness: T, x: T) -> T
     }
     result / total_weight
 }
+
+/// 1-D fractal ease noise in -1...1.
+/// Sums octaves (`octaves` > 0) of ease noise with easing function `ease`.
+/// The lowest frequency of the noise is 1, with each successive octave doubling in frequency.
+/// Roughness (`roughness` > 0) is the multiplicative weighting of successive octaves.
+pub fn fractal_ease_noise<T: Float>(
+    ease: impl SegmentInterpolator<T>,
+    seed: i64,
+    octaves: i64,
+    roughness: T,
+    x: T,
+) -> T {
+    assert!(octaves > 0);
+    let mut octave_weight = T::one();
+    let mut total_weight = T::zero();
+    let mut frequency = T::one();
+    let mut result = T::zero();
+    let mut random = AttoRand::new(seed as u64);
+    for _octave in 0..octaves {
+        // Employ a pseudorandom offset for each octave.
+        let octave_x = x * frequency + random.get01();
+        result += octave_weight * ease_noise(ease.clone(), random.state() as i64, octave_x);
+        total_weight += octave_weight;
+        octave_weight *= roughness;
+        frequency *= T::new(2);
+    }
+    result / total_weight
+}
