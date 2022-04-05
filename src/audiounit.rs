@@ -53,6 +53,23 @@ pub trait AudioUnit48 {
         None
     }
 
+    /// Set unit pseudorandom phase hash. Override this to use the hash.
+    /// This is called from `ping`. It should not be called by users.
+    /// The default implementation does nothing.
+    fn set_hash(&mut self, _hash: u64) {}
+
+    /// Ping contained `AudioUnit`s and `AudioNode`s to obtain
+    /// a deterministic pseudorandom hash. The local hash includes children, too.
+    /// Leaf nodes should not need to override this.
+    /// If `probe` is true, then this is a probe for computing the network hash
+    /// and `set_hash` should not be called yet.
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        if !probe {
+            self.set_hash(hash.value());
+        }
+        hash.hash(0)
+    }
+
     // End of interface. No need to override the following.
 
     /// Evaluate frequency response of `output` at `frequency` Hz.
@@ -184,6 +201,12 @@ where
     fn outputs(&self) -> usize {
         self.0.outputs()
     }
+    fn set_hash(&mut self, hash: u64) {
+        self.0.set_hash(hash);
+    }
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.0.ping(probe, hash)
+    }
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.0.route(input, frequency)
     }
@@ -238,6 +261,18 @@ impl Au {
         match self {
             Au::Unit64(x) => x.outputs(),
             Au::Unit32(x) => x.outputs(),
+        }
+    }
+    pub fn set_hash(&mut self, hash: u64) {
+        match self {
+            Au::Unit64(x) => x.set_hash(hash),
+            Au::Unit32(x) => x.set_hash(hash),
+        }
+    }
+    pub fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        match self {
+            Au::Unit64(x) => x.ping(probe, hash),
+            Au::Unit32(x) => x.ping(probe, hash),
         }
     }
     pub fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
@@ -346,6 +381,12 @@ impl AudioUnit48 for BigBlockAdapter48 {
     }
     fn outputs(&self) -> usize {
         self.source.outputs()
+    }
+    fn set_hash(&mut self, hash: u64) {
+        self.source.set_hash(hash);
+    }
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.source.ping(probe, hash)
     }
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.source.route(input, frequency)

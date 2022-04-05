@@ -167,7 +167,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root = BitMapBackend::new("fractal_ease_noise.png", (1280, 640)).into_drawing_area();
     root.fill(&WHITE)?;
     let mut chart = ChartBuilder::on(&root)
-        .caption("fractal_ease_noise, roughness 0.7, 4 octaves", ("sans-serif", 40).into_font())
+        .caption(
+            "fractal_ease_noise, roughness 0.7, 4 octaves",
+            ("sans-serif", 40).into_font(),
+        )
         .margin(5)
         .x_label_area_size(30)
         .y_label_area_size(30)

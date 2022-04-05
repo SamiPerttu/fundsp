@@ -3,12 +3,15 @@
 use super::audionode::*;
 use super::audiounit::*;
 use super::buffer::*;
+use super::math::*;
 use super::signal::*;
 use super::*;
 use duplicate::duplicate_item;
 
 pub type NodeIndex = usize;
 pub type PortIndex = usize;
+
+const ID: u64 = 63;
 
 /// Input or output port.
 #[derive(Clone, Copy)]
@@ -101,6 +104,7 @@ pub struct Net48 {
     /// Ordering of vertex evaluation.
     order: Vec<NodeIndex>,
     ordered: bool,
+    sample_rate: f64,
 }
 
 #[duplicate_item(
@@ -119,6 +123,7 @@ impl Net48 {
             vertex: vec![],
             order: vec![],
             ordered: true,
+            sample_rate: DEFAULT_SR,
         };
         for channel in 0..outputs {
             net.output_edge
@@ -215,6 +220,9 @@ impl Net48 {
                 .source
                 .push(edge(Port::Zero, Port::Local(id as usize, i)));
         }
+        let hash = vertex.unit.ping(true, AttoRand::new(ID + id as u64));
+        vertex.unit.ping(false, hash);
+        vertex.unit.reset(Some(self.sample_rate));
         self.vertex.push(vertex);
         self.ordered = false;
         id
@@ -330,6 +338,9 @@ impl AudioUnit48 for Net48 {
     }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sr) = sample_rate {
+            self.sample_rate = sr;
+        }
         for vertex in &mut self.vertex {
             vertex.unit.reset(sample_rate);
         }
@@ -405,6 +416,23 @@ impl AudioUnit48 for Net48 {
                 Port::Zero => output[channel][..size].fill(0.0),
             }
         }
+    }
+
+    fn set_hash(&mut self, _hash: u64) {
+        let mut hash = AttoRand::new(_hash);
+        for x in self.vertex.iter_mut() {
+            x.unit.set_hash(hash.get());
+        }
+    }
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        if !probe {
+            self.set_hash(hash.value());
+        }
+        let mut h = hash.hash(ID);
+        for x in self.vertex.iter_mut() {
+            h = x.unit.ping(probe, h);
+        }
+        h
     }
 
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
