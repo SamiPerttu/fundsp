@@ -105,6 +105,7 @@ pub struct Net48 {
     order: Vec<NodeIndex>,
     ordered: bool,
     sample_rate: f64,
+    tmp_vertex: Vertex48,
 }
 
 #[duplicate_item(
@@ -124,6 +125,7 @@ impl Net48 {
             order: vec![],
             ordered: true,
             sample_rate: DEFAULT_SR,
+            tmp_vertex: Vertex48::new(0, 0, 0),
         };
         for channel in 0..outputs {
             net.output_edge
@@ -359,22 +361,21 @@ impl AudioUnit48 for Net48 {
         }
         // Iterate units in network order.
         for node_index in self.order.iter() {
-            let mut vertex = Vertex48::new(*node_index, 0, 0);
-
-            std::mem::swap(&mut vertex, &mut self.vertex[*node_index]);
-            for channel in 0..vertex.inputs() {
-                match vertex.source[channel].source {
-                    Port::Zero => vertex.tick_input[channel] = 0.0,
-                    Port::Global(port) => vertex.tick_input[channel] = input[port],
+            std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
+            for channel in 0..self.tmp_vertex.inputs() {
+                match self.tmp_vertex.source[channel].source {
+                    Port::Zero => self.tmp_vertex.tick_input[channel] = 0.0,
+                    Port::Global(port) => self.tmp_vertex.tick_input[channel] = input[port],
                     Port::Local(source, port) => {
-                        vertex.tick_input[channel] = self.vertex[source].tick_output[port]
+                        self.tmp_vertex.tick_input[channel] = self.vertex[source].tick_output[port]
                     }
                 }
             }
-            vertex
-                .unit
-                .tick(&vertex.tick_input, &mut vertex.tick_output);
-            std::mem::swap(&mut vertex, &mut self.vertex[*node_index]);
+            self.tmp_vertex.unit.tick(
+                &self.tmp_vertex.tick_input,
+                &mut self.tmp_vertex.tick_output,
+            );
+            std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
         }
 
         // Then we set the global outputs.
@@ -393,25 +394,24 @@ impl AudioUnit48 for Net48 {
         }
         // Iterate units in network order.
         for node_index in self.order.iter() {
-            let mut vertex = Vertex48::new(*node_index, 0, 0);
-
-            std::mem::swap(&mut vertex, &mut self.vertex[*node_index]);
-            for channel in 0..vertex.inputs() {
-                match vertex.source[channel].source {
-                    Port::Zero => vertex.input.mut_at(channel)[..size].fill(0.0),
-                    Port::Global(port) => {
-                        vertex.input.mut_at(channel)[..size].copy_from_slice(&input[port][..size])
-                    }
+            std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
+            for channel in 0..self.tmp_vertex.inputs() {
+                match self.tmp_vertex.source[channel].source {
+                    Port::Zero => self.tmp_vertex.input.mut_at(channel)[..size].fill(0.0),
+                    Port::Global(port) => self.tmp_vertex.input.mut_at(channel)[..size]
+                        .copy_from_slice(&input[port][..size]),
                     Port::Local(source, port) => {
-                        vertex.input.mut_at(channel)[..size]
+                        self.tmp_vertex.input.mut_at(channel)[..size]
                             .copy_from_slice(&self.vertex[source].output.at(port)[..size]);
                     }
                 }
             }
-            vertex
-                .unit
-                .process(size, vertex.input.self_ref(), vertex.output.self_mut());
-            std::mem::swap(&mut vertex, &mut self.vertex[*node_index]);
+            self.tmp_vertex.unit.process(
+                size,
+                self.tmp_vertex.input.self_ref(),
+                self.tmp_vertex.output.self_mut(),
+            );
+            std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
         }
 
         // Then we set the global outputs.
