@@ -451,10 +451,7 @@ impl AudioUnit48 for Net48 {
     }
 
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut order = vec![];
-        if !self.ordered {
-            self.determine_order_in(&mut order);
-        }
+        let mut tmp_order = vec![];
         let mut inner_signal: Vec<SignalFrame> = vec![];
         for vertex in self.vertex.iter() {
             inner_signal.push(new_signal_frame(vertex.unit.outputs()));
@@ -462,7 +459,8 @@ impl AudioUnit48 for Net48 {
         for &unit_index in (if self.ordered {
             self.order.iter()
         } else {
-            order.iter()
+            self.determine_order_in(&mut tmp_order);
+            tmp_order.iter()
         }) {
             let mut input_signal = new_signal_frame(self.vertex[unit_index].unit.inputs());
             for channel in 0..self.vertex[unit_index].unit.inputs() {
