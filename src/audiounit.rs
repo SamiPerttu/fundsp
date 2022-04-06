@@ -53,6 +53,9 @@ pub trait AudioUnit48 {
         None
     }
 
+    /// Return an ID code for this type of unit.
+    fn get_id(&self) -> u64;
+
     /// Set unit pseudorandom phase hash. Override this to use the hash.
     /// This is called from `ping`. It should not be called by users.
     /// The default implementation does nothing.
@@ -67,7 +70,7 @@ pub trait AudioUnit48 {
         if !probe {
             self.set_hash(hash.value());
         }
-        hash.hash(0)
+        hash.hash(self.get_id())
     }
 
     // End of interface. No need to override the following.
@@ -200,6 +203,9 @@ where
     }
     fn outputs(&self) -> usize {
         self.0.outputs()
+    }
+    fn get_id(&self) -> u64 {
+        X::ID
     }
     fn set_hash(&mut self, hash: u64) {
         self.0.set_hash(hash);
@@ -381,6 +387,9 @@ impl AudioUnit48 for BigBlockAdapter48 {
     }
     fn outputs(&self) -> usize {
         self.source.outputs()
+    }
+    fn get_id(&self) -> u64 {
+        self.source.get_id()
     }
     fn set_hash(&mut self, hash: u64) {
         self.source.set_hash(hash);

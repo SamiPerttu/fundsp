@@ -425,6 +425,10 @@ impl AudioUnit48 for Net48 {
         }
     }
 
+    fn get_id(&self) -> u64 {
+        ID
+    }
+
     fn set_hash(&mut self, hash: u64) {
         let mut hash = AttoRand::new(hash);
         for x in self.vertex.iter_mut() {

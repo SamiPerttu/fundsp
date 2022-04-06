@@ -10,6 +10,7 @@ use std::cmp::Ord;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
+const ID: u64 = 64;
 pub struct Event {
     pub unit: Au,
     pub start_time: f64,
@@ -458,6 +459,10 @@ impl AudioUnit64 for Sequencer {
         self.time = end_time;
     }
 
+    fn get_id(&self) -> u64 {
+        ID
+    }
+
     fn inputs(&self) -> usize {
         0
     }
@@ -578,6 +583,10 @@ impl AudioUnit32 for Sequencer {
             }
         }
         self.time = end_time;
+    }
+
+    fn get_id(&self) -> u64 {
+        ID
     }
 
     fn inputs(&self) -> usize {
