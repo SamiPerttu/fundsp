@@ -84,7 +84,7 @@ fn is_equal_response(x: Complex64, y: Complex64) -> bool {
 
 fn test_response<X>(mut filter: X)
 where
-    X: AudioUnit64, // AudioNode<Sample = f64, Inputs = U1, Outputs = U1>,
+    X: AudioUnit64,
 {
     assert!(filter.inputs() == 1 && filter.outputs() == 1);
 

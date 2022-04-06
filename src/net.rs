@@ -18,7 +18,7 @@ const ID: u64 = 63;
 pub enum Port {
     /// Node input or output.
     Local(NodeIndex, PortIndex),
-    /// Global input or output.
+    /// Network input or output.
     Global(PortIndex),
     /// Unconnected input. Unconnected output ports are not marked anywhere.
     Zero,
@@ -113,7 +113,7 @@ pub struct Net48 {
     [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
 impl Net48 {
-    /// Create new network with the given number of inputs and outputs.
+    /// Create a new network with the given number of inputs and outputs.
     /// The number of inputs and outputs is fixed after construction.
     pub fn new(inputs: usize, outputs: usize) -> Self {
         let mut net = Self {
@@ -132,6 +132,7 @@ impl Net48 {
         net
     }
 
+    /// Compute and store node order for this network.
     fn determine_order(&mut self) {
         self.ordered = true;
         let mut order = Vec::new();
@@ -140,6 +141,7 @@ impl Net48 {
         std::mem::swap(&mut order, &mut self.order);
     }
 
+    /// Determine node order in the supplied vector.
     fn determine_order_in(&self, order: &mut Vec<NodeIndex>) {
         let mut vertices_left = self.vertex.len();
         let mut vertex_left = vec![true; self.vertex.len()];
@@ -216,20 +218,19 @@ impl Net48 {
             id,
         };
         for i in 0..vertex.inputs() {
-            vertex
-                .source
-                .push(edge(Port::Zero, Port::Local(id as usize, i)));
+            vertex.source.push(edge(Port::Zero, Port::Local(id, i)));
         }
-        let hash = vertex.unit.ping(true, AttoRand::new(ID + id as u64));
-        vertex.unit.ping(false, hash);
-        vertex.unit.reset(Some(self.sample_rate));
         self.vertex.push(vertex);
+        /// Note. We have designed the hash to depend on vertices
+        /// but not edges.
+        let hash = self.ping(true, AttoRand::new(ID));
+        self.ping(false, hash);
         self.ordered = false;
         id
     }
 
-    /// Connect the given output (`source`, `source_port`)
-    /// to the given input (`target`, `target_port`).
+    /// Connect the given unit output (`source`, `source_port`)
+    /// to the given unit input (`target`, `target_port`).
     pub fn connect(
         &mut self,
         source: NodeIndex,
@@ -244,7 +245,8 @@ impl Net48 {
         self.ordered = false;
     }
 
-    /// Connect the node input (`target`, `target_port`) to the global input `global_input`.
+    /// Connect the node input (`target`, `target_port`)
+    /// to the network input `global_input`.
     pub fn connect_input(
         &mut self,
         global_input: PortIndex,
@@ -257,6 +259,7 @@ impl Net48 {
     }
 
     /// Pipe global input to node `target`.
+    /// Number of node inputs must match the number of network inputs.
     pub fn pipe_input(&mut self, target: NodeIndex) {
         assert!(self.vertex[target].inputs() == self.inputs());
         for i in 0..self.inputs() {
@@ -265,7 +268,7 @@ impl Net48 {
         self.ordered = false;
     }
 
-    /// Connect node input (`source`, `source_port`) to global output `global_output`.
+    /// Connect node output (`source`, `source_port`) to network output `global_output`.
     pub fn connect_output(
         &mut self,
         source: NodeIndex,
@@ -280,7 +283,7 @@ impl Net48 {
     }
 
     /// Pipe node outputs to global outputs.
-    /// The number of outputs and number of global outputs must match.
+    /// Number of outputs must match the number of network outputs.
     pub fn pipe_output(&mut self, source: NodeIndex) {
         assert!(self.vertex[source].outputs() == self.outputs());
         for i in 0..self.outputs() {
@@ -310,8 +313,11 @@ impl Net48 {
     }
 
     /// Assuming this network is a chain of processing units ordered by increasing node ID,
-    /// add a new unit to the chain. The global outputs will be assigned to the outputs of the unit.
-    pub fn chain(&mut self, unit: Box<dyn AudioUnit48>) {
+    /// add a new unit to the chain. Global outputs will be assigned to the outputs of the unit.
+    /// The unit must have an equal number of inputs and outputs, which must match
+    /// the number of network outputs.
+    /// Returns the ID of the new unit.
+    pub fn chain(&mut self, unit: Box<dyn AudioUnit48>) -> NodeIndex {
         assert!(unit.inputs() == unit.outputs() && self.outputs() == unit.outputs());
         let id = self.add(unit);
         self.pipe_output(id);
@@ -320,6 +326,7 @@ impl Net48 {
         } else {
             self.pipe_input(id);
         }
+        id
     }
 }
 
@@ -418,8 +425,8 @@ impl AudioUnit48 for Net48 {
         }
     }
 
-    fn set_hash(&mut self, _hash: u64) {
-        let mut hash = AttoRand::new(_hash);
+    fn set_hash(&mut self, hash: u64) {
+        let mut hash = AttoRand::new(hash);
         for x in self.vertex.iter_mut() {
             x.unit.set_hash(hash.get());
         }
@@ -428,11 +435,11 @@ impl AudioUnit48 for Net48 {
         if !probe {
             self.set_hash(hash.value());
         }
-        let mut h = hash.hash(ID);
+        let mut hash = hash.hash(ID);
         for x in self.vertex.iter_mut() {
-            h = x.unit.ping(probe, h);
+            hash = x.unit.ping(probe, hash);
         }
-        h
+        hash
     }
 
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {

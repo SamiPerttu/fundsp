@@ -57,6 +57,7 @@ fn main() {
     remove_string(&mut arg, "fir::");
     remove_string(&mut arg, "math::");
     remove_string(&mut arg, "moog::");
+    remove_string(&mut arg, "net::");
     remove_string(&mut arg, "noise::");
     remove_string(&mut arg, "oscillator::");
     remove_string(&mut arg, "oversample::");
