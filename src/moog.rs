@@ -21,10 +21,10 @@ pub struct Moog<T: Float, F: Real, N: Size<T>> {
     rez: F,
     p: F,
     k: F,
-    stage0: F,
-    stage1: F,
-    stage2: F,
-    stage3: F,
+    s0: F,
+    s1: F,
+    s2: F,
+    s3: F,
     px: F,
     ps0: F,
     ps1: F,
@@ -64,10 +64,10 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
             self.sample_rate = convert(sample_rate);
             self.set_cutoff_q(self.cutoff, self.q);
         }
-        self.stage0 = F::zero();
-        self.stage1 = F::zero();
-        self.stage2 = F::zero();
-        self.stage3 = F::zero();
+        self.s0 = F::zero();
+        self.s1 = F::zero();
+        self.s2 = F::zero();
+        self.s3 = F::zero();
         self.px = F::zero();
         self.ps0 = F::zero();
         self.ps1 = F::zero();
@@ -83,19 +83,19 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
             self.set_cutoff_q(convert(input[1]), convert(input[2]));
         }
 
-        let x = -self.rez * self.stage3 + convert(input[0]);
+        let x = -self.rez * self.s3 + convert(input[0]);
 
-        self.stage0 = (x + self.px) * self.p - self.k * self.stage0;
-        self.stage1 = (self.stage0 + self.ps0) * self.p - self.k * self.stage1;
-        self.stage2 = (self.stage1 + self.ps1) * self.p - self.k * self.stage2;
-        self.stage3 = tanh((self.stage2 + self.ps2) * self.p - self.k * self.stage3);
+        self.s0 = (x + self.px) * self.p - self.k * self.s0;
+        self.s1 = (self.s0 + self.ps0) * self.p - self.k * self.s1;
+        self.s2 = (self.s1 + self.ps1) * self.p - self.k * self.s2;
+        self.s3 = tanh((self.s2 + self.ps2) * self.p - self.k * self.s3);
 
         self.px = x;
-        self.ps0 = self.stage0;
-        self.ps1 = self.stage1;
-        self.ps2 = self.stage2;
+        self.ps0 = self.s0;
+        self.ps1 = self.s1;
+        self.ps2 = self.s2;
 
-        [convert(self.stage3)].into()
+        [convert(self.s3)].into()
     }
 
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
