@@ -206,7 +206,8 @@ impl Net48 {
 
     /// Add a new unit to the network. Return its ID handle.
     /// ID handles are always consecutive numbers starting from zero.
-    pub fn add(&mut self, unit: Box<dyn AudioUnit48>) -> NodeIndex {
+    pub fn add(&mut self, mut unit: Box<dyn AudioUnit48>) -> NodeIndex {
+        unit.reset(Some(self.sample_rate));
         let id = self.vertex.len();
         let inputs = unit.inputs();
         let outputs = unit.outputs();
@@ -353,6 +354,9 @@ impl AudioUnit48 for Net48 {
         for vertex in &mut self.vertex {
             vertex.unit.reset(sample_rate);
         }
+        if !self.ordered {
+            self.determine_order();
+        }
     }
 
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {
@@ -448,12 +452,18 @@ impl AudioUnit48 for Net48 {
 
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut order = vec![];
-        self.determine_order_in(&mut order);
+        if !self.ordered {
+            self.determine_order_in(&mut order);
+        }
         let mut inner_signal: Vec<SignalFrame> = vec![];
         for vertex in self.vertex.iter() {
             inner_signal.push(new_signal_frame(vertex.unit.outputs()));
         }
-        for unit_index in order {
+        for &unit_index in (if self.ordered {
+            self.order.iter()
+        } else {
+            order.iter()
+        }) {
             let mut input_signal = new_signal_frame(self.vertex[unit_index].unit.inputs());
             for channel in 0..self.vertex[unit_index].unit.inputs() {
                 match self.vertex[unit_index].source[channel].source {
