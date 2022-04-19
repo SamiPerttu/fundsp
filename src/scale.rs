@@ -8,16 +8,34 @@ pub struct Scale {
     dissonance: Vec<f64>,
 }
 
-fn overtone_dissonance(a: f64, b: f64) -> f64 {
+/// Calculate an overtone dissonance between
+/// the first 8 partials of tones at `a` and `b` Hz.
+pub fn overtone_dissonance(a: f64, b: f64) -> f64 {
     let mut d = 0.0;
-    for i in 1..8 {
-        for j in 1..8 {
+    for i in 1..9 {
+        for j in 1..9 {
             d += 1.0 / max(i, j) as f64 * dissonance(a * i as f64, b * j as f64);
         }
     }
     d
 }
 
+/// Calculate a scale dissonance of tones at `a` and `b` Hz
+/// that is a sum of overtone dissonance and chroma dissonance.
+/// Chroma dissonance is overtone dissonance where the
+/// tones are brought into the same octave.
+pub fn scale_dissonance(mut a: f64, mut b: f64) -> f64 {
+    let dissonance = overtone_dissonance(a, b);
+    while a >= b * 2.0 {
+        b *= 2.0;
+    }
+    while b >= a * 2.0 {
+        a *= 2.0;
+    }
+    dissonance + overtone_dissonance(a, b)
+}
+
+/// Equitempered scale.
 impl Scale {
     pub fn new(lowest: f64, notes: usize, priority: &[f64]) -> Self {
         let chromas = priority.len();
@@ -85,14 +103,9 @@ impl Scale {
         } else if i > j {
             self.compute_dissonance(j, i);
         } else {
-            let d = overtone_dissonance(self.pitch(i), self.pitch(j));
-            let mut i_prime = i;
-            let j_prime = j;
-            while j_prime - i_prime >= self.chromas() {
-                i_prime += self.chromas();
-            }
-            let d = d + overtone_dissonance(self.pitch(i_prime), self.pitch(j_prime));
+            let d = scale_dissonance(self.pitch(i), self.pitch(j));
             self.set_dissonance(i, j, d);
+            self.set_dissonance(j, i, d);
         }
     }
 }

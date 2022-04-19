@@ -198,6 +198,7 @@ impl Net48 {
                     }
                 }
             }
+            // TODO. Make this a recoverable error.
             if !progress {
                 panic!("Cycle detected.");
             }
@@ -206,6 +207,7 @@ impl Net48 {
 
     /// Add a new unit to the network. Return its ID handle.
     /// ID handles are always consecutive numbers starting from zero.
+    /// The unit is reset with the sample rate of the network.
     pub fn add(&mut self, mut unit: Box<dyn AudioUnit48>) -> NodeIndex {
         unit.reset(Some(self.sample_rate));
         let id = self.vertex.len();
@@ -354,6 +356,7 @@ impl AudioUnit48 for Net48 {
         for vertex in &mut self.vertex {
             vertex.unit.reset(sample_rate);
         }
+        // Take the opportunity to unload some calculations.
         if !self.ordered {
             self.determine_order();
         }
@@ -451,11 +454,11 @@ impl AudioUnit48 for Net48 {
     }
 
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut tmp_order = vec![];
         let mut inner_signal: Vec<SignalFrame> = vec![];
         for vertex in self.vertex.iter() {
             inner_signal.push(new_signal_frame(vertex.unit.outputs()));
         }
+        let mut tmp_order = vec![];
         for &unit_index in (if self.ordered {
             self.order.iter()
         } else {
