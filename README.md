@@ -1,5 +1,14 @@
 # FunDSP
 
+---
+
+## Rust Audio Discord
+
+To discuss FunDSP and other topics, come hang out with us at the
+[Rust Audio Discord](https://discord.gg/3hfDXS6hhQ).
+
+---
+
 ## Audio Processing and Synthesis Library for Rust
 
 [FunDSP](https://github.com/SamiPerttu/fundsp)
@@ -917,13 +926,6 @@ fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
     pass() ^ pass() ^ pass() ^ pass()
 }
 ```
-
----
-
-## Rust Audio Discord
-
-To discuss FunDSP and other topics, come hang out with us at the
-[Rust Audio Discord](https://discord.gg/3hfDXS6hhQ).
 
 ---
 
