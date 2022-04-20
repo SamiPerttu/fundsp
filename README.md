@@ -28,6 +28,8 @@ procedural generation tools.
 - Sound hacking and audio golfing
 - Prototyping of DSP algorithms
 
+### Rust Audio Discord
+
 To discuss FunDSP and other topics, come hang out with us at the
 [Rust Audio Discord](https://discord.gg/3hfDXS6hhQ).
 
