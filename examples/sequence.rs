@@ -7,13 +7,18 @@ use fundsp::hacker::*;
 
 fn main() {
     let sample_rate = 44100.0;
+    // 'x' indicates a drum hit, while '.' is a rest.
     let bassd_line = "x.....x.x.......xx....x...xx....x.....x.x.......x.......x.x.....x";
     let snare_line = "....x.......x.......x.......x.......x.......x.......x......xx.xxx";
 
+    // The bass drum is defined as a sine sweep dropping down from 200 Hz that is
+    // waveshaped with the tanh function and then panned to the center in stereo.
     let bassdrum =
         || envelope(|t| 200.0 * exp(-t * 5.0)) >> sine() >> shape(Shape::Tanh(2.0)) >> pan(0.0);
 
+    // The volume envelope for the snare drum is exponentially decaying.
     let env = || envelope(|t| exp(-t * 10.0));
+    // The snare drum is exponentially decaying stereo pink noise.
     let snaredrum = || pink() * env() | pink() * env();
 
     let mut sequencer = Sequencer::new(sample_rate, 2);
