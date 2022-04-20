@@ -20,6 +20,9 @@ FunDSP comes with a combinator environment containing
 a suite of audio components, math and utility functions and
 procedural generation tools.
 
+To discuss FunDSP and other topics, come hang out with us at the
+[Rust Audio Discord](https://discord.gg/3hfDXS6hhQ).
+
 ### Uses
 
 - Audio processing and synthesis for games and applications
@@ -917,13 +920,6 @@ fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
     pass() ^ pass() ^ pass() ^ pass()
 }
 ```
-
----
-
-## Rust Audio Discord
-
-To discuss FunDSP and other topics, come hang out with us at the
-[Rust Audio Discord](https://discord.gg/3hfDXS6hhQ).
 
 ---
 
