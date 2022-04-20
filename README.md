@@ -20,9 +20,6 @@ FunDSP comes with a combinator environment containing
 a suite of audio components, math and utility functions and
 procedural generation tools.
 
-To discuss FunDSP and other topics, come hang out with us at the
-[Rust Audio Discord](https://discord.gg/3hfDXS6hhQ).
-
 ### Uses
 
 - Audio processing and synthesis for games and applications
@@ -30,6 +27,9 @@ To discuss FunDSP and other topics, come hang out with us at the
 - Music making
 - Sound hacking and audio golfing
 - Prototyping of DSP algorithms
+
+To discuss FunDSP and other topics, come hang out with us at the
+[Rust Audio Discord](https://discord.gg/3hfDXS6hhQ).
 
 ### Graph Notation
 
