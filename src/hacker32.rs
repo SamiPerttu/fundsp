@@ -1470,12 +1470,14 @@ pub fn pulse() -> An<super::prelude::PulseWave<f32>> {
 }
 
 /// Play back a channel of a Wave64.
+/// Optional loop point is the index to jump to at the end of the wave.
 /// - Output 0: wave
 pub fn wave64(wave: &Wave64, channel: usize, loop_point: Option<usize>) -> An<Wave64Player<f32>> {
     An(Wave64Player::new(wave, channel, loop_point))
 }
 
 /// Play back a channel of a Wave32.
+/// Optional loop point is the index to jump to at the end of the wave.
 /// - Output 0: wave
 pub fn wave32(wave: &Wave32, channel: usize, loop_point: Option<usize>) -> An<Wave32Player<f32>> {
     An(Wave32Player::new(wave, channel, loop_point))

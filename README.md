@@ -612,6 +612,8 @@ The type parameters in the table refer to the hacker prelude.
 | `timer(id)`            |    -    |    -    | Timer node that presents time as a parameter that can be queried. |
 | `triangle()`           | 1 (frequency) | 1 | Bandlimited triangle wave oscillator. |
 | `triangle_hz(f)`       |    -    |    1    | Bandlimited triangle wave oscillator at `f` Hz. |
+| `wave32(wave, channel, loop_point)` | - | 1 | Play back a channel of `Wave32`. Optional loop point is the index to jump to at the end of the wave. |
+| `wave64(wave, channel, loop_point)` | - | 1 | Play back a channel of `Wave64`. Optional loop point is the index to jump to at the end of the wave. |
 | `white()`              |    -    |    1    | [White noise](https://en.wikipedia.org/wiki/White_noise) source. Synonymous with `noise`. |
 | `zero()`               |    -    |    1    | Zero signal. |
 

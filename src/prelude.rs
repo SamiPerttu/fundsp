@@ -1935,6 +1935,7 @@ pub fn morph_hz<T: Real, F: Real>(
 }
 
 /// Play back a channel of a Wave64.
+/// Optional loop point is the index to jump to at the end of the wave.
 /// - Output 0: wave
 pub fn wave64<T: Float>(
     wave: &Wave64,
@@ -1945,6 +1946,7 @@ pub fn wave64<T: Float>(
 }
 
 /// Play back a channel of a Wave32.
+/// Optional loop point is the index to jump to at the end of the wave.
 /// - Output 0: wave
 pub fn wave32<T: Float>(
     wave: &Wave32,
