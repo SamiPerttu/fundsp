@@ -9,9 +9,6 @@
     clippy::manual_range_contains
 )]
 
-extern crate num_complex;
-extern crate rustfft;
-
 use fundsp::hacker::*;
 use num_complex::Complex64;
 use rustfft::algorithm::Radix4;

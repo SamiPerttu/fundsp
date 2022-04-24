@@ -1468,3 +1468,15 @@ pub fn highshelf_q(
 pub fn pulse() -> An<super::prelude::PulseWave<f32>> {
     super::prelude::pulse()
 }
+
+/// Play back a channel of a Wave64.
+/// - Output 0: wave
+pub fn wave64(wave: &Wave64, channel: usize, loop_point: Option<usize>) -> An<Wave64Player<f32>> {
+    An(Wave64Player::new(wave, channel, loop_point))
+}
+
+/// Play back a channel of a Wave32.
+/// - Output 0: wave
+pub fn wave32(wave: &Wave32, channel: usize, loop_point: Option<usize>) -> An<Wave32Player<f32>> {
+    An(Wave32Player::new(wave, channel, loop_point))
+}

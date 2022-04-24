@@ -1933,3 +1933,23 @@ pub fn morph_hz<T: Real, F: Real>(
             convert(morph),
         ))
 }
+
+/// Play back a channel of a Wave64.
+/// - Output 0: wave
+pub fn wave64<T: Float>(
+    wave: &Wave64,
+    channel: usize,
+    loop_point: Option<usize>,
+) -> An<Wave64Player<T>> {
+    An(Wave64Player::new(wave, channel, loop_point))
+}
+
+/// Play back a channel of a Wave32.
+/// - Output 0: wave
+pub fn wave32<T: Float>(
+    wave: &Wave32,
+    channel: usize,
+    loop_point: Option<usize>,
+) -> An<Wave32Player<T>> {
+    An(Wave32Player::new(wave, channel, loop_point))
+}

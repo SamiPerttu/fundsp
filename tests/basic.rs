@@ -189,7 +189,7 @@ fn test_basic() {
     check_wave(
         dc((110.0, 220.0, 440.0, 880.0)) >> multipass() >> (sink() | -sine() | sink() | sine()),
     );
-    // TODO. The next test fails with declicker present and dsf_square(0.99), why?
+    // TODO. The next test fails with declicker present and dsf_square_r(0.99), why?
     // It passes if tolerance is increased to 1.0e-8. Is this acceptable because of
     // declicker process vs. tick - the phase accumulation is slightly different?
     check_wave(dc((110.0, 220.0)) >> declick_s(0.1) + pass() >> (saw() ^ dsf_square_r(0.9)));

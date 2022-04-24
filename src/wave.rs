@@ -1,12 +1,15 @@
 //! Multichannel wave abstraction.
 
+use super::audionode::*;
 use super::audiounit::*;
 use super::math::*;
 use super::*;
 use duplicate::duplicate_item;
+use numeric_array::*;
 use rsor::Slice;
 use std::fs::File;
 use std::io::prelude::*;
+use std::marker::PhantomData;
 use std::path::Path;
 
 /// Write a 32-bit value to a WAV file.
@@ -390,5 +393,71 @@ impl Wave48 {
             }
         }
         std::io::Result::Ok(())
+    }
+}
+
+/// Play back one channel of a wave.
+#[duplicate_item(
+    f48       Wave48       Wave48Player;
+    [ f64 ]   [ Wave64 ]   [ Wave64Player ];
+    [ f32 ]   [ Wave32 ]   [ Wave32Player ];
+)]
+pub struct Wave48Player<'a, T: Float> {
+    wave: &'a Wave48,
+    channel: usize,
+    index: usize,
+    loop_point: Option<usize>,
+    _marker: PhantomData<T>,
+}
+
+#[duplicate_item(
+    f48       Wave48       Wave48Player;
+    [ f64 ]   [ Wave64 ]   [ Wave64Player ];
+    [ f32 ]   [ Wave32 ]   [ Wave32Player ];
+)]
+impl<'a, T: Float> Wave48Player<'a, T> {
+    pub fn new(wave: &'a Wave48, channel: usize, loop_point: Option<usize>) -> Self {
+        Self {
+            wave,
+            channel,
+            index: 0,
+            loop_point,
+            _marker: PhantomData::default(),
+        }
+    }
+}
+
+#[duplicate_item(
+    f48       Wave48       Wave48Player;
+    [ f64 ]   [ Wave64 ]   [ Wave64Player ];
+    [ f32 ]   [ Wave32 ]   [ Wave32Player ];
+)]
+impl<'a, T: Float> AudioNode for Wave48Player<'a, T> {
+    const ID: u64 = 65;
+    type Sample = T;
+    type Inputs = typenum::U0;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self, _sample_rate: Option<f64>) {
+        self.index = 0;
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        _input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        if self.index < self.wave.length() {
+            let value = self.wave.at(self.channel, self.index);
+            self.index += 1;
+            if self.index == self.wave.length() {
+                if let Some(point) = self.loop_point {
+                    self.index = point;
+                }
+            }
+            [convert(value)].into()
+        } else {
+            [T::zero()].into()
+        }
     }
 }
