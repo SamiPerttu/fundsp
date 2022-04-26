@@ -11,6 +11,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::marker::PhantomData;
 use std::path::Path;
+use std::sync::Arc;
 
 /// Write a 32-bit value to a WAV file.
 #[inline]
@@ -402,8 +403,8 @@ impl Wave48 {
     [ f64 ]   [ Wave64 ]   [ Wave64Player ];
     [ f32 ]   [ Wave32 ]   [ Wave32Player ];
 )]
-pub struct Wave48Player<'a, T: Float> {
-    wave: &'a Wave48,
+pub struct Wave48Player<T: Float> {
+    wave: Arc<Wave48>,
     channel: usize,
     index: usize,
     loop_point: Option<usize>,
@@ -415,8 +416,8 @@ pub struct Wave48Player<'a, T: Float> {
     [ f64 ]   [ Wave64 ]   [ Wave64Player ];
     [ f32 ]   [ Wave32 ]   [ Wave32Player ];
 )]
-impl<'a, T: Float> Wave48Player<'a, T> {
-    pub fn new(wave: &'a Wave48, channel: usize, loop_point: Option<usize>) -> Self {
+impl<T: Float> Wave48Player<T> {
+    pub fn new(wave: Arc<Wave48>, channel: usize, loop_point: Option<usize>) -> Self {
         Self {
             wave,
             channel,
@@ -432,7 +433,7 @@ impl<'a, T: Float> Wave48Player<'a, T> {
     [ f64 ]   [ Wave64 ]   [ Wave64Player ];
     [ f32 ]   [ Wave32 ]   [ Wave32Player ];
 )]
-impl<'a, T: Float> AudioNode for Wave48Player<'a, T> {
+impl<T: Float> AudioNode for Wave48Player<T> {
     const ID: u64 = 65;
     type Sample = T;
     type Inputs = typenum::U0;

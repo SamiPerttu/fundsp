@@ -26,6 +26,8 @@ pub use super::*;
 
 pub use num_complex::Complex64;
 
+use std::sync::Arc;
+
 // Combinator environment.
 // We like to define all kinds of useful functions here.
 
@@ -1938,7 +1940,7 @@ pub fn morph_hz<T: Real, F: Real>(
 /// Optional loop point is the index to jump to at the end of the wave.
 /// - Output 0: wave
 pub fn wave64<T: Float>(
-    wave: &Wave64,
+    wave: Arc<Wave64>,
     channel: usize,
     loop_point: Option<usize>,
 ) -> An<Wave64Player<T>> {
@@ -1949,7 +1951,7 @@ pub fn wave64<T: Float>(
 /// Optional loop point is the index to jump to at the end of the wave.
 /// - Output 0: wave
 pub fn wave32<T: Float>(
-    wave: &Wave32,
+    wave: Arc<Wave32>,
     channel: usize,
     loop_point: Option<usize>,
 ) -> An<Wave32Player<T>> {
