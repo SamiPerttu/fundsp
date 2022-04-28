@@ -280,6 +280,13 @@ pub fn sine_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, Sine<f32>>> {
     super::prelude::sine_hz(f)
 }
 
+/// Sine oscillator with initial phase `phase` in 0...1.
+/// - Input 0: frequency (Hz)
+/// - Output 0: sine wave
+pub fn sine_phase(phase: f32) -> An<Sine<f32>> {
+    An(Sine::with_phase(DEFAULT_SR, Some(phase)))
+}
+
 /// Add constant to signal.
 #[inline]
 pub fn add<X: ConstantFrame<Sample = f32>>(

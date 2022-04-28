@@ -273,6 +273,13 @@ pub fn sine_hz<T: Real>(f: T) -> An<Pipe<T, Constant<U1, T>, Sine<T>>> {
     constant(f) >> sine()
 }
 
+/// Sine oscillator with initial phase `phase` in 0...1.
+/// - Input 0: frequency (Hz)
+/// - Output 0: sine wave
+pub fn sine_phase<T: Real>(phase: T) -> An<Sine<T>> {
+    An(Sine::with_phase(DEFAULT_SR, Some(phase)))
+}
+
 /// Add constant to signal.
 #[inline]
 pub fn add<X: ConstantFrame>(

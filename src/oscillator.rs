@@ -17,11 +17,24 @@ pub struct Sine<T: Real> {
     phase: T,
     sample_duration: T,
     hash: u64,
+    initial_phase: Option<T>,
 }
 
 impl<T: Real> Sine<T> {
+    /// Create sine oscillator.
     pub fn new(sample_rate: f64) -> Self {
         let mut sine = Sine::default();
+        sine.reset(Some(sample_rate));
+        sine
+    }
+    /// Create sine oscillator with optional initial phase in 0...1.
+    pub fn with_phase(sample_rate: f64, initial_phase: Option<T>) -> Self {
+        let mut sine = Self {
+            phase: T::zero(),
+            sample_duration: T::zero(),
+            hash: 0,
+            initial_phase,
+        };
         sine.reset(Some(sample_rate));
         sine
     }
@@ -34,7 +47,10 @@ impl<T: Real> AudioNode for Sine<T> {
     type Outputs = typenum::U1;
 
     fn reset(&mut self, sample_rate: Option<f64>) {
-        self.phase = T::from_f64(rnd(self.hash as i64));
+        self.phase = match self.initial_phase {
+            Some(phase) => phase,
+            None => T::from_f64(rnd(self.hash as i64)),
+        };
         if let Some(sr) = sample_rate {
             self.sample_duration = T::from_f64(1.0 / sr);
         }

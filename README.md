@@ -596,6 +596,7 @@ The type parameters in the table refer to the hacker prelude.
 | `shape_fn(f)`          |    1    |    1    | Shape signal with waveshaper function `f`, e.g., `tanh`. |
 | `sine()`               | 1 (frequency) | 1 | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
+| `sine_phase(phase)`    | 1 (frequency) | 1 | Sine oscillator with initial phase `phase` in 0...1. |
 | `sink()`               |    1    |    -    | Consumes signal. |
 | `split::<U>()`         |    1    |   `U`   | Split signal into `U` channels. |
 | `square()`             | 1 (frequency) | 1 | Bandlimited square wave oscillator. |
