@@ -561,7 +561,7 @@ The type parameters in the table refer to the hacker prelude.
 | `moog_hz(f, q)`        |    1    |    1    | Moog resonant lowpass filter (4th order) with cutoff frequency `f` and resonance `q`. |
 | `moog_q(q)`            | 2 (audio, frequency) | 1 | Moog resonant lowpass filter (4th order) with resonance `q`. |
 | `morph`                | 4 (audio, frequency, Q, morph) | 1 | Morphing filter with morph input in -1...1 (-1 = lowpass, 0 = peaking, 1 = highpass) |
-| `morph_hz(f, q, morph)` |   1    |    1    | Morphing filter with center frequency `f`, Q `q` and morph `morph` (-1 = lowpass, 0 = peaking, 1 = highpass) |
+| `morph_hz(f, q, morph)` |   1    |    1    | Morphing filter with center frequency `f`, Q `q` and morph `morph` in -1...1 (-1 = lowpass, 0 = peaking, 1 = highpass) |
 | `mul(x)`               |   `x`   |   `x`   | Multiplies signal with constant `x`. |
 | `multijoin::<M, N>()`  | `M * N` |   `M`   | Average `N` branches of `M` channels into one. Inverse of `multisplit`. |
 | `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
@@ -583,9 +583,9 @@ The type parameters in the table refer to the hacker prelude.
 | `peak_q(q)`            | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q`. |
 | `pink()`               |    -    |    1    | [Pink noise](https://en.wikipedia.org/wiki/Pink_noise) source. |
 | `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave). |
-| `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain together `U` nodes from indexed generator `f`. |
-| `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain together `U` nodes from fractional generator `f`. |
-| `pluck(f, gain, damping)` | 1 (excitation) | 1 | Karplus-Strong plucked string oscillator with frequency `f` Hz, `gain` per second (`gain` <= 1) and high frequency `damping` in 0...1. |
+| `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |
+| `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from fractional generator `f`. |
+| `pluck(f, gain, damping)` | 1 (excitation) | 1 | [Karplus-Strong](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis) plucked string oscillator with frequency `f` Hz, `gain` per second (`gain` <= 1) and high frequency `damping` in 0...1. |
 | `pulse()`              | 2 (frequency, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
