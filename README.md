@@ -555,7 +555,7 @@ The type parameters in the table refer to the hacker prelude.
 | `map(f)`               |   `f`   |   `f`   | Map channels freely, e.g., `map(\|i: &Frame<f64, U2>\| max(i[0], i[1]))`. |
 | `meter(mode)`          |    1    | 1 (meter) | Analyzes input and outputs a summary according to the metering mode. |
 | `mls()`                |    -    |    1    | White [MLS noise](https://en.wikipedia.org/wiki/Maximum_length_sequence) source. |
-| `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence. |
+| `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence (1 <= `n` <= 31). |
 | `monitor(mode, id)`    |    1    |    1    | Pass-through node that analyzes data passed through as a parameter that can be queried. |
 | `moog()`               | 3 (audio, frequency, Q) | 1 | Moog resonant lowpass filter (4th order). |
 | `moog_hz(f, q)`        |    1    |    1    | Moog resonant lowpass filter (4th order) with cutoff frequency `f` and resonance `q`. |
@@ -833,6 +833,7 @@ Some examples of graph expressions.
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
 | `feedback(delay(1.0) * db_amp(-3.0))`    |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 | `feedback((delay(1.0) \| delay(1.0)) >> swap() * db_amp(-6.0))` | 2 | 2 | 1 second ping-pong delay with 6 dB attenuation. |
+| `tag(0, 0.1) * delay(1.0) & (1.0 - tag(0, 0.1)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by parameter 0. |
 | `sine() & mul(semitone(4.0)) >> sine() & mul(semitone(7.0)) >> sine()` | 1 | 1 | major chord |
 | `dc(midi_hz(72.0)) >> sine() & dc(midi_hz(76.0)) >> sine() & dc(midi_hz(79.0)) >> sine()` | 0 | 1 | C major chord generator |
 | `!zero()`                                |   0    |    0    | A null node. Stacking it with another node modifies its sound subtly, as the hash is altered. |
