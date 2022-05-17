@@ -249,6 +249,11 @@ impl Sequencer {
         }
     }
 
+    /// Current time in seconds.
+    pub fn time(&self) -> f64 {
+        self.time
+    }
+
     /// Add a 64-bit unit event.
     /// Fade in and fade out may overlap but may not exceed the duration of the event.
     pub fn add64(
