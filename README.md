@@ -470,6 +470,16 @@ The default sample rate is 44.1 kHz. Set sample rate to 48 kHz:
 equalizer.reset(Some(48_000.0));
 ```
 
+### evcxr
+
+The `Debug` output of audio filters contains an ASCII oscilloscope of channel 0
+and information about the node.
+
+Here is an example of using [`evcxr`](https://github.com/google/evcxr)
+to examine frequency responses interactively:
+
+![](evcxr_example.jpg "Example evcxr usage")
+
 ---
 
 ## Free Functions
