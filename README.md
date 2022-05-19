@@ -478,7 +478,36 @@ and information about the node.
 Here is an example of using [`evcxr`](https://github.com/google/evcxr)
 to examine frequency responses interactively:
 
-![](evcxr_example.jpg "Example evcxr usage")
+```rust
+C:\rust>evcxr
+Welcome to evcxr. For help, type :help
+>> :dep fundsp "0.6.3"
+>> use fundsp::hacker::*;
+>> bell_hz(1000.0, 1.0, db_amp(50.0))
+ 60 dB ------------------------------------------------  60 dB
+ 
+ 50 dB -------------------------.----------------------  50 dB
+                                *
+ 40 dB -------------------------*----------------------  40 dB
+                               ** 
+ 30 dB -----------------------.***---------------------  30 dB
+                             ******.
+ 20 dB -------------------..*********.-----------------  20 dB
+                       ..**************.
+ 10 dB -------------..********************..-----------  10 dB
+               ..*****************************...
+  0 dB ....***************************************.....   0 dB
+       |   |    |    |     |    |    |    |    |    |
+	   10  50   100  200   500  1k   2k   5k   10k  20k Hz
+
+Peak Magnitude : 50.00 dB (1000 Hz)
+Inputs         : 1
+Outputs        : 1
+Latency        : 0.0 samples
+Footprint      : 96 bytes
+
+>>
+```
 
 ---
 
