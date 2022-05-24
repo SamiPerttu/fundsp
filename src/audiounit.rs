@@ -16,7 +16,7 @@ use rsor::Slice;
     [ f64 ]   [ AudioUnit64 ];
     [ f32 ]   [ AudioUnit32 ];
 )]
-pub trait AudioUnit48 {
+pub trait AudioUnit48: Send {
     /// Reset the input state of the unit to an initial state where it has not processed any data.
     /// In other words, reset time to zero.
     fn reset(&mut self, sample_rate: Option<f64>);
@@ -182,7 +182,7 @@ pub trait AudioUnit48 {
     [ f64 ]   [ AudioUnit64 ];
     [ f32 ]   [ AudioUnit32 ];
 )]
-impl<X: AudioNode<Sample = f48>> AudioUnit48 for An<X>
+impl<X: AudioNode<Sample = f48> + Send> AudioUnit48 for An<X>
 where
     X::Inputs: Size<f48>,
     X::Outputs: Size<f48>,
