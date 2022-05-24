@@ -61,7 +61,8 @@ impl<T: Real> AudioNode for Sine<T> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        self.phase = (self.phase + input[0] * self.sample_duration).fract();
+        self.phase += input[0] * self.sample_duration;
+        self.phase -= self.phase.floor();
         [sin(self.phase * T::from_f64(TAU))].into()
     }
 
@@ -75,7 +76,7 @@ impl<T: Real> AudioNode for Sine<T> {
             self.phase += input[0][i] * self.sample_duration;
             output[0][i] = sin(self.phase * T::from_f64(TAU));
         }
-        self.phase = self.phase.fract();
+        self.phase -= self.phase.floor();
     }
 
     fn set_hash(&mut self, hash: u64) {

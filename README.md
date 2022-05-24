@@ -472,8 +472,8 @@ equalizer.reset(Some(48_000.0));
 
 ### evcxr
 
-The `Debug` output of audio filters contains an ASCII oscilloscope of channel 0
-and information about the node.
+The `Debug` output of audio filters contains information about
+the node and an ASCII chart of the frequency response of channel 0.
 
 Here is an example of using [`evcxr`](https://github.com/google/evcxr)
 to examine frequency responses interactively:
