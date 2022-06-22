@@ -316,7 +316,7 @@ impl Sequencer {
             start_time + duration,
             fade_in_time,
             fade_out_time,
-            unit
+            unit,
         )
     }
 
@@ -334,7 +334,7 @@ impl Sequencer {
             start_time + duration,
             fade_in_time,
             fade_out_time,
-            unit
+            unit,
         )
     }
 
