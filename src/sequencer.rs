@@ -302,6 +302,42 @@ impl Sequencer {
         ));
     }
 
+    /// Add a 64-bit unit event using start time and duration.
+    pub fn add_dur64(
+        &mut self,
+        start_time: f64,
+        duration: f64,
+        fade_in_time: f64,
+        fade_out_time: f64,
+        unit: Box<dyn AudioUnit64>,
+    ) {
+        self.add64(
+            start_time,
+            start_time + duration,
+            fade_in_time,
+            fade_out_time,
+            unit
+        )
+    }
+
+    /// Add a 32-bit unit event using start time and duration.
+    pub fn add_dur32(
+        &mut self,
+        start_time: f64,
+        duration: f64,
+        fade_in_time: f64,
+        fade_out_time: f64,
+        unit: Box<dyn AudioUnit32>,
+    ) {
+        self.add32(
+            start_time,
+            start_time + duration,
+            fade_in_time,
+            fade_out_time,
+            unit
+        )
+    }
+
     /// Move units that start before the end time to the ready heap.
     fn ready_to_active(&mut self, next_end_time: f64) {
         while let Some(ready) = self.ready.peek() {
