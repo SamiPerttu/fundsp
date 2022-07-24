@@ -4,6 +4,7 @@ use super::audionode::*;
 use super::math::*;
 use super::*;
 use numeric_array::typenum::*;
+use std::fmt::Write;
 
 /// Trait for multi-channel constants.
 pub trait ConstantFrame: Clone {
@@ -642,20 +643,28 @@ where
                 let line = String::from_utf8(ascii_line).unwrap();
                 if row & 1 == 0 {
                     let db = round(max_db - row as f64 * 5.0) as i64;
-                    string.push_str(&format!("{:3} dB {} {:3} dB\n", db, line, db));
+                    writeln!(&mut string, "{:3} dB {} {:3} dB", db, line, db).unwrap();
                 } else {
-                    string.push_str(&format!("       {}\n", line));
+                    writeln!(&mut string, "       {}", line).unwrap();
                 }
             }
 
-            string.push_str("       |   |    |    |     |    |    |     |    |    |\n");
-            string.push_str("       10  50   100  200   500  1k   2k    5k   10k  20k Hz\n\n");
+            writeln!(
+                &mut string,
+                "       |   |    |    |     |    |    |     |    |    |"
+            )
+            .unwrap();
+            writeln!(
+                &mut string,
+                "       10  50   100  200   500  1k   2k    5k   10k  20k Hz\n"
+            )
+            .unwrap();
 
-            string.push_str(&format!("Peak Magnitude : {:.2} dB", max_r.0));
+            write!(&mut string, "Peak Magnitude : {:.2} dB", max_r.0).unwrap();
 
             match max_r.1 {
                 Some(frequency) => {
-                    string.push_str(&format!(" ({} Hz)\n", frequency as i64));
+                    writeln!(&mut string, " ({} Hz)", frequency as i64).unwrap();
                 }
                 _ => {
                     string.push('\n');
@@ -663,16 +672,20 @@ where
             }
         }
 
-        string.push_str(&format!("Inputs         : {}\n", self.inputs()));
-        string.push_str(&format!("Outputs        : {}\n", self.outputs()));
-        string.push_str(&format!(
-            "Latency        : {:.1} samples\n",
+        writeln!(&mut string, "Inputs         : {}", self.inputs()).unwrap();
+        writeln!(&mut string, "Outputs        : {}", self.outputs()).unwrap();
+        writeln!(
+            &mut string,
+            "Latency        : {:.1} samples",
             self.latency().unwrap_or(0.0)
-        ));
-        string.push_str(&format!(
-            "Footprint      : {} bytes\n",
+        )
+        .unwrap();
+        writeln!(
+            &mut string,
+            "Footprint      : {} bytes",
             std::mem::size_of::<X>()
-        ));
+        )
+        .unwrap();
 
         formatter.write_str(&string)
     }

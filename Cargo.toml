@@ -3,7 +3,7 @@ name = "fundsp"
 description = "Audio processing and synthesis library."
 keywords = ["dsp", "audio"]
 license = "MIT OR Apache-2.0"
-version = "0.6.4"
+version = "0.6.5"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
 homepage = "https://github.com/SamiPerttu/fundsp"
 repository = "https://github.com/SamiPerttu/fundsp"
@@ -13,7 +13,7 @@ edition = "2021"
 [dependencies]
 generic-array = "0.14.5"
 numeric-array = "0.5.2"
-num-complex = "0.4.1"
+num-complex = "0.4.2"
 rustfft = "6.0.1"
 lazy_static = "1.4.0"
 tinyvec = { version = "1.6.0", features = ["alloc"] }
@@ -22,8 +22,8 @@ duplicate = "0.4.0"
 
 [dev-dependencies]
 cpal = "0.13.5"
-anyhow = "1.0.57"
-plotters = "0.3.1"
+anyhow = "1.0.58"
+plotters = "0.3.2"
 
 [features]
 default = []

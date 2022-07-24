@@ -333,6 +333,16 @@ impl Net48 {
         }
         id
     }
+
+    /// Access node.
+    pub fn node(&self, node: NodeIndex) -> &dyn AudioUnit48 {
+        &*self.vertex[node].unit
+    }
+
+    /// Access mutable node.
+    pub fn node_mut(&mut self, node: NodeIndex) -> &mut dyn AudioUnit48 {
+        &mut *self.vertex[node].unit
+    }
 }
 
 #[duplicate_item(
