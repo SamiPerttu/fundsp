@@ -241,6 +241,7 @@ pub mod buffer;
 pub mod combinator;
 pub mod delay;
 pub mod dynamics;
+pub mod effect;
 pub mod envelope;
 pub mod feedback;
 pub mod filter;

@@ -226,8 +226,7 @@ impl Net48 {
             vertex.source.push(edge(Port::Zero, Port::Local(id, i)));
         }
         self.vertex.push(vertex);
-        /// Note. We have designed the hash to depend on vertices
-        /// but not edges.
+        // Note. We have designed the hash to depend on vertices but not edges.
         let hash = self.ping(true, AttoRand::new(ID));
         self.ping(false, hash);
         self.ordered = false;
@@ -469,12 +468,12 @@ impl AudioUnit48 for Net48 {
             inner_signal.push(new_signal_frame(vertex.unit.outputs()));
         }
         let mut tmp_order = vec![];
-        for &unit_index in (if self.ordered {
+        for &unit_index in if self.ordered {
             self.order.iter()
         } else {
             self.determine_order_in(&mut tmp_order);
             tmp_order.iter()
-        }) {
+        } {
             let mut input_signal = new_signal_frame(self.vertex[unit_index].unit.inputs());
             for channel in 0..self.vertex[unit_index].unit.inputs() {
                 match self.vertex[unit_index].source[channel].source {

@@ -5,9 +5,10 @@
 [FunDSP](https://github.com/SamiPerttu/fundsp)
 is an audio DSP ([digital signal processing](https://en.wikipedia.org/wiki/Digital_signal_processing))
 library for audio processing and synthesis.
-It features a powerful inline graph notation that
-taps into composable, zero-cost abstractions,
-expressing audio processing networks as [Rust](https://www.rust-lang.org/) types.
+
+FunDSP features a powerful inline graph notation for describing audio processing networks.
+The notation taps into composable, zero-cost abstractions that
+express the structure of audio networks as [Rust](https://www.rust-lang.org/) types.
 
 Another innovative feature of FunDSP is its signal flow system, which can
 determine analytic [frequency responses](https://en.wikipedia.org/wiki/Frequency_response)

@@ -18,7 +18,7 @@ rustfft = "6.0.1"
 lazy_static = "1.4.0"
 tinyvec = { version = "1.6.0", features = ["alloc"] }
 rsor = "0.1.3"
-duplicate = "0.4.0"
+duplicate = "0.4.1"
 
 [dev-dependencies]
 cpal = "0.13.5"

@@ -3,6 +3,7 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
+use fundsp::effect::*;
 use fundsp::hacker::*;
 
 fn main() {
@@ -67,6 +68,8 @@ where
     let c = c >> split::<U2>();
 
     //let c = fundsp::sound::risset_glissando(false);
+
+    let c = c >> (chorus(0, 1.0, 200.0) | chorus(1, 1.0, 200.0));
 
     let mut c = c
         >> (declick() | declick()) >> (dcblock() | dcblock())
