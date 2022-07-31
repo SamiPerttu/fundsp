@@ -4,13 +4,10 @@
 
 [FunDSP](https://github.com/SamiPerttu/fundsp)
 is an audio DSP ([digital signal processing](https://en.wikipedia.org/wiki/Digital_signal_processing))
-library with a focus on usability.
-
-FunDSP features a powerful inline graph notation that
-empowers users to accomplish diverse audio processing tasks with ease and elegance.
-
-The custom notation taps into composable, zero-cost abstractions
-that express audio processing networks as [Rust](https://www.rust-lang.org/) types.
+library for audio processing and synthesis.
+It features a powerful inline graph notation that
+taps into composable, zero-cost abstractions,
+expressing audio processing networks as [Rust](https://www.rust-lang.org/) types.
 
 Another innovative feature of FunDSP is its signal flow system, which can
 determine analytic [frequency responses](https://en.wikipedia.org/wiki/Frequency_response)
@@ -224,7 +221,7 @@ The negation operator broadcasts also: `-A` is equivalent with `(0.0 - A)`.
 For example, `A * constant(2.0)` and `A >> mul(2.0)` are equivalent and expect `A` to have one output.
 On the other hand, `A * 2.0` works with any `A`, even *sinks*.
 
-#### Thru
+### Thru
 
 The thru (`!`) operator is syntactic sugar for chaining filters with similar connectivity.
 
@@ -331,10 +328,15 @@ Implicit cycle prevention means that the built structures are always computation
 in the dataflow sense. All reuse of computed data takes place locally, inside combinators and components.
 
 There are two main ways to structure the reuse of signals in FunDSP graph notation:
-*branching* and *busing*. Both are exposed as fundamental operators,
+branching and busing. Both are exposed as fundamental operators,
 guiding toward efficient structuring of computation.
 Dataflow concerns are thus explicated in the graph notation itself.
 
+### Net32 and Net64
+
+The graph notation can get cumbersome for complex graphs. The `Net32` and `Net64`
+components offer an explicit graph interface for connecting `AudioUnit32` and `AudioUnit64`
+nodes, respectively.
 
 ## Input Modalities And Ranges
 
@@ -564,7 +566,7 @@ The type parameters in the table refer to the hacker prelude.
 | `envelope3(f)`         | 2 (x, y) |  `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x, y\| y * exp(-t * x)`. Synonymous with `lfo3`. |
 | `fdn(x)`               |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
 | `feedback(x)`          |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
-| `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))` |
+| `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))`. |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
 | `follow((a, r))`       |    1    |    1    | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
