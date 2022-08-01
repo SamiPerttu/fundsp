@@ -58,8 +58,8 @@ impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
 }
 
 /// Fixed delay.
-/// Input 0: input
-/// Output 0: delayed input
+/// - Input 0: input
+/// - Output 0: delayed input
 pub struct Delay<T: Float> {
     buffer: Vec<T>,
     i: usize,
@@ -130,9 +130,9 @@ impl<T: Float> AudioNode for Delay<T> {
 
 /// Variable delay line using cubic interpolation.
 /// The number of taps is `N`.
-/// Input 0: input
-/// Inputs 1...N: delay amount in seconds.
-/// Output 0: delayed input
+/// - Input 0: input
+/// - Inputs 1...N: delay amount in seconds.
+/// - Output 0: delayed input
 pub struct Tap<N, T>
 where
     T: Float,
@@ -206,8 +206,8 @@ where
             let tap_floor = floor(tap);
             let tap_i1 = self.i + (self.buffer.len() - tap_floor as usize);
             let tap_i0 = (tap_i1 + 1) & mask;
-            let tap_i2 = (tap_i1 - 1) & mask;
-            let tap_i3 = (tap_i1 - 2) & mask;
+            let tap_i2 = (tap_i1.wrapping_sub(1)) & mask;
+            let tap_i3 = (tap_i1.wrapping_sub(2)) & mask;
             let tap_i1 = tap_i1 & mask;
             let tap_d = tap - tap_floor;
             output += spline(

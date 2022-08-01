@@ -24,8 +24,6 @@ pub use super::wave::*;
 pub use super::wavetable::*;
 pub use super::*;
 
-pub use num_complex::Complex32;
-
 use std::sync::Arc;
 
 // Combinator environment.
@@ -163,8 +161,14 @@ pub type U127 = numeric_array::typenum::U127;
 pub type U128 = numeric_array::typenum::U128;
 
 /// Constant node.
-/// Synonymous with `[dc]`.
+/// Synonymous with [`dc`].
 /// - Output(s): constant
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// constant(440.0) >> sine();
+/// ```
 #[inline]
 pub fn constant<X: ConstantFrame<Sample = f32>>(x: X) -> An<Constant<X::Size, f32>>
 where
@@ -174,7 +178,7 @@ where
 }
 
 /// Constant node.
-/// Synonymous with `constant`.
+/// Synonymous with [`constant`].
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
 /// - Output(s): constant
 #[inline]
@@ -283,6 +287,7 @@ pub fn sine_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, Sine<f32>>> {
 /// Sine oscillator with initial phase `phase` in 0...1.
 /// - Input 0: frequency (Hz)
 /// - Output 0: sine wave
+#[inline]
 pub fn sine_phase(phase: f32) -> An<Sine<f32>> {
     An(Sine::with_phase(DEFAULT_SR, Some(phase)))
 }
@@ -462,8 +467,14 @@ pub fn morph_hz(
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
-/// Synonymous with `lfo`.
+/// Synonymous with [`fn@lfo`].
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// envelope(|t| (sin_hz(1.0, t), cos_hz(1.0, t))) * (brown() | white());
+/// ```
 #[inline]
 pub fn envelope<E, R>(f: E) -> An<Envelope<f32, f32, E, R>>
 where
@@ -476,8 +487,14 @@ where
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
-/// Synonymous with `envelope`.
+/// Synonymous with [`fn@envelope`].
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// lfo(|t| exp(-t)) * white();
+/// ```
 #[inline]
 pub fn lfo<E, R>(f: E) -> An<Envelope<f32, f32, E, R>>
 where
@@ -550,15 +567,27 @@ where
     An(Envelope3::new(0.002, DEFAULT_SR, f))
 }
 
-/// Maximum Length Sequence noise generator from an `n`-bit sequence.
+/// Maximum Length Sequence noise generator from an `n`-bit sequence (1 <= `n` <= 31).
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// mls_bits(31);
+/// ```
 #[inline]
-pub fn mls_bits(n: i32) -> An<Mls<f32>> {
+pub fn mls_bits(n: i64) -> An<Mls<f32>> {
     An(Mls::new(MlsState::new(n as u32)))
 }
 
 /// Default Maximum Length Sequence noise generator.
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// mls();
+/// ```
 #[inline]
 pub fn mls() -> An<Mls<f32>> {
     mls_bits(29)
@@ -567,6 +596,12 @@ pub fn mls() -> An<Mls<f32>> {
 /// White noise generator.
 /// Synonymous with `white`.
 /// - Output 0: white noise.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// noise();
+/// ```
 #[inline]
 pub fn noise() -> An<Noise<f32>> {
     An(Noise::new())
@@ -575,6 +610,12 @@ pub fn noise() -> An<Noise<f32>> {
 /// White noise generator.
 /// Synonymous with `noise`.
 /// - Output 0: white noise.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// white();
+/// ```
 #[inline]
 pub fn white() -> An<Noise<f32>> {
     An(Noise::new())
@@ -583,6 +624,12 @@ pub fn white() -> An<Noise<f32>> {
 /// FIR filter.
 /// - Input 0: signal.
 /// - Output 0: filtered signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// fir((0.5, 1.0, 0.5));
+/// ```
 #[inline]
 pub fn fir<X: ConstantFrame<Sample = f32>>(weights: X) -> An<Fir<f32, X::Size>> {
     An(Fir::new(weights))
@@ -591,6 +638,12 @@ pub fn fir<X: ConstantFrame<Sample = f32>>(weights: X) -> An<Fir<f32, X::Size>> 
 /// Single sample delay.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// tick() & pass();
+/// ```
 #[inline]
 pub fn tick() -> An<Tick<U1, f32>> {
     An(Tick::new(DEFAULT_SR))
@@ -599,6 +652,13 @@ pub fn tick() -> An<Tick<U1, f32>> {
 /// Multichannel single sample delay.
 /// - Inputs: signal.
 /// - Outputs: delayed signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// multitick::<U2>();
+/// ```
+#[inline]
 pub fn multitick<N: Size<f32>>() -> An<Tick<N, f32>> {
     An(Tick::new(convert(DEFAULT_SR)))
 }
@@ -607,6 +667,12 @@ pub fn multitick<N: Size<f32>>() -> An<Tick<N, f32>> {
 /// Delay time is rounded to the nearest sample.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// delay(1.0);
+/// ```
 #[inline]
 pub fn delay(t: f32) -> An<Delay<f32>> {
     An(Delay::new(t as f64, DEFAULT_SR))
@@ -617,6 +683,13 @@ pub fn delay(t: f32) -> An<Delay<f32>> {
 /// - Input 0: signal.
 /// - Input 1: delay time in seconds.
 /// - Output 0: delayed signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// pass() & (pass() | lfo(|t| lerp11(0.0, 0.1, spline_noise(0, t)))) >> tap(0.0, 0.1);
+/// ```
+#[inline]
 pub fn tap(min_delay: f64, max_delay: f64) -> An<Tap<U1, f32>> {
     An(Tap::new(DEFAULT_SR, min_delay, max_delay))
 }
@@ -627,6 +700,13 @@ pub fn tap(min_delay: f64, max_delay: f64) -> An<Tap<U1, f32>> {
 /// - Input 0: signal.
 /// - Inputs 1...N: delay time in seconds.
 /// - Output 0: delayed signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// (pass() | lfo(|t| (lerp11(0.0, 0.1, spline_noise(0, t)), lerp11(0.1, 0.2, spline_noise(1, t))))) >> multitap::<U2>(0.0, 0.2);
+/// ```
+#[inline]
 pub fn multitap<N>(min_delay: f64, max_delay: f64) -> An<Tap<N, f32>>
 where
     N: Size<f32> + Add<U1>,
@@ -637,6 +717,15 @@ where
 
 /// 2x oversample enclosed `node`.
 /// - Inputs and outputs: from `node`.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// let f = 440.0;
+/// let m = 1.0;
+/// oversample(sine_hz(f) * f * m + f >> sine());
+/// ```
+#[inline]
 pub fn oversample<X>(node: An<X>) -> An<Oversampler<f32, X>>
 where
     X: AudioNode<Sample = f32>,
@@ -652,6 +741,12 @@ where
 /// Feedback circuit `node` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
 /// - Outputs: `node` output signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// pass() & feedback(delay(1.0) >> lowpass_hz(1000.0, 1.0));
+/// ```
 #[inline]
 pub fn feedback<N, X>(node: An<X>) -> An<Feedback<N, f32, X, FrameId<N, f32>>>
 where
@@ -665,10 +760,10 @@ where
 
 /// Transform channels freely. Accounted as non-linear processing for signal flow.
 ///
-/// # Example
+/// ### Example
 /// ```
 /// # use fundsp::hacker32::*;
-/// let my_max = map(|i: &Frame<f32, U2>| max(i[0], i[1]));
+/// map(|i: &Frame<f32, U2>| max(i[0], i[1]));
 /// ```
 #[inline]
 pub fn map<M, I, O>(f: M) -> An<Map<f32, M, I, O>>
@@ -682,18 +777,24 @@ where
 }
 
 /// Keeps a signal zero centered.
-/// Filter cutoff `c` is usually somewhere below the audible range.
+/// Filter cutoff `c` Hz is usually somewhere below the audible range.
 /// The default blocker cutoff is 10 Hz.
 /// - Input 0: input signal
-/// - Output 0: signal with DC removed.
+/// - Output 0: filtered signal
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// dcblock_hz(8.0);
+/// ```
 #[inline]
 pub fn dcblock_hz(c: f32) -> An<DCBlock<f32, f32>> {
     An(DCBlock::new(DEFAULT_SR, c))
 }
 
-/// Keeps a signal zero centered.
+/// Keeps a signal zero centered. The cutoff of the filter is 10 Hz.
 /// - Input 0: input signal
-/// - Output 0: signal with DC removed.
+/// - Output 0: filtered signal
 #[inline]
 pub fn dcblock() -> An<DCBlock<f32, f32>> {
     dcblock_hz(10.0)
@@ -701,7 +802,7 @@ pub fn dcblock() -> An<DCBlock<f32, f32>> {
 
 /// Apply 10 ms of fade-in to signal at time zero.
 /// - Input 0: input signal
-/// - Output 0: signal with fade-in.
+/// - Output 0: signal with fade-in
 #[inline]
 pub fn declick() -> An<Declick<f32, f32>> {
     super::prelude::declick()
@@ -709,7 +810,7 @@ pub fn declick() -> An<Declick<f32, f32>> {
 
 /// Apply `t` seconds of fade-in to signal at time zero.
 /// - Input 0: input signal
-/// - Output 0: signal with fade-in.
+/// - Output 0: signal with fade-in
 #[inline]
 pub fn declick_s(t: f32) -> An<Declick<f32, f32>> {
     super::prelude::declick_s(t)
@@ -739,7 +840,7 @@ pub fn clip() -> An<Shaper<f32>> {
     super::prelude::clip()
 }
 
-/// Clip signal to min...max.
+/// Clip signal to `minimum`...`maximum`.
 /// - Input 0: input signal
 /// - Output 0: clipped signal
 #[inline]
@@ -752,6 +853,12 @@ pub fn clip_to(minimum: f32, maximum: f32) -> An<Shaper<f32>> {
 /// - Input 1: pan in -1...1 (left to right).
 /// - Output 0: left channel
 /// - Output 1: right channel
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// (noise() | sine_hz(0.5)) >> panner();
+/// ```
 #[inline]
 pub fn panner() -> An<Panner<f32, U2>> {
     An(Panner::new(0.0))
@@ -1498,4 +1605,18 @@ pub fn wave32(
     loop_point: Option<usize>,
 ) -> An<Wave32Player<f32>> {
     An(Wave32Player::new(wave, channel, loop_point))
+}
+
+/// Mono chorus, 5 voices. For stereo, stack two of these using different seed values.
+/// `seed`: LFO seed.
+/// `mod_frequency`: delay modulation frequency (for example, 0.2).
+/// `highpass_cutoff`: highpass filter cutoff (for example, 200.0).
+/// - Input 0: audio.
+/// - Output 0: chorused audio, including original signal.
+pub fn chorus(
+    seed: i64,
+    mod_frequency: f32,
+    highpass_cutoff: f32,
+) -> An<impl AudioNode<Sample = f32, Inputs = U1, Outputs = U1>> {
+    super::prelude::chorus::<f32, f32>(seed, mod_frequency, highpass_cutoff)
 }

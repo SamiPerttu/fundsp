@@ -3,7 +3,6 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
-use fundsp::effect::*;
 use fundsp::hacker::*;
 
 fn main() {
@@ -63,12 +62,14 @@ where
 
     //let c = c & c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.5);
 
+    // Apply Moog filter.
     let c = (c | lfo(|t| (xerp11(110.0, 11000.0, sin_hz(0.15, t)), 0.6))) >> moog();
 
     let c = c >> split::<U2>();
 
     //let c = fundsp::sound::risset_glissando(false);
 
+    // Add chorus.
     let c = c >> (chorus(0, 1.0, 200.0) | chorus(1, 1.0, 200.0));
 
     let mut c = c

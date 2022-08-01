@@ -24,8 +24,7 @@ pub use super::wave::*;
 pub use super::wavetable::*;
 pub use super::*;
 
-pub use num_complex::Complex64;
-
+use num_complex::Complex64;
 use std::sync::Arc;
 
 // Combinator environment.
@@ -163,7 +162,13 @@ pub type U127 = numeric_array::typenum::U127;
 pub type U128 = numeric_array::typenum::U128;
 
 /// Constant node.
-/// Synonymous with `[dc]`.
+/// Synonymous with [`dc`].
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// constant(440.0) >> sine::<f32>();
+/// ```
 #[inline]
 pub fn constant<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<Constant<X::Size, T>>
 where
@@ -173,7 +178,7 @@ where
 }
 
 /// Constant node.
-/// Synonymous with `constant`.
+/// Synonymous with [`constant`].
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
 #[inline]
 pub fn dc<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<Constant<X::Size, T>>
@@ -276,6 +281,7 @@ pub fn sine_hz<T: Real>(f: T) -> An<Pipe<T, Constant<U1, T>, Sine<T>>> {
 /// Sine oscillator with initial phase `phase` in 0...1.
 /// - Input 0: frequency (Hz)
 /// - Output 0: sine wave
+#[inline]
 pub fn sine_phase<T: Real>(phase: T) -> An<Sine<T>> {
     An(Sine::with_phase(DEFAULT_SR, Some(phase)))
 }
@@ -466,8 +472,14 @@ pub fn moog_hz<T: Float, F: Real>(frequency: F, q: F) -> An<Moog<T, F, U1>> {
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
-/// Synonymous with `lfo`.
+/// Synonymous with [`fn@lfo`].
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// envelope(|t: f32| (sin_hz(1.0, t), cos_hz(1.0, t))) * (brown::<f32, f32>() | white());
+/// ```
 #[inline]
 pub fn envelope<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
 where
@@ -487,8 +499,14 @@ where
 
 /// Control envelope from time-varying function `f(t)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
-/// Synonymous with `envelope`.
+/// Synonymous with [`fn@envelope`].
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// lfo(|t: f32| exp(-t)) * white::<f32>();
+/// ```
 #[inline]
 pub fn lfo<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
 where
@@ -565,7 +583,7 @@ where
     An(Envelope3::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 
-/// Control envelope from time-varying, input dependent function `f(t, x)` with `t` in seconds.
+/// Control envelope from time-varying, input dependent function `f(t, x, y)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `envelope3`.
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
@@ -582,31 +600,55 @@ where
     An(Envelope3::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 
-/// Maximum Length Sequence noise generator from an `n`-bit sequence.
+/// Maximum Length Sequence noise generator from an `n`-bit sequence (1 <= `n` <= 31).
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// mls_bits::<f32>(31);
+/// ```
 #[inline]
-pub fn mls_bits<T: Float>(n: u32) -> An<Mls<T>> {
-    An(Mls::new(MlsState::new(n)))
+pub fn mls_bits<T: Float>(n: i64) -> An<Mls<T>> {
+    An(Mls::new(MlsState::new(n as u32)))
 }
 
 /// Default Maximum Length Sequence noise generator.
 /// - Output 0: repeating white noise sequence of only -1 and 1 values.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// mls::<f32>();
+/// ```
 #[inline]
 pub fn mls<T: Float>() -> An<Mls<T>> {
     mls_bits(29)
 }
 
 /// White noise generator.
-/// Synonymous with `white`.
+/// Synonymous with [`fn@white`].
 /// - Output 0: white noise.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// noise::<f32>();
+/// ```
 #[inline]
 pub fn noise<T: Float>() -> An<Noise<T>> {
     An(Noise::new())
 }
 
 /// White noise generator.
-/// Synonymous with `noise`.
+/// Synonymous with [`fn@noise`].
 /// - Output 0: white noise.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// white::<f32>();
+/// ```
 #[inline]
 pub fn white<T: Float>() -> An<Noise<T>> {
     An(Noise::new())
@@ -615,6 +657,12 @@ pub fn white<T: Float>() -> An<Noise<T>> {
 /// FIR filter.
 /// - Input 0: signal.
 /// - Output 0: filtered signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// fir(Frame::<f64, _>::from([0.5, 1.0, 0.5]));
+/// ```
 #[inline]
 pub fn fir<X: ConstantFrame>(weights: X) -> An<Fir<X::Sample, X::Size>> {
     An(Fir::new(weights))
@@ -623,6 +671,12 @@ pub fn fir<X: ConstantFrame>(weights: X) -> An<Fir<X::Sample, X::Size>> {
 /// Single sample delay.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// tick::<f64>() & pass();
+/// ```
 #[inline]
 pub fn tick<T: Float>() -> An<Tick<U1, T>> {
     An(Tick::new(convert(DEFAULT_SR)))
@@ -631,6 +685,13 @@ pub fn tick<T: Float>() -> An<Tick<U1, T>> {
 /// Multichannel single sample delay.
 /// - Inputs: signal.
 /// - Outputs: delayed signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// multitick::<U2, f32>();
+/// ```
+#[inline]
 pub fn multitick<N: Size<T>, T: Float>() -> An<Tick<N, T>> {
     An(Tick::new(convert(DEFAULT_SR)))
 }
@@ -639,6 +700,12 @@ pub fn multitick<N: Size<T>, T: Float>() -> An<Tick<N, T>> {
 /// Delay time is rounded to the nearest sample.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// delay::<f32>(1.0);
+/// ```
 #[inline]
 pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
     An(Delay::new(t, DEFAULT_SR))
@@ -649,6 +716,13 @@ pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
 /// - Input 0: signal.
 /// - Input 1: delay time in seconds.
 /// - Output 0: delayed signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// pass::<f32>() & (pass() | lfo(|t| lerp11(0.0, 0.1, spline_noise(0, t)))) >> tap(0.0, 0.1);
+/// ```
+#[inline]
 pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<U1, T>> {
     An(Tap::new(DEFAULT_SR, min_delay, max_delay))
 }
@@ -659,6 +733,13 @@ pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<U1, T>> {
 /// - Input 0: signal.
 /// - Inputs 1...N: delay time in seconds.
 /// - Output 0: delayed signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// (pass() | lfo(|t| (lerp11(0.0, 0.1, spline_noise(0, t)), lerp11(0.1, 0.2, spline_noise(1, t))))) >> multitap::<U2, f64>(0.0, 0.2);
+/// ```
+#[inline]
 pub fn multitap<N, T>(min_delay: f64, max_delay: f64) -> An<Tap<N, T>>
 where
     T: Float,
@@ -670,6 +751,15 @@ where
 
 /// 2x oversample enclosed `node`.
 /// - Inputs and outputs: from `node`.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// let f: f64 = 440.0;
+/// let m: f64 = 1.0;
+/// oversample(sine_hz(f) * f * m + f >> sine());
+/// ```
+#[inline]
 pub fn oversample<T, X>(node: An<X>) -> An<Oversampler<T, X>>
 where
     T: Float,
@@ -686,6 +776,12 @@ where
 /// Feedback circuit `node` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
 /// - Outputs: `node` output signal.
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// pass() & feedback(delay(1.0) >> lowpass_hz::<f64, f64>(1000.0, 1.0));
+/// ```
 #[inline]
 pub fn feedback<N, T, X>(node: An<X>) -> An<Feedback<N, T, X, FrameId<N, T>>>
 where
@@ -700,10 +796,10 @@ where
 
 /// Transform channels freely. Accounted as non-linear processing for signal flow.
 ///
-/// # Example
+/// ### Example
 /// ```
 /// # use fundsp::prelude::*;
-/// let my_max = map(|i: &Frame<f64, U2>| max(i[0], i[1]));
+/// map(|i: &Frame<f64, U2>| max(i[0], i[1]));
 /// ```
 #[inline]
 pub fn map<T, M, I, O>(f: M) -> An<Map<T, M, I, O>>
@@ -718,68 +814,105 @@ where
 }
 
 /// Keeps a signal zero centered.
-/// Filter cutoff `c` is usually somewhere below the audible range.
+/// Filter cutoff `c` Hz is usually somewhere below the audible range.
 /// The default blocker cutoff is 10 Hz.
+/// - Input 0: signal
+/// - Output 0: filtered signal
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// dcblock_hz::<f64, f64>(8.0);
+/// ```
 #[inline]
 pub fn dcblock_hz<T: Float, F: Real>(c: F) -> An<DCBlock<T, F>> {
     An(DCBlock::new(DEFAULT_SR, c))
 }
 
-/// Keeps a signal zero centered.
+/// Keeps a signal zero centered. The cutoff of the filter is 10 Hz.
+/// - Input 0: signal
+/// - Output 0: filtered signal
 #[inline]
 pub fn dcblock<T: Float, F: Real>() -> An<DCBlock<T, F>> {
     An(DCBlock::new(DEFAULT_SR, F::new(10)))
 }
 
 /// Apply 10 ms of fade-in to signal at time zero.
+/// - Input 0: input signal
+/// - Output 0: signal with fade-in
 #[inline]
 pub fn declick<T: Float, F: Real>() -> An<Declick<T, F>> {
     An(Declick::new(DEFAULT_SR, F::from_f64(0.010)))
 }
 
 /// Apply `t` seconds of fade-in to signal at time zero.
+/// - Input 0: input signal
+/// - Output 0: signal with fade-in
 #[inline]
 pub fn declick_s<T: Float, F: Real>(t: F) -> An<Declick<T, F>> {
     An(Declick::new(DEFAULT_SR, t))
 }
 
 /// Shape signal with a waveshaper function.
+/// - Input 0: input signal
+/// - Output 0: shaped signal
 #[inline]
 pub fn shape_fn<T: Float, S: Fn(T) -> T>(f: S) -> An<ShaperFn<T, S>> {
     An(ShaperFn::new(f))
 }
 
 /// Shape signal.
+/// - Input 0: input signal
+/// - Output 0: shaped signal
 #[inline]
 pub fn shape<T: Real>(mode: Shape<T>) -> An<Shaper<T>> {
     An(Shaper::new(mode))
 }
 
 /// Clip signal to -1...1.
+/// - Input 0: input signal
+/// - Output 0: clipped signal
 #[inline]
 pub fn clip<T: Real>() -> An<Shaper<T>> {
     An(Shaper::<T>::new(Shape::Clip))
 }
 
-/// Clip signal to min...max.
+/// Clip signal to `minimum`...`maximum`.
+/// - Input 0: input signal
+/// - Output 0: clipped signal
 #[inline]
 pub fn clip_to<T: Real>(minimum: T, maximum: T) -> An<Shaper<T>> {
     An(Shaper::<T>::new(Shape::ClipTo(minimum, maximum)))
 }
 
 /// Equal power mono-to-stereo panner.
+/// - Input 0: input signal
+/// - Input 1: pan in -1...1 (left to right).
+/// - Output 0: left channel
+/// - Output 1: right channel
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// (noise() | sine_hz(0.5)) >> panner::<f64>();
+/// ```
 #[inline]
 pub fn panner<T: Real>() -> An<Panner<T, U2>> {
     An(Panner::new(T::zero()))
 }
 
 /// Fixed equal power mono-to-stereo panner with pan value in -1...1.
+/// - Input 0: input signal
+/// - Output 0: left channel
+/// - Output 1: right channel
 #[inline]
 pub fn pan<T: Real>(pan: T) -> An<Panner<T, U1>> {
     An(Panner::new(pan))
 }
 
 /// Parameter follower filter with halfway response time `t` seconds.
+/// - Input 0: input signal
+/// - Output 0: smoothed signal
 #[inline]
 pub fn follow<T: Float, F: Real, S: ScalarOrPair<Sample = F>>(t: S) -> An<AFollow<T, F, S>> {
     An(AFollow::new(DEFAULT_SR, t))
@@ -1963,4 +2096,57 @@ pub fn wave32<T: Float>(
     loop_point: Option<usize>,
 ) -> An<Wave32Player<T>> {
     An(Wave32Player::new(wave, channel, loop_point))
+}
+
+/// Mono chorus, 5 voices. For stereo, stack two of these using different seed values.
+/// `seed`: LFO seed.
+/// `mod_frequency`: delay modulation frequency (for example, 0.2).
+/// `highpass_cutoff`: highpass filter cutoff (for example, 200.0).
+/// - Input 0: audio.
+/// - Output 0: chorused audio, including original signal.
+pub fn chorus<T: Float, F: Real>(
+    seed: i64,
+    mod_frequency: T,
+    highpass_cutoff: T,
+) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+    // Minimum delay between voices.
+    let base_delay = T::from_f64(0.010);
+
+    // Range of delay variation.
+    let delay_range = T::from_f64(0.005);
+
+    pass()
+        & (highpass_hz::<T, F>(highpass_cutoff, T::from_f64(1.0))
+            | lfo(move |t| {
+                (
+                    // Delays between successive voices range from 12 to 22 ms.
+                    lerp11(
+                        base_delay,
+                        base_delay + delay_range,
+                        spline_noise(seed, t * mod_frequency),
+                    ),
+                    lerp11(
+                        base_delay * T::new(2) + delay_range,
+                        base_delay * T::new(2) + delay_range * T::new(2),
+                        spline_noise(hash(seed), t * (mod_frequency + T::from_f64(0.02))),
+                    ),
+                    lerp11(
+                        base_delay * T::new(3) + delay_range * T::new(2),
+                        base_delay * T::new(3) + delay_range * T::new(3),
+                        spline_noise(hash(hash(seed)), t * (mod_frequency + T::from_f64(0.04))),
+                    ),
+                    lerp11(
+                        base_delay * T::new(4) + delay_range * T::new(3),
+                        base_delay * T::new(4) + delay_range * T::new(4),
+                        spline_noise(
+                            hash(hash(hash(seed))),
+                            t * (mod_frequency + T::from_f64(0.06)),
+                        ),
+                    ),
+                )
+            }))
+            >> multitap::<U4, T>(
+                base_delay.to_f64(),
+                (base_delay * T::new(4) + delay_range * T::new(4)).to_f64(),
+            )
 }

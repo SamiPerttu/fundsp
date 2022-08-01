@@ -549,6 +549,7 @@ The type parameters in the table refer to the hacker prelude.
 | `busf::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from fractional generator `f`. |
 | `butterpass()`         | 2 (audio, frequency) | 1 | Butterworth lowpass filter (2nd order). |
 | `butterpass_hz(f)`     |    1    |    1    | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
+| `chorus(seed, mod, cutoff)` | 1  |    1    | Chorus effect with LFO seed `seed`, modulation frequency `mod` Hz and highpass cutoff `cutoff` Hz. |
 | `clip()`               |    1    |    1    | Clip signal to -1...1. |
 | `clip_to(min, max)`    |    1    |    1    | Clip signal to min...max. |
 | `constant(x)`          |    -    |   `x`   | Constant signal `x`. Synonymous with `dc`. |

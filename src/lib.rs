@@ -22,7 +22,7 @@ use std::cmp::PartialEq;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 
-/// Default sample rate is 44.1 khz.
+/// Default sample rate is 44.1 kHz.
 pub const DEFAULT_SR: f64 = 44_100.0;
 
 /// Maximum buffer size for block processing is 64 samples.
@@ -241,7 +241,6 @@ pub mod buffer;
 pub mod combinator;
 pub mod delay;
 pub mod dynamics;
-pub mod effect;
 pub mod envelope;
 pub mod feedback;
 pub mod filter;
