@@ -181,6 +181,12 @@ where
 /// Synonymous with [`constant`].
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
 /// - Output(s): constant
+///
+/// ### Example
+/// ```
+/// # use fundsp::hacker32::*;
+/// dc((220.0, 440.0)) >> (sine() + sine());
+/// ```
 #[inline]
 pub fn dc<X: ConstantFrame<Sample = f32>>(x: X) -> An<Constant<X::Size, f32>>
 where
@@ -282,14 +288,6 @@ pub fn sine() -> An<Sine<f32>> {
 #[inline]
 pub fn sine_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, Sine<f32>>> {
     super::prelude::sine_hz(f)
-}
-
-/// Sine oscillator with initial phase `phase` in 0...1.
-/// - Input 0: frequency (Hz)
-/// - Output 0: sine wave
-#[inline]
-pub fn sine_phase(phase: f32) -> An<Sine<f32>> {
-    An(Sine::with_phase(DEFAULT_SR, Some(phase)))
 }
 
 /// Add constant to signal.
@@ -1619,4 +1617,32 @@ pub fn chorus(
     highpass_cutoff: f32,
 ) -> An<impl AudioNode<Sample = f32, Inputs = U1, Outputs = U1>> {
     super::prelude::chorus::<f32, f32>(seed, mod_frequency, highpass_cutoff)
+}
+
+/// Mono flanger. For stereo, stack two of these using different initial phases.
+/// `initial_phase`: initial phase of delay modulation in 0...1 (for example, 0.0 or 0.25).
+/// `mod_frequency`: delay modulation frequency (for example, 0.2).
+/// `feedback_amount`: amount of feedback (for example, 0.9 or -0.9). Negative feedback inverts feedback phase.
+/// - Input 0: audio
+/// - Output 0: flanged audio, including original signal
+pub fn flanger(
+    initial_phase: f32,
+    mod_frequency: f32,
+    feedback_amount: f32,
+) -> An<impl AudioNode<Sample = f32, Inputs = U1, Outputs = U1>> {
+    super::prelude::flanger::<f32, f32>(initial_phase, mod_frequency, feedback_amount)
+}
+
+/// Mono phaser. For stereo, stack two of these with different initial phases.
+/// `initial_phase`: modulation initial phase in 0...1 (for example, 0.0 or 0.25).
+/// `mod_frequency`: allpass modulation frequency (for example, 0.2).
+/// `feedback_amount`: amount of feedback (for example, 0.5). Negative feedback inverts feedback phase.
+/// - Input 0: audio
+/// - Output 0: phased audio
+pub fn phaser(
+    initial_phase: f32,
+    mod_frequency: f32,
+    feedback_amount: f32,
+) -> An<impl AudioNode<Sample = f32, Inputs = U1, Outputs = U1>> {
+    super::prelude::phaser::<f32>(initial_phase, mod_frequency, feedback_amount)
 }

@@ -251,10 +251,6 @@ fn test_basic() {
         &input,
         (pass() | dc((2000.0, 5.0, 0.8))) >> morph() | morph_hz(440.0, 1.0, 0.0),
     );
-    check_wave_filter(
-        &input,
-        add(20.0) >> sine_phase(0.3) | add(10.0) >> sine_phase(0.5),
-    );
 
     // Constants.
     let mut d = constant(1.0);

@@ -739,7 +739,7 @@ impl<T: Float, F: Float, N: Size<T>> Allpole<T, F, N> {
     /// Set delay in samples.
     #[inline]
     pub fn set_delay(&mut self, delay: F) {
-        self.eta = F::one() - delay / (F::one() + delay);
+        self.eta = (F::one() - delay) / (F::one() + delay);
     }
 }
 

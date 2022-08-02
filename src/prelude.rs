@@ -161,7 +161,7 @@ pub type U126 = numeric_array::typenum::U126;
 pub type U127 = numeric_array::typenum::U127;
 pub type U128 = numeric_array::typenum::U128;
 
-/// Constant node.
+/// Constant node. The constant can be scalar, tuple, or a Frame.
 /// Synonymous with [`dc`].
 ///
 /// ### Example
@@ -177,9 +177,15 @@ where
     An(Constant::new(x.convert()))
 }
 
-/// Constant node.
+/// Constant node. The constant can be scalar, tuple, or a Frame.
 /// Synonymous with [`constant`].
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
+///
+/// ### Example
+/// ```
+/// # use fundsp::prelude::*;
+/// dc((220.0, 440.0)) >> (sine::<f64>() + sine());
+/// ```
 #[inline]
 pub fn dc<T: Float, X: ConstantFrame<Sample = T>>(x: X) -> An<Constant<X::Size, T>>
 where
@@ -276,14 +282,6 @@ pub fn sine<T: Real>() -> An<Sine<T>> {
 #[inline]
 pub fn sine_hz<T: Real>(f: T) -> An<Pipe<T, Constant<U1, T>, Sine<T>>> {
     constant(f) >> sine()
-}
-
-/// Sine oscillator with initial phase `phase` in 0...1.
-/// - Input 0: frequency (Hz)
-/// - Output 0: sine wave
-#[inline]
-pub fn sine_phase<T: Real>(phase: T) -> An<Sine<T>> {
-    An(Sine::with_phase(DEFAULT_SR, Some(phase)))
 }
 
 /// Add constant to signal.
@@ -2100,10 +2098,10 @@ pub fn wave32<T: Float>(
 
 /// Mono chorus, 5 voices. For stereo, stack two of these using different seed values.
 /// `seed`: LFO seed.
-/// `mod_frequency`: delay modulation frequency (for example, 0.2).
+/// `mod_frequency`: delay modulation frequency in Hz (for example, 0.2).
 /// `highpass_cutoff`: highpass filter cutoff (for example, 200.0).
-/// - Input 0: audio.
-/// - Output 0: chorused audio, including original signal.
+/// - Input 0: audio
+/// - Output 0: chorused audio, including original signal
 pub fn chorus<T: Float, F: Real>(
     seed: i64,
     mod_frequency: T,
@@ -2149,4 +2147,64 @@ pub fn chorus<T: Float, F: Real>(
                 base_delay.to_f64(),
                 (base_delay * T::new(4) + delay_range * T::new(4)).to_f64(),
             )
+}
+
+/// Mono flanger.
+/// `initial_phase`: initial phase of delay modulation in 0...1 (for example, 0.0 or 0.25).
+/// `mod_frequency`: delay modulation frequency (for example, 0.2).
+/// `feedback_amount`: amount of feedback (for example, 0.9 or -0.9). Negative feedback inverts feedback phase.
+/// - Input 0: audio
+/// - Output 0: flanged audio, including original signal
+pub fn flanger<T: Real, F: Real>(
+    initial_phase: T,
+    mod_frequency: T,
+    feedback_amount: T,
+) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+    // Minimum delay.
+    let base_delay = T::from_f64(0.0050);
+
+    // Range of delay variation.
+    let delay_range = T::from_f64(0.0050);
+
+    pass()
+        & feedback(
+            (pass()
+                | lfo(move |t| {
+                    lerp11(
+                        base_delay,
+                        base_delay + delay_range,
+                        sin_hz(mod_frequency, t + initial_phase / mod_frequency),
+                    )
+                }))
+                >> tap::<T>(base_delay.to_f64(), (base_delay + delay_range).to_f64())
+                >> shape(Shape::Tanh(feedback_amount)),
+        )
+}
+
+/// Mono phaser. For stereo, stack two of these with different initial phases.
+/// `initial_phase`: modulation initial phase in 0...1 (for example, 0.0 or 0.25).
+/// `mod_frequency`: allpass modulation frequency (for example, 0.2).
+/// `feedback_amount`: amount of feedback (for example, 0.5). Negative feedback inverts feedback phase.
+/// - Input 0: audio
+/// - Output 0: phased audio
+pub fn phaser<T: Real>(
+    initial_phase: T,
+    mod_frequency: T,
+    feedback_amount: T,
+) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+    pass()
+        & feedback(
+            (pass()
+                | lfo(move |t| {
+                    lerp11(
+                        T::new(1),
+                        T::new(10),
+                        sin_hz(mod_frequency, t + initial_phase / mod_frequency),
+                    )
+                }))
+                >> pipe::<U20, T, _, _>(|_i| {
+                    (pass() | add(T::from_f64(0.05))) >> !allpole::<T, T>()
+                })
+                >> (mul(feedback_amount) | sink()),
+        )
 }

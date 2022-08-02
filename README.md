@@ -335,9 +335,25 @@ Dataflow concerns are thus explicated in the graph notation itself.
 
 ### Net32 and Net64
 
-The graph notation can get cumbersome for complex graphs. The `Net32` and `Net64`
-components offer an explicit graph interface for connecting `AudioUnit32` and `AudioUnit64`
-nodes, respectively.
+The graph notation can get cumbersome for complex graphs. Also, sometimes
+the number of inputs and outputs is not known until runtime.
+
+The `Net32` and `Net64` components offer an explicit graph interface
+for connecting `AudioUnit32` and `AudioUnit64` nodes, respectively.
+
+For example, to build `dc(220.0) >> sine()` dynamically using `Net64`:
+
+```rust
+use fundsp::hacker::*;
+// Instantiate network with 0 inputs and 1 output.
+let mut net = Net64::new(0, 1);
+// Add nodes, obtaining their IDs.
+let dc_id = net.add(Box::new(dc(220.0)));
+let sine_id = net.add(Box::new(sine()));
+// Connect nodes.
+net.pipe(dc_id, sine_id);
+net.pipe_output(sine_id);
+```
 
 ## Input Modalities And Ranges
 
@@ -569,6 +585,7 @@ The type parameters in the table refer to the hacker prelude.
 | `fdn(x)`               |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
 | `feedback(x)`          |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
 | `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))`. |
+| `flanger(phase, mod, fb)` | 1    |    1    | Flanger effect with initial modulation `phase` in 0...1, modulation frequency `mod` in Hz and feedback amount `fb` |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
 | `follow((a, r))`       |    1    |    1    | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
@@ -624,6 +641,7 @@ The type parameters in the table refer to the hacker prelude.
 | `peak()`               | 3 (audio, frequency, Q) | 1 | Peaking filter (2nd order). |
 | `peak_hz(f, q)`        |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q`. |
 | `peak_q(q)`            | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q`. |
+| `phaser(phase, mod, fb)` | 1     |    1    | Phaser effect with initial modulation `phase` in 0...1, modulation frequency `mod` in Hz and feedback amount `fb` |
 | `pink()`               |    -    |    1    | [Pink noise](https://en.wikipedia.org/wiki/Pink_noise) source. |
 | `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave). |
 | `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |
@@ -639,7 +657,6 @@ The type parameters in the table refer to the hacker prelude.
 | `shape_fn(f)`          |    1    |    1    | Shape signal with waveshaper function `f`, e.g., `tanh`. |
 | `sine()`               | 1 (frequency) | 1 | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
-| `sine_phase(phase)`    | 1 (frequency) | 1 | Sine oscillator with initial phase `phase` in 0...1. |
 | `sink()`               |    1    |    -    | Consumes signal. |
 | `split::<U>()`         |    1    |   `U`   | Split signal into `U` channels. |
 | `square()`             | 1 (frequency) | 1 | Bandlimited square wave oscillator. |
@@ -684,6 +701,7 @@ The values in between are linearly interpolated.
 `branch`, `bus`, `pipe`, `sum` and `stack` are opcodes that combine multiple nodes,
 according to their first generic argument.
 They accept a generator function that is issued `i64` integers starting from 0.
+The nodes are stack allocated.
 
 For example, to create 20 pseudorandom noise bands in 1 kHz...2 kHz:
 
@@ -720,7 +738,7 @@ These are arguments to the `shape` opcode.
 Tagged single channel constants can be instantiated with `tag(id, value)`, where `id` is `i64` and the initial value `value` is `f64`.
 
 Tagged constants enable a simple parameter system where a parameter can be set (recursively) with `set(id, value)`
-and queried (recursively) with `get(id)`. `set` sets all matching parameters to the value,
+and queried (recursively) with `get(id)`. `set` sets all matching parameters contained under the node to the value,
 while `get` retrieves the first matching parameter, if any.
 
 The `timer(id)` opcode instantiates current time in seconds as a parameter that can be queried.

@@ -65,12 +65,20 @@ where
     // Apply Moog filter.
     let c = (c | lfo(|t| (xerp11(110.0, 11000.0, sin_hz(0.15, t)), 0.6))) >> moog();
 
+    //let c = pink();
+
     let c = c >> split::<U2>();
 
     //let c = fundsp::sound::risset_glissando(false);
 
     // Add chorus.
-    let c = c >> (chorus(0, 1.0, 200.0) | chorus(1, 1.0, 200.0));
+    //let c = c >> (chorus(0, 1.0, 200.0) | chorus(1, 1.0, 200.0));
+
+    // Add flanger.
+    //let c = c >> (flanger(0.0, 0.1, 0.9) | flanger(0.1, 0.1, 0.9));
+
+    // Add phaser.
+    //let c = c >> (phaser(0.0, 0.1, 0.5) | phaser(0.25, 0.1, 0.5));
 
     let mut c = c
         >> (declick() | declick()) >> (dcblock() | dcblock())
