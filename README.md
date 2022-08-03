@@ -546,7 +546,7 @@ The type parameters in the table refer to the hacker prelude.
 
 | Function               | Inputs  | Outputs | Explanation                                    |
 | ---------------------- |:-------:|:-------:| ---------------------------------------------- |
-| `add(x)`               |   `x`   |   `x`   | Adds constant `x` to signal. |
+| `add(x)`               |   `x`   |   `x`   | Add constant `x` to signal. |
 | `allpass()`            | 3 (audio, frequency, Q) | 1 | Allpass filter (2nd order). |
 | `allpass_hz(f, q)`     |    1    |    1    | Allpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `allpass_q(q)`         | 2 (audio, frequency) | 1 | Allpass filter (2nd order) with Q `q`. |
@@ -565,13 +565,13 @@ The type parameters in the table refer to the hacker prelude.
 | `busf::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from fractional generator `f`. |
 | `butterpass()`         | 2 (audio, frequency) | 1 | Butterworth lowpass filter (2nd order). |
 | `butterpass_hz(f)`     |    1    |    1    | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
-| `chorus(seed, mod, cutoff)` | 1  |    1    | Chorus effect with LFO seed `seed`, modulation frequency `mod` Hz and highpass cutoff `cutoff` Hz. |
+| `chorus(seed, sep, var, mod)` | 1 | 1 | Chorus effect with LFO seed `seed`, voice separation `sep` seconds, delay variation `var` seconds and modulation frequency `mod` Hz. |
 | `clip()`               |    1    |    1    | Clip signal to -1...1. |
 | `clip_to(min, max)`    |    1    |    1    | Clip signal to min...max. |
 | `constant(x)`          |    -    |   `x`   | Constant signal `x`. Synonymous with `dc`. |
 | `dc(x)`                |    -    |   `x`   | Constant signal `x`. Synonymous with `constant`. |
-| `dcblock()`            |    1    |    1    | Zero centers signal with cutoff frequency 10 Hz. |
-| `dcblock_hz(f)`        |    1    |    1    | Zero centers signal with cutoff frequency `f`. |
+| `dcblock()`            |    1    |    1    | Zero center signal with cutoff frequency 10 Hz. |
+| `dcblock_hz(f)`        |    1    |    1    | Zero center signal with cutoff frequency `f`. |
 | `declick()`            |    1    |    1    | Apply 10 ms of fade-in to signal. |
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
@@ -582,10 +582,10 @@ The type parameters in the table refer to the hacker prelude.
 | `envelope(f)`          |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `envelope2(f)`         |  1 (x)  |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `lfo2`. |
 | `envelope3(f)`         | 2 (x, y) |  `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x, y\| y * exp(-t * x)`. Synonymous with `lfo3`. |
-| `fdn(x)`               |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
-| `feedback(x)`          |   `x`   |   `x`   | Encloses feedback circuit `x` (with equal number of inputs and outputs). |
+| `fdn(x)`               |   `x`   |   `x`   | Enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
+| `feedback(x)`          |   `x`   |   `x`   | Enclose feedback circuit `x` (with equal number of inputs and outputs). |
 | `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))`. |
-| `flanger(phase, mod, fb)` | 1    |    1    | Flanger effect with initial modulation `phase` in 0...1, modulation frequency `mod` in Hz and feedback amount `fb` |
+| `flanger(fb, f)`       |    1    |    1    | Flanger effect with feedback amount `fb` and delay function `f`, e.g., `\|t\| sin_hz(0.1, t) * 0.5 + 0.5`. |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
 | `follow((a, r))`       |    1    |    1    | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
@@ -613,7 +613,7 @@ The type parameters in the table refer to the hacker prelude.
 | `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `lowshelf_q(q, gain)`  | 2 (audio, frequency) | 1 | Low shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `map(f)`               |   `f`   |   `f`   | Map channels freely, e.g., `map(\|i: &Frame<f64, U2>\| max(i[0], i[1]))`. |
-| `meter(mode)`          |    1    | 1 (meter) | Analyzes input and outputs a summary according to the metering mode. |
+| `meter(mode)`          |    1    | 1 (meter) | Analyze input and output a summary according to the metering mode. |
 | `mls()`                |    -    |    1    | White [MLS noise](https://en.wikipedia.org/wiki/Maximum_length_sequence) source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence (1 <= `n` <= 31). |
 | `monitor(mode, id)`    |    1    |    1    | Pass-through node that analyzes data passed through as a parameter that can be queried. |
@@ -622,11 +622,11 @@ The type parameters in the table refer to the hacker prelude.
 | `moog_q(q)`            | 2 (audio, frequency) | 1 | Moog resonant lowpass filter (4th order) with resonance `q`. |
 | `morph`                | 4 (audio, frequency, Q, morph) | 1 | Morphing filter with morph input in -1...1 (-1 = lowpass, 0 = peaking, 1 = highpass) |
 | `morph_hz(f, q, morph)` |   1    |    1    | Morphing filter with center frequency `f`, Q `q` and morph `morph` in -1...1 (-1 = lowpass, 0 = peaking, 1 = highpass) |
-| `mul(x)`               |   `x`   |   `x`   | Multiplies signal with constant `x`. |
+| `mul(x)`               |   `x`   |   `x`   | Multiply signal with constant `x`. |
 | `multijoin::<M, N>()`  | `M * N` |   `M`   | Average `N` branches of `M` channels into one. Inverse of `multisplit`. |
-| `multipass::<U>()`     |   `U`   |   `U`   | Passes multichannel signal through. |
+| `multipass::<U>()`     |   `U`   |   `U`   | Pass multichannel signal through. |
 | `multisink::<U>()`     |   `U`   |    -    | Consumes multichannel signal. |
-| `multisplit::<M, N>()` |   `M`   | `M * N` | Splits `M` channels into `N` branches. |
+| `multisplit::<M, N>()` |   `M`   | `M * N` | Split `M` channels into `N` branches. |
 | `multitap::<N>(min_delay, max_delay)` | `N + 1` (audio, delay...) | 1 | Tapped delay line with cubic interpolation. Number of taps is `N`. |
 | `multitick::<U>()`     |   `U`   |   `U`   | Multichannel single sample delay. |
 | `multizero::<U>()`     |    -    |   `U`   | Multichannel zero signal. |
@@ -637,11 +637,11 @@ The type parameters in the table refer to the hacker prelude.
 | `oversample(x)`        |   `x`   |   `x`   | 2x oversample enclosed node `x`. |
 | `pan(pan)`             |    1    |    2    | Fixed mono-to-stereo equal power panner with pan in -1...1. |
 | `panner()`             | 2 (audio, pan) | 2 | Mono-to-stereo equal power panner with pan in -1...1. |
-| `pass()`               |    1    |    1    | Passes signal through. |
+| `pass()`               |    1    |    1    | Pass signal through. |
 | `peak()`               | 3 (audio, frequency, Q) | 1 | Peaking filter (2nd order). |
 | `peak_hz(f, q)`        |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q`. |
 | `peak_q(q)`            | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q`. |
-| `phaser(phase, mod, fb)` | 1     |    1    | Phaser effect with initial modulation `phase` in 0...1, modulation frequency `mod` in Hz and feedback amount `fb` |
+| `phaser(phase, mod, fb)` |  1    |    1    | Phaser effect with initial modulation `phase` in 0...1, modulation frequency `mod` in Hz and feedback amount `fb` |
 | `pink()`               |    -    |    1    | [Pink noise](https://en.wikipedia.org/wiki/Pink_noise) source. |
 | `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave). |
 | `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |
@@ -657,13 +657,13 @@ The type parameters in the table refer to the hacker prelude.
 | `shape_fn(f)`          |    1    |    1    | Shape signal with waveshaper function `f`, e.g., `tanh`. |
 | `sine()`               | 1 (frequency) | 1 | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
-| `sink()`               |    1    |    -    | Consumes signal. |
+| `sink()`               |    1    |    -    | Consume signal. |
 | `split::<U>()`         |    1    |   `U`   | Split signal into `U` channels. |
 | `square()`             | 1 (frequency) | 1 | Bandlimited square wave oscillator. |
 | `square_hz(f)`         |    -    |    1    | Bandlimited square wave oscillator at frequency `f` Hz. |
 | `stack::<U, _, _>(f)`  | `U * f` | `U * f` | Stack `U` nodes from indexed generator `f`. |
 | `stackf::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
-| `sub(x)`               |   `x`   |   `x`   | Subtracts constant `x` from signal. |
+| `sub(x)`               |   `x`   |   `x`   | Subtract constant `x` from signal. |
 | `sum::<U, _, _>(f)`    | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `swap()`               |    2    |    2    | Swap stereo channels. |
