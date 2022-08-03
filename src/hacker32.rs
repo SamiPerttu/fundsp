@@ -166,7 +166,7 @@ pub type U128 = numeric_array::typenum::U128;
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// constant(440.0) >> sine();
 /// ```
 #[inline]
@@ -184,7 +184,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// dc((220.0, 440.0)) >> (sine() + sine());
 /// ```
 #[inline]
@@ -470,7 +470,7 @@ pub fn morph_hz(
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// envelope(|t| (sin_hz(1.0, t), cos_hz(1.0, t))) * (brown() | white());
 /// ```
 #[inline]
@@ -490,7 +490,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// lfo(|t| exp(-t)) * white();
 /// ```
 #[inline]
@@ -570,7 +570,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// mls_bits(31);
 /// ```
 #[inline]
@@ -583,7 +583,7 @@ pub fn mls_bits(n: i64) -> An<Mls<f32>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// mls();
 /// ```
 #[inline]
@@ -597,7 +597,7 @@ pub fn mls() -> An<Mls<f32>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// noise();
 /// ```
 #[inline]
@@ -611,7 +611,7 @@ pub fn noise() -> An<Noise<f32>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// white();
 /// ```
 #[inline]
@@ -625,7 +625,7 @@ pub fn white() -> An<Noise<f32>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// fir((0.5, 1.0, 0.5));
 /// ```
 #[inline]
@@ -639,7 +639,7 @@ pub fn fir<X: ConstantFrame<Sample = f32>>(weights: X) -> An<Fir<f32, X::Size>> 
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// tick() & pass();
 /// ```
 #[inline]
@@ -653,7 +653,7 @@ pub fn tick() -> An<Tick<U1, f32>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// multitick::<U2>();
 /// ```
 #[inline]
@@ -668,7 +668,7 @@ pub fn multitick<N: Size<f32>>() -> An<Tick<N, f32>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// delay(1.0);
 /// ```
 #[inline]
@@ -684,7 +684,7 @@ pub fn delay(t: f32) -> An<Delay<f32>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// pass() & (pass() | lfo(|t| lerp11(0.0, 0.1, spline_noise(0, t)))) >> tap(0.0, 0.1);
 /// ```
 #[inline]
@@ -701,7 +701,7 @@ pub fn tap(min_delay: f64, max_delay: f64) -> An<Tap<U1, f32>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// (pass() | lfo(|t| (lerp11(0.0, 0.1, spline_noise(0, t)), lerp11(0.1, 0.2, spline_noise(1, t))))) >> multitap::<U2>(0.0, 0.2);
 /// ```
 #[inline]
@@ -718,7 +718,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// let f = 440.0;
 /// let m = 1.0;
 /// oversample(sine_hz(f) * f * m + f >> sine());
@@ -742,7 +742,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// pass() & feedback(delay(1.0) >> lowpass_hz(1000.0, 1.0));
 /// ```
 #[inline]
@@ -760,7 +760,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// map(|i: &Frame<f32, U2>| max(i[0], i[1]));
 /// ```
 #[inline]
@@ -782,7 +782,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// dcblock_hz(8.0);
 /// ```
 #[inline]
@@ -854,7 +854,7 @@ pub fn clip_to(minimum: f32, maximum: f32) -> An<Shaper<f32>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker32::*;
+/// use fundsp::hacker32::*;
 /// (noise() | sine_hz(0.5)) >> panner();
 /// ```
 #[inline]
@@ -1607,30 +1607,42 @@ pub fn wave32(
 
 /// Mono chorus, 5 voices. For stereo, stack two of these using different seed values.
 /// `seed`: LFO seed.
+/// `separation`: base voice separation in seconds (for example, 0.015).
+/// `variation`: delay variation in seconds (for example, 0.005).
 /// `mod_frequency`: delay modulation frequency (for example, 0.2).
-/// `highpass_cutoff`: highpass filter cutoff (for example, 200.0).
 /// - Input 0: audio.
 /// - Output 0: chorused audio, including original signal.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker32::*;
+/// chorus(0, 0.015, 0.005, 0.5);
+/// ```
 pub fn chorus(
     seed: i64,
+    separation: f32,
+    variation: f32,
     mod_frequency: f32,
-    highpass_cutoff: f32,
 ) -> An<impl AudioNode<Sample = f32, Inputs = U1, Outputs = U1>> {
-    super::prelude::chorus::<f32, f32>(seed, mod_frequency, highpass_cutoff)
+    super::prelude::chorus::<f32>(seed, separation, variation, mod_frequency)
 }
 
-/// Mono flanger. For stereo, stack two of these using different initial phases.
-/// `initial_phase`: initial phase of delay modulation in 0...1 (for example, 0.0 or 0.25).
-/// `mod_frequency`: delay modulation frequency (for example, 0.2).
+/// Mono flanger.
 /// `feedback_amount`: amount of feedback (for example, 0.9 or -0.9). Negative feedback inverts feedback phase.
+/// ´delay_f´: Delay in 0...1 as a function of time. For example, `|t| sin_hz(0.1, t) * 0.5 + 0.5)`.
 /// - Input 0: audio
 /// - Output 0: flanged audio, including original signal
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker32::*;
+/// saw_hz(110.0) >> flanger(0.9, |t| sin_hz(0.1, t) * 0.5 + 0.5);
+/// ```
 pub fn flanger(
-    initial_phase: f32,
-    mod_frequency: f32,
     feedback_amount: f32,
+    delay_f: impl Fn(f32) -> f32,
 ) -> An<impl AudioNode<Sample = f32, Inputs = U1, Outputs = U1>> {
-    super::prelude::flanger::<f32, f32>(initial_phase, mod_frequency, feedback_amount)
+    super::prelude::flanger::<f32, _>(feedback_amount, delay_f)
 }
 
 /// Mono phaser. For stereo, stack two of these with different initial phases.
@@ -1639,6 +1651,12 @@ pub fn flanger(
 /// `feedback_amount`: amount of feedback (for example, 0.5). Negative feedback inverts feedback phase.
 /// - Input 0: audio
 /// - Output 0: phased audio
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker32::*;
+/// saw_hz(110.0) >> phaser(0.0, 0.1, 0.5);
+/// ```
 pub fn phaser(
     initial_phase: f32,
     mod_frequency: f32,

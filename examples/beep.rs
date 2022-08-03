@@ -63,7 +63,7 @@ where
     //let c = c & c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.5);
 
     // Apply Moog filter.
-    let c = (c | lfo(|t| (xerp11(110.0, 11000.0, sin_hz(0.15, t)), 0.6))) >> moog();
+    //let c = (c | lfo(|t| (xerp11(110.0, 11000.0, sin_hz(0.15, t)), 0.6))) >> moog();
 
     //let c = pink();
 
@@ -72,10 +72,12 @@ where
     //let c = fundsp::sound::risset_glissando(false);
 
     // Add chorus.
-    //let c = c >> (chorus(0, 1.0, 200.0) | chorus(1, 1.0, 200.0));
+    //let c = c >> (chorus(0, 0.015, 0.005, 0.5) | chorus(1, 0.015, 0.005, 0.5));
 
     // Add flanger.
-    //let c = c >> (flanger(0.0, 0.1, 0.9) | flanger(0.1, 0.1, 0.9));
+    let c = c
+        >> (flanger(0.9, |t| sin_hz(0.1, t) * 0.5 + 0.5)
+            | flanger(0.9, |t| cos_hz(0.1, t) * 0.5 + 0.5));
 
     // Add phaser.
     //let c = c >> (phaser(0.0, 0.1, 0.5) | phaser(0.25, 0.1, 0.5));

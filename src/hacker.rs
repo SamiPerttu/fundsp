@@ -166,7 +166,7 @@ pub type U128 = numeric_array::typenum::U128;
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// constant(440.0) >> sine();
 /// ```
 #[inline]
@@ -184,7 +184,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// dc((220.0, 440.0)) >> (sine() + sine());
 /// ```
 #[inline]
@@ -470,7 +470,7 @@ pub fn morph_hz(
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// envelope(|t| (sin_hz(1.0, t), cos_hz(1.0, t))) * (brown() | white());
 /// ```
 #[inline]
@@ -490,7 +490,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// lfo(|t| exp(-t)) * white();
 /// ```
 #[inline]
@@ -570,7 +570,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// mls_bits(31);
 /// ```
 #[inline]
@@ -583,7 +583,7 @@ pub fn mls_bits(n: i64) -> An<Mls<f64>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// mls();
 /// ```
 #[inline]
@@ -597,7 +597,7 @@ pub fn mls() -> An<Mls<f64>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// noise();
 /// ```
 #[inline]
@@ -611,7 +611,7 @@ pub fn noise() -> An<Noise<f64>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// white();
 /// ```
 #[inline]
@@ -625,7 +625,7 @@ pub fn white() -> An<Noise<f64>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// fir((0.5, 1.0, 0.5));
 /// ```
 #[inline]
@@ -639,7 +639,7 @@ pub fn fir<X: ConstantFrame<Sample = f64>>(weights: X) -> An<Fir<f64, X::Size>> 
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// tick() & pass();
 /// ```
 #[inline]
@@ -653,7 +653,7 @@ pub fn tick() -> An<Tick<U1, f64>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// multitick::<U2>();
 /// ```
 #[inline]
@@ -668,7 +668,7 @@ pub fn multitick<N: Size<f64>>() -> An<Tick<N, f64>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// delay(1.0);
 /// ```
 #[inline]
@@ -684,7 +684,7 @@ pub fn delay(t: f64) -> An<Delay<f64>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// pass() & (pass() | lfo(|t| lerp11(0.0, 1.0, spline_noise(0, t)))) >> tap(0.0, 0.1);
 /// ```
 #[inline]
@@ -701,7 +701,7 @@ pub fn tap(min_delay: f64, max_delay: f64) -> An<Tap<U1, f64>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// (pass() | lfo(|t| (lerp11(0.0, 0.1, spline_noise(0, t)), lerp11(0.1, 0.2, spline_noise(1, t))))) >> multitap::<U2>(0.0, 0.2);
 /// ```
 #[inline]
@@ -718,7 +718,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// let f = 440.0;
 /// let m = 1.0;
 /// oversample(sine_hz(f) * f * m + f >> sine());
@@ -742,7 +742,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// pass() & feedback(delay(1.0) >> lowpass_hz(1000.0, 1.0));
 /// ```
 #[inline]
@@ -760,7 +760,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// map(|i: &Frame<f64, U2>| max(i[0], i[1]));
 /// ```
 #[inline]
@@ -782,7 +782,7 @@ where
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// dcblock_hz(8.0);
 /// ```
 #[inline]
@@ -854,7 +854,7 @@ pub fn clip_to(minimum: f64, maximum: f64) -> An<Shaper<f64>> {
 ///
 /// ### Example
 /// ```
-/// # use fundsp::hacker::*;
+/// use fundsp::hacker::*;
 /// (noise() | sine_hz(0.5)) >> panner();
 /// ```
 #[inline]
@@ -1607,30 +1607,42 @@ pub fn wave32(
 
 /// Mono chorus, 5 voices. For stereo, stack two of these using different seed values.
 /// `seed`: LFO seed.
+/// `separation`: base voice separation in seconds (for example, 0.015).
+/// `variation`: delay variation in seconds (for example, 0.005).
 /// `mod_frequency`: delay modulation frequency (for example, 0.2).
-/// `highpass_cutoff`: highpass filter cutoff (for example, 200.0).
 /// - Input 0: audio.
 /// - Output 0: chorused audio, including original signal.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// saw_hz(110.0) >> chorus(0, 0.015, 0.005, 0.5);
+/// ```
 pub fn chorus(
     seed: i64,
+    separation: f64,
+    variation: f64,
     mod_frequency: f64,
-    highpass_cutoff: f64,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    super::prelude::chorus::<f64, f64>(seed, mod_frequency, highpass_cutoff)
+    super::prelude::chorus::<f64>(seed, separation, variation, mod_frequency)
 }
 
-/// Mono flanger. For stereo, stack two of these using different initial phases.
-/// `initial_phase`: initial phase of delay modulation in 0...1 (for example, 0.0 or 0.25).
-/// `mod_frequency`: delay modulation frequency (for example, 0.2).
+/// Mono flanger.
 /// `feedback_amount`: amount of feedback (for example, 0.9 or -0.9). Negative feedback inverts feedback phase.
+/// ´delay_f´: Delay in 0...1 as a function of time. For example, `|t| sin_hz(0.1, t) * 0.5 + 0.5)`.
 /// - Input 0: audio
 /// - Output 0: flanged audio, including original signal
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// saw_hz(110.0) >> flanger(0.9, |t| sin_hz(0.1, t) * 0.5 + 0.5);
+/// ```
 pub fn flanger(
-    initial_phase: f64,
-    mod_frequency: f64,
     feedback_amount: f64,
+    delay_f: impl Fn(f64) -> f64,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
-    super::prelude::flanger::<f64, f64>(initial_phase, mod_frequency, feedback_amount)
+    super::prelude::flanger::<f64, _>(feedback_amount, delay_f)
 }
 
 /// Mono phaser. For stereo, stack two of these with different initial phases.
@@ -1639,6 +1651,12 @@ pub fn flanger(
 /// `feedback_amount`: amount of feedback (for example, 0.5). Negative feedback inverts feedback phase.
 /// - Input 0: audio
 /// - Output 0: phased audio
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// saw_hz(110.0) >> phaser(0.0, 0.1, 0.5);
+/// ```
 pub fn phaser(
     initial_phase: f64,
     mod_frequency: f64,
