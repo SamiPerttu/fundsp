@@ -104,7 +104,7 @@ The `tick` method is for processing single
 sample frames, while the `process` method processes whole blocks.
 
 Mono samples can be retrieved with `get_mono` and `filter_mono` methods. The `get_mono` method
-returns the next sample from a generator that has no inputs and one output,
+returns the next sample from a generator that has no inputs and one or two outputs,
 while the `filter_mono` method filters the next sample from
 a node that has one input and one output:
 
@@ -585,7 +585,7 @@ The type parameters in the table refer to the hacker prelude.
 | `fdn(x)`               |   `x`   |   `x`   | Enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
 | `feedback(x)`          |   `x`   |   `x`   | Enclose feedback circuit `x` (with equal number of inputs and outputs). |
 | `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))`. |
-| `flanger(fb, f)`       |    1    |    1    | Flanger effect with feedback amount `fb` and delay function `f`, e.g., `\|t\| sin_hz(0.1, t) * 0.5 + 0.5`. |
+| `flanger(fb, min_d, max_d, f)`| 1|    1    | Flanger effect with feedback amount `fb`, minimum delay `min_d` seconds, maximum delay `max_d` seconds and delay function `f`, e.g., `\|t\| lerp11(0.01, 0.02, sin_hz(0.1, t))`. |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
 | `follow((a, r))`       |    1    |    1    | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
@@ -641,7 +641,7 @@ The type parameters in the table refer to the hacker prelude.
 | `peak()`               | 3 (audio, frequency, Q) | 1 | Peaking filter (2nd order). |
 | `peak_hz(f, q)`        |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q`. |
 | `peak_q(q)`            | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q`. |
-| `phaser(phase, mod, fb)` |  1    |    1    | Phaser effect with initial modulation `phase` in 0...1, modulation frequency `mod` in Hz and feedback amount `fb` |
+| `phaser(fb, f)`        |    1    |    1    | Phaser effect with feedback amount `fb` and modulation function `f`, e.g., `\|t\| sin_hz(0.1, t) * 0.5 + 0.5`. |
 | `pink()`               |    -    |    1    | [Pink noise](https://en.wikipedia.org/wiki/Pink_noise) source. |
 | `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave). |
 | `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |

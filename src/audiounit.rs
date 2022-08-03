@@ -126,13 +126,24 @@ pub trait AudioUnit48: Send {
     }
 
     /// Retrieve the next mono sample from a generator.
-    /// The node must have no inputs and 1 output.
+    /// The node must have no inputs and 1 or 2 outputs.
+    /// If there are two outputs, average them.
     #[inline]
     fn get_mono(&mut self) -> f48 {
-        debug_assert!(self.inputs() == 0 && self.outputs() == 1);
-        let mut output = [0.0];
-        self.tick(&[], &mut output);
-        output[0]
+        debug_assert!(self.inputs() == 0);
+        match self.outputs() {
+            1 => {
+                let mut output = [0.0];
+                self.tick(&[], &mut output);
+                output[0]
+            }
+            2 => {
+                let mut output = [0.0, 0.0];
+                self.tick(&[], &mut output);
+                (output[0] + output[1]) * 0.5
+            }
+            _ => panic!("AudioUnit48::get_mono(): Unit must have 1 or 2 outputs"),
+        }
     }
 
     /// Retrieve the next stereo sample (left, right) from a generator.

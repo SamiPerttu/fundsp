@@ -1629,38 +1629,40 @@ pub fn chorus(
 
 /// Mono flanger.
 /// `feedback_amount`: amount of feedback (for example, 0.9 or -0.9). Negative feedback inverts feedback phase.
-/// ´delay_f´: Delay in 0...1 as a function of time. For example, `|t| sin_hz(0.1, t) * 0.5 + 0.5)`.
+/// `minimum_delay`: minimum delay in seconds (for example, 0.005).
+/// `maximum_delay`: maximum delay in seconds (for example, 0.015).
+/// ´delay_f´: Delay in `minimum_delay`...`maximum_delay` as a function of time. For example, `|t| lerp11(0.005, 0.015, sin_hz(0.1, t))`.
 /// - Input 0: audio
 /// - Output 0: flanged audio, including original signal
 ///
 /// ### Example
 /// ```
 /// use fundsp::hacker32::*;
-/// saw_hz(110.0) >> flanger(0.9, |t| sin_hz(0.1, t) * 0.5 + 0.5);
+/// saw_hz(110.0) >> flanger(0.9, 0.005, 0.010, |t| lerp11(0.005, 0.010, sin_hz(0.1, t)));
 /// ```
 pub fn flanger(
     feedback_amount: f32,
+    minimum_delay: f32,
+    maximum_delay: f32,
     delay_f: impl Fn(f32) -> f32,
 ) -> An<impl AudioNode<Sample = f32, Inputs = U1, Outputs = U1>> {
-    super::prelude::flanger::<f32, _>(feedback_amount, delay_f)
+    super::prelude::flanger::<f32, _>(feedback_amount, minimum_delay, maximum_delay, delay_f)
 }
 
 /// Mono phaser. For stereo, stack two of these with different initial phases.
-/// `initial_phase`: modulation initial phase in 0...1 (for example, 0.0 or 0.25).
-/// `mod_frequency`: allpass modulation frequency (for example, 0.2).
 /// `feedback_amount`: amount of feedback (for example, 0.5). Negative feedback inverts feedback phase.
+/// `phase_f`: allpass modulation value in 0...1 as function of time, for example `|t| sin_hz(0.1, t) * 0.5 + 0.5`.
 /// - Input 0: audio
 /// - Output 0: phased audio
 ///
 /// ### Example
 /// ```
 /// use fundsp::hacker32::*;
-/// saw_hz(110.0) >> phaser(0.0, 0.1, 0.5);
+/// saw_hz(110.0) >> phaser(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5);
 /// ```
-pub fn phaser(
-    initial_phase: f32,
-    mod_frequency: f32,
+pub fn phaser<X: Fn(f32) -> f32>(
     feedback_amount: f32,
+    phase_f: X,
 ) -> An<impl AudioNode<Sample = f32, Inputs = U1, Outputs = U1>> {
-    super::prelude::phaser::<f32>(initial_phase, mod_frequency, feedback_amount)
+    super::prelude::phaser::<f32, _>(feedback_amount, phase_f)
 }

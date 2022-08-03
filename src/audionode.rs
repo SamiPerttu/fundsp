@@ -177,12 +177,19 @@ pub trait AudioNode {
     }
 
     /// Retrieve the next mono sample from a generator.
-    /// The node must have no inputs and exactly 1 output.
+    /// The node must have no inputs and 1 or 2 outputs.
+    /// If there are two outputs, average the channels.
     #[inline]
     fn get_mono(&mut self) -> Self::Sample {
-        assert!(Self::Inputs::USIZE == 0 && Self::Outputs::USIZE == 1);
+        assert!(
+            Self::Inputs::USIZE == 0 && (Self::Outputs::USIZE == 1 || Self::Outputs::USIZE == 2)
+        );
         let output = self.tick(&Frame::default());
-        output[0]
+        if self.outputs() == 1 {
+            output[0]
+        } else {
+            (output[0] + output[1]) / Self::Sample::new(2)
+        }
     }
 
     /// Retrieve the next stereo sample (left, right) from a generator.

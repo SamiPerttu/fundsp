@@ -2156,60 +2156,49 @@ pub fn chorus<T: Real>(
 
 /// Mono flanger.
 /// `feedback_amount`: amount of feedback (for example, 0.9 or -0.9). Negative feedback inverts feedback phase.
-/// ´delay_f´: Delay in 0...1 as a function of time. For example, `|t| sin_hz(0.1, t) * 0.5 + 0.5)`.
+/// `minimum_delay`: minimum delay in seconds (for example, 0.005).
+/// `maximum_delay`: maximum delay in seconds (for example, 0.010).
+/// ´delay_f´: Delay in `minimum_delay`...`maximum_delay` as a function of time. For example, `|t| lerp11(0.005, 0.010, sin_hz(0.1, t))`.
 /// - Input 0: audio
 /// - Output 0: flanged audio, including original signal
 ///
 /// ### Example
 /// ```
 /// use fundsp::prelude::*;
-/// saw_hz(110.0) >> flanger::<f64, _>(0.9, |t| sin_hz(0.1, t) * 0.5 + 0.5);
+/// saw_hz(110.0) >> flanger::<f64, _>(0.9, 0.005, 0.010, |t| lerp11(0.005, 0.010, sin_hz(0.1, t)));
 /// ```
 pub fn flanger<T: Real, X: Fn(T) -> T>(
     feedback_amount: T,
+    minimum_delay: T,
+    maximum_delay: T,
     delay_f: X,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    // Minimum delay.
-    let base_delay = T::from_f64(0.0050);
-
-    // Range of delay variation.
-    let delay_range = T::from_f64(0.0050);
-
     pass()
         & feedback(
-            (pass() | lfo(delay_f) * dc(delay_range) + dc(base_delay))
-                >> tap::<T>(base_delay.to_f64(), (base_delay + delay_range).to_f64())
+            (pass() | lfo(delay_f))
+                >> tap::<T>(minimum_delay.to_f64(), maximum_delay.to_f64())
                 >> shape(Shape::Tanh(feedback_amount)),
         )
 }
 
-/// Mono phaser. For stereo, stack two of these with different initial phases.
-/// `initial_phase`: modulation initial phase in 0...1 (for example, 0.0 or 0.25).
-/// `mod_frequency`: allpass modulation frequency (for example, 0.2).
+/// Mono phaser.
 /// `feedback_amount`: amount of feedback (for example, 0.5). Negative feedback inverts feedback phase.
+/// `phase_f`: allpass modulation value in 0...1 as function of time, for example `|t| sin_hz(0.1, t) * 0.5 + 0.5`.
 /// - Input 0: audio
 /// - Output 0: phased audio
 ///
 /// ### Example
 /// ```
 /// use fundsp::prelude::*;
-/// saw_hz(110.0) >> phaser::<f64>(0.0, 0.1, 0.5);
+/// saw_hz(110.0) >> phaser::<f64, _>(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5);
 /// ```
-pub fn phaser<T: Real>(
-    initial_phase: T,
-    mod_frequency: T,
+pub fn phaser<T: Real, X: Fn(T) -> T>(
     feedback_amount: T,
+    phase_f: X,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
     pass()
         & feedback(
-            (pass()
-                | lfo(move |t| {
-                    lerp11(
-                        T::new(1),
-                        T::new(10),
-                        sin_hz(mod_frequency, t + initial_phase / mod_frequency),
-                    )
-                }))
+            (pass() | lfo(move |t| lerp(T::new(1), T::new(10), phase_f(t))))
                 >> pipe::<U20, T, _, _>(|_i| {
                     (pass() | add(T::from_f64(0.05))) >> !allpole::<T, T>()
                 })
