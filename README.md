@@ -287,7 +287,7 @@ The bus is especially useful because it does not alter connectivity:
 we can always bus together any set of matching components
 without touching the rest of the expression.
 
-Both `A + B` and `A & B` are mixing operators. The difference between the two is that `A + B` is *reducing*:
+Both `A + B` and `A & B` are mixing operators. The difference between the two is that `A + B` is reducing:
 `A` and `B` have their own, disjoint inputs, which are combined at the output.
 In `A & B`, both components source from the same inputs, and the number of inputs must match.
 
