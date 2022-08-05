@@ -940,7 +940,7 @@ There are usually many ways to express a particular graph. The following express
 | `sink() \| zero()`                         | `zero() \| sink()`              | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
 | `(butterpass() ^ (sink() \| pass())) >> butterpass()` | `!butterpass() >> butterpass()`  | Running a manual bypass. |
 | `!sink()`                                  | `pass()`                        | The attempt of the sink to consume signal is foiled by the thru operator, which passes the missing output through. |
-| `!(noise() \| noise())`                    | `!noise()`                      | The thru operator adjusts output arity to match input arity, nullifying any generator. |
+| `!(noise() \| noise())`                    | `!noise()`                      | The thru operator nullifies any generator. |
 
 ---
 
