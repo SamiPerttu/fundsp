@@ -291,6 +291,10 @@ Both `A + B` and `A & B` are mixing operators. The difference between the two is
 `A` and `B` have their own, disjoint inputs, which are combined at the output.
 In `A & B`, both components source from the same inputs, and the number of inputs must match.
 
+One application of the bus is controlling effect mix in conjunction with the `pass` opcode,
+which passes signal through unchanged. For example, to add 20% chorus to a mono signal,
+one might type `pass() & 0.2 * chorus(0, 0.015, 0.005, 0.3)`.
+
 #### Stack
 
 The stack ( `|` ) operator builds composite components.
@@ -377,10 +381,10 @@ causal latencies and frequency responses in audio networks.
 The system can calculate the [frequency response](https://en.wikipedia.org/wiki/Frequency_response)
 of any *[linear network](https://en.wikipedia.org/wiki/Linear_filter)*
 analytically by composing [transfer functions](https://en.wikipedia.org/wiki/Transfer_function#Linear_time-invariant_systems)
-and folding constants. Linear networks are constructed from filters, delays, and the operations of:
+and folding constants. Linear networks are constructed from linear filters, delays, and the operations of:
 
 * Mixing.
-* Chaining. Chaining of filters and delays maintains linearity.
+* Chaining. Chaining of linear filters and delays maintains linearity.
 * Constant scaling. Signals may be scaled by constant factors.
 
 Signal latencies are similarly analyzed from input to output in detail,
@@ -935,7 +939,8 @@ There are usually many ways to express a particular graph. The following express
 | `constant(0.0) \| dc(1.0)`                 | `constant((0.0, 1.0))`          | Stacking concatenates channels. |
 | `sink() \| zero()`                         | `zero() \| sink()`              | The order does not matter because `sink()` only adds an input, while `zero()` only adds an output. |
 | `(butterpass() ^ (sink() \| pass())) >> butterpass()` | `!butterpass() >> butterpass()`  | Running a manual bypass. |
-| `!(noise() \| noise())`                    | `!noise()`                      | The thru operator nullifies any generator. |
+| `!sink()`                                  | `pass()`                        | The attempt of the sink to consume signal is foiled by the thru operator, which passes the missing output through. |
+| `!(noise() \| noise())`                    | `!noise()`                      | The thru operator adjusts output arity to match input arity, nullifying any generator. |
 
 ---
 
