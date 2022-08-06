@@ -9,7 +9,7 @@ use rustfft::algorithm::Radix4;
 use rustfft::Fft;
 use rustfft::FftDirection;
 
-/// Interpolates between a1 and a2 taking previous (a0) and next (a3) points into account.
+/// Interpolate between `a1` and `a2` taking previous (`a0`) and next (`a3`) points into account.
 /// Employs an optimal 4-point, 4th order interpolating polynomial for 4x oversampled signals.
 /// The SNR of the interpolator for pink noise is 101.1 dB.
 #[inline]
@@ -73,7 +73,7 @@ where
 
 pub struct Wavetable {
     /// Frequency tables arranged in order of increasing frequency.
-    table: Vec<(f64, Vec<f32>)>,
+    table: Vec<(f32, Vec<f32>)>,
 }
 
 impl Wavetable {
@@ -88,7 +88,7 @@ impl Wavetable {
         P: Fn(u32) -> f64,
         A: Fn(f64, u32) -> f64,
     {
-        let mut table: Vec<(f64, Vec<f32>)> = vec![];
+        let mut table: Vec<(f32, Vec<f32>)> = vec![];
         let mut p = min_pitch;
         let p_factor = pow(2.0, 1.0 / tables_per_octave);
         let mut max_amplitude = 0.0;
@@ -97,7 +97,7 @@ impl Wavetable {
             let wave = make_wave(p, phase, amplitude);
             max_amplitude = wave.iter().fold(max_amplitude, |acc, &x| max(acc, abs(x)));
             //total_size += wave.len();
-            table.push((p, wave));
+            table.push((p as f32, wave));
             p *= p_factor;
         }
         if max_amplitude > 0.0 {
@@ -119,9 +119,9 @@ impl Wavetable {
 
     /// Read wave at the given phase (in 0...1).
     #[inline]
-    pub fn at(&self, i: usize, phase: f64) -> f32 {
+    pub fn at(&self, i: usize, phase: f32) -> f32 {
         let table: &Vec<f32> = &self.table[i].1;
-        let p = table.len() as f64 * phase;
+        let p = table.len() as f32 * phase;
         let i1 = p as usize;
         let w = p as f32 - i1 as f32;
         let i0 = i1.wrapping_sub(1) & (table.len() - 1);
@@ -133,7 +133,7 @@ impl Wavetable {
 
     /// Read wavetable.
     #[inline]
-    pub fn read(&self, table_hint: usize, frequency: f64, phase: f64) -> (f32, usize) {
+    pub fn read(&self, table_hint: usize, frequency: f32, phase: f32) -> (f32, usize) {
         let table =
             if frequency >= self.table[table_hint].0 && frequency <= self.table[table_hint + 1].0 {
                 table_hint
@@ -173,12 +173,12 @@ where
 {
     table: &'a Wavetable,
     /// Phase in 0...1.
-    phase: f64,
+    phase: f32,
     /// Initial phase in 0...1, seeded via pseudorandom phase system.
-    initial_phase: f64,
+    initial_phase: f32,
     /// Previously used transposition table.
     table_hint: usize,
-    sample_rate: f64,
+    sample_rate: f32,
     _marker: std::marker::PhantomData<(T, N)>,
 }
 
@@ -193,7 +193,7 @@ where
             phase: 0.0,
             initial_phase: 0.0,
             table_hint: 0,
-            sample_rate,
+            sample_rate: sample_rate as f32,
             _marker: std::marker::PhantomData::default(),
         }
     }
@@ -212,14 +212,14 @@ where
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
-            self.sample_rate = sample_rate;
+            self.sample_rate = sample_rate as f32;
         }
         self.phase = self.initial_phase;
     }
 
     #[inline]
     fn set_hash(&mut self, hash: u64) {
-        self.initial_phase = super::hacker::rnd(hash as i64);
+        self.initial_phase = super::hacker::rnd(hash as i64) as f32;
         self.phase = self.initial_phase;
     }
 
@@ -228,7 +228,7 @@ where
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let frequency = input[0].to_f64();
+        let frequency = input[0].to_f32();
         let delta = frequency / self.sample_rate;
         self.phase += delta;
         self.phase -= floor(self.phase);
@@ -261,10 +261,10 @@ where
 {
     table: &'a Wavetable,
     /// Previous phase.
-    phase: f64,
+    phase: f32,
     phase_ready: bool,
     table_hint: usize,
-    sample_rate: f64,
+    sample_rate: f32,
     _marker: std::marker::PhantomData<T>,
 }
 
@@ -278,7 +278,7 @@ where
             phase: 0.0,
             phase_ready: false,
             table_hint: 0,
-            sample_rate,
+            sample_rate: sample_rate as f32,
             _marker: std::marker::PhantomData::default(),
         }
     }
@@ -296,7 +296,7 @@ where
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
-            self.sample_rate = sample_rate;
+            self.sample_rate = sample_rate as f32;
         }
         self.phase_ready = false;
     }
@@ -306,7 +306,7 @@ where
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let phase = input[0].to_f64();
+        let phase = input[0].to_f32();
         let phase = phase - floor(phase);
         let delta = if self.phase_ready {
             // Interpret frequency from phase so it's always at or below Nyquist.

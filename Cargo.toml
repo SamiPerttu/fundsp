@@ -11,7 +11,7 @@ readme = "README.md"
 edition = "2021"
 
 [dependencies]
-generic-array = "0.14.5"
+generic-array = "0.14.6"
 numeric-array = "0.5.2"
 num-complex = "0.4.2"
 rustfft = "6.0.1"
@@ -24,6 +24,11 @@ duplicate = "0.4.1"
 cpal = "0.13.5"
 anyhow = "1.0.58"
 plotters = "0.3.2"
+criterion = "0.3.6"
+
+[[bench]]
+name = "benchmark"
+harness = false
 
 [features]
 default = []

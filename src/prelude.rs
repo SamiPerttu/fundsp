@@ -203,6 +203,12 @@ pub fn tag<T: Float>(tag: Tag, value: T) -> An<Tagged<T>> {
 
 /// Zero generator.
 /// - Output 0: zero
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// zero::<f64>() >> pluck(220.0, db_amp(-6.0), 0.5);
+/// ```
 #[inline]
 pub fn zero<T: Float>() -> An<Constant<U1, T>> {
     dc(T::new(0))
@@ -862,6 +868,12 @@ pub fn shape_fn<T: Float, S: Fn(T) -> T>(f: S) -> An<ShaperFn<T, S>> {
 /// Shape signal.
 /// - Input 0: input signal
 /// - Output 0: shaped signal
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// shape::<f64>(Shape::Tanh(1.0));
+/// ```
 #[inline]
 pub fn shape<T: Real>(mode: Shape<T>) -> An<Shaper<T>> {
     An(Shaper::new(mode))

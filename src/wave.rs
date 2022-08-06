@@ -208,7 +208,7 @@ impl Wave48 {
         }
     }
 
-    /// Render wave from a generator `node`.
+    /// Render wave with length `duration` seconds from a generator `node`.
     /// Resets `node` and sets its sample rate.
     /// Does not discard pre-delay.
     pub fn render(sample_rate: f64, duration: f64, node: &mut dyn AudioUnit48) -> Self {
@@ -232,7 +232,7 @@ impl Wave48 {
         wave
     }
 
-    /// Render wave from a generator `node`.
+    /// Render wave with length `duration` seconds from a generator `node`.
     /// Any pre-delay, as measured by signal latency, is discarded.
     /// Resets `node` and sets its sample rate.
     pub fn render_latency(sample_rate: f64, duration: f64, node: &mut dyn AudioUnit48) -> Self {

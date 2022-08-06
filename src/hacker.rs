@@ -204,6 +204,12 @@ pub fn tag(id: Tag, value: f64) -> An<Tagged<f64>> {
 
 /// Zero generator.
 /// - Output 0: zero
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// zero() >> pluck(220.0, db_amp(-6.0), 0.5);
+/// ```
 #[inline]
 pub fn zero() -> An<Constant<U1, f64>> {
     constant(0.0)
@@ -825,6 +831,12 @@ pub fn shape_fn<S: Fn(f64) -> f64>(f: S) -> An<ShaperFn<f64, S>> {
 /// Shape signal according to shaping mode.
 /// - Input 0: input signal
 /// - Output 0: shaped signal
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// shape(Shape::Tanh(1.0));
+/// ```
 #[inline]
 pub fn shape(mode: Shape<f64>) -> An<Shaper<f64>> {
     super::prelude::shape(mode)

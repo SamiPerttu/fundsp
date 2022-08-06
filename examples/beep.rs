@@ -80,7 +80,7 @@ where
             | flanger(0.9, 0.01, 0.02, |t| lerp11(0.01, 0.02, cos_hz(0.1, t))));
 
     // Add phaser.
-    //let c = c >> (phaser(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5) | phaser(0.5,|t| cos_hz(0.1, t) * 0.5 + 0.5));
+    //let c = c >> (phaser(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5) | phaser(0.5, |t| cos_hz(0.1, t) * 0.5 + 0.5));
 
     let mut c = c
         >> (declick() | declick()) >> (dcblock() | dcblock())
