@@ -38,9 +38,9 @@ where
     P: Fn(u32) -> f64,
     A: Fn(f64, u32) -> f64,
 {
-    // Fade out upper harmonics starting from 18 kHz.
+    // Fade out upper harmonics starting from 20 kHz.
     const MAX_F: f64 = 22_000.0;
-    const FADE_F: f64 = 18_000.0;
+    const FADE_F: f64 = 20_000.0;
 
     let harmonics = floor(MAX_F / pitch) as usize;
 
@@ -139,7 +139,7 @@ impl Wavetable {
                 table_hint
             } else {
                 let mut i0 = 0;
-                let mut i1 = self.table.len() - 2;
+                let mut i1 = self.table.len() - 3;
                 while i0 < i1 {
                     // i0 <= i < i1.
                     let i = (i0 + i1) >> 1;
@@ -156,7 +156,8 @@ impl Wavetable {
             };
         let w = delerp(self.table[table].0, self.table[table + 1].0, frequency) as f32;
         (
-            (1.0 - w) * self.at(table, phase) + w * self.at(table + 1, phase),
+            // Note the different table index. We can use `table + 1` up to its designated pitch.
+            (1.0 - w) * self.at(table + 1, phase) + w * self.at(table + 2, phase),
             table,
         )
     }
