@@ -16,7 +16,7 @@ fn envelope_bench(_dummy: usize) -> Wave32 {
 }
 
 fn oversample_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(44100.0, 1.0, &mut (oversample(noise())))
+    Wave32::render(44100.0, 1.0, &mut (noise() >> oversample(pass())))
 }
 
 fn chorus_bench(_dummy: usize) -> Wave32 {
@@ -37,11 +37,11 @@ fn reverb_bench(_dummy: usize) -> Wave32 {
         44100.0,
         1.0,
         &mut (noise()
-            >> split::<U16>()
-            >> fdn::<U16, _>(stack::<U16, _, _>(|i| {
-                delay(0.01 * i as f32) * 0.9 >> fir((0.5, 0.5))
+            >> split()
+            >> fdn::<U32, _>(stack::<U32, _, _>(|i| {
+                delay(0.005 + 0.002 * i as f32) >> fir((0.22, 0.44, 0.22))
             }))
-            >> join::<U16>()),
+            >> join()),
     )
 }
 

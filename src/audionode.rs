@@ -677,7 +677,7 @@ where
         }
         for channel in 1..N::USIZE {
             for i in 0..size {
-                output[channel][i] += input[channel][i] * z;
+                output[0][i] += input[channel][i] * z;
             }
         }
     }
