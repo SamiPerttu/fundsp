@@ -160,7 +160,7 @@ pub type U126 = numeric_array::typenum::U126;
 pub type U127 = numeric_array::typenum::U127;
 pub type U128 = numeric_array::typenum::U128;
 
-/// Constant node.
+/// Constant node. The constant can be scalar, tuple, or a Frame.
 /// Synonymous with [`dc`].
 /// - Output(s): constant
 ///
@@ -177,7 +177,7 @@ where
     An(Constant::new(x.convert()))
 }
 
-/// Constant node.
+/// Constant node. The constant can be scalar, tuple, or a Frame.
 /// Synonymous with [`constant`].
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
 /// - Output(s): constant
@@ -197,6 +197,12 @@ where
 
 /// Tagged constant. Outputs the (scalar) value of the tag.
 /// - Output 0: value
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// pass() & tag(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
+/// ```
 #[inline]
 pub fn tag(id: Tag, value: f64) -> An<Tagged<f64>> {
     An(Tagged::new(id, value))
@@ -217,18 +223,40 @@ pub fn zero() -> An<Constant<U1, f64>> {
 
 /// Multichannel zero generator.
 /// - Output(s): zero
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// multizero::<U2>() >> (pluck(220.0, db_amp(-6.0), 0.5) | pluck(220.0, db_amp(-6.0), 0.5));
+/// ```
 #[inline]
 pub fn multizero<N: Size<f64>>() -> An<Constant<N, f64>> {
     An(Constant::new(Frame::splat(0.0)))
 }
 
 /// Mono pass-through.
+/// - Input 0: signal
+/// - Output 0: signal
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// pass() & 0.2 * feedback(delay(1.0) * db_amp(-3.0));
+/// ```
 #[inline]
 pub fn pass() -> An<Pass<f64>> {
     An(Pass::new())
 }
 
 /// Multichannel pass-through.
+/// - Input(s): signal
+/// - Output(s): signal
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// multipass::<U2>() & 0.2 * feedback((delay(1.0) | delay(1.0)) * db_amp(-3.0));
+/// ```
 #[inline]
 pub fn multipass<N: Size<f64>>() -> An<MultiPass<N, f64>> {
     An(MultiPass::new())
@@ -236,6 +264,12 @@ pub fn multipass<N: Size<f64>>() -> An<MultiPass<N, f64>> {
 
 /// Timer node. A node with no inputs or outputs that presents time as a parameter.
 /// It can be added to any node by stacking.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// timer(0) | lfo(|t| 1.0 / (1.0 + t));
+/// ```
 #[inline]
 pub fn timer(tag: Tag) -> An<Timer<f64>> {
     An(Timer::new(DEFAULT_SR, tag))
@@ -243,8 +277,8 @@ pub fn timer(tag: Tag) -> An<Timer<f64>> {
 
 /// Monitor node. Passes through input and presents as a parameter
 /// an aspect of the input signal according to the chosen metering mode.
-/// -Input 0: input signal
-/// -Output 0: input signal
+/// - Input 0: signal
+/// - Output 0: signal
 #[inline]
 pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f64>> {
     An(Monitor::new(tag, DEFAULT_SR, meter))
@@ -252,30 +286,32 @@ pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f64>> {
 
 /// Meter node.
 /// Outputs a summary of the input according to the chosen metering mode.
-/// -Input 0: input signal
-/// -Output 0: input signal summary
+/// - Input 0: signal
+/// - Output 0: summary
 #[inline]
 pub fn meter(meter: Meter) -> An<MeterNode<f64>> {
     An(MeterNode::new(DEFAULT_SR, meter))
 }
 
 /// Mono sink. Input is discarded.
+/// -Input 0: signal
 #[inline]
 pub fn sink() -> An<Sink<U1, f64>> {
     An(Sink::new())
 }
 
 /// Multichannel sink. Inputs are discarded.
+/// -Input(s): signal
 #[inline]
 pub fn multisink<N: Size<f64>>() -> An<Sink<N, f64>> {
     An(Sink::new())
 }
 
 /// Swap stereo channels.
-/// - Input 0: left channel.
-/// - Input 1: right channel.
-/// - Output 0: right channel input.
-/// - Output 1: left channel input.
+/// - Input 0: left channel
+/// - Input 1: right channel
+/// - Output 0: right channel
+/// - Output 1: left channel
 #[inline]
 pub fn swap() -> An<Swap<f64>> {
     An(Swap::new())
@@ -297,6 +333,8 @@ pub fn sine_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, Sine<f64>>> {
 }
 
 /// Add constant to signal.
+/// - Input(s): signal
+/// - Output(s): signal plus constant
 #[inline]
 pub fn add<X: ConstantFrame<Sample = f64>>(
     x: X,
@@ -309,6 +347,8 @@ where
 }
 
 /// Subtract constant from signal.
+/// - Input(s): signal
+/// - Output(s): signal minus constant
 #[inline]
 pub fn sub<X: ConstantFrame<Sample = f64>>(
     x: X,
@@ -321,6 +361,8 @@ where
 }
 
 /// Multiply signal with constant.
+/// - Input(s): signal
+/// - Output(s): signal times constant
 #[inline]
 pub fn mul<X: ConstantFrame<Sample = f64>>(
     x: X,

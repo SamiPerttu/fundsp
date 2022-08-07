@@ -8,7 +8,11 @@ fn wavetable_bench(_dummy: usize) -> Wave32 {
 }
 
 fn envelope_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(44100.0, 1.0, &mut (noise() * envelope(|t| exp(-t))))
+    Wave32::render(
+        44100.0,
+        1.0,
+        &mut (noise() * envelope(|t| exp(-t) * sin_hz(1.0, t))),
+    )
 }
 
 fn oversample_bench(_dummy: usize) -> Wave32 {

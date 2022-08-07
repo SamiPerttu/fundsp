@@ -196,6 +196,12 @@ where
 
 /// Tagged constant. Outputs the (scalar) value of the tag.
 /// - Output 0: value
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// pass() & tag::<f32>(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
+/// ```
 #[inline]
 pub fn tag<T: Float>(tag: Tag, value: T) -> An<Tagged<T>> {
     An(Tagged::new(tag, value))
@@ -216,18 +222,40 @@ pub fn zero<T: Float>() -> An<Constant<U1, T>> {
 
 /// Multichannel zero generator.
 /// - Output(s): zero
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// multizero::<U2, f64>() >> (pluck(220.0, db_amp(-6.0), 0.5) | pluck(220.0, db_amp(-6.0), 0.5));
+/// ```
 #[inline]
 pub fn multizero<N: Size<T>, T: Float>() -> An<Constant<N, T>> {
     An(Constant::new(Frame::splat(T::zero())))
 }
 
 /// Mono pass-through.
+/// - Input 0: signal
+/// - Output 0: signal
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// pass::<f64>() & 0.2 * feedback(delay(1.0) * db_amp(-3.0));
+/// ```
 #[inline]
 pub fn pass<T: Float>() -> An<Pass<T>> {
     An(Pass::new())
 }
 
 /// Multichannel pass-through.
+/// - Input(s): signal
+/// - Output(s): signal
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// multipass::<U2, f64>() & 0.2 * feedback((delay(1.0) | delay(1.0)) * db_amp(-3.0));
+/// ```
 #[inline]
 pub fn multipass<N: Size<T>, T: Float>() -> An<MultiPass<N, T>> {
     An(MultiPass::new())
@@ -235,12 +263,20 @@ pub fn multipass<N: Size<T>, T: Float>() -> An<MultiPass<N, T>> {
 
 /// Timer node. A node with no inputs or outputs that presents time as a parameter.
 /// It can be added to any node by stacking.
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// timer::<f32>(0) | lfo(|t: f32| 1.0 / (1.0 + t));
+/// ```
 #[inline]
 pub fn timer<T: Float>(tag: Tag) -> An<Timer<T>> {
     An(Timer::new(DEFAULT_SR, tag))
 }
 
 /// Monitor node. Passes through input and retains the latest input as a parameter.
+/// - Input 0: signal
+/// - Output 0: signal
 #[inline]
 pub fn monitor<T: Real>(meter: Meter, tag: Tag) -> An<Monitor<T>> {
     An(Monitor::new(tag, DEFAULT_SR, meter))
@@ -248,28 +284,32 @@ pub fn monitor<T: Real>(meter: Meter, tag: Tag) -> An<Monitor<T>> {
 
 /// Meter node.
 /// Outputs a summary of the input according to the chosen metering mode.
+/// - Input 0: signal
+/// - Output 0: summary
 #[inline]
 pub fn meter<T: Real>(meter: Meter) -> An<MeterNode<T>> {
     An(MeterNode::new(DEFAULT_SR, meter))
 }
 
 /// Mono sink. Input is discarded.
+/// -Input 0: signal
 #[inline]
 pub fn sink<T: Float>() -> An<Sink<U1, T>> {
     An(Sink::new())
 }
 
 /// Multichannel sink. Inputs are discarded.
+/// -Input(s): signal
 #[inline]
 pub fn multisink<N: Size<T>, T: Float>() -> An<Sink<N, T>> {
     An(Sink::new())
 }
 
 /// Swap stereo channels.
-/// - Input 0: left channel.
-/// - Input 1: right channel.
-/// - Output 0: right channel input.
-/// - Output 1: left channel input.
+/// - Input 0: left channel
+/// - Input 1: right channel
+/// - Output 0: right channel
+/// - Output 1: left channel
 #[inline]
 pub fn swap<T: Float>() -> An<Swap<T>> {
     An(Swap::new())
@@ -291,6 +331,8 @@ pub fn sine_hz<T: Real>(f: T) -> An<Pipe<T, Constant<U1, T>, Sine<T>>> {
 }
 
 /// Add constant to signal.
+/// - Input(s): signal
+/// - Output(s): signal plus constant
 #[inline]
 pub fn add<X: ConstantFrame>(
     x: X,
@@ -310,6 +352,8 @@ where
 }
 
 /// Subtract constant from signal.
+/// - Input(s): signal
+/// - Output(s): signal minus constant
 #[inline]
 pub fn sub<X: ConstantFrame>(
     x: X,
@@ -329,6 +373,8 @@ where
 }
 
 /// Multiply signal with constant.
+/// - Input(s): signal
+/// - Output(s): signal times constant
 #[inline]
 pub fn mul<X: ConstantFrame>(
     x: X,
@@ -2131,7 +2177,6 @@ pub fn chorus<T: Real>(
         & (pass()
             | lfo(move |t| {
                 (
-                    // Delays between successive voices range from 12 to 22 ms.
                     lerp11(
                         separation,
                         separation + variation,
