@@ -215,6 +215,7 @@ fn test_basic() {
     check_wave(
         dc((440.0, 880.0)) >> multisplit::<U2, U3>() >> multijoin::<U2, U3>() >> (sine() | sine()),
     );
+    check_wave((noise() >> split::<U16>() >> join()) | (noise() >> split::<U11>() >> join()));
     check_wave_big(Box::new(
         dc((110.0, 0.5)) >> pulse() >> delay(0.1) | noise() >> delay(0.01),
     ));
