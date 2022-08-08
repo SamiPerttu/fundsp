@@ -808,7 +808,7 @@ The same modes are used in the `meter` opcode.
 | `pow(x, y)`            | `x` raised to the power `y` |
 | `rnd(i)`               | pseudorandom number in 0...1 from integer `i` |
 | `round(x)`             | round `x` to nearest integer |
-| `semitone(x)`          | convert interval `x` semitones to frequency ratio |
+| `semitone_ratio(x)`    | convert interval `x` semitones to frequency ratio |
 | `signum(x)`            | sign of `x` |
 | `sin(x)`               | sin |
 | `sin_hz(f, t)`         | sine that oscillates at `f` Hz at time `t` seconds |
@@ -899,7 +899,7 @@ Some examples of graph expressions.
 | `feedback(delay(1.0) * db_amp(-3.0))`    |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 | `feedback((delay(1.0) \| delay(1.0)) >> swap() * db_amp(-6.0))` | 2 | 2 | 1 second ping-pong delay with 6 dB attenuation. |
 | `tag(0, 0.1) * delay(1.0) & (1.0 - tag(0, 0.1)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by parameter 0. |
-| `sine() & mul(semitone(4.0)) >> sine() & mul(semitone(7.0)) >> sine()` | 1 | 1 | major chord |
+| `sine() & mul(semitone_ratio(4.0)) >> sine() & mul(semitone_ratio(7.0)) >> sine()` | 1 | 1 | major chord |
 | `dc(midi_hz(72.0)) >> sine() & dc(midi_hz(76.0)) >> sine() & dc(midi_hz(79.0)) >> sine()` | 0 | 1 | C major chord generator |
 | `!zero()`                                |   0    |    0    | A null node. Stacking it with another node modifies its sound subtly, as the hash is altered. |
 | `!-!!!--!!!-!!--!zero()`                 |   0    |    0    | Hot-rodded null node outfitted with a custom hash. Uses more electricity. |

@@ -163,8 +163,9 @@ pub type U128 = numeric_array::typenum::U128;
 
 /// Constant node. The constant can be scalar, tuple, or a Frame.
 /// Synonymous with [`dc`].
+/// - Output(s): constant
 ///
-/// ### Example
+/// ### Example: Sine Oscillator
 /// ```
 /// use fundsp::prelude::*;
 /// constant(440.0) >> sine::<f32>();
@@ -180,8 +181,9 @@ where
 /// Constant node. The constant can be scalar, tuple, or a Frame.
 /// Synonymous with [`constant`].
 /// (DC stands for "direct current", which is an electrical engineering term used with signals.)
+/// - Output(s): constant
 ///
-/// ### Example
+/// ### Example: Dual Sine Oscillator
 /// ```
 /// use fundsp::prelude::*;
 /// dc((220.0, 440.0)) >> (sine::<f64>() + sine());
@@ -197,7 +199,7 @@ where
 /// Tagged constant. Outputs the (scalar) value of the tag.
 /// - Output 0: value
 ///
-/// ### Example
+/// ### Example: Add Chorus
 /// ```
 /// use fundsp::prelude::*;
 /// pass() & tag::<f32>(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
@@ -210,7 +212,7 @@ pub fn tag<T: Float>(tag: Tag, value: T) -> An<Tagged<T>> {
 /// Zero generator.
 /// - Output 0: zero
 ///
-/// ### Example
+/// ### Example: Pluck Oscillator
 /// ```
 /// use fundsp::prelude::*;
 /// zero::<f64>() >> pluck(220.0, db_amp(-6.0), 0.5);
@@ -223,7 +225,7 @@ pub fn zero<T: Float>() -> An<Constant<U1, T>> {
 /// Multichannel zero generator.
 /// - Output(s): zero
 ///
-/// ### Example
+/// ### Example: Stereo Pluck Oscillator
 /// ```
 /// use fundsp::prelude::*;
 /// multizero::<U2, f64>() >> (pluck(220.0, db_amp(-6.0), 0.5) | pluck(220.0, db_amp(-6.0), 0.5));
@@ -237,7 +239,7 @@ pub fn multizero<N: Size<T>, T: Float>() -> An<Constant<N, T>> {
 /// - Input 0: signal
 /// - Output 0: signal
 ///
-/// ### Example
+/// ### Example: Add Feedback Delay
 /// ```
 /// use fundsp::prelude::*;
 /// pass::<f64>() & 0.2 * feedback(delay(1.0) * db_amp(-3.0));
@@ -251,7 +253,7 @@ pub fn pass<T: Float>() -> An<Pass<T>> {
 /// - Input(s): signal
 /// - Output(s): signal
 ///
-/// ### Example
+/// ### Example: Add Feedback Delay In Stereo
 /// ```
 /// use fundsp::prelude::*;
 /// multipass::<U2, f64>() & 0.2 * feedback((delay(1.0) | delay(1.0)) * db_amp(-3.0));
@@ -264,7 +266,7 @@ pub fn multipass<N: Size<T>, T: Float>() -> An<MultiPass<N, T>> {
 /// Timer node. A node with no inputs or outputs that presents time as a parameter.
 /// It can be added to any node by stacking.
 ///
-/// ### Example
+/// ### Example: Timer And LFO
 /// ```
 /// use fundsp::prelude::*;
 /// timer::<f32>(0) | lfo(|t: f32| 1.0 / (1.0 + t));
@@ -274,7 +276,8 @@ pub fn timer<T: Float>(tag: Tag) -> An<Timer<T>> {
     An(Timer::new(DEFAULT_SR, tag))
 }
 
-/// Monitor node. Passes through input and retains the latest input as a parameter.
+/// Monitor node. Passes through input and presents as a parameter
+/// an aspect of the input signal according to the chosen metering mode.
 /// - Input 0: signal
 /// - Output 0: signal
 #[inline]
@@ -525,10 +528,10 @@ pub fn moog_hz<T: Float, F: Real>(frequency: F, q: F) -> An<Moog<T, F, U1>> {
 /// Synonymous with [`fn@lfo`].
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 ///
-/// ### Example
+/// ### Example: Mixing Pink And Brown Noise
 /// ```
 /// use fundsp::prelude::*;
-/// envelope(|t: f32| (sin_hz(1.0, t), cos_hz(1.0, t))) * (brown::<f32, f32>() | white());
+/// envelope(|t| (sin_hz(1.0, t), cos_hz(1.0, t))) * (pink::<f32, f32>() | brown::<f32, f32>()) >> join();
 /// ```
 #[inline]
 pub fn envelope<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
@@ -552,7 +555,7 @@ where
 /// Synonymous with [`fn@envelope`].
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 ///
-/// ### Example
+/// ### Example: Exponentially Decaying White Noise
 /// ```
 /// use fundsp::prelude::*;
 /// lfo(|t: f32| exp(-t)) * white::<f32>();
@@ -708,7 +711,7 @@ pub fn white<T: Float>() -> An<Noise<T>> {
 /// - Input 0: signal.
 /// - Output 0: filtered signal.
 ///
-/// ### Example
+/// ### Example: 3-Point Lowpass Filter
 /// ```
 /// use fundsp::prelude::*;
 /// fir(Frame::<f64, _>::from([0.5, 1.0, 0.5]));
@@ -722,7 +725,7 @@ pub fn fir<X: ConstantFrame>(weights: X) -> An<Fir<X::Sample, X::Size>> {
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
 ///
-/// ### Example
+/// ### Example: 2-Point Sum Filter
 /// ```
 /// use fundsp::prelude::*;
 /// tick::<f64>() & pass();
@@ -767,10 +770,10 @@ pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
 /// - Input 1: delay time in seconds.
 /// - Output 0: delayed signal.
 ///
-/// ### Example
+/// ### Example: Variable Delay
 /// ```
 /// use fundsp::prelude::*;
-/// pass::<f32>() & (pass() | lfo(|t| lerp11(0.0, 0.1, spline_noise(0, t)))) >> tap(0.0, 0.1);
+/// pass::<f32>() & (pass() | lfo(|t| lerp11(0.01, 0.1, spline_noise(0, t)))) >> tap(0.01, 0.1);
 /// ```
 #[inline]
 pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<U1, T>> {
@@ -784,10 +787,10 @@ pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<U1, T>> {
 /// - Inputs 1...N: delay time in seconds.
 /// - Output 0: delayed signal.
 ///
-/// ### Example
+/// ### Example: Dual Variable Delay
 /// ```
 /// use fundsp::prelude::*;
-/// (pass() | lfo(|t| (lerp11(0.0, 0.1, spline_noise(0, t)), lerp11(0.1, 0.2, spline_noise(1, t))))) >> multitap::<U2, f64>(0.0, 0.2);
+/// (pass() | lfo(|t| (lerp11(0.01, 0.1, spline_noise(0, t)), lerp11(0.1, 0.2, spline_noise(1, t))))) >> multitap::<U2, f64>(0.01, 0.2);
 /// ```
 #[inline]
 pub fn multitap<N, T>(min_delay: f64, max_delay: f64) -> An<Tap<N, T>>
@@ -802,7 +805,7 @@ where
 /// 2x oversample enclosed `node`.
 /// - Inputs and outputs: from `node`.
 ///
-/// ### Example
+/// ### Example: Oversampled FM Oscillator
 /// ```
 /// use fundsp::prelude::*;
 /// let f: f64 = 440.0;
@@ -827,7 +830,7 @@ where
 /// - Inputs: input signal.
 /// - Outputs: `node` output signal.
 ///
-/// ### Example
+/// ### Example: Feedback Delay With Lowpass
 /// ```
 /// use fundsp::prelude::*;
 /// pass() & feedback(delay(1.0) >> lowpass_hz::<f64, f64>(1000.0, 1.0));
@@ -846,7 +849,7 @@ where
 
 /// Transform channels freely. Accounted as non-linear processing for signal flow.
 ///
-/// ### Example
+/// ### Example: Max Operator
 /// ```
 /// use fundsp::prelude::*;
 /// map(|i: &Frame<f64, U2>| max(i[0], i[1]));
@@ -915,7 +918,7 @@ pub fn shape_fn<T: Float, S: Fn(T) -> T>(f: S) -> An<ShaperFn<T, S>> {
 /// - Input 0: input signal
 /// - Output 0: shaped signal
 ///
-/// ### Example
+/// ### Example: Tanh Distortion
 /// ```
 /// use fundsp::prelude::*;
 /// shape::<f64>(Shape::Tanh(1.0));
@@ -947,7 +950,7 @@ pub fn clip_to<T: Real>(minimum: T, maximum: T) -> An<Shaper<T>> {
 /// - Output 0: left channel
 /// - Output 1: right channel
 ///
-/// ### Example
+/// ### Example: Moving Noise
 /// ```
 /// use fundsp::prelude::*;
 /// (noise() | sine_hz(0.5)) >> panner::<f64>();
@@ -976,6 +979,8 @@ pub fn follow<T: Float, F: Real, S: ScalarOrPair<Sample = F>>(t: S) -> An<AFollo
 
 /// Look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
+/// - Input 0: signal
+/// - Output 0: signal limited to -1...1
 #[inline]
 pub fn limiter<T: Real, S: ScalarOrPair<Sample = T>>(time: S) -> An<Limiter<T, U1, S>> {
     An(Limiter::new(DEFAULT_SR, time))
@@ -983,6 +988,10 @@ pub fn limiter<T: Real, S: ScalarOrPair<Sample = T>>(time: S) -> An<Limiter<T, U
 
 /// Stereo look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
+/// - Input 0: left signal
+/// - Input 1: right signal
+/// - Output 0: left signal limited to -1...1
+/// - Output 1: right signal limited to -1...1
 #[inline]
 pub fn limiter_stereo<T: Real, S: ScalarOrPair<Sample = T>>(time: S) -> An<Limiter<T, U2, S>> {
     An(Limiter::new(DEFAULT_SR, time))
@@ -2162,10 +2171,10 @@ pub fn wave32<T: Float>(
 /// - Input 0: audio.
 /// - Output 0: chorused audio, including original signal.
 ///
-/// ### Example
+/// ### Example: Chorused Saw Wave
 /// ```
 /// use fundsp::prelude::*;
-/// chorus::<f64>(0, 0.015, 0.005, 0.5);
+/// saw_hz(110.0) >> chorus::<f32>(0, 0.015, 0.005, 0.5);
 /// ```
 pub fn chorus<T: Real>(
     seed: i64,
@@ -2219,10 +2228,10 @@ pub fn chorus<T: Real>(
 /// - Input 0: audio
 /// - Output 0: flanged audio, including original signal
 ///
-/// ### Example
+/// ### Example: Flanged Saw Wave
 /// ```
 /// use fundsp::prelude::*;
-/// saw_hz(110.0) >> flanger::<f64, _>(0.9, 0.005, 0.010, |t| lerp11(0.005, 0.010, sin_hz(0.1, t)));
+/// saw_hz(110.0) >> flanger::<f32, _>(0.5, 0.005, 0.010, |t| lerp11(0.005, 0.010, sin_hz(0.1, t)));
 /// ```
 pub fn flanger<T: Real, X: Fn(T) -> T>(
     feedback_amount: T,
@@ -2244,7 +2253,7 @@ pub fn flanger<T: Real, X: Fn(T) -> T>(
 /// - Input 0: audio
 /// - Output 0: phased audio
 ///
-/// ### Example
+/// ### Example: Phased Saw Wave
 /// ```
 /// use fundsp::prelude::*;
 /// saw_hz(110.0) >> phaser::<f64, _>(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5);

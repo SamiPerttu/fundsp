@@ -499,7 +499,7 @@ fn test_basic() {
     assert_eq!(inouts(envelope(|t| exp(-t)) * noise()), (0, 1)); // exponentially decaying white noise
     assert_eq!(inouts(feedback(delay(0.5) * 0.5)), (1, 1)); // feedback delay of 0.5 seconds
     assert_eq!(
-        inouts(sine() & mul(semitone(4.0)) >> sine() & mul(semitone(7.0)) >> sine()),
+        inouts(sine() & mul(semitone_ratio(4.0)) >> sine() & mul(semitone_ratio(7.0)) >> sine()),
         (1, 1)
     ); // major chord
     assert_eq!(

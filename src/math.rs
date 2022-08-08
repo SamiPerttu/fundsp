@@ -374,7 +374,7 @@ pub fn cos_hz<T: Real>(hz: T, t: T) -> T {
 
 /// Converts from semitone interval to frequency ratio.
 #[inline]
-pub fn semitone<T: Real>(x: T) -> T {
+pub fn semitone_ratio<T: Real>(x: T) -> T {
     exp2(x / T::from_f64(12.0))
 }
 
