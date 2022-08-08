@@ -143,12 +143,8 @@ where
         output
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = self.x.route(input, frequency);
-        for i in 0..N::USIZE {
-            output[i] = input[i].distort(0.0);
-        }
-        output
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Arbitrary.propagate(input, self.outputs())
     }
 
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
@@ -161,5 +157,105 @@ where
 
     fn get(&self, parameter: Tag) -> Option<f64> {
         self.x.get(parameter)
+    }
+}
+
+/// Mix back output of contained node `X` to its input, with extra feedback processing `Y`.
+/// The contained nodes must have an equal number of inputs and outputs.
+pub struct Feedback2<N, T, X, Y, U>
+where
+    N: Size<T>,
+    T: Float,
+    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+    Y: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    Y::Inputs: Size<T>,
+    Y::Outputs: Size<T>,
+    U: FrameUnop<X::Outputs, T>,
+{
+    x: X,
+    // Feedback processing.
+    y: Y,
+    // Current feedback value.
+    value: Frame<T, N>,
+    // Feedback operator.
+    #[allow(dead_code)]
+    feedback: U,
+}
+
+impl<N, T, X, Y, U> Feedback2<N, T, X, Y, U>
+where
+    N: Size<T>,
+    T: Float,
+    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+    Y: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    Y::Inputs: Size<T>,
+    Y::Outputs: Size<T>,
+    U: FrameUnop<X::Outputs, T>,
+{
+    pub fn new(x: X, y: Y, feedback: U) -> Self {
+        let mut node = Feedback2 {
+            x,
+            y,
+            value: Frame::default(),
+            feedback,
+        };
+        let hash = node.ping(true, AttoRand::new(Self::ID));
+        node.ping(false, hash);
+        node
+    }
+}
+
+impl<N, T, X, Y, U> AudioNode for Feedback2<N, T, X, Y, U>
+where
+    N: Size<T>,
+    T: Float,
+    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+    Y: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    Y::Inputs: Size<T>,
+    Y::Outputs: Size<T>,
+    U: FrameUnop<X::Outputs, T>,
+{
+    const ID: u64 = 66;
+    type Sample = T;
+    type Inputs = N;
+    type Outputs = N;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.x.reset(sample_rate);
+        self.y.reset(sample_rate);
+        self.value = Frame::default();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let output = self.x.tick(&(input + self.value.clone()));
+        self.value = U::unop(&self.y.tick(&output));
+        output
+    }
+
+    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Arbitrary.propagate(input, self.outputs())
+    }
+
+    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        self.x.set(parameter, value);
+        self.y.set(parameter, value);
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        self.x.get(parameter).or_else(|| self.y.get(parameter))
     }
 }

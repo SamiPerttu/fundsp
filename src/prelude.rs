@@ -827,8 +827,8 @@ where
 
 /// Mix output of enclosed circuit `node` back to its input.
 /// Feedback circuit `node` must have an equal number of inputs and outputs.
-/// - Inputs: input signal.
-/// - Outputs: `node` output signal.
+/// - Input(s): signal.
+/// - Output(s): signal with feedback.
 ///
 /// ### Example: Feedback Delay With Lowpass
 /// ```
@@ -845,6 +845,35 @@ where
     X::Outputs: Size<T>,
 {
     An(Feedback::new(node.0, FrameId::new()))
+}
+
+/// Mix output of enclosed circuit `node` back to its input
+/// with extra `loopback` feedback loop processing.
+/// Feedback circuits `node` and `loopback` must have an equal number of inputs and outputs.
+/// - Input(s): signal.
+/// - Output(s): signal with feedback.
+///
+/// ### Example: Feedback Delay With Lowpass
+/// ```
+/// use fundsp::prelude::*;
+/// pass::<f32>() & feedback2(delay(1.0), lowpass_hz::<f32, f32>(1000.0, 1.0));
+/// ```
+#[inline]
+pub fn feedback2<N, T, X, Y>(
+    node: An<X>,
+    loopback: An<Y>,
+) -> An<Feedback2<N, T, X, Y, FrameId<N, T>>>
+where
+    N: Size<T>,
+    T: Float,
+    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+    Y: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    Y::Inputs: Size<T>,
+    Y::Outputs: Size<T>,
+{
+    An(Feedback2::new(node.0, loopback.0, FrameId::new()))
 }
 
 /// Transform channels freely. Accounted as non-linear processing for signal flow.
