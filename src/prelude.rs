@@ -1385,16 +1385,13 @@ where
 
     let line = stack::<U32, T, _, _>(|i| {
         delay::<T>(DELAYS[i as usize])
-            >> fir((T::from_f32(0.5), T::from_f32(0.5)))
-            >> dcblock_hz::<T, F>(F::new(5))
-            >> mul(a)
+            >> fir((a / T::new(4), a / T::new(2), a / T::new(4)))
     });
 
     // The feedback structure.
     let reverb = fdn::<U32, T, _>(line);
 
     // Multiplex stereo into 32 channels, reverberate, then average them back.
-    // Bus the reverb with the dry signal. Operator precedences work perfectly for us here.
     multisplit::<U2, U16, T>() >> reverb >> multijoin::<U2, U16, T>()
 }
 
