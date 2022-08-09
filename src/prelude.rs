@@ -1364,7 +1364,6 @@ where
 }
 
 /// Stereo reverb.
-/// `wet` in 0...1 is balance of reverb mixed in, for example, 0.1.
 /// `time` is approximate reverberation time to -60 dB in seconds.
 pub fn reverb_stereo<T, F>(time: f64) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>>
 where
@@ -1383,9 +1382,9 @@ where
 
     let a = T::from_f64(pow(db_amp(-60.0), 0.03 / time));
 
+    // Delay lines.
     let line = stack::<U32, T, _, _>(|i| {
-        delay::<T>(DELAYS[i as usize])
-            >> fir((a / T::new(4), a / T::new(2), a / T::new(4)))
+        delay::<T>(DELAYS[i as usize]) >> fir((a / T::new(4), a / T::new(2), a / T::new(4)))
     });
 
     // The feedback structure.
