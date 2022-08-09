@@ -979,7 +979,7 @@ pub fn clip_to<T: Real>(minimum: T, maximum: T) -> An<Shaper<T>> {
 /// - Output 0: left channel
 /// - Output 1: right channel
 ///
-/// ### Example: Moving Noise
+/// ### Example: Panning Noise
 /// ```
 /// use fundsp::prelude::*;
 /// (noise() | sine_hz(0.5)) >> panner::<f64>();
@@ -1066,6 +1066,12 @@ pub fn goertzel_hz<T: Float, F: Real>(
 /// Feedback circuit `x` must have an equal number of inputs and outputs.
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
+///
+/// *** Example: Mono Reverb
+/// ```
+/// use fundsp::prelude::*;
+/// split() >> fdn::<U16, f32, _>(stack::<U16, f32, _, _>(|i| { delay(lerp(0.01, 0.03, rnd(i))) >> fir((0.2, 0.4, 0.2)) })) >> join();
+/// ```
 #[inline]
 pub fn fdn<N, T, X>(x: An<X>) -> An<Feedback<N, T, X, FrameHadamard<N, T>>>
 where
@@ -1076,6 +1082,28 @@ where
     X::Outputs: Size<T>,
 {
     An(Feedback::new(x.0, FrameHadamard::new()))
+}
+
+/// Feedback delay network.
+/// Mix output of enclosed circuit `x` back to its input,
+/// using `y` for extra feedback processing. The feedforward path does not include `y`.
+/// After `y`, the feedback signal is diffused with a Hadamard matrix.
+/// Feedback circuits `x` and `y` must have an equal number of inputs and outputs.
+/// - Input(s): signal.
+/// - Output(s): signal with feedback.
+#[inline]
+pub fn fdn2<N, T, X, Y>(x: An<X>, y: An<Y>) -> An<Feedback2<N, T, X, Y, FrameHadamard<N, T>>>
+where
+    N: Size<T>,
+    T: Float,
+    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    X::Inputs: Size<T>,
+    X::Outputs: Size<T>,
+    Y: AudioNode<Sample = T, Inputs = N, Outputs = N>,
+    Y::Inputs: Size<T>,
+    Y::Outputs: Size<T>,
+{
+    An(Feedback2::new(x.0, y.0, FrameHadamard::new()))
 }
 
 /// Bus `N` similar nodes from indexed generator `f`.
@@ -1338,41 +1366,7 @@ where
 /// Stereo reverb.
 /// `wet` in 0...1 is balance of reverb mixed in, for example, 0.1.
 /// `time` is approximate reverberation time to -60 dB in seconds.
-pub fn reverb_stereo<T, F>(
-    wet: T,
-    time: f64,
-) -> An<
-    Bus<
-        T,
-        Pipe<
-            T,
-            Pipe<
-                T,
-                Pipe<
-                    T,
-                    MultiSplit<U2, U16, T>,
-                    Feedback<
-                        U32,
-                        T,
-                        MultiStack<
-                            U32,
-                            T,
-                            Pipe<
-                                T,
-                                Pipe<T, Pipe<T, Delay<T>, Fir<T, U2>>, DCBlock<T, F>>,
-                                Binop<T, FrameMul<U1, T>, MultiPass<U1, T>, Constant<U1, T>>,
-                            >,
-                        >,
-                        FrameHadamard<U32, T>,
-                    >,
-                >,
-                MultiJoin<U2, U16, T>,
-            >,
-            Binop<T, FrameMul<U2, T>, MultiPass<U2, T>, Constant<U2, T>>,
-        >,
-        Binop<T, FrameMul<U2, T>, MultiPass<U2, T>, Constant<U2, T>>,
-    >,
->
+pub fn reverb_stereo<T, F>(time: f64) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>>
 where
     T: Float,
     F: Real,
@@ -1401,8 +1395,7 @@ where
 
     // Multiplex stereo into 32 channels, reverberate, then average them back.
     // Bus the reverb with the dry signal. Operator precedences work perfectly for us here.
-    multisplit::<U2, U16, T>() >> reverb >> multijoin::<U2, U16, T>() >> mul((wet, wet))
-        & mul((T::one() - wet, T::one() - wet))
+    multisplit::<U2, U16, T>() >> reverb >> multijoin::<U2, U16, T>()
 }
 
 /// Saw-like discrete summation formula oscillator.

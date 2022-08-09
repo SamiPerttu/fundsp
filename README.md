@@ -587,8 +587,9 @@ The type parameters in the table refer to the hacker prelude.
 | `envelope2(f)`         |  1 (x)  |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `lfo2`. |
 | `envelope3(f)`         | 2 (x, y) |  `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x, y\| y * exp(-t * x)`. Synonymous with `lfo3`. |
 | `fdn(x)`               |   `x`   |   `x`   | Enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
+| `fdn2(x, y)`           | `x`, `y`| `x`, `y`| Enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback, with extra feedback loop processing `y`. The feedforward path does not include `y`. |
 | `feedback(x)`          |   `x`   |   `x`   | Enclose feedback circuit `x` (with equal number of inputs and outputs). |
-| `feedback2(x, y)`      | `x`, `y`| `x`, `y`| Enclose feedback circuit `x` (with equal number of inputs and outputs) with extra feedback loop processing `y`. |
+| `feedback2(x, y)`      | `x`, `y`| `x`, `y`| Enclose feedback circuit `x` (with equal number of inputs and outputs) with extra feedback loop processing `y`. The feedforward path does not include `y`. |
 | `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))`. |
 | `flanger(fb, min_d, max_d, f)`| 1|    1    | Flanger effect with feedback amount `fb`, minimum delay `min_d` seconds, maximum delay `max_d` seconds and delay function `f`, e.g., `\|t\| lerp11(0.01, 0.02, sin_hz(0.1, t))`. |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
@@ -655,7 +656,7 @@ The type parameters in the table refer to the hacker prelude.
 | `pulse()`              | 2 (frequency, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
-| `reverb_stereo(wet, t)`|    2    |    2    | Stereo reverb with `wet` signal balance in 0...1 and reverberation time `t` in seconds. |
+| `reverb_stereo(t)`     |    2    |    2    | Stereo reverb with reverberation time `t` in seconds. |
 | `saw()`                | 1 (frequency) | 1 | Bandlimited saw wave oscillator. |
 | `saw_hz(f)`            |    -    |    1    | Bandlimited saw wave oscillator at `f` Hz. |
 | `shape(mode)`          |    1    |    1    | Shape signal with waveshaper mode `mode`. |

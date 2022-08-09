@@ -84,7 +84,7 @@ where
 
     let mut c = c
         >> (declick() | declick()) >> (dcblock() | dcblock())
-        //>> reverb_stereo(0.2, 5.0)
+        //>> (0.8 * multipass() & 0.2 * reverb_stereo(5.0))
         >> limiter_stereo((1.0, 5.0));
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));

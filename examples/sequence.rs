@@ -40,7 +40,10 @@ fn main() {
 
     let wave = Wave64::render(sample_rate, duration, &mut sequencer);
 
-    let wave = wave.filter(duration, &mut (reverb_stereo(0.1, 2.0) * 3.0));
+    let wave = wave.filter(
+        duration,
+        &mut (0.9 * multipass() & 0.1 * reverb_stereo(2.0)),
+    );
 
     let wave = wave.filter_latency(duration, &mut (limiter_stereo((0.05, 0.20))));
 
