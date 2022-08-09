@@ -76,8 +76,8 @@ where
 
     // Add flanger.
     let c = c
-        >> (flanger(0.9, 0.01, 0.02, |t| lerp11(0.01, 0.02, sin_hz(0.1, t)))
-            | flanger(0.9, 0.01, 0.02, |t| lerp11(0.01, 0.02, cos_hz(0.1, t))));
+        >> (flanger(0.6, 0.005, 0.01, |t| lerp11(0.005, 0.01, sin_hz(0.1, t)))
+            | flanger(0.6, 0.005, 0.01, |t| lerp11(0.005, 0.01, cos_hz(0.1, t))));
 
     // Add phaser.
     //let c = c >> (phaser(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5) | phaser(0.5, |t| cos_hz(0.1, t) * 0.5 + 0.5));

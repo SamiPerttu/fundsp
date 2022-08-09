@@ -2258,10 +2258,9 @@ pub fn flanger<T: Real, X: Fn(T) -> T>(
     delay_f: X,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
     pass()
-        & feedback(
-            (pass() | lfo(delay_f))
-                >> tap::<T>(minimum_delay.to_f64(), maximum_delay.to_f64())
-                >> shape(Shape::Tanh(feedback_amount)),
+        & feedback2(
+            (pass() | lfo(delay_f)) >> tap::<T>(minimum_delay.to_f64(), maximum_delay.to_f64()),
+            shape(Shape::Tanh(feedback_amount)),
         )
 }
 
