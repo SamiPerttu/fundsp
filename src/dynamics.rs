@@ -231,13 +231,13 @@ where
 
 /// Goertzel frequency detector.
 #[derive(Clone, Default)]
-pub struct Detector<T: Real> {
+pub struct Goertzel<T: Real> {
     y1: T,
     y2: T,
     ccoeff: T,
     scoeff: T,
 }
-impl<T: Real> Detector<T> {
+impl<T: Real> Goertzel<T> {
     /// Reset detector.
     pub fn reset(&mut self) {
         self.y1 = T::zero();
@@ -261,19 +261,22 @@ impl<T: Real> Detector<T> {
     }
 }
 
-/// Goertzel filter. Detects the presence of a frequency.
+/// Frequency detector. Detects the presence of a frequency.
 /// Outputs DFT power at the selected frequency.
+/// -Input 0: signal
+/// -Input 1: frequency
+/// -Output 0: DFT power
 #[derive(Default)]
-pub struct Goertzel<T: Float, F: Real> {
-    filter: Detector<F>,
+pub struct Detector<T: Float, F: Real> {
+    filter: Goertzel<F>,
     sample_rate: F,
     frequency: F,
     _marker: std::marker::PhantomData<T>,
 }
 
-impl<T: Float, F: Real> Goertzel<T, F> {
+impl<T: Float, F: Real> Detector<T, F> {
     pub fn new(sample_rate: f64) -> Self {
-        let mut node = Goertzel::default();
+        let mut node = Detector::default();
         node.reset(Some(sample_rate));
         node
     }
@@ -284,7 +287,7 @@ impl<T: Float, F: Real> Goertzel<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for Goertzel<T, F> {
+impl<T: Float, F: Real> AudioNode for Detector<T, F> {
     const ID: u64 = 27;
     type Sample = T;
     type Inputs = U2;
@@ -422,15 +425,15 @@ impl Meter {
 }
 
 pub struct MeterState<T: Real> {
-    detector: Detector<T>,
+    detector: Goertzel<T>,
     state: T,
 }
 
 impl<T: Real> MeterState<T> {
-    /// Creates a new MeterState for the given metering mode.
+    /// Create a new MeterState for the given metering mode.
     pub fn new(meter: Meter, sample_rate: f64) -> Self {
         let mut state = Self {
-            detector: Detector::default(),
+            detector: Goertzel::default(),
             state: T::zero(),
         };
         if let Meter::Detect(frequency) = meter {
@@ -441,7 +444,7 @@ impl<T: Real> MeterState<T> {
         state
     }
 
-    /// Resets meter state.
+    /// Reset meter state.
     pub fn reset(&mut self, meter: Meter, sample_rate: Option<f64>) {
         self.state = T::zero();
         if let Some(sr) = sample_rate {

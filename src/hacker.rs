@@ -280,6 +280,12 @@ pub fn timer(tag: Tag) -> An<Timer<f64>> {
 /// an aspect of the input signal according to the chosen metering mode.
 /// - Input 0: signal
 /// - Output 0: signal
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// monitor(Meter::Rms(0.99), 0);
+/// ```
 #[inline]
 pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f64>> {
     An(Monitor::new(tag, DEFAULT_SR, meter))
@@ -289,6 +295,12 @@ pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f64>> {
 /// Outputs a summary of the input according to the chosen metering mode.
 /// - Input 0: signal
 /// - Output 0: summary
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// meter(Meter::Rms(0.99));
+/// ```
 #[inline]
 pub fn meter(meter: Meter) -> An<MeterNode<f64>> {
     An(MeterNode::new(DEFAULT_SR, meter))
@@ -870,6 +882,12 @@ pub fn dcblock_hz(c: f64) -> An<DCBlock<f64, f64>> {
 /// Keeps a signal zero centered. The cutoff of the filter is 10 Hz.
 /// - Input 0: input signal
 /// - Output 0: filtered signal
+///
+/// ### Example: Stereo DC Blocker
+/// ```
+/// use fundsp::hacker::*;
+/// dcblock() | dcblock();
+/// ```
 #[inline]
 pub fn dcblock() -> An<DCBlock<f64, f64>> {
     dcblock_hz(10.0)
@@ -1012,18 +1030,18 @@ pub fn brown() -> An<
 /// - Input 1: frequency to detect (Hz)
 /// - Output 0: signal power at the chosen frequency
 #[inline]
-pub fn goertzel() -> An<Goertzel<f64, f64>> {
-    An(Goertzel::new(DEFAULT_SR))
+pub fn detector() -> An<Detector<f64, f64>> {
+    An(Detector::new(DEFAULT_SR))
 }
 
 /// Frequency detector of frequency `f` Hz.
 /// - Input 0: input signal
 /// - Output 0: signal power at the chosen frequency
 #[inline]
-pub fn goertzel_hz(
+pub fn detector_hz(
     f: f64,
-) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<U1, f64>>, Goertzel<f64, f64>>> {
-    super::prelude::goertzel_hz(f)
+) -> An<Pipe<f64, Stack<f64, Pass<f64>, Constant<U1, f64>>, Detector<f64, f64>>> {
+    super::prelude::detector_hz(f)
 }
 
 /// Feedback delay network.

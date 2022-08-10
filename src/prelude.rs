@@ -280,6 +280,12 @@ pub fn timer<T: Float>(tag: Tag) -> An<Timer<T>> {
 /// an aspect of the input signal according to the chosen metering mode.
 /// - Input 0: signal
 /// - Output 0: signal
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// monitor::<f32>(Meter::Rms(0.99), 0);
+/// ```
 #[inline]
 pub fn monitor<T: Real>(meter: Meter, tag: Tag) -> An<Monitor<T>> {
     An(Monitor::new(tag, DEFAULT_SR, meter))
@@ -289,6 +295,12 @@ pub fn monitor<T: Real>(meter: Meter, tag: Tag) -> An<Monitor<T>> {
 /// Outputs a summary of the input according to the chosen metering mode.
 /// - Input 0: signal
 /// - Output 0: summary
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// meter::<f32>(Meter::Rms(0.99));
+/// ```
 #[inline]
 pub fn meter<T: Real>(meter: Meter) -> An<MeterNode<T>> {
     An(MeterNode::new(DEFAULT_SR, meter))
@@ -914,6 +926,12 @@ pub fn dcblock_hz<T: Float, F: Real>(c: F) -> An<DCBlock<T, F>> {
 /// Keeps a signal zero centered. The cutoff of the filter is 10 Hz.
 /// - Input 0: signal
 /// - Output 0: filtered signal
+///
+/// ### Example: Stereo DC Blocker
+/// ```
+/// use fundsp::prelude::*;
+/// dcblock::<f32, f32>() | dcblock::<f32, f32>();
+/// ```
 #[inline]
 pub fn dcblock<T: Float, F: Real>() -> An<DCBlock<T, F>> {
     An(DCBlock::new(DEFAULT_SR, F::new(10)))
@@ -1048,16 +1066,16 @@ pub fn brown<T: Float, F: Real>(
 
 /// Frequency detector.
 #[inline]
-pub fn goertzel<T: Float, F: Real>() -> An<Goertzel<T, F>> {
-    An(Goertzel::new(DEFAULT_SR))
+pub fn detector<T: Float, F: Real>() -> An<Detector<T, F>> {
+    An(Detector::new(DEFAULT_SR))
 }
 
 /// Frequency detector of frequency `f` Hz.
 #[inline]
-pub fn goertzel_hz<T: Float, F: Real>(
+pub fn detector_hz<T: Float, F: Real>(
     f: T,
-) -> An<Pipe<T, Stack<T, Pass<T>, Constant<U1, T>>, Goertzel<T, F>>> {
-    (pass() | constant(f)) >> goertzel::<T, F>()
+) -> An<Pipe<T, Stack<T, Pass<T>, Constant<U1, T>>, Detector<T, F>>> {
+    (pass() | constant(f)) >> detector::<T, F>()
 }
 
 /// Feedback delay network.

@@ -569,7 +569,7 @@ The type parameters in the table refer to the hacker prelude.
 | `busf::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from fractional generator `f`. |
 | `butterpass()`         | 2 (audio, frequency) | 1 | Butterworth lowpass filter (2nd order). |
 | `butterpass_hz(f)`     |    1    |    1    | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
-| `chorus(seed, sep, var, mod)` | 1 | 1 | Chorus effect with LFO seed `seed`, voice separation `sep` seconds, delay variation `var` seconds and modulation frequency `mod` Hz. |
+| `chorus(seed, sep, var, mod)` | 1 | 1 | Chorus effect with LFO seed `seed`, voice separation `sep` seconds, delay variation `var` seconds and LFO modulation frequency `mod` Hz. |
 | `clip()`               |    1    |    1    | Clip signal to -1...1. |
 | `clip_to(min, max)`    |    1    |    1    | Clip signal to min...max. |
 | `constant(x)`          |    -    |   `x`   | Constant signal `x`. Synonymous with `dc`. |
@@ -579,6 +579,8 @@ The type parameters in the table refer to the hacker prelude.
 | `declick()`            |    1    |    1    | Apply 10 ms of fade-in to signal. |
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
+| `detector()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
+| `detector_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
 | `dsf_saw()`            | 2 (frequency, roughness) | 1 | Saw-like discrete summation formula oscillator. |
 | `dsf_saw_r(roughness)` | 1 (frequency) | 1 | Saw-like discrete summation formula oscillator with roughness in 0...1. |
 | `dsf_square()`         | 2 (frequency, roughness) | 1 | Square-like discrete summation formula oscillator. |
@@ -594,8 +596,6 @@ The type parameters in the table refer to the hacker prelude.
 | `flanger(fb, min_d, max_d, f)`| 1|    1    | Flanger effect with feedback amount `fb`, minimum delay `min_d` seconds, maximum delay `max_d` seconds and delay function `f`, e.g., `\|t\| lerp11(0.01, 0.02, sin_hz(0.1, t))`. |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
 | `follow((a, r))`       |    1    |    1    | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
-| `goertzel()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
-| `goertzel_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
 | `highpass()`           | 3 (audio, frequency, Q) | 1 | Highpass filter (2nd order). |
 | `highpass_hz(f, q)`    |    1    |    1    | Highpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `highpass_q(q)`        | 2 (audio, frequency) | 1 | Highpass filter (2nd order) with Q `q`. |
@@ -917,7 +917,7 @@ Many functions in the prelude itself are defined as graph expressions.
 | Function                                 | Inputs  | Outputs | Definition                                     |
 | ---------------------------------------- |:-------:|:-------:| ---------------------------------------------- |
 | `brown()`                                |    -    |    1    | `white() >> lowpole_hz(10.0) * constant(13.7)` |
-| `goertzel_hz(f)`                         |    1    |    1    | `(pass() \| constant(f)) >> goertzel()`        |
+| `detector_hz(f)`                         |    1    |    1    | `(pass() \| constant(f)) >> detector()`        |
 | `mls()`                                  |    -    |    1    | `mls_bits(29)`                                 |
 | `pink()`                                 |    -    |    1    | `white() >> pinkpass()`                        |
 | `saw_hz(f)`                              |    -    |    1    | `constant(f) >> saw()`                         |

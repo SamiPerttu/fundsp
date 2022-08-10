@@ -45,6 +45,10 @@ fn reverb_bench(_dummy: usize) -> Wave32 {
     )
 }
 
+fn limiter_bench(_dummy: usize) -> Wave32 {
+    Wave32::render(44100.0, 1.0, &mut (noise() >> limiter((0.1, 1.0))))
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("wavetable", |b| b.iter(|| wavetable_bench(black_box(0))));
     c.bench_function("envelope", |b| b.iter(|| envelope_bench(black_box(0))));
@@ -52,6 +56,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("chorus", |b| b.iter(|| chorus_bench(black_box(0))));
     c.bench_function("equalizer", |b| b.iter(|| equalizer_bench(black_box(0))));
     c.bench_function("reverb", |b| b.iter(|| reverb_bench(black_box(0))));
+    c.bench_function("limiter", |b| b.iter(|| limiter_bench(black_box(0))));
 }
 
 criterion_group!(benches, criterion_benchmark);
