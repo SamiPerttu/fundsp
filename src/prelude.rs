@@ -1364,15 +1364,29 @@ where
 }
 
 /// Stereo reverb.
+/// `room_size` is in meters. An average room size is 10 meters.
 /// `time` is approximate reverberation time to -60 dB in seconds.
-pub fn reverb_stereo<T, F>(time: f64) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>>
+/// - Input 0: left signal
+/// - Input 1: right signal
+/// - Output 0: reverberated left signal
+/// - Output 1: reverberated right signal
+///
+/// *** Example: Add 20% Reverb
+/// ```
+/// use fundsp::prelude::*;
+/// multipass() & 0.2 * reverb_stereo::<f32>(10.0, 5.0);
+/// ```
+pub fn reverb_stereo<T>(
+    room_size: f64,
+    time: f64,
+) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>>
 where
     T: Float,
-    F: Real,
 {
     // TODO: This is the simplest possible structure, there's probably a lot of scope for improvement.
 
     // Optimized delay times for a 32-channel FDN from a legacy project.
+    // These are applied unchanged for a 10 meter room.
     const DELAYS: [f64; 32] = [
         0.073904, 0.052918, 0.066238, 0.066387, 0.037783, 0.080073, 0.050961, 0.075900, 0.043646,
         0.072095, 0.056194, 0.045961, 0.058934, 0.068016, 0.047529, 0.058156, 0.072972, 0.036084,
@@ -1384,7 +1398,8 @@ where
 
     // Delay lines.
     let line = stack::<U32, T, _, _>(|i| {
-        delay::<T>(DELAYS[i as usize]) >> fir((a / T::new(4), a / T::new(2), a / T::new(4)))
+        delay::<T>(DELAYS[i as usize] * room_size / 10.0)
+            >> fir((a / T::new(4), a / T::new(2), a / T::new(4)))
     });
 
     // The feedback structure.

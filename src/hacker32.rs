@@ -1265,13 +1265,23 @@ where
 }
 
 /// Stereo reverb.
+/// `room_size` is in meters. An average room size is 10 meters.
 /// `time` is approximate reverberation time to -60 dB in seconds.
-/// - Input 0: left input signal
-/// - Input 1: right input signal
+/// - Input 0: left signal
+/// - Input 1: right signal
 /// - Output 0: reverberated left signal
 /// - Output 1: reverberated right signal
-pub fn reverb_stereo(time: f64) -> An<impl AudioNode<Sample = f32, Inputs = U2, Outputs = U2>> {
-    super::prelude::reverb_stereo::<f32, f32>(time)
+///
+/// *** Example: Add 20% Reverb
+/// ```
+/// use fundsp::hacker32::*;
+/// multipass() & 0.2 * reverb_stereo(10.0, 5.0);
+/// ```
+pub fn reverb_stereo(
+    room_size: f64,
+    time: f64,
+) -> An<impl AudioNode<Sample = f32, Inputs = U2, Outputs = U2>> {
+    super::prelude::reverb_stereo::<f32>(room_size, time)
 }
 
 /// Saw-like discrete summation formula oscillator.
