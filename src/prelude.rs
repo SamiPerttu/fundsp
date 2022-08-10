@@ -1371,7 +1371,7 @@ where
 /// - Output 0: reverberated left signal
 /// - Output 1: reverberated right signal
 ///
-/// *** Example: Add 20% Reverb
+/// ### Example: Add 20% Reverb
 /// ```
 /// use fundsp::prelude::*;
 /// multipass() & 0.2 * reverb_stereo::<f32>(10.0, 5.0);
