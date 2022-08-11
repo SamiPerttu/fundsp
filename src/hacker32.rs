@@ -20,6 +20,7 @@ pub use super::sequencer::*;
 pub use super::shape::*;
 pub use super::signal::*;
 pub use super::svf::*;
+pub use super::system::*;
 pub use super::wave::*;
 pub use super::wavetable::*;
 pub use super::*;
@@ -233,6 +234,18 @@ pub fn zero() -> An<Constant<U1, f32>> {
 #[inline]
 pub fn multizero<N: Size<f32>>() -> An<Constant<N, f32>> {
     An(Constant::new(Frame::splat(0.0)))
+}
+
+/// Dynamical system. Update enclosed node `x`
+/// with approximately `dt` seconds between updates.
+/// The update function is `f(t, dt, x)` where `t` is current time,
+/// `dt` is time from previous update, and `x` is the enclosed node.
+pub fn system<X: AudioNode, F: FnMut(f32, f32, &mut X)>(
+    x: An<X>,
+    dt: f32,
+    f: F,
+) -> An<System<f32, X, F>> {
+    An(System::new(x, dt, f))
 }
 
 /// Mono pass-through.

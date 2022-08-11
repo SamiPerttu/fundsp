@@ -188,7 +188,7 @@ pub fn xerp11<U: Lerp<T> + Real, T: Num>(a: U, b: U, t: T) -> U {
 }
 
 /// Exponential de-interpolation. `a`, `b`, `x` > 0.
-/// Recovers `t` from interpolated `x`.
+/// Recovers `t` in 0...1 from interpolated `x`.
 #[inline]
 pub fn dexerp<T: Real>(a: T, b: T, x: T) -> T {
     log(x / a) / log(b / a)

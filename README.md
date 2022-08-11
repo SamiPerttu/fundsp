@@ -672,6 +672,7 @@ The type parameters in the table refer to the hacker prelude.
 | `sub(x)`               |   `x`   |   `x`   | Subtract constant `x` from signal. |
 | `sum::<U, _, _>(f)`    | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
+| `system(x, dt, f)`     |   `x`   |   `x`   | Dynamical system that controls node `x` with update interval `dt` seconds and update function `f(t, dt, x)`.
 | `swap()`               |    2    |    2    | Swap stereo channels. |
 | `tag(id, value)`       |    -    |    1    | Tagged constant with tag `id` (`i64`) and initial value `value` (`f64`). |
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
