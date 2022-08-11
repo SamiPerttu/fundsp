@@ -788,7 +788,7 @@ pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
 /// pass::<f32>() & (pass() | lfo(|t| lerp11(0.01, 0.1, spline_noise(0, t)))) >> tap(0.01, 0.1);
 /// ```
 #[inline]
-pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<U1, T>> {
+pub fn tap<T: Float>(min_delay: T, max_delay: T) -> An<Tap<U1, T>> {
     An(Tap::new(DEFAULT_SR, min_delay, max_delay))
 }
 
@@ -805,7 +805,7 @@ pub fn tap<T: Float>(min_delay: f64, max_delay: f64) -> An<Tap<U1, T>> {
 /// (pass() | lfo(|t| (lerp11(0.01, 0.1, spline_noise(0, t)), lerp11(0.1, 0.2, spline_noise(1, t))))) >> multitap::<U2, f64>(0.01, 0.2);
 /// ```
 #[inline]
-pub fn multitap<N, T>(min_delay: f64, max_delay: f64) -> An<Tap<N, T>>
+pub fn multitap<N, T>(min_delay: T, max_delay: T) -> An<Tap<N, T>>
 where
     T: Float,
     N: Size<T> + Add<U1>,
@@ -2233,7 +2233,7 @@ pub fn chorus<T: Real>(
     variation: T,
     mod_frequency: T,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    pass()
+    (pass()
         & (pass()
             | lfo(move |t| {
                 (
@@ -2265,10 +2265,8 @@ pub fn chorus<T: Real>(
                     ),
                 )
             }))
-            >> multitap::<U4, T>(
-                separation.to_f64(),
-                (separation * T::new(4) + variation).to_f64(),
-            )
+            >> multitap::<U4, T>(separation, separation * T::new(4) + variation))
+        * dc(T::from_f64(0.2))
 }
 
 /// Mono flanger.
@@ -2292,7 +2290,7 @@ pub fn flanger<T: Real, X: Fn(T) -> T>(
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
     pass()
         & feedback2(
-            (pass() | lfo(delay_f)) >> tap::<T>(minimum_delay.to_f64(), maximum_delay.to_f64()),
+            (pass() | lfo(delay_f)) >> tap::<T>(minimum_delay, maximum_delay),
             shape(Shape::Tanh(feedback_amount)),
         )
 }

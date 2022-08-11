@@ -7,3 +7,4 @@
 in the feedforward path.
 - Wetness argument was removed from `reverb_stereo`. Room size argument was added. An average room size is 10 meters. To migrate, replace `reverb_stereo(wet, time)` with `wet * reverb_stereo(10.0, time) & (1.0 - wet) * multipass()`.
 - `goertzel` is now `detector`.
+- `chorus` gain was adjusted.

@@ -749,7 +749,7 @@ pub fn delay(t: f32) -> An<Delay<f32>> {
 /// pass() & (pass() | lfo(|t| lerp11(0.01, 0.1, spline_noise(0, t)))) >> tap(0.01, 0.1);
 /// ```
 #[inline]
-pub fn tap(min_delay: f64, max_delay: f64) -> An<Tap<U1, f32>> {
+pub fn tap(min_delay: f32, max_delay: f32) -> An<Tap<U1, f32>> {
     An(Tap::new(DEFAULT_SR, min_delay, max_delay))
 }
 
@@ -766,7 +766,7 @@ pub fn tap(min_delay: f64, max_delay: f64) -> An<Tap<U1, f32>> {
 /// (pass() | lfo(|t| (lerp11(0.01, 0.1, spline_noise(0, t)), lerp11(0.1, 0.2, spline_noise(1, t))))) >> multitap::<U2>(0.01, 0.2);
 /// ```
 #[inline]
-pub fn multitap<N>(min_delay: f64, max_delay: f64) -> An<Tap<N, f32>>
+pub fn multitap<N>(min_delay: f32, max_delay: f32) -> An<Tap<N, f32>>
 where
     N: Size<f32> + Add<U1>,
     <N as Add<U1>>::Output: Size<f32>,

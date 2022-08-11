@@ -141,9 +141,9 @@ where
 {
     buffer: Vec<T>,
     i: usize,
-    sample_rate: f64,
-    min_delay: f64,
-    max_delay: f64,
+    sample_rate: T,
+    min_delay: T,
+    max_delay: T,
     _marker: PhantomData<N>,
 }
 
@@ -154,11 +154,11 @@ where
     <N as Add<U1>>::Output: Size<T>,
 {
     /// Create a tapped delay line. Minimum and maximum delays are specified in seconds.
-    pub fn new(sample_rate: f64, min_delay: f64, max_delay: f64) -> Self {
+    pub fn new(sample_rate: f64, min_delay: T, max_delay: T) -> Self {
         let mut node = Tap {
             buffer: vec![],
             i: 0,
-            sample_rate,
+            sample_rate: T::from_f64(sample_rate),
             min_delay,
             max_delay,
             _marker: PhantomData::default(),
@@ -182,15 +182,13 @@ where
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
-            let buffer_length = ceil(self.max_delay * sample_rate) + 2.0;
-            let buffer_length = (buffer_length as usize).next_power_of_two();
-            self.sample_rate = sample_rate;
+            let buffer_length = ceil(self.max_delay * T::from_f64(sample_rate)) + T::new(2);
+            let buffer_length = (buffer_length.to_f64() as usize).next_power_of_two();
+            self.sample_rate = T::from_f64(sample_rate);
             self.buffer.resize(buffer_length, T::zero());
         }
         self.i = 0;
-        for x in self.buffer.iter_mut() {
-            *x = T::zero();
-        }
+        self.buffer.fill(T::zero());
     }
 
     #[inline]
@@ -202,9 +200,9 @@ where
         let mut output = T::zero();
         for tap_i in 1..N::USIZE + 1 {
             let tap =
-                clamp(self.min_delay, self.max_delay, input[tap_i].to_f64()) * self.sample_rate;
+                clamp(self.min_delay, self.max_delay, convert(input[tap_i])) * self.sample_rate;
             let tap_floor = floor(tap);
-            let tap_i1 = self.i + (self.buffer.len() - tap_floor as usize);
+            let tap_i1 = self.i + (self.buffer.len() - tap_floor.to_f32() as usize);
             let tap_i0 = (tap_i1 + 1) & mask;
             let tap_i2 = (tap_i1.wrapping_sub(1)) & mask;
             let tap_i3 = (tap_i1.wrapping_sub(2)) & mask;
@@ -215,7 +213,7 @@ where
                 self.buffer[tap_i1],
                 self.buffer[tap_i2],
                 self.buffer[tap_i3],
-                T::from_f64(tap_d),
+                tap_d,
             );
         }
         self.buffer[self.i] = input[0];
@@ -225,7 +223,7 @@ where
 
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].distort(self.min_delay * self.sample_rate);
+        output[0] = input[0].distort(self.min_delay.to_f64() * self.sample_rate.to_f64());
         output
     }
 }
