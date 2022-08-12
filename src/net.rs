@@ -3,6 +3,7 @@
 use super::audionode::*;
 use super::audiounit::*;
 use super::buffer::*;
+use super::callback::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
@@ -86,9 +87,9 @@ impl Vertex48 {
 }
 
 #[duplicate_item(
-    f48       Net48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
+    f48       Net48       Vertex48       AudioUnit48         Callback48;
+    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ]   [ Callback64 ];
+    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ]   [ Callback32 ];
 )]
 /// Network unit. It can contain other units and maintain connections between them.
 /// Outputs of the network are sourced from user specified unit outputs or global inputs.
@@ -106,12 +107,13 @@ pub struct Net48 {
     ordered: bool,
     sample_rate: f64,
     tmp_vertex: Vertex48,
+    callback: Option<Callback48<Net48>>,
 }
 
 #[duplicate_item(
-    f48       Net48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
+    f48       Net48       Vertex48       AudioUnit48         Callback48;
+    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ]   [ Callback64 ];
+    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ]   [ Callback32 ];
 )]
 impl Net48 {
     /// Create a new network with the given number of inputs and outputs.
@@ -126,6 +128,7 @@ impl Net48 {
             ordered: true,
             sample_rate: DEFAULT_SR,
             tmp_vertex: Vertex48::new(0, 0, 0),
+            callback: None,
         };
         for channel in 0..outputs {
             net.output_edge
@@ -134,75 +137,13 @@ impl Net48 {
         net
     }
 
-    /// Compute and store node order for this network.
-    fn determine_order(&mut self) {
-        self.ordered = true;
-        let mut order = Vec::new();
-        self.determine_order_in(&mut order);
-        self.order.clear();
-        std::mem::swap(&mut order, &mut self.order);
-    }
-
-    /// Determine node order in the supplied vector.
-    fn determine_order_in(&self, order: &mut Vec<NodeIndex>) {
-        let mut vertices_left = self.vertex.len();
-        let mut vertex_left = vec![true; self.vertex.len()];
-        // Note about contents of the edge vector.
-        // Each node input appears there exactly once.
-        // Sources, however, are not unique or guaranteed to appear.
-        let mut all_edges: Vec<Edge> = Vec::new();
-        for vertex in self.vertex.iter() {
-            for edge in &vertex.source {
-                all_edges.push(*edge);
-            }
-        }
-
-        let mut inputs_left = vec![0; self.vertex.len()];
-        for i in 0..inputs_left.len() {
-            inputs_left[i] = self.vertex[i].unit.inputs();
-            if inputs_left[i] == 0 {
-                vertex_left[i] = false;
-                order.push(i);
-                vertices_left -= 1;
-            }
-        }
-
-        // Start from network inputs.
-        for (_, edge) in all_edges.iter().enumerate() {
-            if let (Port::Global(_) | Port::Zero, Port::Local(vertex, _)) =
-                (edge.source, edge.target)
-            {
-                if vertex_left[vertex] {
-                    inputs_left[vertex] -= 1;
-                    if inputs_left[vertex] == 0 {
-                        vertex_left[vertex] = false;
-                        order.push(vertex);
-                        vertices_left -= 1;
-                    }
-                }
-            }
-        }
-        while vertices_left > 0 {
-            let mut progress = false;
-            for (_i, edge) in all_edges.iter().enumerate() {
-                if let (Port::Local(source, _), Port::Local(target, _)) = (edge.source, edge.target)
-                {
-                    if !vertex_left[source] && vertex_left[target] {
-                        progress = true;
-                        inputs_left[target] -= 1;
-                        if inputs_left[target] == 0 {
-                            vertex_left[target] = false;
-                            order.push(target);
-                            vertices_left -= 1;
-                        }
-                    }
-                }
-            }
-            // TODO. Make this a recoverable error.
-            if !progress {
-                panic!("Cycle detected.");
-            }
-        }
+    /// Set the update callback.
+    pub fn set_callback(
+        &mut self,
+        update_interval: f48,
+        callback: Box<dyn FnMut(f48, f48, &mut Net48) + Send>,
+    ) {
+        self.callback = Some(Callback48::new(update_interval, callback));
     }
 
     /// Add a new unit to the network. Return its ID handle.
@@ -356,12 +297,92 @@ impl Net48 {
     pub fn node_mut(&mut self, node: NodeIndex) -> &mut dyn AudioUnit48 {
         &mut *self.vertex[node].unit
     }
+
+    /// Indicate to callback handler that time is about to elapse.
+    fn elapse(&mut self, dt: f48) {
+        let mut tmp = self.callback.take();
+        if let Some(cb) = &mut tmp {
+            cb.update(dt, self);
+        }
+        self.callback = tmp.take();
+    }
+
+    /// Compute and store node order for this network.
+    fn determine_order(&mut self) {
+        self.ordered = true;
+        let mut order = Vec::new();
+        self.determine_order_in(&mut order);
+        self.order.clear();
+        std::mem::swap(&mut order, &mut self.order);
+    }
+
+    /// Determine node order in the supplied vector.
+    fn determine_order_in(&self, order: &mut Vec<NodeIndex>) {
+        let mut vertices_left = self.vertex.len();
+        let mut vertex_left = vec![true; self.vertex.len()];
+        // Note about contents of the edge vector.
+        // Each node input appears there exactly once.
+        // Sources, however, are not unique or guaranteed to appear.
+        let mut all_edges: Vec<Edge> = Vec::new();
+        for vertex in self.vertex.iter() {
+            for edge in &vertex.source {
+                all_edges.push(*edge);
+            }
+        }
+
+        let mut inputs_left = vec![0; self.vertex.len()];
+        for i in 0..inputs_left.len() {
+            inputs_left[i] = self.vertex[i].unit.inputs();
+            if inputs_left[i] == 0 {
+                vertex_left[i] = false;
+                order.push(i);
+                vertices_left -= 1;
+            }
+        }
+
+        // Start from network inputs.
+        for (_, edge) in all_edges.iter().enumerate() {
+            if let (Port::Global(_) | Port::Zero, Port::Local(vertex, _)) =
+                (edge.source, edge.target)
+            {
+                if vertex_left[vertex] {
+                    inputs_left[vertex] -= 1;
+                    if inputs_left[vertex] == 0 {
+                        vertex_left[vertex] = false;
+                        order.push(vertex);
+                        vertices_left -= 1;
+                    }
+                }
+            }
+        }
+        while vertices_left > 0 {
+            let mut progress = false;
+            for (_i, edge) in all_edges.iter().enumerate() {
+                if let (Port::Local(source, _), Port::Local(target, _)) = (edge.source, edge.target)
+                {
+                    if !vertex_left[source] && vertex_left[target] {
+                        progress = true;
+                        inputs_left[target] -= 1;
+                        if inputs_left[target] == 0 {
+                            vertex_left[target] = false;
+                            order.push(target);
+                            vertices_left -= 1;
+                        }
+                    }
+                }
+            }
+            // TODO. Make this a recoverable error.
+            if !progress {
+                panic!("Cycle detected.");
+            }
+        }
+    }
 }
 
 #[duplicate_item(
-    f48       Net48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
+    f48       Net48       Vertex48       AudioUnit48         Callback48;
+    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ]   [ Callback64 ];
+    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ]   [ Callback32 ];
 )]
 impl AudioUnit48 for Net48 {
     fn inputs(&self) -> usize {
@@ -383,12 +404,17 @@ impl AudioUnit48 for Net48 {
         if !self.ordered {
             self.determine_order();
         }
+
+        if let Some(cb) = &mut self.callback {
+            cb.reset();
+        }
     }
 
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {
         if !self.ordered {
             self.determine_order();
         }
+        self.elapse(1.0 / self.sample_rate as f48);
         // Iterate units in network order.
         for node_index in self.order.iter() {
             std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
@@ -422,6 +448,7 @@ impl AudioUnit48 for Net48 {
         if !self.ordered {
             self.determine_order();
         }
+        self.elapse(size as f48 / self.sample_rate as f48);
         // Iterate units in network order.
         for node_index in self.order.iter() {
             std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);

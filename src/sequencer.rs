@@ -168,9 +168,9 @@ fn fade_out48(
 }
 
 #[duplicate_item(
-    f48       Event48       AudioUnit48       Sequencer48         Callback48       CallbackContainer48;
-    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Callback64 ]   [ CallbackContainer64 ];
-    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Callback32 ]   [ CallbackContainer32 ];
+    f48       Event48       AudioUnit48       Sequencer48         Callback48;
+    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Callback64 ];
+    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Callback32 ];
 )]
 pub struct Sequencer48 {
     // Unsorted.
@@ -185,13 +185,13 @@ pub struct Sequencer48 {
     sample_duration: f48,
     buffer: Buffer<f48>,
     tick_buffer: Vec<f48>,
-    callback: Option<CallbackContainer48>,
+    callback: Option<Callback48<Sequencer48>>,
 }
 
 #[duplicate_item(
-    f48       Event48       AudioUnit48       Sequencer48         Callback48       CallbackContainer48;
-    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Callback64 ]   [ CallbackContainer64 ];
-    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Callback32 ]   [ CallbackContainer32 ];
+    f48       Event48       AudioUnit48       Sequencer48         Callback48;
+    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Callback64 ];
+    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Callback32 ];
 )]
 impl Sequencer48 {
     /// Create a new sequencer. The sequencer has zero inputs.
@@ -212,17 +212,12 @@ impl Sequencer48 {
     }
 
     /// Set the update callback.
-    pub fn set_callback(&mut self, update_interval: f48, callback: Box<dyn Callback48>) {
-        self.callback = Some(CallbackContainer48::new(update_interval, callback));
-    }
-
-    /// Indicate to callback handler that time is about to elapse.
-    fn elapse(&mut self, dt: f48) {
-        let mut cb = self.callback.take();
-        if let Some(cb) = &mut cb {
-            cb.update_sequencer(dt, self);
-        }
-        self.callback = cb.take();
+    pub fn set_callback(
+        &mut self,
+        update_interval: f48,
+        callback: Box<dyn FnMut(f48, f48, &mut Sequencer48) + Send>,
+    ) {
+        self.callback = Some(Callback48::new(update_interval, callback));
     }
 
     /// Current time in seconds.
@@ -285,6 +280,15 @@ impl Sequencer48 {
                 break;
             }
         }
+    }
+
+    /// Indicate to callback handler that time is about to elapse.
+    fn elapse(&mut self, dt: f48) {
+        let mut tmp = self.callback.take();
+        if let Some(cb) = &mut tmp {
+            cb.update(dt, self);
+        }
+        self.callback = tmp.take();
     }
 }
 

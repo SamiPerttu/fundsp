@@ -2,7 +2,6 @@
 
 pub use super::audionode::*;
 pub use super::audiounit::*;
-pub use super::callback::*;
 pub use super::combinator::*;
 pub use super::delay::*;
 pub use super::dynamics::*;
