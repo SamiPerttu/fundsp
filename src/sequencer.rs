@@ -2,6 +2,7 @@
 
 use super::audiounit::*;
 use super::buffer::*;
+use super::callback::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
@@ -167,9 +168,9 @@ fn fade_out48(
 }
 
 #[duplicate_item(
-    f48       Event48       AudioUnit48       Sequencer48;
-    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ];
-    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ];
+    f48       Event48       AudioUnit48       Sequencer48         Callback48       CallbackContainer48;
+    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Callback64 ]   [ CallbackContainer64 ];
+    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Callback32 ]   [ CallbackContainer32 ];
 )]
 pub struct Sequencer48 {
     // Unsorted.
@@ -184,12 +185,13 @@ pub struct Sequencer48 {
     sample_duration: f48,
     buffer: Buffer<f48>,
     tick_buffer: Vec<f48>,
+    callback: Option<CallbackContainer48>,
 }
 
 #[duplicate_item(
-    f48       Event48             AudioUnit48       Sequencer48;
-    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ];
-    [ f32 ]   [ Event32 ]         [ AudioUnit32 ]   [ Sequencer32 ];
+    f48       Event48       AudioUnit48       Sequencer48         Callback48       CallbackContainer48;
+    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Callback64 ]   [ CallbackContainer64 ];
+    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Callback32 ]   [ CallbackContainer32 ];
 )]
 impl Sequencer48 {
     /// Create a new sequencer. The sequencer has zero inputs.
@@ -205,7 +207,22 @@ impl Sequencer48 {
             sample_duration: 1.0 / sample_rate as f48,
             buffer: Buffer::new(),
             tick_buffer: vec![0.0; outputs],
+            callback: None,
         }
+    }
+
+    /// Set the update callback.
+    pub fn set_callback(&mut self, update_interval: f48, callback: Box<dyn Callback48>) {
+        self.callback = Some(CallbackContainer48::new(update_interval, callback));
+    }
+
+    /// Indicate to callback handler that time is about to elapse.
+    fn elapse(&mut self, dt: f48) {
+        let mut cb = self.callback.take();
+        if let Some(cb) = &mut cb {
+            cb.update_sequencer(dt, self);
+        }
+        self.callback = cb.take();
     }
 
     /// Current time in seconds.
@@ -269,8 +286,15 @@ impl Sequencer48 {
             }
         }
     }
+}
 
-    fn do_reset(&mut self, sample_rate: Option<f64>) {
+#[duplicate_item(
+    f48       Event48       AudioUnit48       Sequencer48      fade_in48      fade_out48;
+    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]  [ fade_in64 ]  [ fade_out64 ];
+    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]  [ fade_in32 ]  [ fade_out32 ];
+)]
+impl AudioUnit48 for Sequencer48 {
+    fn reset(&mut self, sample_rate: Option<f64>) {
         // Move everything to the active queue, then reset and move
         // everything to the ready heap.
         while let Some(active) = self.past.pop() {
@@ -295,29 +319,13 @@ impl Sequencer48 {
             self.ready.push(active);
         }
         self.time = 0.0;
-    }
-
-    pub fn do_route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        // Treat the sequencer as a generator.
-        let mut signal = new_signal_frame(AudioUnit48::outputs(self));
-        for i in 0..AudioUnit48::outputs(self) {
-            signal[i] = Signal::Latency(0.0);
+        if let Some(cb) = &mut self.callback {
+            cb.reset();
         }
-        signal
-    }
-}
-
-#[duplicate_item(
-    f48       Event48       AudioUnit48       Sequencer48      fade_in48      fade_out48;
-    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]  [ fade_in64 ]  [ fade_out64 ];
-    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]  [ fade_in32 ]  [ fade_out32 ];
-)]
-impl AudioUnit48 for Sequencer48 {
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.do_reset(sample_rate);
     }
 
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {
+        self.elapse(self.sample_duration);
         for channel in 0..self.outputs {
             output[channel] = 0.0;
         }
@@ -363,6 +371,7 @@ impl AudioUnit48 for Sequencer48 {
     }
 
     fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]) {
+        self.elapse(self.sample_duration * size as f48);
         for channel in 0..self.outputs {
             for i in 0..size {
                 output[channel][i] = 0.0;
@@ -433,7 +442,12 @@ impl AudioUnit48 for Sequencer48 {
         self.outputs
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        self.do_route(input, frequency)
+    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        // Treat the sequencer as a generator.
+        let mut signal = new_signal_frame(AudioUnit48::outputs(self));
+        for i in 0..AudioUnit48::outputs(self) {
+            signal[i] = Signal::Latency(0.0);
+        }
+        signal
     }
 }

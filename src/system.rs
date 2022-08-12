@@ -15,7 +15,7 @@ pub struct System<T: Float, X: AudioNode, F: FnMut(T, T, &mut X)> {
     f: F,
     time: T,
     delta_time: T,
-    delta_time_target: T,
+    update_interval: T,
     sample_rate: T,
     _marker: PhantomData<T>,
 }
@@ -29,7 +29,7 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X)> System<T, X, F> {
             f,
             time: T::zero(),
             delta_time: T::zero(),
-            delta_time_target: dt,
+            update_interval: dt,
             sample_rate: T::from_f64(DEFAULT_SR),
             _marker: PhantomData::default(),
         };
@@ -61,12 +61,13 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X)> AudioNode for System<T, X, 
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         let delta_now = T::new(1) / self.sample_rate;
-        self.delta_time += delta_now;
-        if self.delta_time >= self.delta_time_target || self.time == T::zero() {
+        // The first update is always done at time zero.
+        if self.delta_time >= self.update_interval || self.time == T::zero() {
             (self.f)(self.time, self.delta_time, &mut self.x);
-            self.delta_time = delta_now;
+            self.delta_time = T::zero();
         }
         self.time += delta_now;
+        self.delta_time += delta_now;
         self.x.tick(input)
     }
     fn process(
@@ -76,12 +77,13 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X)> AudioNode for System<T, X, 
         output: &mut [&mut [Self::Sample]],
     ) {
         let delta_now = T::new(size as i64) / self.sample_rate;
-        self.delta_time += delta_now;
-        if self.delta_time >= self.delta_time_target || (self.time == T::zero() && size > 0) {
+        // The first update is always done at time zero.
+        if self.delta_time >= self.update_interval || (self.time == T::zero() && size > 0) {
             (self.f)(self.time, self.delta_time, &mut self.x);
-            self.delta_time = delta_now;
+            self.delta_time = T::zero();
         }
         self.time += delta_now;
+        self.delta_time += delta_now;
         self.x.process(size, input, output);
     }
 
