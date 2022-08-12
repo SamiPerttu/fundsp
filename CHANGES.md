@@ -10,3 +10,6 @@ in the feedforward path.
 - `chorus` gain was adjusted.
 - `flanger` was tweaked.
 - New opcode `system`. See the `sound` module for an example.
+- Ability to replace nodes in `Net32` and `Net64`. Improved chaining method.
+- `Sequencer` has been replaced with `Sequencer32` and `Sequencer64`.
+- `Au` has been removed.

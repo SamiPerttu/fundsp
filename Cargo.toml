@@ -22,7 +22,7 @@ duplicate = "0.4.1"
 
 [dev-dependencies]
 cpal = "0.13.5"
-anyhow = "1.0.58"
+anyhow = "1.0.61"
 plotters = "0.3.2"
 criterion = "0.3.6"
 

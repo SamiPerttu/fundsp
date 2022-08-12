@@ -21,7 +21,7 @@ fn main() {
     // The snare drum is exponentially decaying stereo pink noise.
     let snaredrum = || pink() * env() | pink() * env();
 
-    let mut sequencer = Sequencer::new(sample_rate, 2);
+    let mut sequencer = Sequencer64::new(sample_rate, 2);
 
     let length = bassd_line.as_bytes().len();
     let bpm = 128.0 * 4.0;
@@ -31,10 +31,10 @@ fn main() {
         let t0 = i as f64 / bpm_hz(bpm);
         let t1 = (i + 6) as f64 / bpm_hz(bpm);
         if bassd_line.as_bytes()[i] == b'x' {
-            sequencer.add64(t0, t1, 0.0, 0.4, Box::new(bassdrum()));
+            sequencer.add(t0, t1, 0.0, 0.4, Box::new(bassdrum()));
         }
         if snare_line.as_bytes()[i] == b'x' {
-            sequencer.add64(t0, t1, 0.0, 0.1, Box::new(snaredrum()));
+            sequencer.add(t0, t1, 0.0, 0.1, Box::new(snaredrum()));
         }
     }
 

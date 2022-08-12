@@ -223,11 +223,11 @@ fn test_basic() {
         envelope(|t| exp(-t * 10.0)) | lfo(|t| sin(t * 10.0)),
     ));
 
-    let mut sequencer = Sequencer::new(44100.0, 2);
-    sequencer.add64(0.1, 0.2, 0.01, 0.02, Box::new(noise() | sine_hz(220.0)));
-    sequencer.add64(0.3, 0.4, 0.09, 0.08, Box::new(sine_hz(110.0) | noise()));
-    sequencer.add64(0.25, 0.5, 0.0, 0.01, Box::new(mls() | noise()));
-    sequencer.add64(0.6, 0.7, 0.01, 0.0, Box::new(noise() | mls()));
+    let mut sequencer = Sequencer64::new(44100.0, 2);
+    sequencer.add(0.1, 0.2, 0.01, 0.02, Box::new(noise() | sine_hz(220.0)));
+    sequencer.add(0.3, 0.4, 0.09, 0.08, Box::new(sine_hz(110.0) | noise()));
+    sequencer.add(0.25, 0.5, 0.0, 0.01, Box::new(mls() | noise()));
+    sequencer.add(0.6, 0.7, 0.01, 0.0, Box::new(noise() | mls()));
     check_wave(sequencer);
 
     let mut net = Net64::new(0, 2);

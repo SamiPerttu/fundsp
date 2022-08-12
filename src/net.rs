@@ -233,6 +233,15 @@ impl Net48 {
         id
     }
 
+    /// Replaces the given node in the network.
+    /// The replacement must have the same number of inputs and outputs
+    /// as the node it is replacing.
+    pub fn replace(&mut self, node: NodeIndex, replacement: Box<dyn AudioUnit48>) {
+        assert!(replacement.inputs() == self.node(node).inputs());
+        assert!(replacement.outputs() == self.node(node).outputs());
+        self.vertex[node].unit = replacement;
+    }
+
     /// Connect the given unit output (`source`, `source_port`)
     /// to the given unit input (`target`, `target_port`).
     pub fn connect(
@@ -317,18 +326,23 @@ impl Net48 {
     }
 
     /// Assuming this network is a chain of processing units ordered by increasing node ID,
-    /// add a new unit to the chain. Global outputs will be assigned to the outputs of the unit.
-    /// The unit must have an equal number of inputs and outputs, which must match
-    /// the number of network outputs.
+    /// add a new unit to the chain. Global outputs will be assigned to the outputs of the unit
+    /// if possible. The number of inputs to the unit must match the number of outputs of the
+    /// previous unit, or the number of network inputs if there is no previous unit.
     /// Returns the ID of the new unit.
     pub fn chain(&mut self, unit: Box<dyn AudioUnit48>) -> NodeIndex {
-        assert!(unit.inputs() == unit.outputs() && self.outputs() == unit.outputs());
+        let unit_inputs = unit.inputs();
+        let unit_outputs = unit.outputs();
         let id = self.add(unit);
-        self.pipe_output(id);
-        if id > 0 {
-            self.pipe(id - 1, id);
-        } else {
-            self.pipe_input(id);
+        if self.outputs() == unit_outputs {
+            self.pipe_output(id);
+        }
+        if unit_inputs > 0 {
+            if id > 0 {
+                self.pipe(id - 1, id);
+            } else {
+                self.pipe_input(id);
+            }
         }
         id
     }
