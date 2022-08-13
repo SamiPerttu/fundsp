@@ -287,13 +287,21 @@ impl Sequencer48 {
             event.start_time += time_difference;
             event.end_time += time_difference;
         }
-        let mut i = 0;
-        while i < self.past.len() {
-            if self.past[i].start_time >= time {
-                let event = self.past.swap_remove(i);
-                self.ready.push(event);
-            } else {
-                i += 1;
+        if time_difference < 0.0 {
+            let mut i = 0;
+            while i < self.past.len() {
+                if self.past[i].start_time >= time {
+                    let event = self.past.swap_remove(i);
+                    self.ready.push(event);
+                } else {
+                    i += 1;
+                }
+            }
+        } else {
+            while let Some(event) = self.ready.peek() {
+                if event.start_time < time {
+                    self.past.push(self.ready.pop().unwrap());
+                }
             }
         }
         if let Some(cb) = &mut self.callback {
