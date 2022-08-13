@@ -14,3 +14,4 @@ in the feedforward path.
 - `Sequencer` has been replaced with `Sequencer32` and `Sequencer64`.
 - `Au` has been removed.
 - Callback functionality was added to the sequencer and network components.
+- Ability to jump in time was added to the sequencer.

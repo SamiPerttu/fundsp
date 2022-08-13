@@ -267,6 +267,40 @@ impl Sequencer48 {
         )
     }
 
+    /// Erase past events. Events playing now are not affected.
+    pub fn erase_past(&mut self) {
+        self.past.clear();
+    }
+
+    /// Erase future events. Events playing now are not affected.
+    pub fn erase_future(&mut self) {
+        self.ready.clear();
+    }
+
+    /// Jump in time. Events playing now will be adjusted to continue seamlessly.
+    /// Events that start earlier than the new time are not replayed.
+    /// The next update callback will be issued at the new time.
+    pub fn jump_to_time(&mut self, time: f48) {
+        self.time = time;
+        let time_difference = time - self.time;
+        for event in self.active.iter_mut() {
+            event.start_time += time_difference;
+            event.end_time += time_difference;
+        }
+        let mut i = 0;
+        while i < self.past.len() {
+            if self.past[i].start_time >= time {
+                let event = self.past.swap_remove(i);
+                self.ready.push(event);
+            } else {
+                i += 1;
+            }
+        }
+        if let Some(cb) = &mut self.callback {
+            cb.set_time(time);
+        }
+    }
+
     /// Move units that start before the end time to the ready heap.
     fn ready_to_active(&mut self, next_end_time: f48) {
         while let Some(ready) = self.ready.peek() {
