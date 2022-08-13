@@ -277,6 +277,21 @@ impl Sequencer48 {
         self.ready.clear();
     }
 
+    /// Fade out current events. Events not yet playing are not affected.
+    /// Events that are already fading out are not affected.
+    /// The fade-out time is specified in seconds.
+    /// Events that fade out faster then the fade-out time retain
+    /// their fade-out speed.
+    pub fn fade_out(&mut self, fade_out_time: f48) {
+        for event in self.active.iter_mut() {
+            if event.end_time - event.fade_out >= self.time {
+                let fade_out = min(fade_out_time, event.fade_out);
+                event.fade_out = fade_out;
+                event.end_time = self.time + event.fade_out;
+            }
+        }
+    }
+
     /// Jump in time. Events playing now will be adjusted to continue seamlessly.
     /// Events that start earlier than the new time are not replayed.
     /// The next update callback will be issued at the new time.
