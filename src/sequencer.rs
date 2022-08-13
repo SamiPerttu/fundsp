@@ -296,8 +296,8 @@ impl Sequencer48 {
     /// Events that start earlier than the new time are not replayed.
     /// The next update callback will be issued at the new time.
     pub fn jump_to_time(&mut self, time: f48) {
-        self.time = time;
         let time_difference = time - self.time;
+        self.time = time;
         for event in self.active.iter_mut() {
             event.start_time += time_difference;
             event.end_time += time_difference;
