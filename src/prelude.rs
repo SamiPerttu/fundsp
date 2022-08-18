@@ -515,6 +515,16 @@ pub fn resonator_hz<T: Float, F: Real>(center: T, bandwidth: T) -> An<Resonator<
     ))
 }
 
+/// An arbitrary biquad filter with coefficients in normalized form.
+/// - Input 0: signal
+/// - Output 0: filtered signal
+#[inline]
+pub fn biquad<T: Float, F: Real>(a1: F, a2: F, b0: F, b1: F, b2: F) -> An<Biquad<T, F>> {
+    An(Biquad::with_coefs(BiquadCoefs::arbitrary(
+        a1, a2, b0, b1, b2,
+    )))
+}
+
 /// Moog resonant lowpass filter.
 /// - Input 0: input signal
 /// - Input 1: cutoff frequency (Hz)
@@ -1058,37 +1068,27 @@ pub fn limiter_stereo<T: Real, S: ScalarOrPair<Sample = T>>(time: S) -> An<Limit
 }
 
 /// Pinking filter.
+/// - Input 0: input signal
+/// - Output 0: filtered signal
 #[inline]
 pub fn pinkpass<T: Float, F: Float>() -> An<Pinkpass<T, F>> {
     An(Pinkpass::new(DEFAULT_SR))
 }
 
 /// Pink noise.
+/// - Output 0: pink noise
 #[inline]
 pub fn pink<T: Float, F: Float>() -> An<Pipe<T, Noise<T>, Pinkpass<T, F>>> {
     white() >> pinkpass::<T, F>()
 }
 
 /// Brown noise.
+/// - Output 0: brown noise
 #[inline]
 pub fn brown<T: Float, F: Real>(
 ) -> An<Pipe<T, Noise<T>, Binop<T, FrameMul<U1, T>, Lowpole<T, F, U1>, Constant<U1, T>>>> {
     // Empirical normalization factor.
     white() >> lowpole_hz::<T, F>(T::from_f64(10.0)) * dc(T::from_f64(13.7))
-}
-
-/// Frequency detector.
-#[inline]
-pub fn detector<T: Float, F: Real>() -> An<Detector<T, F>> {
-    An(Detector::new(DEFAULT_SR))
-}
-
-/// Frequency detector of frequency `f` Hz.
-#[inline]
-pub fn detector_hz<T: Float, F: Real>(
-    f: T,
-) -> An<Pipe<T, Stack<T, Pass<T>, Constant<U1, T>>, Detector<T, F>>> {
-    (pass() | constant(f)) >> detector::<T, F>()
 }
 
 /// Feedback delay network.

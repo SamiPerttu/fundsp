@@ -486,6 +486,16 @@ pub fn resonator_hz(center: f32, bandwidth: f32) -> An<Resonator<f32, f32, U1>> 
     super::prelude::resonator_hz(center, bandwidth)
 }
 
+/// An arbitrary biquad filter with coefficients in normalized form.
+/// - Input 0: signal
+/// - Output 0: filtered signal
+#[inline]
+pub fn biquad(a1: f32, a2: f32, b0: f32, b1: f32, b2: f32) -> An<Biquad<f32, f32>> {
+    An(Biquad::with_coefs(BiquadCoefs::arbitrary(
+        a1, a2, b0, b1, b2,
+    )))
+}
+
 /// Moog resonant lowpass filter.
 /// - Input 0: input signal
 /// - Input 1: cutoff frequency (Hz)
@@ -1036,25 +1046,6 @@ pub fn brown() -> An<
 > {
     // Empirical normalization factor.
     white() >> lowpole_hz(10.0) * dc(13.7)
-}
-
-/// Frequency detector.
-/// - Input 0: input signal
-/// - Input 1: frequency to detect (Hz)
-/// - Output 0: signal power at the chosen frequency
-#[inline]
-pub fn detector() -> An<Detector<f32, f32>> {
-    An(Detector::new(DEFAULT_SR))
-}
-
-/// Frequency detector of frequency `f` Hz.
-/// - Input 0: input signal
-/// - Output 0: signal power at the chosen frequency
-#[inline]
-pub fn detector_hz(
-    f: f32,
-) -> An<Pipe<f32, Stack<f32, Pass<f32>, Constant<U1, f32>>, Detector<f32, f32>>> {
-    super::prelude::detector_hz(f)
 }
 
 /// Feedback delay network.

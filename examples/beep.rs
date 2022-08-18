@@ -67,8 +67,6 @@ where
 
     //let c = pink();
 
-    //let c = fundsp::sound::pebbles();
-
     let c = c >> split::<U2>();
 
     //let c = fundsp::sound::risset_glissando(false);
@@ -82,11 +80,14 @@ where
             | flanger(0.6, 0.005, 0.01, |t| lerp11(0.005, 0.01, cos_hz(0.1, t))));
 
     // Add phaser.
-    //let c = c >> (phaser(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5) | phaser(0.5, |t| cos_hz(0.1, t) * 0.5 + 0.5));
+    //let c = c
+    //    >> (phaser(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5)
+    //        | phaser(0.5, |t| cos_hz(0.1, t) * 0.5 + 0.5));
 
     let mut c = c
-        >> (declick() | declick()) >> (dcblock() | dcblock())
-        //>> (0.8 * multipass() & 0.2 * reverb_stereo(10.0, 5.0))
+        >> (declick() | declick())
+        >> (dcblock() | dcblock())
+        //>> (multipass() & 0.2 * reverb_stereo(10.0, 3.0))
         >> limiter_stereo((1.0, 5.0));
     //let mut c = c * 0.1;
     c.reset(Some(sample_rate));

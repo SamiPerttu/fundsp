@@ -229,6 +229,14 @@ fn test_responses() {
     test_response(morph_hz(2000.0, 2.0, -0.5));
     test_response((pass() | dc((1000.0, 0.5, 0.5))) >> morph());
     test_response((pass() | dc((500.0, 2.0, -1.0))) >> morph());
+    test_response(biquad(0.0, 0.17149959, 0.29287490, 0.58574979, 0.29287490));
+    test_response(biquad(
+        0.03371705,
+        0.17177385,
+        1.05925373,
+        -0.03571491,
+        0.18195209,
+    ));
 
     let mut net = Net64::new(1, 1);
     net.chain(Box::new(lowpole_hz(1500.0)));

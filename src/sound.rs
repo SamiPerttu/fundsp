@@ -1,4 +1,4 @@
-//! FunDSP Sound Library.
+//! FunDSP Sound Library. WIP.
 
 use super::hacker::*;
 
@@ -17,19 +17,34 @@ pub fn risset_glissando(up: bool) -> An<impl AudioNode<Sample = f64, Inputs = U0
         >> (pinkpass() | pinkpass())
 }
 
-/// Sound 002. Dynamical system example.
-pub fn pebbles() -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+/// Sound 002. Dynamical system example that harmonizes a chaotic set of pitches.
+/// `speed` is rate of motion (for example, 1.0).
+pub fn pebbles(
+    speed: f64,
+    seed: i64,
+) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
     let mut d = [0.0f64; 100];
 
     system(
-        bus::<U100, _, _>(move |i| dc(xerp(50.0, 5000.0, rnd(i))) >> follow(0.01) >> sine()),
-        0.02,
+        bus::<U100, _, _>(move |i| dc(xerp(50.0, 5000.0, rnd(i ^ seed))) >> follow(0.01) >> sine()),
+        0.01,
         move |t, dt, x| {
+            // We receive 1 update at time zero.
             if t == 0.0 {
                 for i in 0..d.len() {
                     d[i] = x.node(i).left().left().value()[0];
                 }
             }
+            // Fixed frequencies.
+            d[0] = 110.0;
+            // Write frequencies.
+            for i in 0..d.len() {
+                x.node_mut(i)
+                    .left_mut()
+                    .left_mut()
+                    .set_value(Frame::from([d[i]]));
+            }
+            // Compute "gravity".
             for i in 0..d.len() {
                 for j in 0..d.len() {
                     if d[j] > d[i] {
@@ -39,20 +54,70 @@ pub fn pebbles() -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> 
                     // Gravitate towards integer frequency ratios between partials.
                     let goal = max(1.0, round(ratio));
                     if goal - ratio < 0.0 {
-                        d[i] -= d[i] * (dt * 0.01) * (0.5 + ratio - goal);
-                        d[j] += d[j] * (dt * 0.01) * (0.5 + ratio - goal);
+                        d[i] -= d[i] * (dt * speed * 0.001) * (0.1 + ratio - goal);
+                        d[j] += d[j] * (dt * speed * 0.001) * (0.1 + ratio - goal);
                     } else {
-                        d[i] += d[i] * (dt * 0.01) * (0.5 + goal - ratio);
-                        d[j] -= d[j] * (dt * 0.01) * (0.5 + goal - ratio);
+                        d[i] += d[i] * (dt * speed * 0.001) * (0.1 + goal - ratio);
+                        d[j] -= d[j] * (dt * speed * 0.001) * (0.1 + goal - ratio);
                     }
                 }
             }
-            for i in 0..d.len() {
-                x.node_mut(i)
-                    .left_mut()
-                    .left_mut()
-                    .set_value(Frame::from([d[i]]));
-            }
         },
     ) >> pinkpass()
+}
+
+/// Sound 003. An 808 style bass drum, mono. `sharpness` in 0...1 is the sharpness of the click (for example, 0.2).
+/// `pitch0` is click frequency in Hz (for example, 180.0). `pitch1` is the base pitch of the drum in Hz (for example, 60.0).
+pub fn bassdrum(
+    sharpness: f64,
+    pitch0: f64,
+    pitch1: f64,
+) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+    let sweep = lfo(move |t| xerp(pitch0, pitch1, clamp01(t * 50.0)) - 10.0 * t) >> sine();
+
+    let volume = lfo(|t| exp(-t * 9.0));
+
+    sweep * volume >> declick_s(xerp(0.002, 0.00002, sharpness))
+}
+
+/// Sound 004. A snare drum, mono. Different `seed` values produce small variations of the same sound.
+/// `sharpness` in 0...1 is the sharpness of the attack (for example, 0.3).
+pub fn snaredrum(
+    seed: i64,
+    sharpness: f64,
+) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+    let mut rng = AttoRand::new(seed as u64);
+    // Snare drum mode frequencies.
+    let f0 = 180.0;
+    let f1 = 330.0;
+    let f2 = 275.0;
+    let f3 = 320.0;
+    let f4 = 400.0;
+    let f5 = 430.0;
+    let f6 = 509.0;
+    let f7 = 550.0;
+    let f8 = 616.0;
+
+    let mut bend_sine = move |f: f64| {
+        let f0 = f + 1.0 * rng.get11::<f64>();
+        let f1 = f + 3.0 * rng.get11::<f64>();
+        lfo(move |t| lerp(f0, f1, t)) >> sine()
+    };
+
+    let modes01 = bend_sine(f0) + bend_sine(f1);
+    let modes28 = bend_sine(f2)
+        + bend_sine(f3)
+        + bend_sine(f4)
+        + bend_sine(f5)
+        + bend_sine(f6)
+        + bend_sine(f7)
+        + bend_sine(f8);
+
+    let mix = modes01 * 0.2 * lfo(|t| exp(-t * 16.0))
+        + modes28 * 0.1 * lfo(|t| exp(-t * 14.0))
+        + pink() * 0.7 * lfo(|t| exp(-t * 12.0));
+
+    (mix | lfo(|t| xerp(15000.0, 1000.0, t)))
+        >> lowpass_q(1.0)
+        >> declick_s(xerp(0.02, 0.002, sharpness))
 }

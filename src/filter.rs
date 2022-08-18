@@ -26,7 +26,7 @@ pub struct BiquadCoefs<F> {
 impl<F: Real> BiquadCoefs<F> {
     /// Returns settings for a Butterworth lowpass filter.
     /// Cutoff is the -3 dB point of the filter in Hz.
-    pub fn butter_lowpass(sample_rate: F, cutoff: F) -> BiquadCoefs<F> {
+    pub fn butter_lowpass(sample_rate: F, cutoff: F) -> Self {
         let c = F::from_f64;
         let f: F = tan(cutoff * c(PI) / sample_rate);
         let a0r: F = c(1.0) / (c(1.0) + c(SQRT_2) * f + f * f);
@@ -35,14 +35,14 @@ impl<F: Real> BiquadCoefs<F> {
         let b0: F = f * f * a0r;
         let b1: F = c(2.0) * b0;
         let b2: F = b0;
-        BiquadCoefs::<F> { a1, a2, b0, b1, b2 }
+        Self { a1, a2, b0, b1, b2 }
     }
 
     /// Returns settings for a constant-gain bandpass resonator.
     /// The center frequency is given in Hz.
     /// Bandwidth is the difference in Hz between -3 dB points of the filter response.
     /// The overall gain of the filter is independent of bandwidth.
-    pub fn resonator(sample_rate: F, center: F, bandwidth: F) -> BiquadCoefs<F> {
+    pub fn resonator(sample_rate: F, center: F, bandwidth: F) -> Self {
         let c = F::from_f64;
         let r: F = exp(c(-PI) * bandwidth / sample_rate);
         let a1: F = c(-2.0) * r * cos(c(TAU) * center / sample_rate);
@@ -50,13 +50,18 @@ impl<F: Real> BiquadCoefs<F> {
         let b0: F = sqrt(c(1.0) - r * r) * c(0.5);
         let b1: F = c(0.0);
         let b2: F = -b0;
-        BiquadCoefs::<F> { a1, a2, b0, b1, b2 }
+        Self { a1, a2, b0, b1, b2 }
+    }
+
+    /// Arbitrary biquad.
+    pub fn arbitrary(a1: F, a2: F, b0: F, b1: F, b2: F) -> Self {
+        Self { a1, a2, b0, b1, b2 }
     }
 
     /// Frequency response at frequency `omega` expressed as fraction of sampling rate.
     pub fn response(&self, omega: f64) -> Complex64 {
         let z1 = Complex64::from_polar(1.0, -TAU * omega);
-        let z2 = Complex64::from_polar(1.0, -2.0 * TAU * omega);
+        let z2 = z1 * z1;
         (re(self.b0) + re(self.b1) * z1 + re(self.b2) * z2)
             / (re(1.0) + re(self.a1) * z1 + re(self.a2) * z2)
     }
@@ -71,11 +76,22 @@ pub struct Biquad<T, F> {
     x2: F,
     y1: F,
     y2: F,
+    sample_rate: f64,
 }
 
 impl<T: Float, F: Real> Biquad<T, F> {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            sample_rate: DEFAULT_SR,
+            ..Default::default()
+        }
+    }
+    pub fn with_coefs(coefs: BiquadCoefs<F>) -> Self {
+        Self {
+            coefs,
+            sample_rate: DEFAULT_SR,
+            ..Default::default()
+        }
     }
     pub fn coefs(&self) -> &BiquadCoefs<F> {
         &self.coefs
@@ -91,11 +107,14 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
 
-    fn reset(&mut self, _sample_rate: Option<f64>) {
+    fn reset(&mut self, sample_rate: Option<f64>) {
         self.x1 = F::zero();
         self.x2 = F::zero();
         self.y1 = F::zero();
         self.y2 = F::zero();
+        if let Some(sr) = sample_rate {
+            self.sample_rate = sr;
+        }
     }
 
     #[inline]
@@ -117,6 +136,14 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
         //   y0 = b0 * x0 + s1
         //   s1 = s2 + b1 * x0 - a1 * y0
         //   s2 = b2 * x0 - a2 * y0
+    }
+
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = input[0].filter(0.0, |r| {
+            r * self.coefs().response(frequency / self.sample_rate)
+        });
+        output
     }
 }
 
@@ -140,6 +167,7 @@ impl<T: Float, F: Real, N: Size<T>> ButterLowpass<T, F, N> {
             sample_rate: F::from_f64(sample_rate),
             cutoff: F::zero(),
         };
+        node.biquad.reset(Some(sample_rate));
         node.set_cutoff(cutoff);
         node
     }
@@ -214,6 +242,7 @@ impl<T: Float, F: Real, N: Size<T>> Resonator<T, F, N> {
             center,
             bandwidth,
         };
+        node.biquad.reset(Some(sample_rate));
         node.set_center_bandwidth(center, bandwidth);
         node
     }

@@ -562,6 +562,7 @@ The type parameters in the table refer to the hacker prelude.
 | `bell()`               | 4 (audio, frequency, Q, gain) | 1 | Peaking filter (2nd order) with adjustable amplitude gain. |
 | `bell_hz(f, q, gain)`  |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `bell_q(q, gain)`      | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q` and amplitude gain `gain`. |
+| `biquad(a1, a2, b0, b1, b2)` | 1 |    1    | Arbitrary [biquad filter](https://en.wikipedia.org/wiki/Digital_biquad_filter) with coefficients in normalized form. |
 | `brown()`              |    -    |    1    | Brown noise. |
 | `branch::<U, _, _>(f)` |   `f`   | `U * f` | Branch into `U` nodes from indexed generator `f`. |
 | `branchf::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))`. |
@@ -579,8 +580,6 @@ The type parameters in the table refer to the hacker prelude.
 | `declick()`            |    1    |    1    | Apply 10 ms of fade-in to signal. |
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
-| `detector()`           | 2 (audio, frequency) | 1 (power) | Frequency detector. |
-| `detector_hz(f)`       | 1 (audio) | 1 (power) | Frequency detector of DFT component `f` Hz. |
 | `dsf_saw()`            | 2 (frequency, roughness) | 1 | Saw-like discrete summation formula oscillator. |
 | `dsf_saw_r(roughness)` | 1 (frequency) | 1 | Saw-like discrete summation formula oscillator with roughness in 0...1. |
 | `dsf_square()`         | 2 (frequency, roughness) | 1 | Square-like discrete summation formula oscillator. |
@@ -759,7 +758,6 @@ some aspect of data passed through as parameter `id`. Metering modes are:
 - `Meter::Sample`: Retains the latest value passed through.
 - `Meter::Peak(smoothing)`: Peak amplitude meter with `smoothing` as per-sample smoothing factor in 0...1.
 - `Meter::Rms(smoothing)`: Root mean square meter with `smoothing` as per-sample smoothing factor in 0...1.
-- `Meter::Detect(frequency)`: Detects presence of a single frequency. Outputs detected power.
 
 The same modes are used in the `meter` opcode.
 

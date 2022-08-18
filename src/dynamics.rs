@@ -229,98 +229,6 @@ where
     }
 }
 
-/// Goertzel frequency detector.
-#[derive(Clone, Default)]
-pub struct Goertzel<T: Real> {
-    y1: T,
-    y2: T,
-    ccoeff: T,
-    scoeff: T,
-}
-impl<T: Real> Goertzel<T> {
-    /// Reset detector.
-    pub fn reset(&mut self) {
-        self.y1 = T::zero();
-        self.y2 = T::zero();
-    }
-    /// Select the frequency (in Hz).
-    pub fn set_frequency(&mut self, sample_rate: T, frequency: T) {
-        let f = T::from_f64(TAU) * frequency / sample_rate;
-        self.ccoeff = T::new(2) * cos(f);
-        self.scoeff = sin(f);
-    }
-    /// Process one sample.
-    pub fn tick(&mut self, x: T) {
-        let y0 = x + self.ccoeff * self.y1 - self.y2;
-        self.y2 = self.y1;
-        self.y1 = y0;
-    }
-    /// Current detected power at the selected frequency.
-    pub fn power(&self) -> T {
-        squared(self.y2) + squared(self.y1) - self.ccoeff * self.y2 * self.y1
-    }
-}
-
-/// Frequency detector. Detects the presence of a frequency.
-/// Outputs DFT power at the selected frequency.
-/// -Input 0: signal
-/// -Input 1: frequency
-/// -Output 0: DFT power
-#[derive(Default)]
-pub struct Detector<T: Float, F: Real> {
-    filter: Goertzel<F>,
-    sample_rate: F,
-    frequency: F,
-    _marker: std::marker::PhantomData<T>,
-}
-
-impl<T: Float, F: Real> Detector<T, F> {
-    pub fn new(sample_rate: f64) -> Self {
-        let mut node = Detector::default();
-        node.reset(Some(sample_rate));
-        node
-    }
-
-    /// Current detected power at the selected frequency.
-    pub fn power(&self) -> F {
-        self.filter.power()
-    }
-}
-
-impl<T: Float, F: Real> AudioNode for Detector<T, F> {
-    const ID: u64 = 27;
-    type Sample = T;
-    type Inputs = U2;
-    type Outputs = U1;
-
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.filter.reset();
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = F::from_f64(sample_rate);
-            self.frequency = F::zero();
-        }
-    }
-
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        let f: F = convert(input[1]);
-        if f != self.frequency {
-            self.frequency = f;
-            self.filter.set_frequency(self.sample_rate, f);
-        }
-        self.filter.tick(convert(input[0]));
-        [convert(self.filter.power())].into()
-    }
-
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].combine_nonlinear(input[1], 0.0);
-        output
-    }
-}
-
 /// Transient filter. Multiply the signal with a fade-in curve.
 /// After fade-in, pass signal through.
 /// - Input 0: input signal
@@ -413,8 +321,6 @@ pub enum Meter {
     Peak(f64),
     /// RMS meter with per-sample smoothing in 0...1.
     Rms(f64),
-    /// Frequency detector with frequency in Hz.
-    Detect(f64),
 }
 
 impl Meter {
@@ -425,33 +331,18 @@ impl Meter {
 }
 
 pub struct MeterState<T: Real> {
-    detector: Goertzel<T>,
     state: T,
 }
 
 impl<T: Real> MeterState<T> {
     /// Create a new MeterState for the given metering mode.
-    pub fn new(meter: Meter, sample_rate: f64) -> Self {
-        let mut state = Self {
-            detector: Goertzel::default(),
-            state: T::zero(),
-        };
-        if let Meter::Detect(frequency) = meter {
-            state
-                .detector
-                .set_frequency(T::from_f64(sample_rate), T::from_f64(frequency))
-        }
-        state
+    pub fn new(_meter: Meter, _sample_rate: f64) -> Self {
+        Self { state: T::zero() }
     }
 
     /// Reset meter state.
-    pub fn reset(&mut self, meter: Meter, sample_rate: Option<f64>) {
+    pub fn reset(&mut self, _meter: Meter, _sample_rate: Option<f64>) {
         self.state = T::zero();
-        if let Some(sr) = sample_rate {
-            if let Meter::Detect(frequency) = meter {
-                self.detector.set_frequency(convert(sr), convert(frequency));
-            }
-        }
     }
 
     /// Process an input sample.
@@ -463,7 +354,6 @@ impl<T: Real> MeterState<T> {
                 self.state =
                     self.state * convert(smoothing) + value * value * convert(1.0 - smoothing)
             }
-            Meter::Detect(_frequency) => self.detector.tick(value),
         }
     }
 
@@ -473,7 +363,6 @@ impl<T: Real> MeterState<T> {
             Meter::Sample => self.state,
             Meter::Peak(_) => self.state,
             Meter::Rms(_) => sqrt(self.state),
-            Meter::Detect(_) => self.detector.power(),
         }
     }
 }
