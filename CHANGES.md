@@ -1,5 +1,10 @@
 ## Changes
 
+### Version 0.9
+
+- `detector` was removed (it did not work).
+- New opcode `biquad` for an arbitrary biquad filter.
+
 ### Version 0.8
 
 - `semitone` is now `semitone_ratio`.
