@@ -10,7 +10,6 @@ fn main() {
     let mut rng = AttoRand::new(0);
 
     let bpm = 128.0;
-    let bps = bpm / 60.0;
 
     /*
     let wind = |seed: i64, panning| {
@@ -24,7 +23,7 @@ fn main() {
     // 'x' indicates a drum hit, while '.' is a rest.
     let bassd_line = "x.....x.x.......x.....x.xx......x.....x.x.......x.......x.x.....";
     let snare_line = "....x.......x.......x.......x.......x.......x.......x.......x...";
-
+    let cymbl_line = "x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.";
     /*
     let bd = |seed: i64| {
         bus::<U40, _, _>(|i| {
@@ -45,8 +44,9 @@ fn main() {
         sweep >> pinkpass() >> shape(Shape::Tanh(2.0)) >> pan(0.0)
     };
     */
-
+    /*
     let stab = move || {
+        let bps = bpm / 60.0;
         fundsp::sound::pebbles(14.0, 200)
             * lfo(move |t| {
                 if t * bps - round(t * bps) > 0.0 && round(t * bps) < 32.0 {
@@ -59,10 +59,11 @@ fn main() {
             >> phaser(0.85, |t| sin_hz(0.1, t) * 0.5 + 0.5)
             >> pan(0.0)
     };
+    */
 
     let mut sequencer = Sequencer64::new(sample_rate, 2);
 
-    sequencer.add(0.0, 60.0, 0.0, 0.0, Box::new(stab() * 0.4));
+    //sequencer.add(0.0, 60.0, 0.0, 0.0, Box::new(stab() * 0.4));
 
     let length = bassd_line.as_bytes().len();
     let duration = length as f64 / bpm_hz(bpm) / 4.0 * 2.0 + 1.0;
@@ -72,7 +73,7 @@ fn main() {
         let t1 = t0 + 1.0;
         if bassd_line.as_bytes()[i % length] == b'x' {
             sequencer.add(
-                t0,
+                t0 + 0.001 * rng.get01::<f64>(),
                 t1,
                 0.0,
                 0.25,
@@ -81,11 +82,22 @@ fn main() {
         }
         if snare_line.as_bytes()[i % length] == b'x' {
             sequencer.add(
-                t0,
+                t0 + 0.001 * rng.get01::<f64>(),
                 t1,
                 0.0,
                 0.25,
-                Box::new(snaredrum(rng.get() as i64, 0.3 + rng.get01::<f64>() * 0.02) >> pan(0.0)),
+                Box::new(
+                    snaredrum(rng.get() as i64, 0.4 + rng.get01::<f64>() * 0.02) * 1.5 >> pan(0.0),
+                ),
+            );
+        }
+        if cymbl_line.as_bytes()[i % length] == b'x' {
+            sequencer.add(
+                t0 + 0.001 * rng.get01::<f64>(),
+                t1,
+                0.0,
+                0.25,
+                Box::new(cymbal(rng.get() as i64) * 0.05 >> pan(0.0)),
             );
         }
     }

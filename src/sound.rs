@@ -121,3 +121,26 @@ pub fn snaredrum(
         >> lowpass_q(1.0)
         >> declick_s(xerp(0.02, 0.002, sharpness))
 }
+
+/// Sound 005. Some kind of cymbal, mono. Different `seed` values produce small variations of the same sound.
+pub fn cymbal(seed: i64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+    let mut rng = AttoRand::new(seed as u64);
+    let f1 = 1339.0586 + 5.0 * rng.get11::<f64>();
+    let f2 = 1703.2929 + 5.0 * rng.get11::<f64>();
+    let f3 = 2090.1314 + 5.0 * rng.get11::<f64>();
+    let f4 = 1425.6187 + 5.0 * rng.get11::<f64>();
+    let f5 = 1189.1727 + 5.0 * rng.get11::<f64>();
+    let f6 = 1954.3242 + 5.0 * rng.get11::<f64>();
+    let m1 = 54127.0;
+    let m2 = 43480.0;
+    let m3 = 56771.0;
+
+    let complex = (square_hz(f1) * m1 + f2 >> square())
+        + (square_hz(f3) * m2 + f4 >> square())
+        + (square_hz(f5) * m3 + f6 >> square());
+
+    (complex * lfo(|t| exp(-t * 8.0)) | lfo(|t| xerp(20000.0, 2000.0, clamp01(t))))
+        >> lowpass_q(1.0)
+        >> highpass_hz(2500.0, 1.0)
+        >> declick_s(0.001)
+}

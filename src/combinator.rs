@@ -1,5 +1,8 @@
 //! `AudioNode` wrapper `An` and operators, methods and traits.
 
+// FunDSP Composable Graph Notation defined here was developed by Sami Perttu,
+// with contributions from Benjamin Saunders.
+
 use super::audionode::*;
 use super::math::*;
 use super::*;

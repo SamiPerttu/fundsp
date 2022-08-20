@@ -68,9 +68,6 @@ A mono network can be expressed
 as a stereo network simply by replacing its mono generators and
 filters with stereo ones, the graph notation remaining the same.
 
-FunDSP Composable Graph Notation was developed by Sami Perttu,
-with contributions from Benjamin Saunders.
-
 
 ## Basics
 
@@ -504,7 +501,7 @@ to examine frequency responses interactively:
 ```rust
 C:\rust>evcxr
 Welcome to evcxr. For help, type :help
->> :dep fundsp "0.6.3"
+>> :dep fundsp = "0.8.0"
 >> use fundsp::hacker::*;
 >> bell_hz(1000.0, 1.0, db_amp(50.0))
  60 dB -----------------------------------------------  60 dB
