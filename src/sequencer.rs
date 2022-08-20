@@ -211,7 +211,9 @@ impl Sequencer48 {
         }
     }
 
-    /// Set the update callback.
+    /// Set the update callback. The update callback arguments are
+    /// current time in seconds, time in seconds since the last update,
+    /// and the sequencer itself.
     pub fn set_callback(
         &mut self,
         update_interval: f48,
