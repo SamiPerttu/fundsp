@@ -45,18 +45,20 @@ pub fn edge(source: Port, target: Port) -> Edge {
 pub struct Vertex48 {
     /// The unit.
     pub unit: Box<dyn AudioUnit48>,
-    /// Edges connecting into this vertex. The length indicates the number of inputs.
+    /// Edges connecting into this vertex. The length is equal to the number of inputs.
     pub source: Vec<Edge>,
-    /// Input buffers. The length indicates the number of inputs.
+    /// Input buffers. The length is equal to the number of inputs.
     pub input: Buffer<f48>,
-    /// Output buffers. The length indicates the number of outputs.
+    /// Output buffers. The length is equal to the number of outputs.
     pub output: Buffer<f48>,
-    /// Input for tick iteration. The length indicates the number of inputs.
+    /// Input for tick iteration. The length is equal to the number of inputs.
     pub tick_input: Vec<f48>,
-    /// Output for tick iteration. The length indicates the number of outputs.
+    /// Output for tick iteration. The length is equal to the number of outputs.
     pub tick_output: Vec<f48>,
     /// Index or ID of this unit. This equals unit index in graph.
     pub id: NodeIndex,
+    /// This is set if all vertex inputs are sourced from matching outputs of the indicated node.
+    pub source_vertex: Option<NodeIndex>,
 }
 
 #[duplicate_item(
@@ -74,6 +76,7 @@ impl Vertex48 {
             tick_input: vec![0.0; inputs],
             tick_output: vec![0.0; outputs],
             id,
+            source_vertex: None,
         }
     }
 
@@ -83,6 +86,32 @@ impl Vertex48 {
 
     pub fn outputs(&self) -> usize {
         self.output.buffers()
+    }
+
+    pub fn update_source_vertex(&mut self) {
+        self.source_vertex = None;
+        if self.inputs() == 0 {
+            return;
+        }
+        let mut source_node = 0;
+        for i in 0..self.inputs() {
+            match self.source[i].source {
+                Port::Local(node, port) => {
+                    if port != i {
+                        return;
+                    }
+                    if i == 0 {
+                        source_node = node;
+                    } else if source_node != node {
+                        return;
+                    }
+                }
+                _ => {
+                    return;
+                }
+            }
+        }
+        self.source_vertex = Some(source_node);
     }
 }
 
@@ -137,7 +166,9 @@ impl Net48 {
         net
     }
 
-    /// Set the update callback.
+    /// Set the update callback. The arguments to the callback are
+    /// time in seconds, time since the last update in seconds,
+    /// and the network itself.
     pub fn set_callback(
         &mut self,
         update_interval: f48,
@@ -162,6 +193,7 @@ impl Net48 {
             tick_input: vec![0.0; inputs],
             tick_output: vec![0.0; outputs],
             id,
+            source_vertex: None,
         };
         for i in 0..vertex.inputs() {
             vertex.source.push(edge(Port::Zero, Port::Local(id, i)));
@@ -310,6 +342,9 @@ impl Net48 {
     /// Compute and store node order for this network.
     fn determine_order(&mut self) {
         self.ordered = true;
+        for vertex in self.vertex.iter_mut() {
+            vertex.update_source_vertex();
+        }
         let mut order = Vec::new();
         self.determine_order_in(&mut order);
         self.order.clear();
@@ -452,22 +487,32 @@ impl AudioUnit48 for Net48 {
         // Iterate units in network order.
         for node_index in self.order.iter() {
             std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
-            for channel in 0..self.tmp_vertex.inputs() {
-                match self.tmp_vertex.source[channel].source {
-                    Port::Zero => self.tmp_vertex.input.mut_at(channel)[..size].fill(0.0),
-                    Port::Global(port) => self.tmp_vertex.input.mut_at(channel)[..size]
-                        .copy_from_slice(&input[port][..size]),
-                    Port::Local(source, port) => {
-                        self.tmp_vertex.input.mut_at(channel)[..size]
-                            .copy_from_slice(&self.vertex[source].output.at(port)[..size]);
+            if let Some(source_node) = self.tmp_vertex.source_vertex {
+                // We can source inputs directly from a source vertex.
+                self.tmp_vertex.unit.process(
+                    size,
+                    self.vertex[source_node].output.self_ref(),
+                    self.tmp_vertex.output.self_mut(),
+                );
+            } else {
+                // Gather inputs for this vertex.
+                for channel in 0..self.tmp_vertex.inputs() {
+                    match self.tmp_vertex.source[channel].source {
+                        Port::Zero => self.tmp_vertex.input.mut_at(channel)[..size].fill(0.0),
+                        Port::Global(port) => self.tmp_vertex.input.mut_at(channel)[..size]
+                            .copy_from_slice(&input[port][..size]),
+                        Port::Local(source, port) => {
+                            self.tmp_vertex.input.mut_at(channel)[..size]
+                                .copy_from_slice(&self.vertex[source].output.at(port)[..size]);
+                        }
                     }
                 }
+                self.tmp_vertex.unit.process(
+                    size,
+                    self.tmp_vertex.input.self_ref(),
+                    self.tmp_vertex.output.self_mut(),
+                );
             }
-            self.tmp_vertex.unit.process(
-                size,
-                self.tmp_vertex.input.self_ref(),
-                self.tmp_vertex.output.self_mut(),
-            );
             std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
         }
 

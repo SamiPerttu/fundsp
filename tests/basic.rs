@@ -238,6 +238,18 @@ fn test_basic() {
     net.connect_output(id, 1, 1);
     check_wave(net);
 
+    let mut net = Net64::new(0, 2);
+    net.chain(Box::new(noise() | noise()));
+    net.chain(Box::new(moog_hz(1500.0, 0.5) | moog_hz(1000.0, 0.6)));
+    net.chain(Box::new(lowpole_hz(1000.0) | lowpole_hz(500.0)));
+    check_wave(net);
+
+    let mut net = Net64::new(0, 2);
+    net.chain(Box::new(noise()));
+    net.chain(Box::new(lowpole_hz(1000.0) ^ lowpole_hz(500.0)));
+    net.chain(Box::new(lowpole_hz(1000.0) | lowpole_hz(500.0)));
+    check_wave(net);
+
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
     check_wave(noise() >> monitor(Meter::Sample, 0) >> pan(-0.5) | timer(1));
     check_wave(tag(0, 5.0) >> lfo2(|t, x| t * x) | tag(1, 1.0));
