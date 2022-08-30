@@ -33,9 +33,10 @@ where
     //let c = (mls() | dc(400.0) | dc(50.0)) >> resonator();
     //let c = pink();
 
+    // FM synthesis.
     //let f = 110.0;
     //let m = 5.0;
-    //let c = oversample(sine_hz(f) * f * m + f >> sine()) >> pan(0.0);
+    //let c = oversample(sine_hz(f) * f * m + f >> sine());
 
     // Pulse wave.
     let c = lfo(|t| {
@@ -50,9 +51,13 @@ where
     //let c = lfo(|t| xerp11(20.0, 2000.0, sin_hz(0.1, t))) >> dsf_square_r(0.99) >> lowpole_hz(1000.0);
     //let c = dc(110.0) >> square();
 
+    // Filtered noise tone.
+    //let c = noise() >> resonator_hz(440.0, 5.0);
+
     // Test ease_noise.
     //let c = lfo(|t| xerp11(50.0, 5000.0, ease_noise(smooth9, 0, t))) >> triangle();
 
+    // Bandpass filtering.
     //let c = c
     //    >> (pass() | envelope(|t| xerp(500.0, 20000.0, sin_hz(0.0666, t))))
     //    >> bandpass_q(1.0);
@@ -60,19 +65,18 @@ where
     // Waveshapers.
     //let c = c >> shape_fn(|x| tanh(x * 5.0));
 
+    // Add feedback delay.
     //let c = c & c >> feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.5);
 
     // Apply Moog filter.
     //let c = (c | lfo(|t| (xerp11(110.0, 11000.0, sin_hz(0.15, t)), 0.6))) >> moog();
-
-    //let c = pink();
 
     let c = c >> split::<U2>();
 
     //let c = fundsp::sound::risset_glissando(false);
 
     // Add chorus.
-    //let c = c >> (chorus(0, 0.015, 0.005, 0.5) | chorus(1, 0.015, 0.005, 0.5));
+    //let c = c >> (chorus(0, 0.0, 0.01, 0.5) | chorus(1, 0.0, 0.01, 0.5));
 
     // Add flanger.
     let c = c

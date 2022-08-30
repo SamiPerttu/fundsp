@@ -1,6 +1,6 @@
 # FunDSP
 
-## Audio Processing and Synthesis Library for Rust
+## Audio Processing and Synthesis Library for [Rust](https://www.rust-lang.org/)
 
 [FunDSP](https://github.com/SamiPerttu/fundsp)
 is an audio DSP ([digital signal processing](https://en.wikipedia.org/wiki/Digital_signal_processing))
@@ -290,7 +290,7 @@ In `A & B`, both components source from the same inputs, and the number of input
 
 One application of the bus is controlling effect mix in conjunction with the `pass` opcode,
 which passes signal through unchanged. For example, to add 20% chorus to a mono signal,
-one might type `pass() & 0.2 * chorus(0, 0.015, 0.005, 0.3)`.
+one might type `pass() & 0.2 * chorus(0, 0.0, 0.01, 0.3)`.
 
 #### Stack
 
@@ -504,21 +504,21 @@ Welcome to evcxr. For help, type :help
 >> :dep fundsp = "0.8.0"
 >> use fundsp::hacker::*;
 >> bell_hz(1000.0, 1.0, db_amp(50.0))
- 60 dB -----------------------------------------------  60 dB
+ 60 dB ------------------------------------------------  60 dB
  
- 50 dB -------------------------.---------------------  50 dB
+ 50 dB -------------------------.----------------------  50 dB
                                 *
- 40 dB -------------------------*---------------------  40 dB
+ 40 dB -------------------------*----------------------  40 dB
                                ** 
- 30 dB -----------------------.***--------------------  30 dB
+ 30 dB -----------------------.***---------------------  30 dB
                              ******.
- 20 dB -------------------..*********.----------------  20 dB
+ 20 dB -------------------..*********.-----------------  20 dB
                        ..**************.
- 10 dB -------------..********************..----------  10 dB
+ 10 dB -------------..********************..-----------  10 dB
                ..*****************************...
-  0 dB ....***************************************....   0 dB
-       |   |    |    |     |    |    |    |    |    |
-       10  50   100  200   500  1k   2k   5k   10k  20k Hz
+  0 dB ....***************************************.....   0 dB
+       |   |    |    |     |    |    |     |    |    |
+       10  50   100  200   500  1k   2k    5k   10k  20k Hz
 
 Peak Magnitude : 50.00 dB (1000 Hz)
 Inputs         : 1

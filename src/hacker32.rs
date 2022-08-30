@@ -338,6 +338,12 @@ pub fn multisink<N: Size<f32>>() -> An<Sink<N, f32>> {
 /// - Input 1: right channel
 /// - Output 0: right channel
 /// - Output 1: left channel
+///
+/// ### Example: Ping-Pong Delay
+/// ```
+/// use fundsp::hacker32::*;
+/// feedback((delay(1.0) | delay(1.0)) >> swap() * db_amp(-3.0));
+/// ```
 #[inline]
 pub fn swap() -> An<Swap<f32>> {
     An(Swap::new())
@@ -346,6 +352,12 @@ pub fn swap() -> An<Swap<f32>> {
 /// Sine oscillator.
 /// - Input 0: frequency (Hz)
 /// - Output 0: sine wave
+///
+/// ### Example: Vibrato
+/// ```
+/// use fundsp::hacker32::*;
+/// lfo(|t| 110.0 + lerp11(-2.0, 2.0, sin_hz(t, 5.0))) >> sine();
+/// ```
 #[inline]
 pub fn sine() -> An<Sine<f32>> {
     An(Sine::new(DEFAULT_SR))
@@ -353,6 +365,12 @@ pub fn sine() -> An<Sine<f32>> {
 
 /// Fixed sine oscillator at `f` Hz.
 /// - Output 0: sine wave
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker32::*;
+/// sine_hz(440.0);
+/// ```
 #[inline]
 pub fn sine_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, Sine<f32>>> {
     super::prelude::sine_hz(f)
@@ -404,6 +422,12 @@ where
 /// - Input 0: audio
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
+///
+/// ### Example: Filtered Noise
+/// ```
+/// use fundsp::hacker32::*;
+/// (noise() | dc(1000.0)) >> butterpass();
+/// ```
 #[inline]
 pub fn butterpass() -> An<ButterLowpass<f32, f32, U2>> {
     An(ButterLowpass::new(DEFAULT_SR, 440.0))
@@ -421,6 +445,12 @@ pub fn butterpass_hz(f: f32) -> An<ButterLowpass<f32, f32, U1>> {
 /// - Input 0: audio
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
+///
+/// ### Example: Brown Noise
+/// ```
+/// use fundsp::hacker32::*;
+/// (noise() | dc(10.0)) >> lowpole();
+/// ```
 #[inline]
 pub fn lowpole() -> An<Lowpole<f32, f32, U2>> {
     An(Lowpole::new(DEFAULT_SR, 440.0))
@@ -429,6 +459,12 @@ pub fn lowpole() -> An<Lowpole<f32, f32, U2>> {
 /// One-pole lowpass filter (1st order) with fixed cutoff frequency `f` Hz.
 /// - Input 0: audio
 /// - Output 0: filtered audio
+///
+/// ### Example: Brown Noise
+/// ```
+/// use fundsp::hacker32::*;
+/// noise() >> lowpole_hz(10.0);
+/// ```
 #[inline]
 pub fn lowpole_hz(f: f32) -> An<Lowpole<f32, f32, U1>> {
     super::prelude::lowpole_hz(f)
@@ -473,6 +509,12 @@ pub fn highpole_hz(f: f32) -> An<Highpole<f32, f32, U1>> {
 /// - Input 1: cutoff frequency (Hz)
 /// - Input 2: bandwidth (Hz)
 /// - Output 0: filtered audio
+///
+/// ### Example: Filtered Noise Tone
+/// ```
+/// use fundsp::hacker32::*;
+/// (noise() | dc((440.0, 5.0))) >> resonator();
+/// ```
 #[inline]
 pub fn resonator() -> An<Resonator<f32, f32, U3>> {
     An(Resonator::new(DEFAULT_SR, 440.0, 110.0))
@@ -481,6 +523,12 @@ pub fn resonator() -> An<Resonator<f32, f32, U3>> {
 /// Constant-gain bandpass resonator with fixed `center` frequency (Hz) and `bandwidth` (Hz).
 /// - Input 0: audio
 /// - Output 0: filtered audio
+///
+/// ### Example: Filtered Noise Tone
+/// ```
+/// use fundsp::hacker32::*;
+/// noise() >> resonator_hz(440.0, 5.0);
+/// ```
 #[inline]
 pub fn resonator_hz(center: f32, bandwidth: f32) -> An<Resonator<f32, f32, U1>> {
     super::prelude::resonator_hz(center, bandwidth)

@@ -104,6 +104,11 @@ fn main() {
 
     let wave = Wave64::render(sample_rate, duration, &mut sequencer);
 
+    //let wave = wave.filter(
+    //    duration,
+    //    &mut (chorus(0, 0.0, 0.01, 0.5) | chorus(1, 0.0, 0.01, 0.5)),
+    //);
+
     let wave = wave.filter(
         duration,
         &mut (multipass() & 0.15 * reverb_stereo(10.0, 1.0)),
