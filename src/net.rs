@@ -135,8 +135,59 @@ pub struct Net48 {
     order: Vec<NodeIndex>,
     ordered: bool,
     sample_rate: f64,
-    tmp_vertex: Vertex48,
     callback: Option<Callback48<Net48>>,
+    tmp_buffer: Buffer<f48>,
+}
+
+impl Net64 {
+    /// Given nets A and B, create and return net A >> B.
+    pub fn pipe_op(mut net1: Net64, mut net2: Net64) -> Net64 {
+        let offset = net1.vertex.len();
+        net1.vertex.append(&mut net2.vertex);
+        // Adjust local ports.
+        for node in offset..net1.vertex.len() {
+            net1.vertex[node].id = node;
+            for port in 0..net1.vertex[node].inputs() {
+                match net1.vertex[node].source[port].source {
+                    Port::Local(source_node, source_port) => {
+                        net1.vertex[node].source[port] = edge(
+                            Port::Local(source_node + offset, source_port),
+                            Port::Local(node, port),
+                        );
+                    }
+                    Port::Global(source_port) => {
+                        net1.vertex[node].source[port] = edge(
+                            net1.output_edge[source_port].source,
+                            Port::Local(node, port),
+                        );
+                    }
+                    _ => (),
+                }
+            }
+            if let Some(source) = net1.vertex[node].source_vertex {
+                net1.vertex[node].source_vertex = Some(source + offset);
+            }
+        }
+        // Adjust output ports.
+        let output_edge1 = net1.output_edge;
+        net1.output_edge = net2.output_edge;
+        for output_port in 0..net1.outputs() {
+            match net1.output_edge[output_port].source {
+                Port::Local(source_node, source_port) => {
+                    net1.output_edge[output_port] = edge(
+                        Port::Local(source_node + offset, source_port),
+                        Port::Global(output_port),
+                    );
+                }
+                Port::Global(source_port) => {
+                    net1.output_edge[output_port] =
+                        edge(output_edge1[source_port].source, Port::Global(output_port));
+                }
+                _ => (),
+            }
+        }
+        net1
+    }
 }
 
 #[duplicate_item(
@@ -156,8 +207,8 @@ impl Net48 {
             order: vec![],
             ordered: true,
             sample_rate: DEFAULT_SR,
-            tmp_vertex: Vertex48::new(0, 0, 0),
             callback: None,
+            tmp_buffer: Buffer::new(),
         };
         for channel in 0..outputs {
             net.output_edge
@@ -412,6 +463,33 @@ impl Net48 {
             }
         }
     }
+
+    /// Returns an iterator over edges of the graph.
+    pub fn edges(&self) -> impl Iterator<Item = Edge> + '_ {
+        let mut node = 0;
+        let mut port = 0;
+        std::iter::from_fn(move || {
+            while node < self.vertex.len() {
+                if port >= self.vertex[node].inputs() {
+                    node += 1;
+                    port = 0;
+                } else {
+                    port += 1;
+                    return Some(self.vertex[node].source[port - 1]);
+                }
+            }
+            while node == self.vertex.len() {
+                if port >= self.outputs() {
+                    node += 1;
+                    port = 0;
+                } else {
+                    port += 1;
+                    return Some(self.output_edge[port - 1]);
+                }
+            }
+            None
+        })
+    }
 }
 
 #[duplicate_item(
@@ -451,22 +529,21 @@ impl AudioUnit48 for Net48 {
         }
         self.elapse(1.0 / self.sample_rate as f48);
         // Iterate units in network order.
-        for node_index in self.order.iter() {
-            std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
-            for channel in 0..self.tmp_vertex.inputs() {
-                match self.tmp_vertex.source[channel].source {
-                    Port::Zero => self.tmp_vertex.tick_input[channel] = 0.0,
-                    Port::Global(port) => self.tmp_vertex.tick_input[channel] = input[port],
+        for &node_index in self.order.iter() {
+            for channel in 0..self.vertex[node_index].inputs() {
+                match self.vertex[node_index].source[channel].source {
+                    Port::Zero => self.vertex[node_index].tick_input[channel] = 0.0,
+                    Port::Global(port) => self.vertex[node_index].tick_input[channel] = input[port],
                     Port::Local(source, port) => {
-                        self.tmp_vertex.tick_input[channel] = self.vertex[source].tick_output[port]
+                        self.vertex[node_index].tick_input[channel] =
+                            self.vertex[source].tick_output[port]
                     }
                 }
             }
-            self.tmp_vertex.unit.tick(
-                &self.tmp_vertex.tick_input,
-                &mut self.tmp_vertex.tick_output,
-            );
-            std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
+            let vertex = &mut self.vertex[node_index];
+            vertex
+                .unit
+                .tick(&vertex.tick_input, &mut vertex.tick_output);
         }
 
         // Then we set the global outputs.
@@ -485,35 +562,35 @@ impl AudioUnit48 for Net48 {
         }
         self.elapse(size as f48 / self.sample_rate as f48);
         // Iterate units in network order.
-        for node_index in self.order.iter() {
-            std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
-            if let Some(source_node) = self.tmp_vertex.source_vertex {
+        for &node_index in self.order.iter() {
+            if let Some(source_node) = self.vertex[node_index].source_vertex {
                 // We can source inputs directly from a source vertex.
-                self.tmp_vertex.unit.process(
-                    size,
-                    self.vertex[source_node].output.self_ref(),
-                    self.tmp_vertex.output.self_mut(),
-                );
+                std::mem::swap(&mut self.tmp_buffer, &mut self.vertex[source_node].output);
+                let vertex = &mut self.vertex[node_index];
+                vertex
+                    .unit
+                    .process(size, self.tmp_buffer.self_ref(), vertex.output.self_mut());
+                std::mem::swap(&mut self.tmp_buffer, &mut self.vertex[source_node].output);
             } else {
+                std::mem::swap(&mut self.tmp_buffer, &mut self.vertex[node_index].input);
                 // Gather inputs for this vertex.
-                for channel in 0..self.tmp_vertex.inputs() {
-                    match self.tmp_vertex.source[channel].source {
-                        Port::Zero => self.tmp_vertex.input.mut_at(channel)[..size].fill(0.0),
-                        Port::Global(port) => self.tmp_vertex.input.mut_at(channel)[..size]
+                for channel in 0..self.vertex[node_index].inputs() {
+                    match self.vertex[node_index].source[channel].source {
+                        Port::Zero => self.tmp_buffer.mut_at(channel)[..size].fill(0.0),
+                        Port::Global(port) => self.tmp_buffer.mut_at(channel)[..size]
                             .copy_from_slice(&input[port][..size]),
                         Port::Local(source, port) => {
-                            self.tmp_vertex.input.mut_at(channel)[..size]
+                            self.tmp_buffer.mut_at(channel)[..size]
                                 .copy_from_slice(&self.vertex[source].output.at(port)[..size]);
                         }
                     }
                 }
-                self.tmp_vertex.unit.process(
-                    size,
-                    self.tmp_vertex.input.self_ref(),
-                    self.tmp_vertex.output.self_mut(),
-                );
+                let vertex = &mut self.vertex[node_index];
+                vertex
+                    .unit
+                    .process(size, self.tmp_buffer.self_ref(), vertex.output.self_mut());
+                std::mem::swap(&mut self.tmp_buffer, &mut self.vertex[node_index].input);
             }
-            std::mem::swap(&mut self.tmp_vertex, &mut self.vertex[*node_index]);
         }
 
         // Then we set the global outputs.

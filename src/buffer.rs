@@ -3,7 +3,7 @@
 use super::*;
 use rsor::Slice;
 
-/// Buffer for holding blocks of sample data.
+/// Buffers for holding blocks of sample data.
 /// Length of each block is `MAX_BUFFER_SIZE`.
 pub struct Buffer<T: Float> {
     buffer: Vec<Vec<T>>,
