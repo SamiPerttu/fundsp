@@ -6,6 +6,7 @@
 use super::audionode::*;
 use super::math::*;
 use super::*;
+use duplicate::duplicate_item;
 use numeric_array::typenum::*;
 use std::fmt::Write;
 
@@ -233,81 +234,41 @@ where
 
 /// `X + constant` binary operator: Adds `constant` to outputs of `X`.
 /// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Add<f64> for An<X>
+#[duplicate_item(
+    f48;
+    [ f64 ];
+    [ f32 ];
+)]
+impl<X> std::ops::Add<f48> for An<X>
 where
-    X: AudioNode<Sample = f64>,
-    X::Inputs: Size<f64> + Add<U0>,
-    X::Outputs: Size<f64>,
-    <X::Inputs as Add<U0>>::Output: Size<f64>,
+    X: AudioNode<Sample = f48>,
+    X::Inputs: Size<f48>,
+    X::Outputs: Size<f48>,
 {
-    type Output = An<Binop<f64, FrameAdd<X::Outputs, X::Sample>, X, Constant<X::Outputs, f64>>>;
+    type Output = An<Unop<f48, X, FrameAddScalar<X::Outputs, X::Sample>>>;
     #[inline]
-    fn add(self, y: f64) -> Self::Output {
-        An(Binop::new(
-            self.0,
-            Constant::new(Frame::splat(y)),
-            FrameAdd::new(),
-        ))
+    fn add(self, y: f48) -> Self::Output {
+        An(Unop::new(self.0, FrameAddScalar::new(y)))
     }
 }
 
 /// `constant + X` binary operator: Adds `constant` to outputs of `X`.
 /// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Add<An<X>> for f64
+#[duplicate_item(
+    f48;
+    [ f64 ];
+    [ f32 ];
+)]
+impl<X> std::ops::Add<An<X>> for f48
 where
-    X: AudioNode<Sample = f64>,
-    X::Inputs: Size<f64> + Add<U0>,
-    X::Outputs: Size<f64>,
-    <X::Inputs as Add<U0>>::Output: Size<f64>,
+    X: AudioNode<Sample = f48>,
+    X::Inputs: Size<f48>,
+    X::Outputs: Size<f48>,
 {
-    type Output = An<Binop<f64, FrameAdd<X::Outputs, f64>, Constant<X::Outputs, f64>, X>>;
+    type Output = An<Unop<f48, X, FrameAddScalar<X::Outputs, f48>>>;
     #[inline]
     fn add(self, y: An<X>) -> Self::Output {
-        An(Binop::new(
-            Constant::new(Frame::splat(self)),
-            y.0,
-            FrameAdd::new(),
-        ))
-    }
-}
-
-/// `X + constant` binary operator: Adds `constant` to outputs of `X`.
-/// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Add<f32> for An<X>
-where
-    X: AudioNode<Sample = f32>,
-    X::Inputs: Size<f32> + Add<U0>,
-    X::Outputs: Size<f32>,
-    <X::Inputs as Add<U0>>::Output: Size<f32>,
-{
-    type Output = An<Binop<f32, FrameAdd<X::Outputs, X::Sample>, X, Constant<X::Outputs, f32>>>;
-    #[inline]
-    fn add(self, y: f32) -> Self::Output {
-        An(Binop::new(
-            self.0,
-            Constant::new(Frame::splat(y)),
-            FrameAdd::new(),
-        ))
-    }
-}
-
-/// `constant + X` binary operator: Adds `constant` to outputs of `X`.
-/// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Add<An<X>> for f32
-where
-    X: AudioNode<Sample = f32>,
-    X::Inputs: Size<f32> + Add<U0>,
-    X::Outputs: Size<f32>,
-    <X::Inputs as Add<U0>>::Output: Size<f32>,
-{
-    type Output = An<Binop<f32, FrameAdd<X::Outputs, f32>, Constant<X::Outputs, f32>, X>>;
-    #[inline]
-    fn add(self, y: An<X>) -> Self::Output {
-        An(Binop::new(
-            Constant::new(Frame::splat(self)),
-            y.0,
-            FrameAdd::new(),
-        ))
+        An(Unop::new(y.0, FrameAddScalar::new(self)))
     }
 }
 
@@ -330,74 +291,39 @@ where
 
 /// `X - constant` binary operator: Subtracts `constant` from outputs of `X`.
 /// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Sub<f64> for An<X>
+#[duplicate_item(
+    f48;
+    [ f64 ];
+    [ f32 ];
+)]
+impl<X> std::ops::Sub<f48> for An<X>
 where
-    X: AudioNode<Sample = f64>,
-    X::Inputs: Size<f64> + Add<U0>,
-    X::Outputs: Size<f64>,
-    <X::Inputs as Add<U0>>::Output: Size<f64>,
+    X: AudioNode<Sample = f48>,
+    X::Inputs: Size<f48>,
+    X::Outputs: Size<f48>,
 {
-    type Output = An<Binop<f64, FrameSub<X::Outputs, f64>, X, Constant<X::Outputs, f64>>>;
+    type Output = An<Unop<f48, X, FrameAddScalar<X::Outputs, f48>>>;
     #[inline]
-    fn sub(self, y: f64) -> Self::Output {
-        An(Binop::new(
-            self.0,
-            Constant::new(Frame::splat(y)),
-            FrameSub::new(),
-        ))
+    fn sub(self, y: f48) -> Self::Output {
+        An(Unop::new(self.0, FrameAddScalar::new(-y)))
     }
 }
 
 /// `constant - X` binary operator: Negates `X` and adds `constant` to its outputs.
 /// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Sub<An<X>> for f64
+#[duplicate_item(
+    f48;
+    [ f64 ];
+    [ f32 ];
+)]
+impl<X> std::ops::Sub<An<X>> for f48
 where
-    X: AudioNode<Sample = f64>,
-    X::Inputs: Size<f64> + Add<U0>,
-    X::Outputs: Size<f64>,
-    <X::Inputs as Add<U0>>::Output: Size<f64>,
+    X: AudioNode<Sample = f48>,
+    X::Inputs: Size<f48> + Add<U0>,
+    X::Outputs: Size<f48>,
+    <X::Inputs as Add<U0>>::Output: Size<f48>,
 {
-    type Output = An<Binop<f64, FrameSub<X::Outputs, f64>, Constant<X::Outputs, f64>, X>>;
-    #[inline]
-    fn sub(self, y: An<X>) -> Self::Output {
-        An(Binop::new(
-            Constant::new(Frame::splat(self)),
-            y.0,
-            FrameSub::new(),
-        ))
-    }
-}
-
-/// `X - constant` binary operator: Subtracts `constant` from outputs of `X`.
-/// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Sub<f32> for An<X>
-where
-    X: AudioNode<Sample = f32>,
-    X::Inputs: Size<f32> + Add<U0>,
-    X::Outputs: Size<f32>,
-    <X::Inputs as Add<U0>>::Output: Size<f32>,
-{
-    type Output = An<Binop<f32, FrameSub<X::Outputs, f32>, X, Constant<X::Outputs, f32>>>;
-    #[inline]
-    fn sub(self, y: f32) -> Self::Output {
-        An(Binop::new(
-            self.0,
-            Constant::new(Frame::splat(y)),
-            FrameSub::new(),
-        ))
-    }
-}
-
-/// `constant - X` binary operator: Negates `X` and adds `constant` to its outputs.
-/// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Sub<An<X>> for f32
-where
-    X: AudioNode<Sample = f32>,
-    X::Inputs: Size<f32> + Add<U0>,
-    X::Outputs: Size<f32>,
-    <X::Inputs as Add<U0>>::Output: Size<f32>,
-{
-    type Output = An<Binop<f32, FrameSub<X::Outputs, f32>, Constant<X::Outputs, f32>, X>>;
+    type Output = An<Binop<f48, FrameSub<X::Outputs, f48>, Constant<X::Outputs, f48>, X>>;
     #[inline]
     fn sub(self, y: An<X>) -> Self::Output {
         An(Binop::new(
@@ -427,81 +353,41 @@ where
 
 /// `X * constant` binary operator: Multiplies outputs of `X` with `constant`.
 /// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Mul<f64> for An<X>
+#[duplicate_item(
+    f48;
+    [ f64 ];
+    [ f32 ];
+)]
+impl<X> std::ops::Mul<f48> for An<X>
 where
-    X: AudioNode<Sample = f64>,
-    X::Inputs: Size<f64> + Add<U0>,
-    X::Outputs: Size<f64>,
-    <X::Inputs as Add<U0>>::Output: Size<f64>,
+    X: AudioNode<Sample = f48>,
+    X::Inputs: Size<f48>,
+    X::Outputs: Size<f48>,
 {
-    type Output = An<Binop<f64, FrameMul<X::Outputs, f64>, X, Constant<X::Outputs, f64>>>;
+    type Output = An<Unop<f48, X, FrameMulScalar<X::Outputs, f48>>>;
     #[inline]
-    fn mul(self, y: f64) -> Self::Output {
-        An(Binop::new(
-            self.0,
-            Constant::new(Frame::splat(y)),
-            FrameMul::new(),
-        ))
+    fn mul(self, y: f48) -> Self::Output {
+        An(Unop::new(self.0, FrameMulScalar::new(y)))
     }
 }
 
 /// `constant * X` binary operator: Multiplies outputs of `X` with `constant`.
 /// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Mul<An<X>> for f64
+#[duplicate_item(
+    f48;
+    [ f64 ];
+    [ f32 ];
+)]
+impl<X> std::ops::Mul<An<X>> for f48
 where
-    X: AudioNode<Sample = f64>,
-    X::Inputs: Size<f64> + Add<U0>,
-    X::Outputs: Size<f64>,
-    <X::Inputs as Add<U0>>::Output: Size<f64>,
+    X: AudioNode<Sample = f48>,
+    X::Inputs: Size<f48>,
+    X::Outputs: Size<f48>,
 {
-    type Output = An<Binop<f64, FrameMul<X::Outputs, f64>, Constant<X::Outputs, f64>, X>>;
+    type Output = An<Unop<f48, X, FrameMulScalar<X::Outputs, f48>>>;
     #[inline]
     fn mul(self, y: An<X>) -> Self::Output {
-        An(Binop::new(
-            Constant::new(Frame::splat(self)),
-            y.0,
-            FrameMul::new(),
-        ))
-    }
-}
-
-/// `X * constant` binary operator: Multiplies outputs of `X` with `constant`.
-/// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Mul<f32> for An<X>
-where
-    X: AudioNode<Sample = f32>,
-    X::Inputs: Size<f32> + Add<U0>,
-    X::Outputs: Size<f32>,
-    <X::Inputs as Add<U0>>::Output: Size<f32>,
-{
-    type Output = An<Binop<f32, FrameMul<X::Outputs, f32>, X, Constant<X::Outputs, f32>>>;
-    #[inline]
-    fn mul(self, y: f32) -> Self::Output {
-        An(Binop::new(
-            self.0,
-            Constant::new(Frame::splat(y)),
-            FrameMul::new(),
-        ))
-    }
-}
-
-/// `constant * X` binary operator: Multplies outputs of `X` with `constant`.
-/// Broadcasts `constant` to an arbitrary number of channels.
-impl<X> std::ops::Mul<An<X>> for f32
-where
-    X: AudioNode<Sample = f32>,
-    X::Inputs: Size<f32> + Add<U0>,
-    X::Outputs: Size<f32>,
-    <X::Inputs as Add<U0>>::Output: Size<f32>,
-{
-    type Output = An<Binop<f32, FrameMul<X::Outputs, f32>, Constant<X::Outputs, f32>, X>>;
-    #[inline]
-    fn mul(self, y: An<X>) -> Self::Output {
-        An(Binop::new(
-            Constant::new(Frame::splat(self)),
-            y.0,
-            FrameMul::new(),
-        ))
+        An(Unop::new(y.0, FrameMulScalar::new(self)))
     }
 }
 

@@ -274,4 +274,8 @@ fn test_responses() {
     let mut neta = Net64::new(1, 1);
     neta.chain(Box::new(notch_hz(2500.0, 2.0)));
     test_response(Net64::enclose(Box::new(dc(1.0))) * neta);
+
+    let mut netb = Net64::new(1, 1);
+    netb.chain(Box::new(notch_hz(2500.0, 1.0)));
+    test_response(netb >> lowpass_hz(1500.0, 1.0));
 }

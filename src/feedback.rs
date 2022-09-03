@@ -20,7 +20,7 @@ impl<N: Size<T>, T: Float> FrameHadamard<N, T> {
 
 impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameHadamard<N, T> {
     #[inline]
-    fn unop(x: &Frame<T, N>) -> Frame<T, N> {
+    fn unop(&self, x: &Frame<T, N>) -> Frame<T, N> {
         let mut output = x.clone();
         let mut h = 1;
         while h < N::USIZE {
@@ -66,10 +66,10 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameHadamard<N, T> {
     // Not implemented.
     // TODO: Hadamard is a special op because of interchannel dependencies.
     #[inline]
-    fn propagate(_: Signal) -> Signal {
+    fn propagate(&self, _: Signal) -> Signal {
         panic!()
     }
-    fn assign(_size: usize, _x: &mut [T]) {
+    fn assign(&self, _size: usize, _x: &mut [T]) {
         panic!()
     }
 }
@@ -139,7 +139,7 @@ where
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         let output = self.x.tick(&(input + self.value.clone()));
-        self.value = U::unop(&output);
+        self.value = self.feedback.unop(&output);
         output
     }
 
@@ -238,7 +238,7 @@ where
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         let output = self.x.tick(&(input + self.value.clone()));
-        self.value = U::unop(&self.y.tick(&output));
+        self.value = self.feedback.unop(&self.y.tick(&output));
         output
     }
 

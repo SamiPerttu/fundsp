@@ -1004,11 +1004,11 @@ where
 /// Provides unary operator implementations to the `Unop` node.
 pub trait FrameUnop<N: Size<T>, T: Float> {
     /// Do unary op channelwise.
-    fn unop(x: &Frame<T, N>) -> Frame<T, N>;
+    fn unop(&self, x: &Frame<T, N>) -> Frame<T, N>;
     /// Do unary op on signal.
-    fn propagate(x: Signal) -> Signal;
+    fn propagate(&self, x: Signal) -> Signal;
     /// Do unary op in-place lengthwise.
-    fn assign(size: usize, x: &mut [T]);
+    fn assign(&self, size: usize, x: &mut [T]);
 }
 
 /// Negation operator.
@@ -1025,10 +1025,10 @@ impl<N: Size<T>, T: Float> FrameNeg<N, T> {
 
 impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameNeg<N, T> {
     #[inline]
-    fn unop(x: &Frame<T, N>) -> Frame<T, N> {
+    fn unop(&self, x: &Frame<T, N>) -> Frame<T, N> {
         -x
     }
-    fn propagate(x: Signal) -> Signal {
+    fn propagate(&self, x: Signal) -> Signal {
         match x {
             Signal::Value(vx) => Signal::Value(-vx),
             Signal::Response(rx, lx) => Signal::Response(-rx, lx),
@@ -1036,7 +1036,7 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameNeg<N, T> {
         }
     }
     #[inline]
-    fn assign(size: usize, x: &mut [T]) {
+    fn assign(&self, size: usize, x: &mut [T]) {
         for i in 0..size {
             x[i] = -x[i];
         }
@@ -1057,14 +1057,85 @@ impl<N: Size<T>, T: Float> FrameId<N, T> {
 
 impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameId<N, T> {
     #[inline]
-    fn unop(x: &Frame<T, N>) -> Frame<T, N> {
+    fn unop(&self, x: &Frame<T, N>) -> Frame<T, N> {
         x.clone()
     }
-    fn propagate(x: Signal) -> Signal {
+    fn propagate(&self, x: Signal) -> Signal {
         x
     }
     #[inline]
-    fn assign(_size: usize, _x: &mut [T]) {}
+    fn assign(&self, _size: usize, _x: &mut [T]) {}
+}
+
+/// Add scalar op.
+#[derive(Default)]
+pub struct FrameAddScalar<N: Size<T>, T: Float> {
+    scalar: T,
+    _marker: PhantomData<N>,
+}
+
+impl<N: Size<T>, T: Float> FrameAddScalar<N, T> {
+    pub fn new(scalar: T) -> Self {
+        Self {
+            scalar,
+            _marker: PhantomData::default(),
+        }
+    }
+}
+
+impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameAddScalar<N, T> {
+    #[inline]
+    fn unop(&self, x: &Frame<T, N>) -> Frame<T, N> {
+        x + Frame::splat(self.scalar)
+    }
+    fn propagate(&self, x: Signal) -> Signal {
+        match x {
+            Signal::Value(vx) => Signal::Value(vx + self.scalar.to_f64()),
+            s => s,
+        }
+    }
+    #[inline]
+    fn assign(&self, size: usize, x: &mut [T]) {
+        for i in 0..size {
+            x[i] += self.scalar;
+        }
+    }
+}
+
+/// Multiply with scalar op.
+#[derive(Default)]
+pub struct FrameMulScalar<N: Size<T>, T: Float> {
+    scalar: T,
+    _marker: PhantomData<N>,
+}
+
+impl<N: Size<T>, T: Float> FrameMulScalar<N, T> {
+    pub fn new(scalar: T) -> Self {
+        Self {
+            scalar,
+            _marker: PhantomData::default(),
+        }
+    }
+}
+
+impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameMulScalar<N, T> {
+    #[inline]
+    fn unop(&self, x: &Frame<T, N>) -> Frame<T, N> {
+        x * Frame::splat(self.scalar)
+    }
+    fn propagate(&self, x: Signal) -> Signal {
+        match x {
+            Signal::Response(vx, lx) => Signal::Response(vx * self.scalar.to_f64(), lx),
+            Signal::Value(vx) => Signal::Value(vx * self.scalar.to_f64()),
+            s => s,
+        }
+    }
+    #[inline]
+    fn assign(&self, size: usize, x: &mut [T]) {
+        for i in 0..size {
+            x[i] *= self.scalar;
+        }
+    }
 }
 
 /// Apply a unary operation to output of contained node.
@@ -1116,7 +1187,7 @@ where
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        U::unop(&self.x.tick(input))
+        self.u.unop(&self.x.tick(input))
     }
     #[inline]
     fn process(
@@ -1127,7 +1198,7 @@ where
     ) {
         self.x.process(size, input, output);
         for i in 0..self.outputs() {
-            U::assign(size, output[i]);
+            self.u.assign(size, output[i]);
         }
     }
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
@@ -1137,7 +1208,7 @@ where
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut signal_x = self.x.route(input, frequency);
         for i in 0..Self::Outputs::USIZE {
-            signal_x[i] = U::propagate(signal_x[i]);
+            signal_x[i] = self.u.propagate(signal_x[i]);
         }
         signal_x
     }
