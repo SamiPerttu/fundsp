@@ -231,7 +231,7 @@ fn test_basic() {
     check_wave(sequencer);
 
     let mut net = Net64::new(0, 2);
-    let id = net.add(Box::new(
+    let id = net.push(Box::new(
         noise() >> moog_hz(1500.0, 0.8) | noise() >> moog_hz(500.0, 0.4),
     ));
     net.connect_output(id, 0, 0);
@@ -331,8 +331,8 @@ fn test_basic() {
 
     let mut multiply_2_3 = mul(2.0) | mul(3.0);
     let mut multiply_net = Net64::new(2, 2);
-    multiply_net.add(Box::new(mul(2.0)));
-    multiply_net.add(Box::new(mul(3.0)));
+    multiply_net.push(Box::new(mul(2.0)));
+    multiply_net.push(Box::new(mul(3.0)));
     multiply_net.connect_input(0, 0, 0);
     multiply_net.connect_input(1, 1, 0);
     multiply_net.connect_output(0, 0, 0);
@@ -345,8 +345,8 @@ fn test_basic() {
 
     let mut add_2_3 = add((2.0, 3.0));
     let mut add_net = Net64::new(2, 2);
-    add_net.add(Box::new(add((2.0, 3.0))));
-    add_net.add(Box::new(multipass::<U2>()));
+    add_net.push(Box::new(add((2.0, 3.0))));
+    add_net.push(Box::new(multipass::<U2>()));
     add_net.pipe_input(0);
     add_net.pipe(0, 1);
     add_net.pipe_output(1);

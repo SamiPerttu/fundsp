@@ -238,12 +238,40 @@ fn test_responses() {
         0.18195209,
     ));
 
-    let mut net = Net64::new(1, 1);
-    net.chain(Box::new(lowpole_hz(1500.0)));
-    test_response(net);
+    let mut net1 = Net64::new(1, 1);
+    net1.chain(Box::new(lowpole_hz(1500.0)));
+    test_response(net1);
 
-    let mut net = Net64::new(1, 1);
-    net.chain(Box::new(lowpole_hz(500.0)));
-    net.chain(Box::new(lowpole_hz(2500.0)));
-    test_response(net);
+    let mut net2 = Net64::new(1, 1);
+    net2.chain(Box::new(lowpole_hz(500.0)));
+    net2.chain(Box::new(lowpole_hz(2500.0)));
+    test_response(net2);
+
+    let mut net3 = Net64::new(1, 1);
+    net3.chain(Box::new(highpole_hz(1500.0)));
+    let mut net4 = Net64::new(1, 1);
+    net4.chain(Box::new(highpole_hz(500.0)));
+    test_response(net3 >> net4);
+
+    let mut net5 = Net64::new(1, 1);
+    net5.chain(Box::new(highpole_hz(1500.0)));
+    let mut net6 = Net64::new(1, 1);
+    net6.chain(Box::new(highpole_hz(500.0)));
+    test_response(net5 & net6);
+
+    let mut net7 = Net64::new(1, 1);
+    net7.chain(Box::new(highpass_hz(1000.0, 1.0)));
+    test_response(Net64::enclose(Box::new(timer(0))) | net7);
+
+    let mut net8 = Net64::new(1, 1);
+    net8.chain(Box::new(highpole_hz(1500.0)));
+    test_response(Net64::enclose(Box::new(zero())) + net8);
+
+    let mut net9 = Net64::new(1, 1);
+    net9.chain(Box::new(highpole_hz(2000.0)));
+    test_response(Net64::enclose(Box::new(dc(0.0))) - net9);
+
+    let mut neta = Net64::new(1, 1);
+    neta.chain(Box::new(notch_hz(2500.0, 2.0)));
+    test_response(Net64::enclose(Box::new(dc(1.0))) * neta);
 }

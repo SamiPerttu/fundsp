@@ -4,6 +4,7 @@
 
 - `detector` was removed (it did not work).
 - New opcode `biquad` for an arbitrary biquad filter.
+- Net32/64 method `add` was renamed `push`.
 
 ### Version 0.8
 

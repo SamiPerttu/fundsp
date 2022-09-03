@@ -349,8 +349,8 @@ use fundsp::hacker::*;
 // Instantiate network with 0 inputs and 1 output.
 let mut net = Net64::new(0, 1);
 // Add nodes, obtaining their IDs.
-let dc_id = net.add(Box::new(dc(220.0)));
-let sine_id = net.add(Box::new(sine()));
+let dc_id = net.push(Box::new(dc(220.0)));
+let sine_id = net.push(Box::new(sine()));
 // Connect nodes.
 net.pipe(dc_id, sine_id);
 net.pipe_output(sine_id);

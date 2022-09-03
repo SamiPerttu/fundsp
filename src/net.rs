@@ -4,6 +4,7 @@ use super::audionode::*;
 use super::audiounit::*;
 use super::buffer::*;
 use super::callback::*;
+use super::combinator::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
@@ -15,7 +16,7 @@ pub type PortIndex = usize;
 const ID: u64 = 63;
 
 /// Input or output port.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Port {
     /// Node input or output.
     Local(NodeIndex, PortIndex),
@@ -25,7 +26,7 @@ pub enum Port {
     Zero,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Edge {
     pub source: Port,
     pub target: Port,
@@ -58,6 +59,7 @@ pub struct Vertex48 {
     /// Index or ID of this unit. This equals unit index in graph.
     pub id: NodeIndex,
     /// This is set if all vertex inputs are sourced from matching outputs of the indicated node.
+    /// We can then omit copying and use the node outputs directly.
     pub source_vertex: Option<NodeIndex>,
 }
 
@@ -132,62 +134,13 @@ pub struct Net48 {
     /// Vertices of the graph.
     vertex: Vec<Vertex48>,
     /// Ordering of vertex evaluation.
-    order: Vec<NodeIndex>,
-    ordered: bool,
+    order: Option<Vec<NodeIndex>>,
     sample_rate: f64,
     callback: Option<Callback48<Net48>>,
     tmp_buffer: Buffer<f48>,
-}
-
-impl Net64 {
-    /// Given nets A and B, create and return net A >> B.
-    pub fn pipe_op(mut net1: Net64, mut net2: Net64) -> Net64 {
-        let offset = net1.vertex.len();
-        net1.vertex.append(&mut net2.vertex);
-        // Adjust local ports.
-        for node in offset..net1.vertex.len() {
-            net1.vertex[node].id = node;
-            for port in 0..net1.vertex[node].inputs() {
-                match net1.vertex[node].source[port].source {
-                    Port::Local(source_node, source_port) => {
-                        net1.vertex[node].source[port] = edge(
-                            Port::Local(source_node + offset, source_port),
-                            Port::Local(node, port),
-                        );
-                    }
-                    Port::Global(source_port) => {
-                        net1.vertex[node].source[port] = edge(
-                            net1.output_edge[source_port].source,
-                            Port::Local(node, port),
-                        );
-                    }
-                    _ => (),
-                }
-            }
-            if let Some(source) = net1.vertex[node].source_vertex {
-                net1.vertex[node].source_vertex = Some(source + offset);
-            }
-        }
-        // Adjust output ports.
-        let output_edge1 = net1.output_edge;
-        net1.output_edge = net2.output_edge;
-        for output_port in 0..net1.outputs() {
-            match net1.output_edge[output_port].source {
-                Port::Local(source_node, source_port) => {
-                    net1.output_edge[output_port] = edge(
-                        Port::Local(source_node + offset, source_port),
-                        Port::Global(output_port),
-                    );
-                }
-                Port::Global(source_port) => {
-                    net1.output_edge[output_port] =
-                        edge(output_edge1[source_port].source, Port::Global(output_port));
-                }
-                _ => (),
-            }
-        }
-        net1
-    }
+    /// This cache is used by the `route` method,
+    /// which does not have mutable access to the network.
+    order_cache: std::sync::Mutex<Option<Vec<NodeIndex>>>,
 }
 
 #[duplicate_item(
@@ -204,11 +157,11 @@ impl Net48 {
             output: Buffer::with_size(outputs),
             output_edge: vec![],
             vertex: vec![],
-            order: vec![],
-            ordered: true,
+            order: None,
             sample_rate: DEFAULT_SR,
             callback: None,
             tmp_buffer: Buffer::new(),
+            order_cache: std::sync::Mutex::new(None),
         };
         for channel in 0..outputs {
             net.output_edge
@@ -231,7 +184,7 @@ impl Net48 {
     /// Add a new unit to the network. Return its ID handle.
     /// ID handles are always consecutive numbers starting from zero.
     /// The unit is reset with the sample rate of the network.
-    pub fn add(&mut self, mut unit: Box<dyn AudioUnit48>) -> NodeIndex {
+    pub fn push(&mut self, mut unit: Box<dyn AudioUnit48>) -> NodeIndex {
         unit.reset(Some(self.sample_rate));
         let id = self.vertex.len();
         let inputs = unit.inputs();
@@ -253,8 +206,21 @@ impl Net48 {
         // Note. We have designed the hash to depend on vertices but not edges.
         let hash = self.ping(true, AttoRand::new(ID));
         self.ping(false, hash);
-        self.ordered = false;
+        self.invalidate_order();
         id
+    }
+
+    /// Whether we have calculated the order vector.
+    fn is_ordered(&self) -> bool {
+        self.order.is_some()
+    }
+
+    /// Invalidate any precalculated order.
+    fn invalidate_order(&mut self) {
+        self.order = None;
+        if let Ok(mut lock) = self.order_cache.lock() {
+            lock.take();
+        }
     }
 
     /// Replaces the given node in the network.
@@ -279,7 +245,7 @@ impl Net48 {
             Port::Local(source, source_port),
             Port::Local(target, target_port),
         );
-        self.ordered = false;
+        self.invalidate_order();
     }
 
     /// Connect the node input (`target`, `target_port`)
@@ -292,7 +258,7 @@ impl Net48 {
     ) {
         self.vertex[target].source[target_port] =
             edge(Port::Global(global_input), Port::Local(target, target_port));
-        self.ordered = false;
+        self.invalidate_order();
     }
 
     /// Pipe global input to node `target`.
@@ -302,7 +268,7 @@ impl Net48 {
         for i in 0..self.inputs() {
             self.vertex[target].source[i] = edge(Port::Global(i), Port::Local(target, i));
         }
-        self.ordered = false;
+        self.invalidate_order();
     }
 
     /// Connect node output (`source`, `source_port`) to network output `global_output`.
@@ -316,7 +282,7 @@ impl Net48 {
             Port::Local(source, source_port),
             Port::Global(global_output),
         );
-        self.ordered = false;
+        self.invalidate_order();
     }
 
     /// Pipe node outputs to global outputs.
@@ -326,7 +292,7 @@ impl Net48 {
         for i in 0..self.outputs() {
             self.output_edge[i] = edge(Port::Local(source, i), Port::Global(i));
         }
-        self.ordered = false;
+        self.invalidate_order();
     }
 
     /// Add an arbitrary edge to the network.
@@ -336,7 +302,7 @@ impl Net48 {
             Port::Local(target, target_port) => self.vertex[target].source[target_port] = edge,
             _ => (),
         }
-        self.ordered = false;
+        self.invalidate_order();
     }
 
     /// Connect `source` to `target`.
@@ -346,7 +312,7 @@ impl Net48 {
         for i in 0..self.vertex[target].inputs() {
             self.vertex[target].source[i] = edge(Port::Local(source, i), Port::Local(target, i));
         }
-        self.ordered = false;
+        self.invalidate_order();
     }
 
     /// Assuming this network is a chain of processing units ordered by increasing node ID,
@@ -357,7 +323,7 @@ impl Net48 {
     pub fn chain(&mut self, unit: Box<dyn AudioUnit48>) -> NodeIndex {
         let unit_inputs = unit.inputs();
         let unit_outputs = unit.outputs();
-        let id = self.add(unit);
+        let id = self.push(unit);
         if self.outputs() == unit_outputs {
             self.pipe_output(id);
         }
@@ -392,14 +358,15 @@ impl Net48 {
 
     /// Compute and store node order for this network.
     fn determine_order(&mut self) {
-        self.ordered = true;
         for vertex in self.vertex.iter_mut() {
             vertex.update_source_vertex();
         }
         let mut order = Vec::new();
         self.determine_order_in(&mut order);
-        self.order.clear();
-        std::mem::swap(&mut order, &mut self.order);
+        self.order = Some(order.clone());
+        if let Ok(mut lock) = self.order_cache.lock() {
+            lock.replace(order);
+        }
     }
 
     /// Determine node order in the supplied vector.
@@ -412,6 +379,7 @@ impl Net48 {
         let mut all_edges: Vec<Edge> = Vec::new();
         for vertex in self.vertex.iter() {
             for edge in &vertex.source {
+                dbg!(edge);
                 all_edges.push(*edge);
             }
         }
@@ -514,7 +482,7 @@ impl AudioUnit48 for Net48 {
             vertex.unit.reset(sample_rate);
         }
         // Take the opportunity to unload some calculations.
-        if !self.ordered {
+        if !self.is_ordered() {
             self.determine_order();
         }
 
@@ -524,12 +492,12 @@ impl AudioUnit48 for Net48 {
     }
 
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {
-        if !self.ordered {
+        if !self.is_ordered() {
             self.determine_order();
         }
         self.elapse(1.0 / self.sample_rate as f48);
         // Iterate units in network order.
-        for &node_index in self.order.iter() {
+        for &node_index in self.order.get_or_insert(Vec::new()).iter() {
             for channel in 0..self.vertex[node_index].inputs() {
                 match self.vertex[node_index].source[channel].source {
                     Port::Zero => self.vertex[node_index].tick_input[channel] = 0.0,
@@ -557,12 +525,12 @@ impl AudioUnit48 for Net48 {
     }
 
     fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]) {
-        if !self.ordered {
+        if !self.is_ordered() {
             self.determine_order();
         }
         self.elapse(size as f48 / self.sample_rate as f48);
         // Iterate units in network order.
-        for &node_index in self.order.iter() {
+        for &node_index in self.order.get_or_insert(Vec::new()).iter() {
             if let Some(source_node) = self.vertex[node_index].source_vertex {
                 // We can source inputs directly from a source vertex.
                 std::mem::swap(&mut self.tmp_buffer, &mut self.vertex[source_node].output);
@@ -630,13 +598,13 @@ impl AudioUnit48 for Net48 {
         for vertex in self.vertex.iter() {
             inner_signal.push(new_signal_frame(vertex.unit.outputs()));
         }
-        let mut tmp_order = vec![];
-        for &unit_index in if self.ordered {
-            self.order.iter()
-        } else {
+        let mut lock = self.order_cache.lock().unwrap();
+        if lock.is_none() {
+            let mut tmp_order = Vec::new();
             self.determine_order_in(&mut tmp_order);
-            tmp_order.iter()
-        } {
+            lock.get_or_insert(tmp_order);
+        }
+        for &unit_index in lock.get_or_insert(Vec::new()).iter() {
             let mut input_signal = new_signal_frame(self.vertex[unit_index].unit.inputs());
             for channel in 0..self.vertex[unit_index].unit.inputs() {
                 match self.vertex[unit_index].source[channel].source {
@@ -675,5 +643,344 @@ impl AudioUnit48 for Net48 {
             }
         }
         None
+    }
+}
+
+impl Net64 {
+    /// Wrap arbitrary unit in a network.
+    pub fn enclose(unit: Box<dyn AudioUnit64>) -> Net64 {
+        let mut net = Net64::new(unit.inputs(), unit.outputs());
+        let id = net.push(unit);
+        if net.inputs() > 0 {
+            net.pipe_input(id);
+        }
+        if net.outputs() > 0 {
+            net.pipe_output(id);
+        }
+        net
+    }
+
+    /// Given nets A and B, create and return net A ^ B.
+    pub fn branch_op(mut net1: Net64, mut net2: Net64) -> Net64 {
+        let offset = net1.vertex.len();
+        let output_offset = net1.outputs();
+        let outputs = net1.outputs() + net2.outputs();
+        net1.vertex.append(&mut net2.vertex);
+        net1.output_edge.append(&mut net2.output_edge);
+        net1.output.resize(outputs);
+        for i in output_offset..net1.output_edge.len() {
+            match net1.output_edge[i].source {
+                Port::Local(source_node, source_port) => {
+                    net1.output_edge[i] = edge(
+                        Port::Local(source_node + offset, source_port),
+                        Port::Global(i),
+                    );
+                }
+                Port::Global(source_port) => {
+                    net1.output_edge[i] = edge(Port::Global(source_port), Port::Global(i));
+                }
+                _ => (),
+            }
+        }
+        for node in offset..net1.vertex.len() {
+            net1.vertex[node].id = node;
+            for port in 0..net1.vertex[node].inputs() {
+                match net1.vertex[node].source[port].source {
+                    Port::Local(source_node, source_port) => {
+                        net1.vertex[node].source[port] = edge(
+                            Port::Local(source_node + offset, source_port),
+                            Port::Local(node, port),
+                        );
+                    }
+                    Port::Global(source_port) => {
+                        net1.vertex[node].source[port] =
+                            edge(Port::Global(source_port), Port::Local(node, port));
+                    }
+                    Port::Zero => (),
+                }
+            }
+        }
+        net1
+    }
+
+    /// Given nets A and B, create and return net A | B.
+    pub fn stack_op(mut net1: Net64, mut net2: Net64) -> Net64 {
+        let offset = net1.vertex.len();
+        let output_offset = net1.outputs();
+        let input_offset = net1.inputs();
+        let inputs = net1.inputs() + net2.inputs();
+        let outputs = net1.outputs() + net2.outputs();
+        net1.vertex.append(&mut net2.vertex);
+        net1.output_edge.append(&mut net2.output_edge);
+        net1.output.resize(outputs);
+        net1.input.resize(inputs);
+        for i in output_offset..net1.output_edge.len() {
+            match net1.output_edge[i].source {
+                Port::Local(source_node, source_port) => {
+                    net1.output_edge[i] = edge(
+                        Port::Local(source_node + offset, source_port),
+                        Port::Global(i),
+                    );
+                }
+                Port::Global(source_port) => {
+                    net1.output_edge[i] =
+                        edge(Port::Global(source_port + input_offset), Port::Global(i));
+                }
+                _ => (),
+            }
+        }
+        for node in offset..net1.vertex.len() {
+            net1.vertex[node].id = node;
+            for port in 0..net1.vertex[node].inputs() {
+                match net1.vertex[node].source[port].source {
+                    Port::Local(source_node, source_port) => {
+                        net1.vertex[node].source[port] = edge(
+                            Port::Local(source_node + offset, source_port),
+                            Port::Local(node, port),
+                        );
+                    }
+                    Port::Global(source_port) => {
+                        net1.vertex[node].source[port] = edge(
+                            Port::Global(source_port + input_offset),
+                            Port::Local(node, port),
+                        );
+                    }
+                    Port::Zero => (),
+                }
+            }
+        }
+        net1
+    }
+
+    /// Given nets A and B and binary operator op, create and return net A op B.
+    pub fn bin_op<B: FrameBinop<super::prelude::U1, f64> + Send + 'static>(
+        mut net1: Net64,
+        mut net2: Net64,
+        op: B,
+    ) -> Net64 {
+        assert!(net1.outputs() == net2.outputs());
+        let output1 = net1.output_edge.clone();
+        let output2 = net2.output_edge.clone();
+        let inputs = net1.inputs() + net2.inputs();
+        let offset = net1.vertex.len();
+        net1.vertex.append(&mut net2.vertex);
+        net1.input.resize(inputs);
+        for node in offset..net1.vertex.len() {
+            net1.vertex[node].id = node;
+            for port in 0..net1.vertex[node].inputs() {
+                match net1.vertex[node].source[port].source {
+                    Port::Local(source_node, source_port) => {
+                        net1.vertex[node].source[port] = edge(
+                            Port::Local(source_node + offset, source_port),
+                            Port::Local(node, port),
+                        );
+                    }
+                    Port::Global(source_port) => {
+                        net1.vertex[node].source[port] =
+                            edge(Port::Global(source_port), Port::Local(node, port));
+                    }
+                    Port::Zero => (),
+                }
+            }
+        }
+        let add_offset = net1.vertex.len();
+        for i in 0..net1.outputs() {
+            net1.push(Box::new(An(Binop::<f64, _, _, _>::new(
+                Pass::<f64>::new(),
+                Pass::<f64>::new(),
+                op.clone(),
+            ))));
+            net1.connect_output(add_offset + i, 0, i);
+        }
+        for i in 0..output1.len() {
+            match output1[i].source {
+                Port::Local(source_node, source_port) => {
+                    net1.connect(source_node, source_port, add_offset + i, 0);
+                }
+                Port::Global(source_port) => {
+                    net1.connect_input(source_port, add_offset + i, 0);
+                }
+                _ => (),
+            }
+        }
+        for i in 0..output2.len() {
+            match output2[i].source {
+                Port::Local(source_node, source_port) => {
+                    net1.connect(source_node + offset, source_port, add_offset + i, 1);
+                }
+                Port::Global(source_port) => {
+                    net1.connect_input(source_port, add_offset + i, 1);
+                }
+                _ => (),
+            }
+        }
+        net1.invalidate_order();
+        net1
+    }
+
+    /// Given nets A and B, create and return net A & B.
+    pub fn bus_op(mut net1: Net64, mut net2: Net64) -> Net64 {
+        assert!(net1.inputs() == net2.inputs());
+        assert!(net1.outputs() == net2.outputs());
+        let output1 = net1.output_edge.clone();
+        let output2 = net2.output_edge.clone();
+        let offset = net1.vertex.len();
+        net1.vertex.append(&mut net2.vertex);
+        for node in offset..net1.vertex.len() {
+            net1.vertex[node].id = node;
+            for port in 0..net1.vertex[node].inputs() {
+                match net1.vertex[node].source[port].source {
+                    Port::Local(source_node, source_port) => {
+                        net1.vertex[node].source[port] = edge(
+                            Port::Local(source_node + offset, source_port),
+                            Port::Local(node, port),
+                        );
+                    }
+                    Port::Global(source_port) => {
+                        net1.vertex[node].source[port] =
+                            edge(Port::Global(source_port), Port::Local(node, port));
+                    }
+                    Port::Zero => (),
+                }
+            }
+        }
+        let add_offset = net1.vertex.len();
+        for i in 0..net1.outputs() {
+            net1.push(Box::new(An(Binop::<f64, _, _, _>::new(
+                Pass::<f64>::new(),
+                Pass::<f64>::new(),
+                FrameAdd::new(),
+            ))));
+            net1.connect_output(add_offset + i, 0, i);
+        }
+        for i in 0..output1.len() {
+            match output1[i].source {
+                Port::Local(source_node, source_port) => {
+                    net1.connect(source_node, source_port, add_offset + i, 0);
+                }
+                Port::Global(source_port) => {
+                    net1.connect_input(source_port, add_offset + i, 0);
+                }
+                _ => (),
+            }
+        }
+        for i in 0..output2.len() {
+            match output2[i].source {
+                Port::Local(source_node, source_port) => {
+                    net1.connect(source_node + offset, source_port, add_offset + i, 1);
+                }
+                Port::Global(source_port) => {
+                    net1.connect_input(source_port, add_offset + i, 1);
+                }
+                _ => (),
+            }
+        }
+        net1.invalidate_order();
+        net1
+    }
+
+    /// Given nets A and B, create and return net A >> B.
+    pub fn pipe_op(mut net1: Net64, mut net2: Net64) -> Net64 {
+        assert!(net1.outputs() == net2.inputs());
+        let offset = net1.vertex.len();
+        net1.vertex.append(&mut net2.vertex);
+        // Adjust local ports.
+        for node in offset..net1.vertex.len() {
+            net1.vertex[node].id = node;
+            for port in 0..net1.vertex[node].inputs() {
+                match net1.vertex[node].source[port].source {
+                    Port::Local(source_node, source_port) => {
+                        net1.vertex[node].source[port] = edge(
+                            Port::Local(source_node + offset, source_port),
+                            Port::Local(node, port),
+                        );
+                    }
+                    Port::Global(source_port) => {
+                        net1.vertex[node].source[port] = edge(
+                            net1.output_edge[source_port].source,
+                            Port::Local(node, port),
+                        );
+                    }
+                    _ => (),
+                }
+            }
+        }
+        // Adjust output ports.
+        let output_edge1 = net1.output_edge;
+        net1.output_edge = net2.output_edge;
+        net1.output = net2.output;
+        for output_port in 0..net1.outputs() {
+            match net1.output_edge[output_port].source {
+                Port::Local(source_node, source_port) => {
+                    net1.output_edge[output_port] = edge(
+                        Port::Local(source_node + offset, source_port),
+                        Port::Global(output_port),
+                    );
+                }
+                Port::Global(source_port) => {
+                    net1.output_edge[output_port] =
+                        edge(output_edge1[source_port].source, Port::Global(output_port));
+                }
+                _ => (),
+            }
+        }
+        net1.invalidate_order();
+        net1
+    }
+}
+
+impl std::ops::Shr<Net64> for Net64 {
+    type Output = Net64;
+    #[inline]
+    fn shr(self, y: Net64) -> Self::Output {
+        Net64::pipe_op(self, y)
+    }
+}
+
+impl std::ops::BitAnd<Net64> for Net64 {
+    type Output = Net64;
+    #[inline]
+    fn bitand(self, y: Net64) -> Self::Output {
+        Net64::bus_op(self, y)
+    }
+}
+
+impl std::ops::BitOr<Net64> for Net64 {
+    type Output = Net64;
+    #[inline]
+    fn bitor(self, y: Net64) -> Self::Output {
+        Net64::stack_op(self, y)
+    }
+}
+
+impl std::ops::BitXor<Net64> for Net64 {
+    type Output = Net64;
+    #[inline]
+    fn bitxor(self, y: Net64) -> Self::Output {
+        Net64::branch_op(self, y)
+    }
+}
+
+impl std::ops::Add<Net64> for Net64 {
+    type Output = Net64;
+    #[inline]
+    fn add(self, y: Net64) -> Self::Output {
+        Net64::bin_op(self, y, FrameAdd::new())
+    }
+}
+
+impl std::ops::Sub<Net64> for Net64 {
+    type Output = Net64;
+    #[inline]
+    fn sub(self, y: Net64) -> Self::Output {
+        Net64::bin_op(self, y, FrameSub::new())
+    }
+}
+
+impl std::ops::Mul<Net64> for Net64 {
+    type Output = Net64;
+    #[inline]
+    fn mul(self, y: Net64) -> Self::Output {
+        Net64::bin_op(self, y, FrameMul::new())
     }
 }

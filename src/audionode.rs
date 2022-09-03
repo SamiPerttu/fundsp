@@ -756,7 +756,7 @@ where
 }
 
 /// Provides binary operator implementations to the `Binop` node.
-pub trait FrameBinop<N: Size<T>, T: Float> {
+pub trait FrameBinop<N: Size<T>, T: Float>: Clone {
     /// Do binary op (x op y) channelwise.
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
     /// Do binary op (x op y) on signals.
@@ -766,7 +766,7 @@ pub trait FrameBinop<N: Size<T>, T: Float> {
 }
 
 /// Addition operator.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FrameAdd<N: Size<T>, T: Float> {
     _marker: PhantomData<(N, T)>,
 }
@@ -794,7 +794,7 @@ impl<N: Size<T>, T: Float> FrameBinop<N, T> for FrameAdd<N, T> {
 }
 
 /// Subtraction operator.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FrameSub<N: Size<T>, T: Float> {
     _marker: PhantomData<(N, T)>,
 }
@@ -822,7 +822,7 @@ impl<N: Size<T>, T: Float> FrameBinop<N, T> for FrameSub<N, T> {
 }
 
 /// Multiplication operator.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FrameMul<N: Size<T>, T: Float> {
     _marker: PhantomData<(N, T)>,
 }

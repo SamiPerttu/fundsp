@@ -2,6 +2,7 @@
 //! FunDSP is an audio processing and synthesis library.
 //!
 //! See `README.md` in crate root folder for an overview.
+//! For a list of changes, see `CHANGES.md` in the same folder.
 
 #![allow(
     clippy::precedence,
