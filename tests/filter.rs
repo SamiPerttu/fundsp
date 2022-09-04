@@ -274,7 +274,7 @@ fn test_responses() {
     net5.chain(Box::new(highpole_hz(1500.0)));
     let mut net6 = Net64::new(1, 1);
     net6.chain(Box::new(highpole_hz(500.0)));
-    test_response(net5 & net6);
+    test_response(net5 & net6 & pass());
 
     let mut net7 = Net64::new(1, 1);
     net7.chain(Box::new(highpass_hz(1000.0, 1.0)));
@@ -286,11 +286,11 @@ fn test_responses() {
 
     let mut net9 = Net64::new(1, 1);
     net9.chain(Box::new(highpole_hz(2000.0)));
-    test_response(Net64::wrap(Box::new(dc(0.0))) - net9);
+    test_response(Net64::wrap(Box::new(dc(1.0))) - net9);
 
     let mut neta = Net64::new(1, 1);
     neta.chain(Box::new(notch_hz(2500.0, 2.0)));
-    test_response(Net64::wrap(Box::new(dc(1.0))) * neta);
+    test_response(Net64::wrap(Box::new(dc(2.0))) * neta);
 
     let mut netb = Net64::new(1, 1);
     netb.chain(Box::new(notch_hz(2500.0, 1.0)));
@@ -299,4 +299,26 @@ fn test_responses() {
     let mut netc = Net64::new(1, 1);
     netc.chain(Box::new(highpass_hz(5500.0, 1.0)));
     test_response(netc >> highpass_hz(2500.0, 1.0) + 1.0);
+
+    let mut netd = Net64::new(1, 1);
+    netd.chain(Box::new(lowpass_hz(5000.0, 1.0)));
+    test_response((netd ^ highpass_hz(3000.0, 1.0)) >> (pass() + pass()));
+
+    let mut nete = Net64::new(1, 1);
+    nete.chain(Box::new(notch_hz(5000.0, 1.0)));
+    test_response((nete ^ peak_hz(3000.0, 1.0)) >> (Net64::wrap(Box::new(pass())) + pass()));
+
+    let mut netf = Net64::new(1, 1);
+    netf.chain(Box::new(notch_hz(2000.0, 1.0)));
+    test_response(
+        (netf ^ pass() ^ peak_hz(1000.0, 1.0)) >> (Net64::wrap(Box::new(pass())) + pass() + pass()),
+    );
+
+    let mut netg = Net64::new(1, 1);
+    netg.chain(Box::new(notch_hz(2000.0, 1.0)));
+    test_response(
+        (netg ^ pass() ^ pass())
+            >> (Net64::wrap(Box::new(pass())) | pass() | pinkpass())
+            >> (Net64::wrap(Box::new(pinkpass())) + pass() + pass()),
+    );
 }

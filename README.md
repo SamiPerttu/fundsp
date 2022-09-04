@@ -356,6 +356,12 @@ net.pipe(dc_id, sine_id);
 net.pipe_output(sine_id);
 ```
 
+The graph syntax is also available for combining `Net32` and `Net64` instances.
+Connectivity checks are then deferred to runtime.
+
+`Net32` and `Net64` can also be combined inline with components from the preludes.
+The components are first converted to `Net32` or `Net64`.
+
 ## Input Modalities And Ranges
 
 Some signals found flowing in audio networks.

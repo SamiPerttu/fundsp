@@ -4,7 +4,8 @@
 
 - `detector` was removed (it did not work).
 - New opcode `biquad` for an arbitrary biquad filter.
-- Net32/64 method `add` was renamed `push`.
+- `Net32/64` method `add` was renamed `push` (it conflicted with the operator implementation).
+- Graph syntax was implemented for `Net32/64`. They can also be combined with components from the preludes.
 
 ### Version 0.8
 
