@@ -92,10 +92,11 @@ where
 
     let mut input = 1.0;
     let mut buffer = Vec::with_capacity(length);
-    for i in 0..length {
+    for _i in 0..length {
         // Apply a Hann window.
-        let window = 0.5 + 0.5 * cos(i as f64 / length as f64 * PI);
-        buffer.push(re(filter.filter_mono(input) * window));
+        //let window = 0.5 + 0.5 * cos(_i as f64 / length as f64 * PI);
+        //buffer.push(re(filter.filter_mono(input) * window));
+        buffer.push(re(filter.filter_mono(input)));
         input = 0.0;
     }
 
@@ -112,7 +113,7 @@ where
         /*
         println!(
             "{} Hz reported ({}, {}) actual ({}, {}) matches {}",
-            f,
+            f_i,
             reported.norm(),
             reported.arg(),
             response.norm(),
@@ -261,21 +262,25 @@ fn test_responses() {
 
     let mut net7 = Net64::new(1, 1);
     net7.chain(Box::new(highpass_hz(1000.0, 1.0)));
-    test_response(Net64::enclose(Box::new(timer(0))) | net7);
+    test_response(Net64::wrap(Box::new(timer(0))) | net7);
 
     let mut net8 = Net64::new(1, 1);
     net8.chain(Box::new(highpole_hz(1500.0)));
-    test_response(Net64::enclose(Box::new(zero())) + net8);
+    test_response(Net64::wrap(Box::new(zero())) + net8);
 
     let mut net9 = Net64::new(1, 1);
     net9.chain(Box::new(highpole_hz(2000.0)));
-    test_response(Net64::enclose(Box::new(dc(0.0))) - net9);
+    test_response(Net64::wrap(Box::new(dc(0.0))) - net9);
 
     let mut neta = Net64::new(1, 1);
     neta.chain(Box::new(notch_hz(2500.0, 2.0)));
-    test_response(Net64::enclose(Box::new(dc(1.0))) * neta);
+    test_response(Net64::wrap(Box::new(dc(1.0))) * neta);
 
     let mut netb = Net64::new(1, 1);
     netb.chain(Box::new(notch_hz(2500.0, 1.0)));
-    test_response(netb >> lowpass_hz(1500.0, 1.0));
+    test_response(netb * 2.0 >> lowpass_hz(1500.0, 1.0));
+
+    let mut netc = Net64::new(1, 1);
+    netc.chain(Box::new(highpass_hz(5500.0, 1.0)));
+    test_response(netc >> highpass_hz(2500.0, 1.0) + 1.0);
 }

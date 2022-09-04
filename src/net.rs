@@ -379,7 +379,6 @@ impl Net48 {
         let mut all_edges: Vec<Edge> = Vec::new();
         for vertex in self.vertex.iter() {
             for edge in &vertex.source {
-                dbg!(edge);
                 all_edges.push(*edge);
             }
         }
@@ -460,7 +459,7 @@ impl Net48 {
     }
 
     /// Wrap arbitrary unit in a network.
-    pub fn enclose(unit: Box<dyn AudioUnit48>) -> Net48 {
+    pub fn wrap(unit: Box<dyn AudioUnit48>) -> Net48 {
         let mut net = Net48::new(unit.inputs(), unit.outputs());
         let id = net.push(unit);
         if net.inputs() > 0 {
@@ -468,6 +467,16 @@ impl Net48 {
         }
         if net.outputs() > 0 {
             net.pipe_output(id);
+        }
+        net
+    }
+
+    /// Create a network that outputs a scalar.
+    pub fn scalar(channels: usize, scalar: f48) -> Net48 {
+        let mut net = Net48::new(0, channels);
+        let id = net.push(Box::new(super::prelude::dc(scalar)));
+        for i in 0..channels {
+            net.connect_output(id, 0, i);
         }
         net
     }
@@ -787,6 +796,7 @@ impl Net48 {
         assert!(net1.outputs() == net2.outputs());
         let output1 = net1.output_edge.clone();
         let output2 = net2.output_edge.clone();
+        let input_offset = net1.inputs();
         let inputs = net1.inputs() + net2.inputs();
         let offset = net1.vertex.len();
         net1.vertex.append(&mut net2.vertex);
@@ -802,8 +812,10 @@ impl Net48 {
                         );
                     }
                     Port::Global(source_port) => {
-                        net1.vertex[node].source[port] =
-                            edge(Port::Global(source_port), Port::Local(node, port));
+                        net1.vertex[node].source[port] = edge(
+                            Port::Global(source_port + input_offset),
+                            Port::Local(node, port),
+                        );
                     }
                     Port::Zero => {
                         net1.vertex[node].source[port] = edge(Port::Zero, Port::Local(node, port));
@@ -837,7 +849,7 @@ impl Net48 {
                     net1.connect(source_node + offset, source_port, add_offset + i, 1);
                 }
                 Port::Global(source_port) => {
-                    net1.connect_input(source_port, add_offset + i, 1);
+                    net1.connect_input(source_port + input_offset, add_offset + i, 1);
                 }
                 _ => (),
             }
@@ -979,6 +991,21 @@ impl std::ops::Not for Net48 {
     [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
     [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
 )]
+impl std::ops::Neg for Net48 {
+    type Output = Net48;
+    #[inline]
+    fn neg(self) -> Self::Output {
+        // TODO. Optimize this.
+        let n = self.outputs();
+        Net48::scalar(n, f48::zero()) - self
+    }
+}
+
+#[duplicate_item(
+    f48       Net48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
+)]
 impl std::ops::Shr<Net48> for Net48 {
     type Output = Net48;
     #[inline]
@@ -999,7 +1026,7 @@ where
     type Output = Net48;
     #[inline]
     fn shr(self, y: An<X>) -> Self::Output {
-        Net48::pipe_op(self, Net48::enclose(Box::new(y)))
+        Net48::pipe_op(self, Net48::wrap(Box::new(y)))
     }
 }
 
@@ -1015,7 +1042,7 @@ where
     type Output = Net48;
     #[inline]
     fn shr(self, y: Net48) -> Self::Output {
-        Net48::pipe_op(Net48::enclose(Box::new(self)), y)
+        Net48::pipe_op(Net48::wrap(Box::new(self)), y)
     }
 }
 
@@ -1044,7 +1071,7 @@ where
     type Output = Net48;
     #[inline]
     fn bitand(self, y: An<X>) -> Self::Output {
-        Net48::bus_op(self, Net48::enclose(Box::new(y)))
+        Net48::bus_op(self, Net48::wrap(Box::new(y)))
     }
 }
 
@@ -1060,7 +1087,7 @@ where
     type Output = Net48;
     #[inline]
     fn bitand(self, y: Net48) -> Self::Output {
-        Net48::bus_op(Net48::enclose(Box::new(self)), y)
+        Net48::bus_op(Net48::wrap(Box::new(self)), y)
     }
 }
 
@@ -1089,7 +1116,7 @@ where
     type Output = Net48;
     #[inline]
     fn bitor(self, y: An<X>) -> Self::Output {
-        Net48::stack_op(self, Net48::enclose(Box::new(y)))
+        Net48::stack_op(self, Net48::wrap(Box::new(y)))
     }
 }
 
@@ -1105,7 +1132,7 @@ where
     type Output = Net48;
     #[inline]
     fn bitor(self, y: Net48) -> Self::Output {
-        Net48::stack_op(Net48::enclose(Box::new(self)), y)
+        Net48::stack_op(Net48::wrap(Box::new(self)), y)
     }
 }
 
@@ -1134,7 +1161,7 @@ where
     type Output = Net48;
     #[inline]
     fn bitxor(self, y: An<X>) -> Self::Output {
-        Net48::branch_op(self, Net48::enclose(Box::new(y)))
+        Net48::branch_op(self, Net48::wrap(Box::new(y)))
     }
 }
 
@@ -1150,7 +1177,7 @@ where
     type Output = Net48;
     #[inline]
     fn bitxor(self, y: Net48) -> Self::Output {
-        Net48::branch_op(Net48::enclose(Box::new(self)), y)
+        Net48::branch_op(Net48::wrap(Box::new(self)), y)
     }
 }
 
@@ -1179,7 +1206,7 @@ where
     type Output = Net48;
     #[inline]
     fn add(self, y: An<X>) -> Self::Output {
-        Net48::bin_op(self, Net48::enclose(Box::new(y)), FrameAdd::new())
+        Net48::bin_op(self, Net48::wrap(Box::new(y)), FrameAdd::new())
     }
 }
 
@@ -1195,7 +1222,7 @@ where
     type Output = Net48;
     #[inline]
     fn add(self, y: Net48) -> Self::Output {
-        Net48::bin_op(Net48::enclose(Box::new(self)), y, FrameAdd::new())
+        Net48::bin_op(Net48::wrap(Box::new(self)), y, FrameAdd::new())
     }
 }
 
@@ -1224,7 +1251,7 @@ where
     type Output = Net48;
     #[inline]
     fn sub(self, y: An<X>) -> Self::Output {
-        Net48::bin_op(self, Net48::enclose(Box::new(y)), FrameSub::new())
+        Net48::bin_op(self, Net48::wrap(Box::new(y)), FrameSub::new())
     }
 }
 
@@ -1240,7 +1267,7 @@ where
     type Output = Net48;
     #[inline]
     fn sub(self, y: Net48) -> Self::Output {
-        Net48::bin_op(Net48::enclose(Box::new(self)), y, FrameSub::new())
+        Net48::bin_op(Net48::wrap(Box::new(self)), y, FrameSub::new())
     }
 }
 
@@ -1269,7 +1296,7 @@ where
     type Output = Net48;
     #[inline]
     fn mul(self, y: An<X>) -> Self::Output {
-        Net48::bin_op(self, Net48::enclose(Box::new(y)), FrameMul::new())
+        Net48::bin_op(self, Net48::wrap(Box::new(y)), FrameMul::new())
     }
 }
 
@@ -1285,6 +1312,90 @@ where
     type Output = Net48;
     #[inline]
     fn mul(self, y: Net48) -> Self::Output {
-        Net48::bin_op(Net48::enclose(Box::new(self)), y, FrameMul::new())
+        Net48::bin_op(Net48::wrap(Box::new(self)), y, FrameMul::new())
+    }
+}
+
+#[duplicate_item(
+    f48       Net48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
+)]
+impl std::ops::Add<f48> for Net48 {
+    type Output = Net48;
+    #[inline]
+    fn add(self, y: f48) -> Self::Output {
+        let n = self.outputs();
+        self + Net48::scalar(n, y)
+    }
+}
+
+#[duplicate_item(
+    f48       Net48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
+)]
+impl std::ops::Add<Net48> for f48 {
+    type Output = Net48;
+    #[inline]
+    fn add(self, y: Net48) -> Self::Output {
+        let n = y.outputs();
+        Net48::scalar(n, self) + y
+    }
+}
+
+#[duplicate_item(
+    f48       Net48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
+)]
+impl std::ops::Sub<f48> for Net48 {
+    type Output = Net48;
+    #[inline]
+    fn sub(self, y: f48) -> Self::Output {
+        let n = self.outputs();
+        self - Net48::scalar(n, y)
+    }
+}
+
+#[duplicate_item(
+    f48       Net48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
+)]
+impl std::ops::Sub<Net48> for f48 {
+    type Output = Net48;
+    #[inline]
+    fn sub(self, y: Net48) -> Self::Output {
+        let n = y.outputs();
+        Net48::scalar(n, self) - y
+    }
+}
+
+#[duplicate_item(
+    f48       Net48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
+)]
+impl std::ops::Mul<f48> for Net48 {
+    type Output = Net48;
+    #[inline]
+    fn mul(self, y: f48) -> Self::Output {
+        let n = self.outputs();
+        self * Net48::scalar(n, y)
+    }
+}
+
+#[duplicate_item(
+    f48       Net48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
+)]
+impl std::ops::Mul<Net48> for f48 {
+    type Output = Net48;
+    #[inline]
+    fn mul(self, y: Net48) -> Self::Output {
+        let n = y.outputs();
+        Net48::scalar(n, self) * y
     }
 }
