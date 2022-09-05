@@ -378,7 +378,8 @@ impl Net48 {
         }
         let mut order = Vec::new();
         if !self.determine_order_in(&mut order) {
-            self.error_msg.push(String::from("Cycle detected."));
+            panic!("Cycle detected");
+            //self.error_msg.push(String::from("Cycle detected."));
         }
         self.order = Some(order.clone());
         if let Ok(mut lock) = self.order_cache.lock() {
@@ -386,7 +387,8 @@ impl Net48 {
         }
     }
 
-    /// Determine node order in the supplied vector.
+    /// Determine node order in the supplied vector. Returns true if successful, false
+    /// if a cycle was detected.
     fn determine_order_in(&self, order: &mut Vec<NodeIndex>) -> bool {
         let mut vertices_left = self.vertex.len();
         let mut vertex_left = vec![true; self.vertex.len()];
@@ -706,6 +708,14 @@ impl Net48 {
     /// Given nets A and B, create and return net A ^ B.
     pub fn branch_op(mut net1: Net48, mut net2: Net48) -> Net48 {
         if net1.inputs() != net2.inputs() {
+            panic!(
+                "Branch: mismatched inputs ({} versus {}).",
+                net1.inputs(),
+                net2.inputs()
+            );
+        }
+        /*
+        if net1.inputs() != net2.inputs() {
             let mut error_net = Net48::new(net1.inputs(), net1.outputs() + net2.outputs());
             error_net.error_msg.append(&mut net1.error_msg);
             error_net.error_msg.append(&mut net2.error_msg);
@@ -716,6 +726,7 @@ impl Net48 {
             ));
             return error_net;
         }
+        */
         let offset = net1.vertex.len();
         let output_offset = net1.outputs();
         let outputs = net1.outputs() + net2.outputs();
@@ -822,15 +833,22 @@ impl Net48 {
         op: B,
     ) -> Net48 {
         if net1.outputs() != net2.outputs() {
-            let mut error_net = Net48::new(net1.inputs() + net2.inputs(), net1.outputs());
-            error_net.error_msg.append(&mut net1.error_msg);
-            error_net.error_msg.append(&mut net2.error_msg);
-            error_net.error_msg.push(format!(
+            panic!(
                 "Binary operation: mismatched outputs ({} versus {}).",
                 net1.outputs(),
                 net2.outputs()
-            ));
-            return error_net;
+            );
+            /*
+                let mut error_net = Net48::new(net1.inputs() + net2.inputs(), net1.outputs());
+                error_net.error_msg.append(&mut net1.error_msg);
+                error_net.error_msg.append(&mut net2.error_msg);
+                error_net.error_msg.push(format!(
+                    "Binary operation: mismatched outputs ({} versus {}).",
+                    net1.outputs(),
+                    net2.outputs()
+                ));
+                return error_net;
+            */
         }
         let output1 = net1.output_edge.clone();
         let output2 = net2.output_edge.clone();
@@ -898,6 +916,21 @@ impl Net48 {
 
     /// Given nets A and B, create and return net A & B.
     pub fn bus_op(mut net1: Net48, mut net2: Net48) -> Net48 {
+        if net1.inputs() != net2.inputs() {
+            panic!(
+                "Bus: mismatched inputs ({} versus {}).",
+                net1.outputs(),
+                net2.outputs()
+            );
+        }
+        if net1.outputs() != net2.outputs() {
+            panic!(
+                "Bus: mismatched outputs ({} versus {}).",
+                net1.outputs(),
+                net2.outputs()
+            );
+        }
+        /*
         if net1.inputs() != net2.inputs() || net1.outputs() != net2.outputs() {
             let mut error_net = Net48::new(net1.inputs(), net1.outputs());
             error_net.error_msg.append(&mut net1.error_msg);
@@ -918,6 +951,7 @@ impl Net48 {
             }
             return error_net;
         }
+        */
         let output1 = net1.output_edge.clone();
         let output2 = net2.output_edge.clone();
         let offset = net1.vertex.len();
@@ -980,6 +1014,14 @@ impl Net48 {
     /// Given nets A and B, create and return net A >> B.
     pub fn pipe_op(mut net1: Net48, mut net2: Net48) -> Net48 {
         if net1.outputs() != net2.inputs() {
+            panic!(
+                "Pipe: mismatched connectivity ({} outputs versus {} inputs).",
+                net1.outputs(),
+                net2.inputs()
+            );
+        }
+        /*
+        if net1.outputs() != net2.inputs() {
             let mut error_net = Net48::new(net1.inputs(), net2.outputs());
             error_net.error_msg.append(&mut net1.error_msg);
             error_net.error_msg.append(&mut net2.error_msg);
@@ -990,6 +1032,7 @@ impl Net48 {
             ));
             return error_net;
         }
+        */
         let offset = net1.vertex.len();
         net1.vertex.append(&mut net2.vertex);
         // Adjust local ports.
