@@ -3,7 +3,7 @@ name = "fundsp"
 description = "Audio processing and synthesis library."
 keywords = ["dsp", "audio"]
 license = "MIT OR Apache-2.0"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
 homepage = "https://github.com/SamiPerttu/fundsp"
 repository = "https://github.com/SamiPerttu/fundsp"
@@ -21,9 +21,9 @@ rsor = "0.1.3"
 duplicate = "0.4.1"
 
 [dev-dependencies]
-cpal = "0.13.5"
-anyhow = "1.0.61"
-plotters = "0.3.2"
+cpal = "0.14.0"
+anyhow = "1.0.62"
+plotters = "0.3.3"
 criterion = "0.3.6"
 
 [[bench]]
