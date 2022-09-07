@@ -132,6 +132,7 @@ pub fn copy_signal_frame(source: &SignalFrame, i: usize, n: usize) -> SignalFram
 
 /// Signal routing information. This is a dumping ground for signal routing
 /// functionality.
+#[derive(Clone)]
 pub enum Routing {
     /// Conservative routing: every input influences every output nonlinearly.
     Arbitrary,

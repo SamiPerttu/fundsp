@@ -12,7 +12,7 @@ use std::marker::PhantomData;
 /// Sine oscillator.
 /// - Input 0: frequency in Hz.
 /// - Output 0: sine wave.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Sine<T: Real> {
     phase: T,
     sample_duration: T,
@@ -105,6 +105,7 @@ fn dsf<T: Real>(f: T, d: T, r: T, n: T) -> T {
 /// - Input 0: frequency in Hz.
 /// - Input 1 (optional): roughness in 0...1 is the attenuation of successive partials.
 /// - Output 0: DSF wave.
+#[derive(Clone)]
 pub struct Dsf<T: Real, N: Size<T>> {
     phase: T,
     roughness: T,
@@ -188,6 +189,7 @@ impl<T: Real, N: Size<T>> AudioNode for Dsf<T, N> {
 /// Karplus-Strong oscillator.
 /// - Input 0: string excitation.
 /// - Output 0: plucked string.
+#[derive(Clone)]
 pub struct Pluck<T: Float> {
     damping: Fir<T, typenum::U3>,
     tuning: Allpole<T, T, typenum::U1>,

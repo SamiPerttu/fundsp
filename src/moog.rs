@@ -12,7 +12,7 @@ use numeric_array::*;
 /// - Input 1 (optional): cutoff frequency (Hz)
 /// - Input 2 (optional): Q
 /// - Output 0: filtered signal
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Moog<T: Float, F: Real, N: Size<T>> {
     _marker: std::marker::PhantomData<(T, N)>,
     q: F,

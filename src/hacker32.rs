@@ -240,7 +240,7 @@ pub fn multizero<N: Size<f32>>() -> An<Constant<N, f32>> {
 /// with approximately `dt` seconds between updates.
 /// The update function is `f(t, dt, x)` where `t` is current time,
 /// `dt` is time from previous update, and `x` is the enclosed node.
-pub fn system<X: AudioNode, F: FnMut(f32, f32, &mut X)>(
+pub fn system<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone>(
     x: An<X>,
     dt: f32,
     f: F,
@@ -608,7 +608,7 @@ pub fn morph_hz(
 #[inline]
 pub fn envelope<E, R>(f: E) -> An<Envelope<f32, f32, E, R>>
 where
-    E: Fn(f32) -> R,
+    E: Fn(f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -628,7 +628,7 @@ where
 #[inline]
 pub fn lfo<E, R>(f: E) -> An<Envelope<f32, f32, E, R>>
 where
-    E: Fn(f32) -> R,
+    E: Fn(f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -643,7 +643,7 @@ where
 #[inline]
 pub fn envelope2<E, R>(f: E) -> An<Envelope2<f32, f32, E, R>>
 where
-    E: Fn(f32, f32) -> R,
+    E: Fn(f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -658,7 +658,7 @@ where
 #[inline]
 pub fn lfo2<E, R>(f: E) -> An<Envelope2<f32, f32, E, R>>
 where
-    E: Fn(f32, f32) -> R,
+    E: Fn(f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -674,7 +674,7 @@ where
 #[inline]
 pub fn envelope3<E, R>(f: E) -> An<Envelope3<f32, f32, E, R>>
 where
-    E: Fn(f32, f32, f32) -> R,
+    E: Fn(f32, f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -690,7 +690,7 @@ where
 #[inline]
 pub fn lfo3<E, R>(f: E) -> An<Envelope3<f32, f32, E, R>>
 where
-    E: Fn(f32, f32, f32) -> R,
+    E: Fn(f32, f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -926,7 +926,7 @@ where
 #[inline]
 pub fn map<M, I, O>(f: M) -> An<Map<f32, M, I, O>>
 where
-    M: Fn(&Frame<f32, I>) -> O,
+    M: Fn(&Frame<f32, I>) -> O + Clone,
     I: Size<f32>,
     O: ConstantFrame<Sample = f32>,
     O::Size: Size<f32>,
@@ -984,7 +984,7 @@ pub fn declick_s(t: f32) -> An<Declick<f32, f32>> {
 /// - Input 0: input signal
 /// - Output 0: shaped signal
 #[inline]
-pub fn shape_fn<S: Fn(f32) -> f32>(f: S) -> An<ShaperFn<f32, S>> {
+pub fn shape_fn<S: Fn(f32) -> f32 + Clone>(f: S) -> An<ShaperFn<f32, S>> {
     super::prelude::shape_fn(f)
 }
 
@@ -1794,7 +1794,7 @@ pub fn flanger(
     feedback_amount: f32,
     minimum_delay: f32,
     maximum_delay: f32,
-    delay_f: impl Fn(f32) -> f32,
+    delay_f: impl Fn(f32) -> f32 + Clone,
 ) -> An<impl AudioNode<Sample = f32, Inputs = U1, Outputs = U1>> {
     super::prelude::flanger::<f32, _>(feedback_amount, minimum_delay, maximum_delay, delay_f)
 }
@@ -1810,7 +1810,7 @@ pub fn flanger(
 /// use fundsp::hacker32::*;
 /// saw_hz(110.0) >> phaser(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5);
 /// ```
-pub fn phaser<X: Fn(f32) -> f32>(
+pub fn phaser<X: Fn(f32) -> f32 + Clone>(
     feedback_amount: f32,
     phase_f: X,
 ) -> An<impl AudioNode<Sample = f32, Inputs = U1, Outputs = U1>> {

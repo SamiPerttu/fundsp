@@ -68,7 +68,7 @@ impl<F: Real> BiquadCoefs<F> {
 }
 
 /// 2nd order IIR filter implemented in normalized Direct Form I.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Biquad<T, F> {
     _marker: std::marker::PhantomData<T>,
     coefs: BiquadCoefs<F>,
@@ -152,6 +152,7 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
 /// - Input 0: input signal
 /// - Input 1 (optional): cutoff frequency (Hz)
 /// - Output 0: filtered signal
+#[derive(Clone)]
 pub struct ButterLowpass<T: Float, F: Real, N: Size<T>> {
     _marker: std::marker::PhantomData<N>,
     biquad: Biquad<T, F>,
@@ -225,6 +226,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
 /// - Input 1 (optional): filter center frequency (peak) (Hz)
 /// - Input 2 (optional): filter bandwidth (distance) between -3 dB points (Hz)
 /// - Output 0: filtered signal
+#[derive(Clone)]
 pub struct Resonator<T: Float, F: Real, N: Size<T>> {
     _marker: std::marker::PhantomData<N>,
     biquad: Biquad<T, F>,
@@ -303,7 +305,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
 /// - Input 0: input signal
 /// - Input 1 (optional): cutoff frequency (Hz)
 /// - Output 0: filtered signal
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Lowpole<T: Float, F: Real, N: Size<T>> {
     _marker: std::marker::PhantomData<(T, N)>,
     value: F,
@@ -375,7 +377,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
 /// DC blocking filter.
 /// - Input 0: input signal
 /// - Output 0: zero centered signal
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DCBlock<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
     x1: F,
@@ -452,7 +454,7 @@ fn halfway_coeff(samples: f64) -> f64 {
 /// Smoothing filter with adjustable edge response time.
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Follow<T: Float, F: Real> {
     v3: F,
     v2: F,
@@ -545,7 +547,7 @@ impl<T: Float, F: Real> AudioNode for Follow<T, F> {
 /// Smoothing filter with adjustable edge response times for attack and release.
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct AFollow<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
     v3: F,
     v2: F,
@@ -659,7 +661,7 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F,
 /// Pinking filter (3 dB/octave lowpass).
 /// - Input 0: input signal
 /// - Output 0: filtered signal
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Pinkpass<T: Float, F: Float> {
     // Algorithm by Paul Kellett. +-0.05 dB accuracy above 9.2 Hz @ 44.1 kHz.
     b0: F,
@@ -748,7 +750,7 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
 /// - Input 0: input signal
 /// - Input 1 (optional): delay in samples (delay > 0)
 /// - Output 0: filtered signal
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Allpole<T: Float, F: Float, N: Size<T>> {
     _marker: std::marker::PhantomData<(T, N)>,
     eta: F,
@@ -823,7 +825,7 @@ impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
 /// - Input 0: input signal
 /// - Input 1 (optional): cutoff frequency (Hz)
 /// - Output 0: filtered signal
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Highpole<T: Float, F: Real, N: Size<T>> {
     _marker: std::marker::PhantomData<(T, N)>,
     x1: F,

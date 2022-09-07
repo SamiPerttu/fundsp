@@ -8,6 +8,7 @@ use numeric_array::typenum::*;
 use std::marker::PhantomData;
 
 /// Waveshaper from a closure.
+#[derive(Clone)]
 pub struct ShaperFn<T, S> {
     f: S,
     _marker: PhantomData<T>,
@@ -16,7 +17,7 @@ pub struct ShaperFn<T, S> {
 impl<T, S> ShaperFn<T, S>
 where
     T: Float,
-    S: Fn(T) -> T,
+    S: Fn(T) -> T + Clone,
 {
     pub fn new(f: S) -> Self {
         Self {
@@ -29,7 +30,7 @@ where
 impl<T, S> AudioNode for ShaperFn<T, S>
 where
     T: Float,
-    S: Fn(T) -> T,
+    S: Fn(T) -> T + Clone,
 {
     const ID: u64 = 37;
     type Sample = T;
@@ -64,6 +65,7 @@ where
 }
 
 /// Waveshaping modes.
+#[derive(Clone)]
 pub enum Shape<T: Real> {
     /// Clip signal to -1...1.
     Clip,
@@ -82,6 +84,7 @@ pub enum Shape<T: Real> {
 }
 
 /// Waveshaper with various shaping modes.
+#[derive(Clone)]
 pub struct Shaper<T: Real> {
     shape: Shape<T>,
     _marker: PhantomData<T>,

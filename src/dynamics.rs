@@ -107,6 +107,7 @@ where
 }
 
 /// Look-ahead limiter.
+#[derive(Clone)]
 pub struct Limiter<T, N, S>
 where
     T: Real,
@@ -233,7 +234,7 @@ where
 /// After fade-in, pass signal through.
 /// - Input 0: input signal
 /// - Output 0: filtered signal
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Declick<T: Float, F: Real> {
     _marker: std::marker::PhantomData<T>,
     t: F,
@@ -330,6 +331,7 @@ impl Meter {
     }
 }
 
+#[derive(Clone)]
 pub struct MeterState<T: Real> {
     state: T,
 }
@@ -370,6 +372,7 @@ impl<T: Real> MeterState<T> {
 /// Meters the input and outputs a summary according to the chosen metering mode.
 /// - Input 0: input signal
 /// - Output 0: input summary
+#[derive(Clone)]
 pub struct MeterNode<T: Real> {
     meter: Meter,
     state: MeterState<T>,
@@ -430,6 +433,7 @@ impl<T: Real> AudioNode for MeterNode<T> {
 
 /// Pass through input unchanged.
 /// Summary of the input signal can be queried as a read-only parameter.
+#[derive(Clone)]
 pub struct Monitor<T: Real> {
     tag: Tag,
     meter: Meter,

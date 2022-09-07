@@ -306,12 +306,15 @@ fn test_responses() {
 
     let mut nete = Net64::new(1, 1);
     nete.chain(Box::new(notch_hz(5000.0, 1.0)));
-    test_response((nete ^ peak_hz(3000.0, 1.0)) >> (Net64::wrap(Box::new(pass())) + pass()));
+    test_response(
+        (nete.clone() ^ peak_hz(3000.0, 1.0)) >> (Net64::wrap(Box::new(pass())) + pass()),
+    );
 
     let mut netf = Net64::new(1, 1);
     netf.chain(Box::new(notch_hz(2000.0, 1.0)));
     test_response(
-        (netf ^ pass() ^ peak_hz(1000.0, 1.0)) >> (Net64::wrap(Box::new(pass())) + pass() + pass()),
+        (netf.clone() ^ pass() ^ peak_hz(1000.0, 1.0))
+            >> (Net64::wrap(Box::new(pass())) + pass() + pass()),
     );
 
     let mut netg = Net64::new(1, 1);

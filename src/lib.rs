@@ -239,7 +239,6 @@ impl_real! { f32, f64 }
 pub mod audionode;
 pub mod audiounit;
 pub mod buffer;
-pub mod callback;
 pub mod combinator;
 pub mod delay;
 pub mod dynamics;

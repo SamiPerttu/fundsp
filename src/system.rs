@@ -10,7 +10,8 @@ use std::marker::PhantomData;
 /// A dynamical system is a node that has an attached update function
 /// `f(t, dt, x)` where `t` is current time, `dt` is time elapsed since
 /// the previous update, and `x` is the enclosed node.
-pub struct System<T: Float, X: AudioNode, F: FnMut(T, T, &mut X)> {
+#[derive(Clone)]
+pub struct System<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone> {
     x: X,
     f: F,
     time: T,
@@ -20,7 +21,7 @@ pub struct System<T: Float, X: AudioNode, F: FnMut(T, T, &mut X)> {
     _marker: PhantomData<T>,
 }
 
-impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X)> System<T, X, F> {
+impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone> System<T, X, F> {
     /// Create a new dynamical system.
     /// `dt` is the approximate target time between updates.
     pub fn new(x: An<X>, dt: T, f: F) -> Self {
@@ -39,7 +40,7 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X)> System<T, X, F> {
     }
 }
 
-impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X)> AudioNode for System<T, X, F> {
+impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone> AudioNode for System<T, X, F> {
     const ID: u64 = 67;
     type Sample = X::Sample;
     type Inputs = X::Inputs;

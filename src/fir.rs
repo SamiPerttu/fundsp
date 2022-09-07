@@ -19,6 +19,7 @@ pub fn fir3<T: Float>(gain_at_nyquist: T) -> Fir<T, U3> {
 /// FIR filter.
 /// - Input 0: input signal
 /// - Output 0: filtered signal
+#[derive(Clone)]
 pub struct Fir<T: Float, N: Size<T>> {
     w: Frame<T, N>,
     v: Frame<T, N>,

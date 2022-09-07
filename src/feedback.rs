@@ -7,7 +7,7 @@ use super::*;
 use std::marker::PhantomData;
 
 /// Diffusive Hadamard feedback matrix.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FrameHadamard<N: Size<T>, T: Float> {
     _marker: PhantomData<(N, T)>,
 }
@@ -76,6 +76,7 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameHadamard<N, T> {
 
 /// Mix back output of contained node to its input.
 /// The contained node must have an equal number of inputs and outputs.
+#[derive(Clone)]
 pub struct Feedback<N, T, X, U>
 where
     N: Size<T>,
@@ -162,6 +163,7 @@ where
 
 /// Mix back output of contained node `X` to its input, with extra feedback processing `Y`.
 /// The contained nodes must have an equal number of inputs and outputs.
+#[derive(Clone)]
 pub struct Feedback2<N, T, X, Y, U>
 where
     N: Size<T>,

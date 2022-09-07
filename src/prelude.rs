@@ -240,7 +240,7 @@ pub fn multizero<N: Size<T>, T: Float>() -> An<Constant<N, T>> {
 /// with approximately `dt` seconds between updates.
 /// The update function is `f(t, dt, x)` where `t` is current time,
 /// `dt` is time from previous update, and `x` is the enclosed node.
-pub fn system<T: Float, X: AudioNode, F: FnMut(T, T, &mut X)>(
+pub fn system<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone>(
     x: An<X>,
     dt: T,
     f: F,
@@ -621,7 +621,7 @@ pub fn envelope<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R,
+    E: Fn(F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -648,7 +648,7 @@ pub fn lfo<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R,
+    E: Fn(F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -666,7 +666,7 @@ pub fn envelope2<T, F, E, R>(f: E) -> An<Envelope2<T, F, E, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F, F) -> R,
+    E: Fn(F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -688,7 +688,7 @@ pub fn lfo2<T, F, E, R>(f: E) -> An<Envelope2<T, F, E, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F, F) -> R,
+    E: Fn(F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -707,7 +707,7 @@ pub fn envelope3<T, F, E, R>(f: E) -> An<Envelope3<T, F, E, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F, F, F) -> R,
+    E: Fn(F, F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -728,7 +728,7 @@ pub fn lfo3<T, F, E, R>(f: E) -> An<Envelope3<T, F, E, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F, F, F) -> R,
+    E: Fn(F, F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -970,7 +970,7 @@ where
 pub fn map<T, M, I, O>(f: M) -> An<Map<T, M, I, O>>
 where
     T: Float,
-    M: Fn(&Frame<T, I>) -> O,
+    M: Fn(&Frame<T, I>) -> O + Clone,
     I: Size<T>,
     O: ConstantFrame<Sample = T>,
     O::Size: Size<T>,
@@ -1028,7 +1028,7 @@ pub fn declick_s<T: Float, F: Real>(t: F) -> An<Declick<T, F>> {
 /// - Input 0: input signal
 /// - Output 0: shaped signal
 #[inline]
-pub fn shape_fn<T: Float, S: Fn(T) -> T>(f: S) -> An<ShaperFn<T, S>> {
+pub fn shape_fn<T: Float, S: Fn(T) -> T + Clone>(f: S) -> An<ShaperFn<T, S>> {
     An(ShaperFn::new(f))
 }
 
@@ -2082,6 +2082,7 @@ pub fn highshelf_q<T: Float, F: Real>(
 /// - Input 0: frequency in Hz
 /// - Input 1: pulse duty cycle in 0...1
 /// - Output 0: pulse wave
+#[derive(Clone)]
 pub struct PulseWave<T: Float> {
     pulse: An<
         Pipe<
@@ -2160,6 +2161,7 @@ pub fn pulse<T: Float>() -> An<PulseWave<T>> {
 /// - Input 2: Q
 /// - Input 3: morph in -1...1 (-1 = lowpass, 0 = peak, 1 = highpass)
 /// - Output 0: filtered signal
+#[derive(Clone)]
 pub struct Morph<T: Float, F: Real> {
     filter: Svf<T, F, PeakMode<F>>,
     morph: T,
@@ -2343,7 +2345,7 @@ pub fn chorus<T: Real>(
 /// use fundsp::prelude::*;
 /// saw_hz(110.0) >> flanger::<f32, _>(0.5, 0.005, 0.010, |t| lerp11(0.005, 0.010, sin_hz(0.1, t)));
 /// ```
-pub fn flanger<T: Real, X: Fn(T) -> T>(
+pub fn flanger<T: Real, X: Fn(T) -> T + Clone>(
     feedback_amount: T,
     minimum_delay: T,
     maximum_delay: T,
@@ -2367,7 +2369,7 @@ pub fn flanger<T: Real, X: Fn(T) -> T>(
 /// use fundsp::prelude::*;
 /// saw_hz(110.0) >> phaser::<f64, _>(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5);
 /// ```
-pub fn phaser<T: Real, X: Fn(T) -> T>(
+pub fn phaser<T: Real, X: Fn(T) -> T + Clone>(
     feedback_amount: T,
     phase_f: X,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {

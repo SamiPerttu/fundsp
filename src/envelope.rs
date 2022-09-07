@@ -9,12 +9,12 @@ use numeric_array::*;
 /// Sample a time varying function.
 /// The return type can be scalar or tuple.
 /// It determines the number of output channels.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R,
+    E: Fn(F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -49,7 +49,7 @@ impl<T, F, E, R> Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R,
+    E: Fn(F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -101,7 +101,7 @@ impl<T, F, E, R> AudioNode for Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R,
+    E: Fn(F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -178,12 +178,12 @@ where
 /// Sample a time varying, input dependent function.
 /// The return type can be scalar or tuple.
 /// It determines the number of output channels.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Envelope2<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F, F) -> R,
+    E: Fn(F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -218,7 +218,7 @@ impl<T, F, E, R> Envelope2<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F, F) -> R,
+    E: Fn(F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -276,7 +276,7 @@ impl<T, F, E, R> AudioNode for Envelope2<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F, F) -> R,
+    E: Fn(F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -350,12 +350,12 @@ where
 /// Sample a time varying, input dependent function.
 /// The return type can be scalar or tuple.
 /// It determines the number of output channels.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Envelope3<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F, F, F) -> R,
+    E: Fn(F, F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -390,7 +390,7 @@ impl<T, F, E, R> Envelope3<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F, F, F) -> R,
+    E: Fn(F, F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -448,7 +448,7 @@ impl<T, F, E, R> AudioNode for Envelope3<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F, F, F) -> R,
+    E: Fn(F, F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,

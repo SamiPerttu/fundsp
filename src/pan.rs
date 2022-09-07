@@ -19,6 +19,7 @@ fn pan_weights<T: Real>(value: T) -> (T, T) {
 /// Input 1 (optional): pan value in -1...1
 /// Output 0: left output
 /// Output 1: right output
+#[derive(Clone)]
 pub struct Panner<T: Real, N: Size<T>> {
     _marker: PhantomData<(T, N)>,
     left_weight: T,

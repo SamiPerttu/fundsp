@@ -2,7 +2,6 @@
 
 use super::audiounit::*;
 use super::buffer::*;
-use super::callback::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
@@ -19,6 +18,7 @@ const ID: u64 = 64;
     [ f64 ]   [ Event64 ]   [ AudioUnit64 ];
     [ f32 ]   [ Event32 ]   [ AudioUnit32 ];
 )]
+#[derive(Clone)]
 pub struct Event48 {
     pub unit: Box<dyn AudioUnit48>,
     pub start_time: f48,
@@ -172,6 +172,7 @@ fn fade_out48(
     [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Callback64 ];
     [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Callback32 ];
 )]
+#[derive(Clone)]
 pub struct Sequencer48 {
     // Unsorted.
     active: Vec<Event48>,
@@ -185,7 +186,6 @@ pub struct Sequencer48 {
     sample_duration: f48,
     buffer: Buffer<f48>,
     tick_buffer: Vec<f48>,
-    callback: Option<Callback48<Sequencer48>>,
 }
 
 #[duplicate_item(
@@ -207,19 +207,7 @@ impl Sequencer48 {
             sample_duration: 1.0 / sample_rate as f48,
             buffer: Buffer::new(),
             tick_buffer: vec![0.0; outputs],
-            callback: None,
         }
-    }
-
-    /// Set the update callback. The update callback arguments are
-    /// current time in seconds, time in seconds since the last update,
-    /// and the sequencer itself.
-    pub fn set_callback(
-        &mut self,
-        update_interval: f48,
-        callback: Box<dyn FnMut(f48, f48, &mut Sequencer48) + Send>,
-    ) {
-        self.callback = Some(Callback48::new(update_interval, callback));
     }
 
     /// Current time in seconds.
@@ -296,7 +284,6 @@ impl Sequencer48 {
 
     /// Jump in time. Events playing now will be adjusted to continue seamlessly.
     /// Events that start earlier than the new time are not replayed.
-    /// The next update callback will be issued at the new time.
     pub fn jump_to_time(&mut self, time: f48) {
         let time_difference = time - self.time;
         self.time = time;
@@ -321,9 +308,6 @@ impl Sequencer48 {
                 }
             }
         }
-        if let Some(cb) = &mut self.callback {
-            cb.set_time(time);
-        }
     }
 
     /// Move units that start before the end time to the ready heap.
@@ -342,12 +326,8 @@ impl Sequencer48 {
     }
 
     /// Indicate to callback handler that time is about to elapse.
-    fn elapse(&mut self, dt: f48) {
-        let mut tmp = self.callback.take();
-        if let Some(cb) = &mut tmp {
-            cb.update(dt, self);
-        }
-        self.callback = tmp.take();
+    fn elapse(&mut self, _dt: f48) {
+        // TODO. Not implemented.
     }
 }
 
@@ -382,9 +362,6 @@ impl AudioUnit48 for Sequencer48 {
             self.ready.push(active);
         }
         self.time = 0.0;
-        if let Some(cb) = &mut self.callback {
-            cb.reset();
-        }
     }
 
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {

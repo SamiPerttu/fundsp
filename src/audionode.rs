@@ -34,7 +34,7 @@ Order of type arguments in nodes:
 /// Generic audio processor.
 /// `AudioNode` has a static number of inputs (`AudioNode::Inputs`) and outputs (`AudioNode::Outputs`).
 /// `AudioNode` processes samples of type `AudioNode::Sample`, chosen statically.
-pub trait AudioNode {
+pub trait AudioNode: Clone {
     /// Unique ID for hashing.
     const ID: u64;
     /// Sample type for input and output.
@@ -227,7 +227,7 @@ pub trait AudioNode {
 }
 
 /// Pass through inputs unchanged.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MultiPass<N, T> {
     _marker: PhantomData<(N, T)>,
 }
@@ -267,7 +267,7 @@ impl<N: Size<T>, T: Float> AudioNode for MultiPass<N, T> {
 }
 
 /// Pass through input unchanged.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Pass<T> {
     _marker: PhantomData<T>,
 }
@@ -307,7 +307,7 @@ impl<T: Float> AudioNode for Pass<T> {
 }
 
 /// Present time as a parameter.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Timer<T> {
     _marker: PhantomData<T>,
     tag: Tag,
@@ -368,7 +368,7 @@ impl<T: Float> AudioNode for Timer<T> {
 }
 
 /// Discard inputs.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Sink<N, T> {
     _marker: PhantomData<(N, T)>,
 }
@@ -402,6 +402,7 @@ impl<N: Size<T>, T: Float> AudioNode for Sink<N, T> {
 }
 
 /// Output a constant value.
+#[derive(Clone)]
 pub struct Constant<N: Size<T>, T: Float> {
     output: Frame<T, N>,
 }
@@ -456,6 +457,7 @@ impl<N: Size<T>, T: Float> AudioNode for Constant<N, T> {
 }
 
 /// Output a tagged constant.
+#[derive(Clone)]
 pub struct Tagged<T: Float> {
     tag: Tag,
     value: T,
@@ -521,6 +523,7 @@ impl<T: Float> AudioNode for Tagged<T> {
 }
 
 /// Split input into `N` channels.
+#[derive(Clone)]
 pub struct Split<N, T> {
     _marker: PhantomData<(N, T)>,
 }
@@ -573,6 +576,7 @@ where
 }
 
 /// Split `M` inputs into `N` branches, with `M` * `N` outputs.
+#[derive(Clone)]
 pub struct MultiSplit<M, N, T> {
     _marker: PhantomData<(M, N, T)>,
 }
@@ -627,6 +631,7 @@ where
 }
 
 /// Join `N` channels into one by averaging. Inverse of `Split<N, T>`.
+#[derive(Clone)]
 pub struct Join<N, T> {
     _marker: PhantomData<(N, T)>,
 }
@@ -688,6 +693,7 @@ where
 
 /// Average `N` branches of `M` channels into one branch with `M` channels.
 /// The input has `M` * `N` channels. Inverse of `MultiSplit<M, N, T>`.
+#[derive(Clone)]
 pub struct MultiJoin<M, N, T> {
     _marker: PhantomData<(M, N, T)>,
 }
@@ -870,6 +876,7 @@ impl<N: Size<T>, T: Float> FrameBinop<N, T> for FrameMul<N, T> {
 /// Inputs are disjoint.
 /// Outputs are combined channelwise.
 /// The nodes must have the same number of outputs.
+#[derive(Clone)]
 pub struct Binop<T, B, X, Y>
 where
     T: Float,
@@ -1002,7 +1009,7 @@ where
 }
 
 /// Provides unary operator implementations to the `Unop` node.
-pub trait FrameUnop<N: Size<T>, T: Float> {
+pub trait FrameUnop<N: Size<T>, T: Float>: Clone {
     /// Do unary op channelwise.
     fn unop(&self, x: &Frame<T, N>) -> Frame<T, N>;
     /// Do unary op on signal.
@@ -1012,7 +1019,7 @@ pub trait FrameUnop<N: Size<T>, T: Float> {
 }
 
 /// Negation operator.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FrameNeg<N: Size<T>, T: Float> {
     _marker: PhantomData<(N, T)>,
 }
@@ -1044,7 +1051,7 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameNeg<N, T> {
 }
 
 /// Identity op.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FrameId<N: Size<T>, T: Float> {
     _marker: PhantomData<(N, T)>,
 }
@@ -1068,7 +1075,7 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameId<N, T> {
 }
 
 /// Add scalar op.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FrameAddScalar<N: Size<T>, T: Float> {
     scalar: T,
     _marker: PhantomData<N>,
@@ -1103,7 +1110,7 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameAddScalar<N, T> {
 }
 
 /// Multiply with scalar op.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FrameMulScalar<N: Size<T>, T: Float> {
     scalar: T,
     _marker: PhantomData<N>,
@@ -1139,6 +1146,7 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameMulScalar<N, T> {
 }
 
 /// Apply a unary operation to output of contained node.
+#[derive(Clone)]
 pub struct Unop<T, X, U> {
     _marker: PhantomData<T>,
     x: X,
@@ -1223,6 +1231,7 @@ where
 }
 
 /// Map any number of channels.
+#[derive(Clone)]
 pub struct Map<T, M, I, O> {
     f: M,
     routing: Routing,
@@ -1232,7 +1241,7 @@ pub struct Map<T, M, I, O> {
 impl<T, M, I, O> Map<T, M, I, O>
 where
     T: Float,
-    M: Fn(&Frame<T, I>) -> O,
+    M: Fn(&Frame<T, I>) -> O + Clone,
     I: Size<T>,
     O: ConstantFrame<Sample = T>,
     O::Size: Size<T>,
@@ -1249,7 +1258,7 @@ where
 impl<T, M, I, O> AudioNode for Map<T, M, I, O>
 where
     T: Float,
-    M: Fn(&Frame<T, I>) -> O,
+    M: Fn(&Frame<T, I>) -> O + Clone,
     I: Size<T>,
     O: ConstantFrame<Sample = T>,
     O::Size: Size<T>,
@@ -1273,6 +1282,7 @@ where
 }
 
 /// Pipe the output of `X` to `Y`.
+#[derive(Clone)]
 pub struct Pipe<T, X, Y>
 where
     T: Float,
@@ -1383,6 +1393,7 @@ where
 }
 
 /// Stack `X` and `Y` in parallel.
+#[derive(Clone)]
 pub struct Stack<T, X, Y> {
     _marker: PhantomData<T>,
     x: X,
@@ -1516,6 +1527,7 @@ where
 }
 
 /// Send the same input to `X` and `Y`. Concatenate outputs.
+#[derive(Clone)]
 pub struct Branch<T, X, Y> {
     _marker: PhantomData<T>,
     x: X,
@@ -1634,6 +1646,7 @@ where
 }
 
 /// Mix together `X` and `Y` sourcing from the same inputs.
+#[derive(Clone)]
 pub struct Bus<T, X, Y>
 where
     T: Float,
@@ -1760,6 +1773,7 @@ where
 
 /// Pass through inputs without matching outputs.
 /// Adjusts output arity to match input arity, adapting a filter to a pipeline.
+#[derive(Clone)]
 pub struct Thru<X: AudioNode> {
     x: X,
     buffer: Buffer<X::Sample>,
@@ -1851,6 +1865,7 @@ impl<X: AudioNode> AudioNode for Thru<X> {
 }
 
 /// Mix together a bunch of similar nodes sourcing from the same inputs.
+#[derive(Clone)]
 pub struct MultiBus<N, T, X>
 where
     N: Size<T>,
@@ -1985,6 +2000,7 @@ where
 }
 
 /// Stack a bunch of similar nodes in parallel.
+#[derive(Clone)]
 pub struct MultiStack<N, T, X>
 where
     N: Size<T>,
@@ -2130,6 +2146,7 @@ where
 /// Combine outputs of a bunch of similar nodes with a binary operation.
 /// Inputs are disjoint.
 /// Outputs are combined channel-wise.
+#[derive(Clone)]
 pub struct Reduce<N, T, X, B>
 where
     N: Size<T>,
@@ -2282,6 +2299,7 @@ where
 }
 
 /// Branch into a bunch of similar nodes in parallel.
+#[derive(Clone)]
 pub struct MultiBranch<N, T, X>
 where
     N: Size<T>,
@@ -2411,6 +2429,7 @@ where
 }
 
 /// Chain together a bunch of similar nodes.
+#[derive(Clone)]
 pub struct Chain<N, T, X>
 where
     N: Size<T>,
@@ -2562,7 +2581,7 @@ where
 }
 
 /// Swap stereo channels.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Swap<T> {
     _marker: PhantomData<T>,
 }

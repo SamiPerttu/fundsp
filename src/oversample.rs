@@ -128,6 +128,7 @@ fn tick<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
     output
 }
 
+#[derive(Clone)]
 pub struct Oversampler<T, X>
 where
     T: Float,

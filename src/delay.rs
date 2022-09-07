@@ -9,6 +9,7 @@ use numeric_array::typenum::*;
 use std::marker::PhantomData;
 
 /// Single sample delay.
+#[derive(Clone)]
 pub struct Tick<N: Size<T>, T: Float> {
     buffer: Frame<T, N>,
     sample_rate: f64,
@@ -60,6 +61,7 @@ impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
 /// Fixed delay.
 /// - Input 0: input
 /// - Output 0: delayed input
+#[derive(Clone)]
 pub struct Delay<T: Float> {
     buffer: Vec<T>,
     i: usize,
@@ -133,6 +135,7 @@ impl<T: Float> AudioNode for Delay<T> {
 /// - Input 0: input
 /// - Inputs 1...N: delay amount in seconds.
 /// - Output 0: delayed input
+#[derive(Clone)]
 pub struct Tap<N, T>
 where
     T: Float,

@@ -16,6 +16,14 @@ impl<T: Float> Default for Buffer<T> {
     }
 }
 
+impl<T: Float> Clone for Buffer<T> {
+    fn clone(&self) -> Self {
+        let mut buffer = Buffer::new();
+        buffer.resize(self.buffers());
+        buffer
+    }
+}
+
 impl<T: Float> Buffer<T> {
     pub fn new() -> Self {
         Buffer::<T> {

@@ -71,6 +71,7 @@ where
     a.iter().map(|x| x.re * z).collect()
 }
 
+#[derive(Clone)]
 pub struct Wavetable {
     /// Frequency tables arranged in order of increasing frequency.
     table: Vec<(f32, Vec<f32>)>,
@@ -167,6 +168,7 @@ impl Wavetable {
 /// - Input 0: frequency in Hz.
 /// - Output 0: audio.
 /// - Output 1 (optional): phase in 0...1.
+#[derive(Clone)]
 pub struct WaveSynth<'a, T, N>
 where
     T: Float,
@@ -256,6 +258,7 @@ where
 /// Bandlimited wavetable synthesizer driven by a phase input.
 /// - Input 0: phase in 0...1.
 /// - Output 0: audio.
+#[derive(Clone)]
 pub struct PhaseSynth<'a, T>
 where
     T: Float,

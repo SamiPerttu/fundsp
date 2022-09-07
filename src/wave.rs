@@ -79,6 +79,21 @@ pub struct Wave48 {
     [ f64 ]   [ Wave64 ]   [ AudioUnit64 ];
     [ f32 ]   [ Wave32 ]   [ AudioUnit32 ];
 )]
+impl Clone for Wave48 {
+    fn clone(&self) -> Self {
+        Self {
+            vec: self.vec.clone(),
+            sr: self.sr,
+            slice: Slice::new(),
+        }
+    }
+}
+
+#[duplicate_item(
+    f48       Wave48       AudioUnit48;
+    [ f64 ]   [ Wave64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Wave32 ]   [ AudioUnit32 ];
+)]
 impl Wave48 {
     /// Creates an empty wave with the specified number of channels (`channels` > 0).
     pub fn new(channels: usize, sample_rate: f64) -> Self {
@@ -416,6 +431,7 @@ impl Wave48 {
     [ f64 ]   [ Wave64 ]   [ Wave64Player ];
     [ f32 ]   [ Wave32 ]   [ Wave32Player ];
 )]
+#[derive(Clone)]
 pub struct Wave48Player<T: Float> {
     wave: Arc<Wave48>,
     channel: usize,

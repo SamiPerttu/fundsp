@@ -3,7 +3,6 @@
 use super::audionode::*;
 use super::audiounit::*;
 use super::buffer::*;
-use super::callback::*;
 use super::combinator::*;
 use super::math::*;
 use super::signal::*;
@@ -42,6 +41,7 @@ pub fn edge(source: Port, target: Port) -> Edge {
     [ f64 ]   [ Vertex64 ]   [ AudioUnit64 ];
     [ f32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
+#[derive(Clone)]
 /// Individual AudioUnits are vertices in the graph.
 pub struct Vertex48 {
     /// The unit.
@@ -118,9 +118,9 @@ impl Vertex48 {
 }
 
 #[duplicate_item(
-    f48       Net48       Vertex48       AudioUnit48         Callback48;
-    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ]   [ Callback64 ];
-    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ]   [ Callback32 ];
+    f48       Net48       Vertex48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
 /// Network unit. It can contain other units and maintain connections between them.
 /// Outputs of the network are sourced from user specified unit outputs or global inputs.
@@ -136,7 +136,6 @@ pub struct Net48 {
     /// Ordering of vertex evaluation.
     order: Option<Vec<NodeIndex>>,
     sample_rate: f64,
-    callback: Option<Callback48<Net48>>,
     tmp_buffer: Buffer<f48>,
     /// This cache is used by the `route` method,
     /// which does not have mutable access to the network.
@@ -146,9 +145,30 @@ pub struct Net48 {
 }
 
 #[duplicate_item(
-    f48       Net48       Vertex48       AudioUnit48         Callback48;
-    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ]   [ Callback64 ];
-    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ]   [ Callback32 ];
+    f48       Net48       Vertex48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
+)]
+impl Clone for Net48 {
+    fn clone(&self) -> Self {
+        Self {
+            input: self.input.clone(),
+            output: self.output.clone(),
+            output_edge: self.output_edge.clone(),
+            vertex: self.vertex.clone(),
+            order: None,
+            sample_rate: self.sample_rate,
+            tmp_buffer: self.tmp_buffer.clone(),
+            order_cache: std::sync::Mutex::new(None),
+            error_msg: self.error_msg.clone(),
+        }
+    }
+}
+
+#[duplicate_item(
+    f48       Net48       Vertex48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
 impl Net48 {
     /// Create a new network with the given number of inputs and outputs.
@@ -161,7 +181,6 @@ impl Net48 {
             vertex: vec![],
             order: None,
             sample_rate: DEFAULT_SR,
-            callback: None,
             tmp_buffer: Buffer::new(),
             order_cache: std::sync::Mutex::new(None),
             error_msg: Vec::new(),
@@ -171,17 +190,6 @@ impl Net48 {
                 .push(edge(Port::Zero, Port::Global(channel)));
         }
         net
-    }
-
-    /// Set the update callback. The arguments to the callback are
-    /// time in seconds, time since the last update in seconds,
-    /// and the network itself.
-    pub fn set_callback(
-        &mut self,
-        update_interval: f48,
-        callback: Box<dyn FnMut(f48, f48, &mut Net48) + Send>,
-    ) {
-        self.callback = Some(Callback48::new(update_interval, callback));
     }
 
     /// Add a new unit to the network. Return its ID handle.
@@ -361,14 +369,8 @@ impl Net48 {
     }
 
     /// Indicate to callback handler that time is about to elapse.
-    fn elapse(&mut self, dt: f48) {
-        if self.callback.is_some() {
-            let mut tmp = self.callback.take();
-            if let Some(cb) = &mut tmp {
-                cb.update(dt, self);
-            }
-            self.callback = tmp.take();
-        }
+    fn elapse(&mut self, _dt: f48) {
+        // TODO. Not implemented.
     }
 
     /// Compute and store node order for this network.
@@ -525,10 +527,6 @@ impl AudioUnit48 for Net48 {
         // Take the opportunity to unload some calculations.
         if !self.is_ordered() {
             self.determine_order();
-        }
-
-        if let Some(cb) = &mut self.callback {
-            cb.reset();
         }
     }
 
