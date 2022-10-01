@@ -1,7 +1,7 @@
 [package]
 name = "fundsp"
 description = "Audio processing and synthesis library."
-keywords = ["dsp", "audio"]
+keywords = ["dsp", "audio", "synthesizer", "synth", "music", "sound", "wave"]
 license = "MIT OR Apache-2.0"
 version = "0.9.0"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
