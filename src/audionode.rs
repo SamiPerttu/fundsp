@@ -8,6 +8,9 @@ use super::*;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
 use std::marker::PhantomData;
+use std::sync::Arc;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
 
 /// Type-level integer.
 pub trait Size<T>: numeric_array::ArrayLength<T> {}
@@ -2619,5 +2622,97 @@ impl<T: Float> AudioNode for Swap<T> {
         output[0] = input[1];
         output[1] = input[0];
         output
+    }
+}
+
+/// A variable floating point number to use as a control.
+///
+/// See [`Var`] for a variable output [`AudioNode`].
+pub trait Variable: Float {
+    type Storage;
+
+    fn storage(t: Self) -> Self::Storage;
+    fn store(stored: &Self::Storage, t: Self);
+    fn get_stored(stored: &Self::Storage) -> Self;
+}
+
+impl Variable for f32 {
+    type Storage = AtomicU32;
+
+    fn storage(t: Self) -> Self::Storage {
+        AtomicU32::from(t.to_bits())
+    }
+
+    fn store(stored: &Self::Storage, t: Self) {
+        stored.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn get_stored(stored: &Self::Storage) -> Self {
+        let u = stored.load(std::sync::atomic::Ordering::Relaxed);
+        f32::from_bits(u)
+    }
+}
+
+impl Variable for f64 {
+    type Storage = AtomicU64;
+
+    fn storage(t: Self) -> Self::Storage {
+        AtomicU64::from(t.to_bits())
+    }
+
+    fn store(stored: &Self::Storage, t: Self) {
+        stored.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn get_stored(stored: &Self::Storage) -> Self {
+        let u = stored.load(std::sync::atomic::Ordering::Relaxed);
+        f64::from_bits(u)
+    }
+}
+
+/// A variable output node.
+///
+/// The value this node produces can be set from a clone.
+/// Clones are linked by atomics.
+#[derive(Default)]
+pub struct Var<T: Variable>(Arc<T::Storage>);
+
+impl<T: Variable> Clone for Var<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<T: Variable> From<T> for Var<T> {
+    fn from(value: T) -> Self {
+        Var(Arc::new(T::storage(value)))
+    }
+}
+
+impl<T: Variable> AudioNode for Var<T> {
+    const ID: u64 = 68;
+
+    type Sample = T;
+    type Inputs = U0;
+    type Outputs = U1;
+
+    fn tick(
+        &mut self,
+        _: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let sample: T = self.get();
+        [sample].into()
+    }
+}
+
+impl<T: Variable> Var<T> {
+    /// Set the value of this variable.
+    pub fn set(&self, t:T) {
+        T::store(&self.0, t)
+    }
+
+    /// Get the value of this variable.
+    pub fn get(&self) -> T {
+        T::get_stored(&self.0)
     }
 }
