@@ -28,6 +28,7 @@ pub use super::*;
 
 //use num_complex::Complex64;
 use std::sync::Arc;
+use crossbeam::atomic::AtomicCell;
 
 // Combinator environment.
 // We like to define all kinds of useful functions here.
@@ -696,6 +697,20 @@ where
     R::Size: Size<f32>,
 {
     An(Envelope3::new(0.002, DEFAULT_SR, f))
+}
+
+/// Returns a volume-modulating ADSR envelope. Release occurs when a `SoundMsg::Release` message
+/// is stored in `note_m`.
+#[inline]
+pub fn adsr_live(attack: f32, decay: f32, sustain: f32, release: f32, note_m: Arc<AtomicCell<SoundMsg>>) -> An<Envelope<f32, f32, impl Fn(f32)->f32 + Sized + Clone, f32>> {
+    adsr(attack, decay, sustain, release, None, note_m)
+}
+
+/// Returns a volume-modulating ADSR envelope. Release occurs when a `SoundMsg::Release` message
+/// is stored in `note_m`, or when `sustain_time` has elapsed, whichever comes first.
+#[inline]
+pub fn adsr_fixed(attack: f32, decay: f32, sustain_time: f32, sustain_level: f32, release: f32, note_m: Arc<AtomicCell<SoundMsg>>) -> An<Envelope<f32, f32, impl Fn(f32)->f32 + Sized + Clone, f32>> {
+    adsr(attack, decay, sustain_level, release, Some(attack + decay + sustain_time), note_m)
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence (1 <= `n` <= 31).

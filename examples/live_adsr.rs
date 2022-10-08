@@ -8,9 +8,9 @@
 //! [`test_read_input`](https://github.com/Boddlnagg/midir/blob/master/examples/test_read_input.rs)
 //! example in the [`midir` crate](https://github.com/Boddlnagg/midir).
 
-use fundsp::hacker::{envelope, midi_hz, triangle};
+use fundsp::hacker::{envelope, midi_hz, triangle, adsr_live};
 use fundsp::prelude::AudioUnit64;
-use fundsp::adsr::{adsr_live, SoundMsg};
+use fundsp::adsr::SoundMsg;
 use anyhow::bail;
 use midir::{Ignore, MidiInput, MidiInputPort};
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
