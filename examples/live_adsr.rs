@@ -2,7 +2,7 @@
 //! listen to messages from the first connected MIDI input device it finds, and play the
 //! corresponding pitches with the volume moderated by an `adsr_live()` envelope.
 //!
-//! The 
+//! The `create_sound()` function at the end of this file is where `adsr_live()` is employed.
 
 use fundsp::hacker::{envelope, midi_hz, triangle};
 use fundsp::prelude::AudioUnit64;
