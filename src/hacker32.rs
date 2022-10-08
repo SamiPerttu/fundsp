@@ -1,6 +1,6 @@
 //! The 32-bit hacker prelude, a 32-bit environment for audio processing.
 
-pub use super::adsr::*;
+pub use super::adsr::SoundMsg;
 pub use super::audionode::*;
 pub use super::audiounit::*;
 pub use super::combinator::*;
@@ -29,6 +29,7 @@ pub use super::*;
 //use num_complex::Complex64;
 use std::sync::Arc;
 use crossbeam::atomic::AtomicCell;
+use super::adsr::adsr;
 
 // Combinator environment.
 // We like to define all kinds of useful functions here.
