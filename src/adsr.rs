@@ -28,7 +28,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use crossbeam::atomic::AtomicCell;
 use super::Float;
-use super::prelude::{An, Envelope, lerp, lfo};
+use super::prelude::{An, Envelope, lerp, envelope};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SoundMsg {
@@ -49,7 +49,7 @@ pub fn adsr_fixed<F:Float>(attack: F, decay: F, sustain_time: F, sustain_level: 
 
 fn adsr<F:Float>(attack: F, decay: F, sustain: F, release: F, release_start: Option<F>, note_m: Arc<AtomicCell<SoundMsg>>) -> An<Envelope<F, F, impl Fn(F)->F + Sized + Clone, F>> {
     let adsr = Arc::new(AtomicCell::new(Adsr {attack, decay, sustain, release, release_start}));
-    lfo(move |t| {
+    envelope(move |t| {
         if note_m.load() == SoundMsg::Release {
             let mut adsr_inner = adsr.load();
             adsr_inner.release(t);

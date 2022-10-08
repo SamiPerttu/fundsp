@@ -3,6 +3,10 @@
 //! corresponding pitches with the volume moderated by an `adsr_live()` envelope.
 //!
 //! The `create_sound()` function at the end of this file is where `adsr_live()` is employed.
+//!
+//! The MIDI input code is adapted from the
+//! [`test_read_input`](https://github.com/Boddlnagg/midir/blob/master/examples/test_read_input.rs)
+//! example in the [`midir` crate](https://github.com/Boddlnagg/midir).
 
 use fundsp::hacker::{envelope, midi_hz, triangle};
 use fundsp::prelude::AudioUnit64;

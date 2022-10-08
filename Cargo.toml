@@ -21,15 +21,15 @@ rsor = "0.1.3"
 duplicate = "0.4.1"
 dyn-clone = "1.0.9"
 crossbeam = "0.8"
-midi-msg = "0.4.0"
-midir = "0.8.0"
-read_input = "0.8.6"
 
 [dev-dependencies]
 cpal = "0.14.0"
 anyhow = "1.0.62"
 plotters = "0.3.3"
 criterion = "0.3.6"
+midi-msg = "0.4.0"
+midir = "0.8.0"
+read_input = "0.8.6"
 
 [[bench]]
 name = "benchmark"
