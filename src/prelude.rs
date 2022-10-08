@@ -739,8 +739,13 @@ where
     An(Envelope3::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 
-/// Returns a volume-modulating ADSR envelope. Release occurs when a `SoundMsg::Release` message
-/// is stored in `note_m`.
+/// This function accepts one input and outputs its value modulated by the ADSR volume controller.
+///
+/// When a sound begins, its volume increases from zero to one in the time interval denoted by
+/// `attack`. It then decreases from 1.0 to the `sustain` volume in the time interval denoted by
+/// `decay`. It remains at the `sustain` level until a `SoundMsg::Release` message is stored in
+/// `note_m`, after which it decreases from the `sustain` level to 0.0 in a time interval denoted
+/// by `release`.
 #[inline]
 pub fn adsr_live<F>(
     attack: F,
@@ -755,8 +760,13 @@ where
     adsr(attack, decay, sustain, release, None, note_m)
 }
 
-/// Returns a volume-modulating ADSR envelope. Release occurs when a `SoundMsg::Release` message
-/// is stored in `note_m`, or when `sustain_time` has elapsed, whichever comes first.
+/// This function accepts one input and outputs its value modulated by the ADSR volume controller.
+///
+/// When a sound begins, its volume increases from zero to one in the time interval denoted by
+/// `attack`. It then decreases from 1.0 to the `sustain_level` volume in the time interval denoted
+/// by `decay`. It remains at `sustain_level` until either the `sustain_time` expires or a
+/// `SoundMsg::Release` message is stored in `note_m`, after which it decreases from the `sustain`
+/// level to 0.0 in a time interval denoted by `release`.
 #[inline]
 pub fn adsr_fixed<F>(
     attack: F,
