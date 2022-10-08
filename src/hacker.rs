@@ -27,9 +27,9 @@ pub use super::wavetable::*;
 pub use super::*;
 
 //use num_complex::Complex64;
-use std::sync::Arc;
-use crossbeam::atomic::AtomicCell;
 use super::adsr::adsr;
+use crossbeam::atomic::AtomicCell;
+use std::sync::Arc;
 
 // Combinator environment.
 // We like to define all kinds of useful functions here.
@@ -703,15 +703,35 @@ where
 /// Returns a volume-modulating ADSR envelope. Release occurs when a `SoundMsg::Release` message
 /// is stored in `note_m`.
 #[inline]
-pub fn adsr_live(attack: f64, decay: f64, sustain: f64, release: f64, note_m: Arc<AtomicCell<SoundMsg>>) -> An<Envelope<f64, f64, impl Fn(f64)->f64 + Sized + Clone, f64>> {
+pub fn adsr_live(
+    attack: f64,
+    decay: f64,
+    sustain: f64,
+    release: f64,
+    note_m: Arc<AtomicCell<SoundMsg>>,
+) -> An<Envelope<f64, f64, impl Fn(f64) -> f64 + Sized + Clone, f64>> {
     adsr(attack, decay, sustain, release, None, note_m)
 }
 
 /// Returns a volume-modulating ADSR envelope. Release occurs when a `SoundMsg::Release` message
 /// is stored in `note_m`, or when `sustain_time` has elapsed, whichever comes first.
 #[inline]
-pub fn adsr_fixed(attack: f64, decay: f64, sustain_time: f64, sustain_level: f64, release: f64, note_m: Arc<AtomicCell<SoundMsg>>) -> An<Envelope<f64, f64, impl Fn(f64)->f64 + Sized + Clone, f64>> {
-    adsr(attack, decay, sustain_level, release, Some(attack + decay + sustain_time), note_m)
+pub fn adsr_fixed(
+    attack: f64,
+    decay: f64,
+    sustain_time: f64,
+    sustain_level: f64,
+    release: f64,
+    note_m: Arc<AtomicCell<SoundMsg>>,
+) -> An<Envelope<f64, f64, impl Fn(f64) -> f64 + Sized + Clone, f64>> {
+    adsr(
+        attack,
+        decay,
+        sustain_level,
+        release,
+        Some(attack + decay + sustain_time),
+        note_m,
+    )
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence (1 <= `n` <= 31).
