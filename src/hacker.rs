@@ -1818,7 +1818,7 @@ pub fn phaser<X: Fn(f64) -> f64 + Clone>(
 }
 
 /// Variable constant. Outputs the (scalar) value of the variable.
-/// 
+///
 /// This uses atomics internally and therefore
 /// should be safe to manipulate from other threads.
 /// - Output 0: value
