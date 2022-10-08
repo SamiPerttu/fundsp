@@ -1816,3 +1816,19 @@ pub fn phaser<X: Fn(f64) -> f64 + Clone>(
 ) -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>> {
     super::prelude::phaser::<f64, _>(feedback_amount, phase_f)
 }
+
+/// Variable constant. Outputs the (scalar) value of the variable.
+/// 
+/// This uses atomics internally and therefore
+/// should be safe to manipulate from other threads.
+/// - Output 0: value
+///
+/// ### Example: Add Chorus
+/// ```
+/// use fundsp::prelude::*;
+/// pass() & var(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
+/// ```
+#[inline]
+pub fn var(tag: Tag, value: f64) -> An<Var<f64>> {
+    An(Var::new(tag, value))
+}
