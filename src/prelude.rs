@@ -2382,3 +2382,19 @@ pub fn phaser<T: Real, X: Fn(T) -> T + Clone>(
                 >> (mul(feedback_amount) | sink()),
         )
 }
+
+/// Variable constant. Outputs the (scalar) value of the variable.
+///
+/// This uses atomics internally and therefore
+/// should be safe to manipulate from other threads.
+/// - Output 0: value
+///
+/// ### Example: Add Chorus
+/// ```
+/// use fundsp::prelude::*;
+/// pass() & var::<f32>(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
+/// ```
+#[inline]
+pub fn var<T: Variable>(tag: Tag, value: T) -> An<Var<T>> {
+    An(Var::new(tag, value))
+}
