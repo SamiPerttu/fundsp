@@ -266,6 +266,7 @@ pub mod svf;
 pub mod system;
 pub mod wave;
 pub mod wavetable;
+pub mod adsr;
 
 // For Frame::generate.
 pub use generic_array::sequence::GenericSequence;

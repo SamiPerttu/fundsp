@@ -1,5 +1,6 @@
 //! The hacker prelude, a fully 64-bit environment for audio processing.
 
+pub use super::adsr::*;
 pub use super::audionode::*;
 pub use super::audiounit::*;
 pub use super::combinator::*;

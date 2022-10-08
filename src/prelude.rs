@@ -1,5 +1,6 @@
 //! Generic prelude.
 
+pub use super::adsr::*;
 pub use super::audionode::*;
 pub use super::audiounit::*;
 pub use super::combinator::*;
