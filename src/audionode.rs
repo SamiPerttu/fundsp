@@ -8,9 +8,9 @@ use super::*;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
 use std::marker::PhantomData;
-use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 
 /// Type-level integer.
 pub trait Size<T>: numeric_array::ArrayLength<T> {}
@@ -2675,21 +2675,21 @@ impl Variable for f64 {
 /// The value this node produces can be set from a clone.
 /// Clones are linked by atomics.
 #[derive(Default)]
-pub struct Var<T: Variable>(Arc<T::Storage>);
+pub struct Var<T: Variable> {
+    tag: Tag,
+    value: Arc<T::Storage>,
+}
 
 impl<T: Variable> Clone for Var<T> {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self {
+            tag: self.tag,
+            value: Arc::clone(&self.value),
+        }
     }
 }
 
-impl<T: Variable> From<T> for Var<T> {
-    fn from(value: T) -> Self {
-        Var(Arc::new(T::storage(value)))
-    }
-}
-
-impl<T: Variable> AudioNode for Var<T> {
+impl<T: Variable + Float> AudioNode for Var<T> {
     const ID: u64 = 68;
 
     type Sample = T;
@@ -2700,19 +2700,40 @@ impl<T: Variable> AudioNode for Var<T> {
         &mut self,
         _: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let sample: T = self.get();
+        let sample: T = self.value();
         [sample].into()
+    }
+
+    fn set(&mut self, parameter: Tag, value: f64) {
+        if self.tag == parameter {
+            self.set_value(T::from_f64(value))
+        }
+    }
+
+    fn get(&self, parameter: Tag) -> Option<f64> {
+        if self.tag == parameter {
+            Some(self.value().to_f64())
+        } else {
+            None
+        }
     }
 }
 
 impl<T: Variable> Var<T> {
+    pub fn new(tag: Tag, value: T) -> Self {
+        Self {
+            tag,
+            value: Arc::new(T::storage(value)),
+        }
+    }
+
     /// Set the value of this variable.
-    pub fn set(&self, t:T) {
-        T::store(&self.0, t)
+    pub fn set_value(&self, t: T) {
+        T::store(&self.value, t)
     }
 
     /// Get the value of this variable.
-    pub fn get(&self) -> T {
-        T::get_stored(&self.0)
+    pub fn value(&self) -> T {
+        T::get_stored(&self.value)
     }
 }
