@@ -1,6 +1,6 @@
 //! The 32-bit hacker prelude, a 32-bit environment for audio processing.
 
-pub use super::adsr::*;
+pub use super::adsr::SoundMsg;
 pub use super::audionode::*;
 pub use super::audiounit::*;
 pub use super::combinator::*;
@@ -27,6 +27,8 @@ pub use super::wavetable::*;
 pub use super::*;
 
 //use num_complex::Complex64;
+use super::adsr::adsr;
+use crossbeam::atomic::AtomicCell;
 use std::sync::Arc;
 
 // Combinator environment.
@@ -696,6 +698,50 @@ where
     R::Size: Size<f32>,
 {
     An(Envelope3::new(0.002, DEFAULT_SR, f))
+}
+
+/// This function accepts one input and outputs its value modulated by the ADSR volume controller.
+///
+/// When a sound begins, its volume increases from zero to one in the time interval denoted by
+/// `attack`. It then decreases from 1.0 to the `sustain` volume in the time interval denoted by
+/// `decay`. It remains at the `sustain` level until a `SoundMsg::Release` message is stored in
+/// `note_m`, after which it decreases from the `sustain` level to 0.0 in a time interval denoted
+/// by `release`.
+#[inline]
+pub fn adsr_live(
+    attack: f32,
+    decay: f32,
+    sustain: f32,
+    release: f32,
+    note_m: Arc<AtomicCell<SoundMsg>>,
+) -> An<Envelope<f32, f32, impl Fn(f32) -> f32 + Sized + Clone, f32>> {
+    adsr(attack, decay, sustain, release, None, note_m)
+}
+
+/// This function accepts one input and outputs its value modulated by the ADSR volume controller.
+///
+/// When a sound begins, its volume increases from zero to one in the time interval denoted by
+/// `attack`. It then decreases from 1.0 to the `sustain_level` volume in the time interval denoted
+/// by `decay`. It remains at `sustain_level` until either the `sustain_time` expires or a
+/// `SoundMsg::Release` message is stored in `note_m`, after which it decreases from the `sustain`
+/// level to 0.0 in a time interval denoted by `release`.
+#[inline]
+pub fn adsr_fixed(
+    attack: f32,
+    decay: f32,
+    sustain_time: f32,
+    sustain_level: f32,
+    release: f32,
+    note_m: Arc<AtomicCell<SoundMsg>>,
+) -> An<Envelope<f32, f32, impl Fn(f32) -> f32 + Sized + Clone, f32>> {
+    adsr(
+        attack,
+        decay,
+        sustain_level,
+        release,
+        Some(attack + decay + sustain_time),
+        note_m,
+    )
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence (1 <= `n` <= 31).

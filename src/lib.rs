@@ -236,6 +236,7 @@ macro_rules! impl_real {
 }
 impl_real! { f32, f64 }
 
+pub mod adsr;
 pub mod audionode;
 pub mod audiounit;
 pub mod buffer;
@@ -266,7 +267,6 @@ pub mod svf;
 pub mod system;
 pub mod wave;
 pub mod wavetable;
-pub mod adsr;
 
 // For Frame::generate.
 pub use generic_array::sequence::GenericSequence;

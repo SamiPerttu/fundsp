@@ -23,32 +23,34 @@
 //! listen to messages from the first connected MIDI input device it finds, and play the
 //! corresponding pitches with the volume moderated by an `adsr_live()` envelope.
 
-
+use super::prelude::{envelope, lerp, An, Envelope};
+use super::Float;
+use crossbeam::atomic::AtomicCell;
 use std::fmt::Debug;
 use std::sync::Arc;
-use crossbeam::atomic::AtomicCell;
-use super::Float;
-use super::prelude::{An, Envelope, lerp, envelope};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SoundMsg {
-    Play, Release, Finished
+    Play,
+    Release,
+    Finished,
 }
 
-/// Returns a volume-modulating ADSR envelope. Release occurs when a `SoundMsg::Release` message
-/// is stored in `note_m`.
-pub fn adsr_live<F:Float>(attack: F, decay: F, sustain: F, release: F, note_m: Arc<AtomicCell<SoundMsg>>) -> An<Envelope<F, F, impl Fn(F)->F + Sized + Clone, F>> {
-    adsr(attack, decay, sustain, release, None, note_m)
-}
-
-/// Returns a volume-modulating ADSR envelope. Release occurs when a `SoundMsg::Release` message
-/// is stored in `note_m`, or when `sustain_time` has elapsed, whichever comes first.
-pub fn adsr_fixed<F:Float>(attack: F, decay: F, sustain_time: F, sustain_level: F, release: F, note_m: Arc<AtomicCell<SoundMsg>>) -> An<Envelope<F, F, impl Fn(F)->F + Sized + Clone, F>> {
-    adsr(attack, decay, sustain_level, release, Some(attack + decay + sustain_time), note_m)
-}
-
-fn adsr<F:Float>(attack: F, decay: F, sustain: F, release: F, release_start: Option<F>, note_m: Arc<AtomicCell<SoundMsg>>) -> An<Envelope<F, F, impl Fn(F)->F + Sized + Clone, F>> {
-    let adsr = Arc::new(AtomicCell::new(Adsr {attack, decay, sustain, release, release_start}));
+pub fn adsr<F: Float>(
+    attack: F,
+    decay: F,
+    sustain: F,
+    release: F,
+    release_start: Option<F>,
+    note_m: Arc<AtomicCell<SoundMsg>>,
+) -> An<Envelope<F, F, impl Fn(F) -> F + Sized + Clone, F>> {
+    let adsr = Arc::new(AtomicCell::new(Adsr {
+        attack,
+        decay,
+        sustain,
+        release,
+        release_start,
+    }));
     envelope(move |t| {
         if note_m.load() == SoundMsg::Release {
             let mut adsr_inner = adsr.load();
@@ -58,17 +60,24 @@ fn adsr<F:Float>(attack: F, decay: F, sustain: F, release: F, release_start: Opt
         }
         match adsr.load().volume(t) {
             Some(v) => v,
-            None => {note_m.store(SoundMsg::Finished); F::from_f64(0.0)}
+            None => {
+                note_m.store(SoundMsg::Finished);
+                F::from_f64(0.0)
+            }
         }
     })
 }
 
 #[derive(Copy, Clone, Debug)]
-struct Adsr<F:Float> {
-    attack: F, decay: F, sustain: F, release: F, release_start: Option<F>
+struct Adsr<F: Float> {
+    attack: F,
+    decay: F,
+    sustain: F,
+    release: F,
+    release_start: Option<F>,
 }
 
-impl <F:Float> Adsr<F> {
+impl<F: Float> Adsr<F> {
     fn release(&mut self, time_now: F) {
         self.release_start = Some(time_now);
     }
@@ -84,7 +93,11 @@ impl <F:Float> Adsr<F> {
                     if release_time > self.release {
                         None
                     } else {
-                        Some(lerp(self.sustain, F::from_f64(0.0), release_time / self.release))
+                        Some(lerp(
+                            self.sustain,
+                            F::from_f64(0.0),
+                            release_time / self.release,
+                        ))
                     }
                 }
             }
@@ -95,7 +108,11 @@ impl <F:Float> Adsr<F> {
         if time < self.attack {
             lerp(F::from_f64(0.0), F::from_f64(1.0), time / self.attack)
         } else if time - self.attack < self.decay {
-            lerp(F::from_f64(1.0), self.sustain, (time - self.attack) / self.decay)
+            lerp(
+                F::from_f64(1.0),
+                self.sustain,
+                (time - self.attack) / self.decay,
+            )
         } else {
             self.sustain
         }

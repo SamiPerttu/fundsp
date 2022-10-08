@@ -1,6 +1,6 @@
 //! Generic prelude.
 
-pub use super::adsr::*;
+pub use super::adsr::SoundMsg;
 pub use super::audionode::*;
 pub use super::audiounit::*;
 pub use super::combinator::*;
@@ -26,6 +26,8 @@ pub use super::wave::*;
 pub use super::wavetable::*;
 pub use super::*;
 
+use super::adsr::adsr;
+use crossbeam::atomic::AtomicCell;
 use num_complex::Complex64;
 use std::sync::Arc;
 
@@ -735,6 +737,56 @@ where
     R::Size: Size<T>,
 {
     An(Envelope3::new(F::from_f64(0.002), DEFAULT_SR, f))
+}
+
+/// This function accepts one input and outputs its value modulated by the ADSR volume controller.
+///
+/// When a sound begins, its volume increases from zero to one in the time interval denoted by
+/// `attack`. It then decreases from 1.0 to the `sustain` volume in the time interval denoted by
+/// `decay`. It remains at the `sustain` level until a `SoundMsg::Release` message is stored in
+/// `note_m`, after which it decreases from the `sustain` level to 0.0 in a time interval denoted
+/// by `release`.
+#[inline]
+pub fn adsr_live<F>(
+    attack: F,
+    decay: F,
+    sustain: F,
+    release: F,
+    note_m: Arc<AtomicCell<SoundMsg>>,
+) -> An<Envelope<F, F, impl Fn(F) -> F + Sized + Clone, F>>
+where
+    F: Float,
+{
+    adsr(attack, decay, sustain, release, None, note_m)
+}
+
+/// This function accepts one input and outputs its value modulated by the ADSR volume controller.
+///
+/// When a sound begins, its volume increases from zero to one in the time interval denoted by
+/// `attack`. It then decreases from 1.0 to the `sustain_level` volume in the time interval denoted
+/// by `decay`. It remains at `sustain_level` until either the `sustain_time` expires or a
+/// `SoundMsg::Release` message is stored in `note_m`, after which it decreases from the `sustain`
+/// level to 0.0 in a time interval denoted by `release`.
+#[inline]
+pub fn adsr_fixed<F>(
+    attack: F,
+    decay: F,
+    sustain_time: F,
+    sustain_level: F,
+    release: F,
+    note_m: Arc<AtomicCell<SoundMsg>>,
+) -> An<Envelope<F, F, impl Fn(F) -> F + Sized + Clone, F>>
+where
+    F: Float,
+{
+    adsr(
+        attack,
+        decay,
+        sustain_level,
+        release,
+        Some(attack + decay + sustain_time),
+        note_m,
+    )
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence (1 <= `n` <= 31).
