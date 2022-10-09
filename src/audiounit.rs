@@ -1,4 +1,4 @@
-//! `AudioUnit64` and `AudioUnit32` abstractions and a common wrapper `Au`.
+//! `AudioUnit64` and `AudioUnit32` abstractions.
 
 use super::audionode::*;
 use super::combinator::*;
@@ -17,7 +17,7 @@ use rsor::Slice;
     [ f64 ]   [ AudioUnit64 ];
     [ f32 ]   [ AudioUnit32 ];
 )]
-pub trait AudioUnit48: Send + DynClone {
+pub trait AudioUnit48: Send + Sync + DynClone {
     /// Reset the input state of the unit to an initial state where it has not processed any data.
     /// In other words, reset time to zero.
     fn reset(&mut self, sample_rate: Option<f64>);
@@ -201,7 +201,7 @@ dyn_clone::clone_trait_object!(AudioUnit48);
     [ f64 ]   [ AudioUnit64 ];
     [ f32 ]   [ AudioUnit32 ];
 )]
-impl<X: AudioNode<Sample = f48> + Send> AudioUnit48 for An<X>
+impl<X: AudioNode<Sample = f48> + Sync + Send> AudioUnit48 for An<X>
 where
     X::Inputs: Size<f48>,
     X::Outputs: Size<f48>,
@@ -274,19 +274,6 @@ impl Clone for BigBlockAdapter48 {
         }
     }
 }
-
-/*
-#[duplicate_item(
-    f48       BigBlockAdapter48       AudioUnit48;
-    [ f64 ]   [ BigBlockAdapter64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ BigBlockAdapter32 ]   [ AudioUnit32 ];
-)]
-impl Clone for BigBlockAdapter48 {
-    fn clone(&self) -> Self {
-        Self { source: self.source.clone(), input: self.input.clone(), output: self.output.clone(), input_slice: Slice::new(), output_slice: Slice::new() }
-    }
-}
-*/
 
 #[duplicate_item(
     f48       BigBlockAdapter48       AudioUnit48;

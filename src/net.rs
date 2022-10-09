@@ -825,7 +825,7 @@ impl Net48 {
     }
 
     /// Given nets A and B and binary operator op, create and return net A op B.
-    pub fn bin_op<B: FrameBinop<super::prelude::U1, f48> + Send + 'static>(
+    pub fn bin_op<B: FrameBinop<super::prelude::U1, f48> + Sync + Send + 'static>(
         mut net1: Net48,
         mut net2: Net48,
         op: B,
@@ -1128,7 +1128,7 @@ impl std::ops::Shr<Net48> for Net48 {
 )]
 impl<X> std::ops::Shr<An<X>> for Net48
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1144,7 +1144,7 @@ where
 )]
 impl<X> std::ops::Shr<Net48> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1173,7 +1173,7 @@ impl std::ops::BitAnd<Net48> for Net48 {
 )]
 impl<X> std::ops::BitAnd<An<X>> for Net48
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1189,7 +1189,7 @@ where
 )]
 impl<X> std::ops::BitAnd<Net48> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1218,7 +1218,7 @@ impl std::ops::BitOr<Net48> for Net48 {
 )]
 impl<X> std::ops::BitOr<An<X>> for Net48
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1234,7 +1234,7 @@ where
 )]
 impl<X> std::ops::BitOr<Net48> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1263,7 +1263,7 @@ impl std::ops::BitXor<Net48> for Net48 {
 )]
 impl<X> std::ops::BitXor<An<X>> for Net48
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1279,7 +1279,7 @@ where
 )]
 impl<X> std::ops::BitXor<Net48> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1308,7 +1308,7 @@ impl std::ops::Add<Net48> for Net48 {
 )]
 impl<X> std::ops::Add<An<X>> for Net48
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1324,7 +1324,7 @@ where
 )]
 impl<X> std::ops::Add<Net48> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1353,7 +1353,7 @@ impl std::ops::Sub<Net48> for Net48 {
 )]
 impl<X> std::ops::Sub<An<X>> for Net48
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1369,7 +1369,7 @@ where
 )]
 impl<X> std::ops::Sub<Net48> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1398,7 +1398,7 @@ impl std::ops::Mul<Net48> for Net48 {
 )]
 impl<X> std::ops::Mul<An<X>> for Net48
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
@@ -1414,7 +1414,7 @@ where
 )]
 impl<X> std::ops::Mul<Net48> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + 'static,
+    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
 {
     type Output = Net48;
     #[inline]
