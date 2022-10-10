@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="a4b9e27d-b137-4bd8-84fc-4dc13a88ca31" name="Changes" comment="Revised documentation of the `adsr_live()` and `adsr_fixed()` functions.">
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/live_adsr.rs" beforeDir="false" afterPath="$PROJECT_DIR$/examples/live_adsr.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/adsr.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/adsr.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hacker.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/hacker.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hacker32.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/hacker32.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/prelude.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/prelude.rs" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="949qsc4j" />
+  </component>
+  <component name="ProjectId" id="2FpdMKeYhEqs24QglkUzZIzkvTP" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
+  </component>
+  <component name="RunManager">
+    <configuration name="Run live_adsr" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="run --package fundsp --example live_adsr" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Cargo.Run live_adsr" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+    <option name="version" value="2" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="a4b9e27d-b137-4bd8-84fc-4dc13a88ca31" name="Changes" comment="" />
+      <created>1665192912972</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1665192912972</updated>
+    </task>
+    <task id="LOCAL-00001" summary="Added two ADSR functions, `adsr_live()` and `adsr_fixed()`.">
+      <created>1665195954436</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1665195954436</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Added a comment.">
+      <created>1665196000875</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1665196000875</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Moved several dependencies to dev-dependencies. Improved documentation a little bit.">
+      <created>1665227985554</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1665227985554</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Moved `adsr_live()` and `adsr_fixed()` to `prelude.rs`, `hacker.rs`, and `hacker32.rs`. Updated `live_adsr.rs` to import `adsr_live()` from `hacker.rs` instead of `adsr.rs`.">
+      <created>1665233823216</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1665233823216</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Removed `pub use super::adsr::*;` and added `use super::adsr::adsr` in the 3 prelude files. The `adsr()` function isn't really intended to be used directly; `adsr_live()` and `adsr_fixed()` are wrappers for it.">
+      <created>1665237161673</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1665237161673</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Ran `cargo fmt`.">
+      <created>1665237876847</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1665237876847</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Added two ADSR functions, `adsr_live()` and `adsr_fixed()`." />
+    <MESSAGE value="Added a comment." />
+    <MESSAGE value="Moved several dependencies to dev-dependencies. Improved documentation a little bit." />
+    <MESSAGE value="Moved `adsr_live()` and `adsr_fixed()` to `prelude.rs`, `hacker.rs`, and `hacker32.rs`. Updated `live_adsr.rs` to import `adsr_live()` from `hacker.rs` instead of `adsr.rs`." />
+    <MESSAGE value="Removed `pub use super::adsr::*;` and added `use super::adsr::adsr` in the 3 prelude files. The `adsr()` function isn't really intended to be used directly; `adsr_live()` and `adsr_fixed()` are wrappers for it." />
+    <MESSAGE value="Ran `cargo fmt`." />
+    <MESSAGE value="Revised documentation of the `adsr_live()` and `adsr_fixed()` functions." />
+    <option name="LAST_COMMIT_MESSAGE" value="Revised documentation of the `adsr_live()` and `adsr_fixed()` functions." />
+  </component>
+</project>
