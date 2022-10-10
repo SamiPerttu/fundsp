@@ -28,7 +28,7 @@ pub use super::*;
 
 //use num_complex::Complex64;
 use super::adsr::adsr;
-use crossbeam::atomic::AtomicCell;
+use crossbeam_utils::atomic::AtomicCell;
 use std::sync::Arc;
 
 // Combinator environment.
@@ -707,6 +707,9 @@ where
 /// `decay`. It remains at the `sustain` level until a `SoundMsg::Release` message is stored in
 /// `note_m`, after which it decreases from the `sustain` level to 0.0 in a time interval denoted
 /// by `release`.
+///
+/// See [live_adsr.rs](https://github.com/SamiPerttu/fundsp/blob/master/examples/live_adsr.rs) for
+/// a program that uses this function to play music live from a MIDI instrument.
 #[inline]
 pub fn adsr_live(
     attack: f64,
@@ -1875,6 +1878,11 @@ pub fn phaser<X: Fn(f64) -> f64 + Clone>(
 /// use fundsp::prelude::*;
 /// pass() & var(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
 /// ```
+///
+/// ### Example with Threading
+/// See [live_adsr.rs](https://github.com/SamiPerttu/fundsp/blob/master/examples/live_adsr.rs) for
+/// a program that uses `var()` to alter pitches in another running thread as it receives MIDI
+/// pitch-bend messages.
 #[inline]
 pub fn var(tag: Tag, value: f64) -> An<Var<f64>> {
     An(Var::new(tag, value))

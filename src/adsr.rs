@@ -25,7 +25,7 @@
 
 use super::prelude::{envelope, lerp, An, Envelope};
 use super::Float;
-use crossbeam::atomic::AtomicCell;
+use crossbeam_utils::atomic::AtomicCell;
 use std::fmt::Debug;
 use std::sync::Arc;
 
