@@ -747,7 +747,7 @@ where
 /// `note_m`, after which it decreases from the `sustain` level to 0.0 in a time interval denoted
 /// by `release`.
 ///
-/// See [adsr_live.rs](https://github.com/SamiPerttu/fundsp/blob/master/examples/live_adsr.rs) for
+/// See [live_adsr.rs](https://github.com/SamiPerttu/fundsp/blob/master/examples/live_adsr.rs) for
 /// a program that uses this function to play music live from a MIDI instrument.
 #[inline]
 pub fn adsr_live<F>(

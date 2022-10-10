@@ -708,7 +708,7 @@ where
 /// `note_m`, after which it decreases from the `sustain` level to 0.0 in a time interval denoted
 /// by `release`.
 ///
-/// See [adsr_live.rs](https://github.com/SamiPerttu/fundsp/blob/master/examples/live_adsr.rs) for
+/// See [live_adsr.rs](https://github.com/SamiPerttu/fundsp/blob/master/examples/live_adsr.rs) for
 /// a program that uses this function to play music live from a MIDI instrument.
 #[inline]
 pub fn adsr_live(
@@ -1878,6 +1878,11 @@ pub fn phaser<X: Fn(f32) -> f32 + Clone>(
 /// use fundsp::prelude::*;
 /// pass() & var(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
 /// ```
+///
+/// ### Example with Threading
+/// See [live_adsr.rs](https://github.com/SamiPerttu/fundsp/blob/master/examples/live_adsr.rs) for
+/// a program that uses `var()` to alter pitches in another running thread as it receives MIDI
+/// pitch-bend messages.
 #[inline]
 pub fn var(tag: Tag, value: f32) -> An<Var<f32>> {
     An(Var::new(tag, value))
