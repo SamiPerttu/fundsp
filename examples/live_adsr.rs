@@ -24,7 +24,7 @@ use cpal::{Device, Sample, SampleFormat, StreamConfig};
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
 use fundsp::adsr::SoundMsg;
-use fundsp::hacker::{adsr_live, envelope2, midi_hz, triangle, var};
+use fundsp::hacker::{adsr_live, midi_hz, triangle, var};
 use fundsp::prelude::{An, AudioUnit64, Tag, Var};
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
 use midir::{Ignore, MidiInput, MidiInputPort};
@@ -64,9 +64,7 @@ fn create_sound(
     let pitch = midi_hz(note as f64);
     let volume = velocity as f64 / 127.0;
     Box::new(
-        pitch_bend
-            >> envelope2(move |_t, bend| pitch * bend)
-            >> triangle() * adsr_live(0.1, 0.2, 0.4, 0.2, note_m) * volume * 2.0,
+        pitch_bend * pitch >> triangle() * adsr_live(0.1, 0.2, 0.4, 0.2, note_m) * volume * 2.0,
     )
 }
 
