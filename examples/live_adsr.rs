@@ -17,6 +17,7 @@
 //! The MIDI input code is adapted from the
 //! [`test_read_input`](https://github.com/Boddlnagg/midir/blob/master/examples/test_read_input.rs)
 //! example in the [`midir` crate](https://github.com/Boddlnagg/midir).
+#![allow(clippy::precedence)]
 
 use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -71,7 +72,7 @@ fn create_sound(
 fn get_midi_device(midi_in: &mut MidiInput) -> anyhow::Result<MidiInputPort> {
     midi_in.ignore(Ignore::None);
     let in_ports = midi_in.ports();
-    if in_ports.len() == 0 {
+    if in_ports.is_empty() {
         bail!("No MIDI devices attached")
     } else {
         println!(
@@ -94,7 +95,7 @@ fn run_input(
             &in_port,
             "midir-read-input",
             move |_stamp, message, _| {
-                let (msg, _len) = MidiMsg::from_midi(&message).unwrap();
+                let (msg, _len) = MidiMsg::from_midi(message).unwrap();
                 outgoing_midi.push(msg);
             },
             (),
@@ -136,38 +137,36 @@ fn run_synth<T: Sample>(
         let mut pitch_bend = var(PITCH_TAG, 1.0);
         let mut sound_thread_messages: VecDeque<Arc<AtomicCell<SoundMsg>>> = VecDeque::new();
         loop {
-            if let Some(m) = incoming_midi.pop() {
-                if let MidiMsg::ChannelVoice { channel: _, msg } = m {
-                    println!("Received {msg:?}");
-                    match msg {
-                        ChannelVoiceMsg::NoteOff {
-                            note: _,
-                            velocity: _,
-                        } => {
-                            if let Some(m) = sound_thread_messages.back() {
-                                m.store(SoundMsg::Release);
-                            }
+            if let Some(MidiMsg::ChannelVoice { channel: _, msg }) = incoming_midi.pop() {
+                println!("Received {msg:?}");
+                match msg {
+                    ChannelVoiceMsg::NoteOff {
+                        note: _,
+                        velocity: _,
+                    } => {
+                        if let Some(m) = sound_thread_messages.back() {
+                            m.store(SoundMsg::Release);
                         }
-                        ChannelVoiceMsg::NoteOn { note, velocity } => {
-                            stop_all_other_notes(&mut sound_thread_messages);
-                            pitch_bend.set(PITCH_TAG, 1.0);
-                            let note_m = Arc::new(AtomicCell::new(SoundMsg::Play));
-                            sound_thread_messages.push_back(note_m.clone());
-                            start_sound::<T>(
-                                note,
-                                velocity,
-                                pitch_bend.clone(),
-                                note_m,
-                                sample_rate,
-                                device.clone(),
-                                config.clone(),
-                            );
-                        }
-                        ChannelVoiceMsg::PitchBend { bend } => {
-                            pitch_bend.set(PITCH_TAG, pitch_bend_factor(bend));
-                        }
-                        _ => {}
                     }
+                    ChannelVoiceMsg::NoteOn { note, velocity } => {
+                        stop_all_other_notes(&mut sound_thread_messages);
+                        pitch_bend.set(PITCH_TAG, 1.0);
+                        let note_m = Arc::new(AtomicCell::new(SoundMsg::Play));
+                        sound_thread_messages.push_back(note_m.clone());
+                        start_sound::<T>(
+                            note,
+                            velocity,
+                            pitch_bend.clone(),
+                            note_m,
+                            sample_rate,
+                            device.clone(),
+                            config.clone(),
+                        );
+                    }
+                    ChannelVoiceMsg::PitchBend { bend } => {
+                        pitch_bend.set(PITCH_TAG, pitch_bend_factor(bend));
+                    }
+                    _ => {}
                 }
             }
         }
@@ -216,9 +215,8 @@ fn start_sound<T: Sample>(
 
         stream.play().unwrap();
         loop {
-            match note_m.load() {
-                SoundMsg::Finished => break,
-                _ => {}
+            if note_m.load() == SoundMsg::Finished {
+                break;
             }
         }
     });
