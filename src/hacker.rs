@@ -1,6 +1,5 @@
 //! The hacker prelude, a fully 64-bit environment for audio processing.
 
-pub use super::adsr::SoundMsg;
 pub use super::audionode::*;
 pub use super::audiounit::*;
 pub use super::combinator::*;
@@ -27,8 +26,7 @@ pub use super::wavetable::*;
 pub use super::*;
 
 //use num_complex::Complex64;
-use super::adsr::adsr;
-use crossbeam_utils::atomic::AtomicCell;
+use super::adsr::{adsr, ADSR_2};
 use std::sync::Arc;
 
 // Combinator environment.
@@ -704,9 +702,9 @@ where
 ///
 /// When a sound begins, its volume increases from zero to one in the time interval denoted by
 /// `attack`. It then decreases from 1.0 to the `sustain` volume in the time interval denoted by
-/// `decay`. It remains at the `sustain` level until a `SoundMsg::Release` message is stored in
-/// `note_m`, after which it decreases from the `sustain` level to 0.0 in a time interval denoted
-/// by `release`.
+/// `decay`. It remains at the `sustain` level until a positive value is stored in
+/// `releaing`, after which it decreases from the `sustain` level to 0.0 in a time interval denoted
+/// by `release`. It will store a positive value in `finished` once the release time has completed.
 ///
 /// See [live_adsr.rs](https://github.com/SamiPerttu/fundsp/blob/master/examples/live_adsr.rs) for
 /// a program that uses this function to play music live from a MIDI instrument.
@@ -716,18 +714,19 @@ pub fn adsr_live(
     decay: f64,
     sustain: f64,
     release: f64,
-    note_m: Arc<AtomicCell<SoundMsg>>,
+    releasing: An<Var<f64>>,
+    finished: An<Var<f64>>,
 ) -> An<Envelope<f64, f64, impl Fn(f64) -> f64 + Sized + Clone, f64>> {
-    adsr(attack, decay, sustain, release, None, note_m)
+    adsr(attack, decay, sustain, release, None, releasing, finished)
 }
 
 /// This function accepts one input and outputs its value modulated by the ADSR volume controller.
 ///
 /// When a sound begins, its volume increases from zero to one in the time interval denoted by
 /// `attack`. It then decreases from 1.0 to the `sustain_level` volume in the time interval denoted
-/// by `decay`. It remains at `sustain_level` until either the `sustain_time` expires or a
-/// `SoundMsg::Release` message is stored in `note_m`, after which it decreases from the `sustain`
-/// level to 0.0 in a time interval denoted by `release`.
+/// by `decay`. It remains at `sustain_level` until the `sustain_time` expires, after which it
+/// decreases from `sustain_level` to 0.0 in a time interval denoted by `release`. It will store a
+/// positive value in `finished` once the release time has completed.
 #[inline]
 pub fn adsr_fixed(
     attack: f64,
@@ -735,7 +734,7 @@ pub fn adsr_fixed(
     sustain_time: f64,
     sustain_level: f64,
     release: f64,
-    note_m: Arc<AtomicCell<SoundMsg>>,
+    finished: An<Var<f64>>,
 ) -> An<Envelope<f64, f64, impl Fn(f64) -> f64 + Sized + Clone, f64>> {
     adsr(
         attack,
@@ -743,7 +742,8 @@ pub fn adsr_fixed(
         sustain_level,
         release,
         Some(attack + decay + sustain_time),
-        note_m,
+        var(ADSR_2, 0.0),
+        finished,
     )
 }
 
