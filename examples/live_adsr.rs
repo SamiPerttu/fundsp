@@ -1,6 +1,7 @@
 //! This is a fully functional demonstration of `adsr_live()` and of `var()`. It will
 //! listen to messages from the first connected MIDI input device it finds, and play the
-//! corresponding pitches with the volume moderated by an `adsr_live()` envelope. It uses a `var()`
+//! corresponding pitches with the volume moderated by an `adsr_live()` envelope. It uses two
+//! `var()` objects to control the `adsr_live()` envelope and another `var()` object
 //! to alter the pitches as they are running in response to MIDI `pitch_bend` messages.
 //!
 //! This program's design is structured upon the following threads:
@@ -23,8 +24,6 @@ use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Sample, SampleFormat, StreamConfig};
 use crossbeam_queue::SegQueue;
-use crossbeam_utils::atomic::AtomicCell;
-use fundsp::adsr::SoundMsg;
 use fundsp::hacker::{adsr_live, midi_hz, triangle, var};
 use fundsp::prelude::{An, AudioUnit64, Tag, Var};
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
@@ -34,6 +33,8 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 const PITCH_TAG: Tag = 1;
+const FINISHED_TAG: Tag = PITCH_TAG + 1;
+const RELEASE_TAG: Tag = FINISHED_TAG + 1;
 
 fn main() -> anyhow::Result<()> {
     let mut midi_in = MidiInput::new("midir reading input")?;
@@ -47,8 +48,7 @@ fn main() -> anyhow::Result<()> {
 /// This function is where the `adsr_live()` function is employed. We have the following signal
 /// chain in place:
 ///
-/// * The `pitch_bend` value (determined by MIDI `pitch-bend` messages) feeds into an `envelope2()`.
-/// * The `envelope2()` multiplies the pitch by the incoming pitch-bend value.
+/// * The `pitch_bend` value (determined by MIDI `pitch-bend` messages) is multiplied by the pitch.
 /// * The `triangle()` transforms the envelope output into a triangle waveform. For different
 /// sounds, try out some different waveform functions!
 /// * The `adsr_live()` modulates the volume of the sound over time. Play around with the different
@@ -60,12 +60,14 @@ fn create_sound(
     note: u8,
     velocity: u8,
     pitch_bend: An<Var<f64>>,
-    note_m: Arc<AtomicCell<SoundMsg>>,
+    releasing: An<Var<f64>>,
+    finished: An<Var<f64>>,
 ) -> Box<dyn AudioUnit64> {
     let pitch = midi_hz(note as f64);
     let volume = velocity as f64 / 127.0;
     Box::new(
-        pitch_bend * pitch >> triangle() * adsr_live(0.1, 0.2, 0.4, 0.2, note_m) * volume * 2.0,
+        pitch_bend * pitch
+            >> triangle() * adsr_live(0.1, 0.2, 0.4, 0.2, releasing, finished) * volume * 2.0,
     )
 }
 
@@ -134,8 +136,8 @@ fn run_synth<T: Sample>(
     let device = Arc::new(device);
     let config = Arc::new(config);
     std::thread::spawn(move || {
-        let mut pitch_bend = var(PITCH_TAG, 1.0);
-        let mut sound_thread_messages: VecDeque<Arc<AtomicCell<SoundMsg>>> = VecDeque::new();
+        let pitch_bend = var(PITCH_TAG, 1.0);
+        let mut awaiting_release: VecDeque<An<Var<f64>>> = VecDeque::new();
         loop {
             if let Some(MidiMsg::ChannelVoice { channel: _, msg }) = incoming_midi.pop() {
                 println!("Received {msg:?}");
@@ -144,27 +146,25 @@ fn run_synth<T: Sample>(
                         note: _,
                         velocity: _,
                     } => {
-                        if let Some(m) = sound_thread_messages.back() {
-                            m.store(SoundMsg::Release);
-                        }
+                        release_all(&mut awaiting_release);
                     }
                     ChannelVoiceMsg::NoteOn { note, velocity } => {
-                        stop_all_other_notes(&mut sound_thread_messages);
-                        pitch_bend.set(PITCH_TAG, 1.0);
-                        let note_m = Arc::new(AtomicCell::new(SoundMsg::Play));
-                        sound_thread_messages.push_back(note_m.clone());
+                        release_all(&mut awaiting_release);
+                        pitch_bend.set_value(1.0);
+                        let releasing = var(RELEASE_TAG, 0.0);
+                        awaiting_release.push_back(releasing.clone());
                         start_sound::<T>(
                             note,
                             velocity,
                             pitch_bend.clone(),
-                            note_m,
+                            releasing,
                             sample_rate,
                             device.clone(),
                             config.clone(),
                         );
                     }
                     ChannelVoiceMsg::PitchBend { bend } => {
-                        pitch_bend.set(PITCH_TAG, pitch_bend_factor(bend));
+                        pitch_bend.set_value(pitch_bend_factor(bend));
                     }
                     _ => {}
                 }
@@ -179,12 +179,9 @@ fn pitch_bend_factor(bend: u16) -> f64 {
     2.0_f64.powf(((bend as f64 - 8192.0) / 8192.0) / 12.0)
 }
 
-fn stop_all_other_notes(sound_thread_messages: &mut VecDeque<Arc<AtomicCell<SoundMsg>>>) {
-    loop {
-        match sound_thread_messages.pop_front() {
-            None => break,
-            Some(m) => m.store(SoundMsg::Finished),
-        }
+fn release_all(awaiting_release: &mut VecDeque<An<Var<f64>>>) {
+    while let Some(m) = awaiting_release.pop_front() {
+        m.set_value(1.0);
     }
 }
 
@@ -192,12 +189,13 @@ fn start_sound<T: Sample>(
     note: u8,
     velocity: u8,
     pitch_bend: An<Var<f64>>,
-    note_m: Arc<AtomicCell<SoundMsg>>,
+    releasing: An<Var<f64>>,
     sample_rate: f64,
     device: Arc<Device>,
     config: Arc<StreamConfig>,
 ) {
-    let mut sound = create_sound(note, velocity, pitch_bend, note_m.clone());
+    let finished = var(FINISHED_TAG, 0.0);
+    let mut sound = create_sound(note, velocity, pitch_bend, releasing, finished.clone());
     sound.reset(Some(sample_rate));
     let mut next_value = move || sound.get_stereo();
     let channels = config.channels as usize;
@@ -214,11 +212,7 @@ fn start_sound<T: Sample>(
             .unwrap();
 
         stream.play().unwrap();
-        loop {
-            if note_m.load() == SoundMsg::Finished {
-                break;
-            }
-        }
+        while finished.value() == 0.0 {}
     });
 }
 
