@@ -1,5 +1,9 @@
 ## Changes
 
+### Version 0.10
+
+- New opcode `resample` for variable speed cubic resampling.
+
 ### Version 0.9
 
 - `detector` was removed (it did not work).

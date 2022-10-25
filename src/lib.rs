@@ -258,6 +258,7 @@ pub mod oversample;
 pub mod pan;
 pub mod pattern;
 pub mod prelude;
+pub mod resample;
 pub mod scale;
 pub mod sequencer;
 pub mod shape;

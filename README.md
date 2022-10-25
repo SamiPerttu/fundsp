@@ -545,7 +545,7 @@ These free functions are available in the environment.
 
 ### Component Opcodes
 
-The type parameters in the table refer to the hacker prelude.
+The type parameters in the table refer to the hacker preludes.
 
 `M`, `N`, `U` are type-level integers. They are `U0`, `U1`, `U2`...
 
@@ -642,7 +642,7 @@ The type parameters in the table refer to the hacker prelude.
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
 | `notch_hz(f, q)`       |    1    |    1    | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
 | `notch_q(q)`           | 2 (audio, frequency) | 1 | Notch filter (2nd order) with Q `q`. |
-| `oversample(x)`        |   `x`   |   `x`   | 2x oversample enclosed node `x`. |
+| `oversample(node)`     |  `node` |  `node` | 2x oversample enclosed `node`. |
 | `pan(pan)`             |    1    |    2    | Fixed mono-to-stereo equal power panner with pan in -1...1. |
 | `panner()`             | 2 (audio, pan) | 2 | Mono-to-stereo equal power panner with pan in -1...1. |
 | `pass()`               |    1    |    1    | Pass signal through. |
@@ -656,6 +656,7 @@ The type parameters in the table refer to the hacker prelude.
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from fractional generator `f`. |
 | `pluck(f, gain, damping)` | 1 (excitation) | 1 | [Karplus-Strong](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis) plucked string oscillator with frequency `f` Hz, `gain` per second (`gain` <= 1) and high frequency `damping` in 0...1. |
 | `pulse()`              | 2 (frequency, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
+| `resample(node)`       | 1 (speed) | `node` | Resample generator `node` using cubic interpolation at speed obtained from the input, where 1 is the original speed. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `reverb_stereo(r, t)`  |    2    |    2    | Stereo reverb with room size `r` meters (10 is average) and reverberation time `t` seconds. |
@@ -900,6 +901,7 @@ Some examples of graph expressions.
 | `oversample(sine_hz(f) * f * m + f >> sine())` | - |   1    | Oversampled [FM (frequency modulation)](https://ccrma.stanford.edu/~jos/sasp/Frequency_Modulation_FM_Synthesis.html) oscillator at `f` Hz with modulation index `m` |
 | `sine() & mul(2.0) >> sine()`            |   1    |    1    | frequency doubled dual sine oscillator        |
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
+| `lfo(|t| xerp11(0.25, 4.0, spline_noise(1, t))) >> resample(pink())` | 0 | 1 | Resampled pink noise. |
 | `feedback(delay(1.0) * db_amp(-3.0))`    |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 | `feedback((delay(1.0) \| delay(1.0)) >> swap() * db_amp(-6.0))` | 2 | 2 | 1 second ping-pong delay with 6 dB attenuation. |
 | `tag(0, 0.1) * delay(1.0) & (1.0 - tag(0, 0.1)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by parameter 0. |

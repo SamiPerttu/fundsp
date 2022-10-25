@@ -16,6 +16,7 @@ pub use super::noise::*;
 pub use super::oscillator::*;
 pub use super::oversample::*;
 pub use super::pan::*;
+pub use super::resample::*;
 pub use super::sequencer::*;
 pub use super::shape::*;
 pub use super::signal::*;
@@ -962,6 +963,27 @@ where
     X::Outputs: Size<Frame<T, U128>>,
 {
     An(Oversampler::new(DEFAULT_SR, node.0))
+}
+
+/// Resample enclosed generator `node` using cubic interpolation
+/// at speed obtained from input 0, where 1 is the original speed.
+/// Input 0: Sampling speed.
+/// Output(s): Resampled outputs of contained generator.
+///
+/// ### Example: Resampled Pink Noise
+/// ```
+/// use fundsp::prelude::*;
+/// lfo(|t: f64| xerp11(0.5, 2.0, spline_noise(1, t))) >> resample(pink::<f64, f64>());
+/// ```
+#[inline]
+pub fn resample<T, X>(node: An<X>) -> An<Resampler<T, X>>
+where
+    T: Float,
+    X: AudioNode<Sample = T, Inputs = U0>,
+    X::Outputs: Size<T>,
+    X::Outputs: Size<Frame<T, U128>>,
+{
+    An(Resampler::new(DEFAULT_SR, node.0))
 }
 
 /// Mix output of enclosed circuit `node` back to its input.

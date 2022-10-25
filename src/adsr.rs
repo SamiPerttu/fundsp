@@ -37,7 +37,7 @@ pub fn adsr<F: Float + Variable>(
     releasing: An<Var<F>>,
     finished: An<Var<F>>,
 ) -> An<Envelope<F, F, impl Fn(F) -> F + Sized + Clone, F>> {
-    let release_start = var(ADSR_1, release_start.unwrap_or(F::from_f64(-1.0)));
+    let release_start = var(ADSR_1, release_start.unwrap_or_else(|| F::from_f64(-1.0)));
     envelope(move |time| {
         if releasing.value() > F::from_f64(0.0) && release_start.value() < F::from_f64(0.0) {
             release_start.set_value(time);
