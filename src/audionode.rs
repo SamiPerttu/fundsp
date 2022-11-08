@@ -51,9 +51,16 @@ pub trait AudioNode: Clone {
     /// not processed any samples. In other words, reset time to zero.
     /// The sample rate can be set optionally. The default sample rate is 44.1 kHz.
     /// The default implementation does nothing.
-    fn reset(&mut self, _sample_rate: Option<f64>) {}
+    #[allow(unused_variables)]
+    fn reset(&mut self, sample_rate: Option<f64>) {}
 
     /// Process one sample.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(Pass::new().tick(&Frame::from([2.0])), Frame::from([2.0]));
+    /// ```
     fn tick(
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
@@ -85,7 +92,8 @@ pub trait AudioNode: Clone {
     /// Set node pseudorandom phase hash. Override this to use the hash.
     /// This is called from `ping`. It should not be called by users.
     /// The default implementation does nothing.
-    fn set_hash(&mut self, _hash: u64) {}
+    #[allow(unused_variables)]
+    fn set_hash(&mut self, hash: u64) {}
 
     /// Ping contained `AudioNode`s to obtain a deterministic pseudorandom hash.
     /// The local hash includes children, too.
@@ -102,28 +110,59 @@ pub trait AudioNode: Clone {
     /// Route constants, latencies and frequency responses at `frequency` Hz
     /// from inputs to outputs. Return output signal.
     /// Default implementation marks all outputs unknown.
-    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    #[allow(unused_variables)]
+    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         new_signal_frame(self.outputs())
     }
 
     /// Set parameter value recursively. The default implementation does nothing.
-    fn set(&mut self, _parameter: Tag, _value: f64) {}
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut node = tag(0, 1.0);
+    /// node.set(0, 2.0);
+    /// assert_eq!(node.get(0), Some(2.0));
+    /// ```
+    #[allow(unused_variables)]
+    fn set(&mut self, parameter: Tag, value: f64) {}
 
     /// Query parameter value recursively. The first matching parameter is returned.
     /// The default implementation returns `None`.
-    fn get(&self, _parameter: Tag) -> Option<f64> {
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let node = tag(0, 3.0);
+    /// assert_eq!(node.get(0), Some(3.0));
+    /// assert_eq!(node.get(1), None);
+    /// ```
+    #[allow(unused_variables)]
+    fn get(&self, parameter: Tag) -> Option<f64> {
         None
     }
 
     // End of interface. There is no need to override the following.
 
     /// Number of inputs.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(sink().inputs(), 1);
+    /// ```
     #[inline]
     fn inputs(&self) -> usize {
         Self::Inputs::USIZE
     }
 
     /// Number of outputs.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(zero().outputs(), 1);
+    /// ```
     #[inline]
     fn outputs(&self) -> usize {
         Self::Outputs::USIZE
@@ -132,6 +171,13 @@ pub trait AudioNode: Clone {
     /// Evaluate frequency response of `output` at `frequency` Hz.
     /// Any linear response can be composed.
     /// Return `None` if there is no response or it could not be calculated.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// use num_complex::Complex64;
+    /// assert_eq!(pass().response(0, 440.0), Some(Complex64::new(1.0, 0.0)));
+    /// ```
     fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
         assert!(output < self.outputs());
         let mut input = new_signal_frame(self.inputs());
@@ -148,6 +194,12 @@ pub trait AudioNode: Clone {
     /// Evaluate frequency response of `output` in dB at `frequency Hz`.
     /// Any linear response can be composed.
     /// Return `None` if there is no response or it could not be calculated.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(pass().response_db(0, 440.0), Some(0.0));
+    /// ```
     fn response_db(&self, output: usize, frequency: f64) -> Option<f64> {
         assert!(output < self.outputs());
         self.response(output, frequency).map(|r| amp_db(r.norm()))
@@ -156,6 +208,12 @@ pub trait AudioNode: Clone {
     /// Causal latency in (fractional) samples.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
     /// The latency can depend on the sample rate and is allowed to change after `reset`.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(lowpass_hz(440.0, 1.0).latency(), Some(0.0));
+    /// ```
     fn latency(&self) -> Option<f64> {
         if self.outputs() == 0 {
             return None;
@@ -182,6 +240,13 @@ pub trait AudioNode: Clone {
     /// Retrieve the next mono sample from a generator.
     /// The node must have no inputs and 1 or 2 outputs.
     /// If there are two outputs, average the channels.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(dc(2.0).get_mono(), 2.0);
+    /// assert_eq!(dc((3.0, 4.0)).get_mono(), 3.5);
+    /// ```
     #[inline]
     fn get_mono(&mut self) -> Self::Sample {
         assert!(
@@ -198,6 +263,13 @@ pub trait AudioNode: Clone {
     /// Retrieve the next stereo sample (left, right) from a generator.
     /// The node must have no inputs and 1 or 2 outputs.
     /// If there is just one output, duplicate it.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(dc((5.0, 6.0)).get_stereo(), (5.0, 6.0));
+    /// assert_eq!(dc(7.0).get_stereo(), (7.0, 7.0));
+    /// ```
     #[inline]
     fn get_stereo(&mut self) -> (Self::Sample, Self::Sample) {
         assert!(
@@ -209,6 +281,12 @@ pub trait AudioNode: Clone {
 
     /// Filter the next mono sample `x`.
     /// The node must have exactly 1 input and 1 output.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(add(1.0).filter_mono(1.0), 2.0);
+    /// ```
     #[inline]
     fn filter_mono(&mut self, x: Self::Sample) -> Self::Sample {
         assert!(Self::Inputs::USIZE == 1 && Self::Outputs::USIZE == 1);
@@ -218,6 +296,12 @@ pub trait AudioNode: Clone {
 
     /// Filter the next stereo sample `(x, y)`.
     /// The node must have exactly 2 inputs and 2 outputs.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(add((2.0, 3.0)).filter_stereo(4.0, 5.0), (6.0, 8.0));
+    /// ```
     #[inline]
     fn filter_stereo(&mut self, x: Self::Sample, y: Self::Sample) -> (Self::Sample, Self::Sample) {
         assert!(Self::Inputs::USIZE == 2 && Self::Outputs::USIZE == 2);
