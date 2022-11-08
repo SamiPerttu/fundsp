@@ -204,10 +204,7 @@ pub trait AudioNode: Clone {
             Self::Inputs::USIZE == 0 && (Self::Outputs::USIZE == 1 || Self::Outputs::USIZE == 2)
         );
         let output = self.tick(&Frame::default());
-        (
-            output[0],
-            output[if Self::Outputs::USIZE > 1 { 1 } else { 0 }],
-        )
+        (output[0], output[(Self::Outputs::USIZE > 1) as usize])
     }
 
     /// Filter the next mono sample `x`.
