@@ -9,11 +9,6 @@ use num_complex::Complex64;
 use numeric_array::typenum::*;
 use numeric_array::*;
 
-/// Complex64 with real component `x` and imaginary component zero.
-fn re<T: Float>(x: T) -> Complex64 {
-    Complex64::new(x.to_f64(), 0.0)
-}
-
 #[derive(Copy, Clone, Debug, Default)]
 pub struct BiquadCoefs<F> {
     pub a1: F,
@@ -62,6 +57,10 @@ impl<F: Real> BiquadCoefs<F> {
     pub fn response(&self, omega: f64) -> Complex64 {
         let z1 = Complex64::from_polar(1.0, -TAU * omega);
         let z2 = z1 * z1;
+        /// Complex64 with real component `x` and imaginary component zero.
+        fn re<T: Float>(x: T) -> Complex64 {
+            Complex64::new(x.to_f64(), 0.0)
+        }
         (re(self.b0) + re(self.b1) * z1 + re(self.b2) * z2)
             / (re(1.0) + re(self.a1) * z1 + re(self.a2) * z2)
     }

@@ -91,9 +91,9 @@ impl<T: Real> AudioNode for Sine<T> {
     }
 }
 
-/// Discrete summation formula. Returns sum, of i in [0, n], of r ** i * sin(f + i * d).
+/// Discrete summation formula. Returns sum, of `i` in `0..n`, of `r ** i * sin(f + i * d)`.
 fn dsf<T: Real>(f: T, d: T, r: T, n: T) -> T {
-    // Note: beware of division by zero, which results when r = 1 and d = 0.
+    // Note: beware of division by zero, which results when `r` = 1 and `d` = 0.
     // Formula is from Moorer, J. A., The Synthesis of Complex Audio Spectra by Means of Discrete Summation Formulae, 1976.
     (sin(f)
         - r * sin(f - d)
@@ -103,7 +103,7 @@ fn dsf<T: Real>(f: T, d: T, r: T, n: T) -> T {
 
 /// DSF oscillator. Number of inputs is `N`, either 1 or 2.
 /// - Input 0: frequency in Hz.
-/// - Input 1 (optional): roughness in 0...1 is the attenuation of successive partials.
+/// - Input 1 (optional): roughness in 0...1 is the relative amplitude of successive partials.
 /// - Output 0: DSF wave.
 #[derive(Clone)]
 pub struct Dsf<T: Real, N: Size<T>> {
@@ -136,7 +136,7 @@ impl<T: Real, N: Size<T>> Dsf<T, N> {
         self.roughness
     }
 
-    /// Set roughness. Roughness in 0...1 is the attenuation of successive partials.
+    /// Set roughness. Roughness in 0...1 is the relative amplitude of successive partials.
     #[inline]
     pub fn set_roughness(&mut self, roughness: T) {
         self.roughness = clamp(T::from_f64(0.0001), T::from_f64(0.9999), roughness);
@@ -187,7 +187,7 @@ impl<T: Real, N: Size<T>> AudioNode for Dsf<T, N> {
 }
 
 /// Karplus-Strong oscillator.
-/// - Input 0: string excitation.
+/// - Input 0: extra string excitation.
 /// - Output 0: plucked string.
 #[derive(Clone)]
 pub struct Pluck<T: Float> {

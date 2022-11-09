@@ -124,7 +124,7 @@ impl Wavetable {
         let table: &Vec<f32> = &self.table[i].1;
         let p = table.len() as f32 * phase;
         let i1 = p as usize;
-        let w = p as f32 - i1 as f32;
+        let w = p - i1 as f32;
         let i0 = i1.wrapping_sub(1) & (table.len() - 1);
         let i1 = i1 & (table.len() - 1);
         let i2 = (i1 + 1) & (table.len() - 1);
