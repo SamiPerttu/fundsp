@@ -198,7 +198,8 @@ pub trait AudioNode: Clone {
     /// ### Example
     /// ```
     /// use fundsp::hacker::*;
-    /// assert_eq!(pass().response_db(0, 440.0), Some(0.0));
+    /// let db = pass().response_db(0, 440.0).unwrap();
+    /// assert!(db < 1.0e-7 && db > -1.0e-7);
     /// ```
     fn response_db(&self, output: usize, frequency: f64) -> Option<f64> {
         assert!(output < self.outputs());

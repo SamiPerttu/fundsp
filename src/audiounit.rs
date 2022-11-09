@@ -1,4 +1,4 @@
-//! `AudioUnit64` and `AudioUnit32` abstractions.
+//! The dynamical `AudioUnit64` and `AudioUnit32` abstractions.
 
 use super::audionode::*;
 use super::combinator::*;
@@ -46,11 +46,13 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame;
 
     /// Set parameter to value. The default implementation does nothing.
-    fn set(&mut self, _parameter: Tag, _value: f64) {}
+    #[allow(unused_variables)]
+    fn set(&mut self, parameter: Tag, value: f64) {}
 
     /// Query parameter value. The first matching parameter is returned.
     /// The default implementation returns None.
-    fn get(&self, _parameter: Tag) -> Option<f64> {
+    #[allow(unused_variables)]
+    fn get(&self, parameter: Tag) -> Option<f64> {
         None
     }
 
@@ -60,7 +62,8 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     /// Set unit pseudorandom phase hash. Override this to use the hash.
     /// This is called from `ping`. It should not be called by users.
     /// The default implementation does nothing.
-    fn set_hash(&mut self, _hash: u64) {}
+    #[allow(unused_variables)]
+    fn set_hash(&mut self, hash: u64) {}
 
     /// Ping contained `AudioUnit`s and `AudioNode`s to obtain
     /// a deterministic pseudorandom hash. The local hash includes children, too.
@@ -79,6 +82,13 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     /// Evaluate frequency response of `output` at `frequency` Hz.
     /// Any linear response can be composed.
     /// Return `None` if there is no response or it could not be calculated.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// use num_complex::Complex64;
+    /// assert_eq!(pass().response(0, 440.0), Some(Complex64::new(1.0, 0.0)));
+    /// ```
     fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
         assert!(output < self.outputs());
         let mut input = new_signal_frame(self.inputs());
@@ -95,6 +105,13 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     /// Evaluate frequency response of `output` in dB at `frequency Hz`.
     /// Any linear response can be composed.
     /// Return `None` if there is no response or it could not be calculated.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let db = tick().response_db(0, 220.0).unwrap();
+    /// assert!(db < 1.0e-7 && db > -1.0e-7);
+    /// ```
     fn response_db(&self, output: usize, frequency: f64) -> Option<f64> {
         assert!(output < self.outputs());
         self.response(output, frequency).map(|r| amp_db(r.norm()))
@@ -103,6 +120,14 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     /// Causal latency in (fractional) samples.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
     /// The latency can depend on the sample rate and is allowed to change after `reset`.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(pass().latency(), Some(0.0));
+    /// assert_eq!(tick().latency(), Some(1.0));
+    /// assert_eq!((tick() >> tick()).latency(), Some(2.0));
+    /// ```
     fn latency(&self) -> Option<f64> {
         if self.outputs() == 0 {
             return None;
@@ -129,6 +154,13 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     /// Retrieve the next mono sample from a generator.
     /// The node must have no inputs and 1 or 2 outputs.
     /// If there are two outputs, average them.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(dc(2.0).get_mono(), 2.0);
+    /// assert_eq!(dc((3.0, 4.0)).get_mono(), 3.5);
+    /// ```
     #[inline]
     fn get_mono(&mut self) -> f48 {
         debug_assert!(self.inputs() == 0);
@@ -150,6 +182,13 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     /// Retrieve the next stereo sample (left, right) from a generator.
     /// The node must have no inputs and 1 or 2 outputs.
     /// If there is just one output, duplicate it.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(dc((5.0, 6.0)).get_stereo(), (5.0, 6.0));
+    /// assert_eq!(dc(7.0).get_stereo(), (7.0, 7.0));
+    /// ```
     #[inline]
     fn get_stereo(&mut self) -> (f48, f48) {
         debug_assert!(self.inputs() == 0);
@@ -170,6 +209,12 @@ pub trait AudioUnit48: Send + Sync + DynClone {
 
     /// Filter the next mono sample `x`.
     /// The node must have exactly 1 input and 1 output.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(add(4.0).filter_mono(5.0), 9.0);
+    /// ```
     #[inline]
     fn filter_mono(&mut self, x: f48) -> f48 {
         debug_assert!(self.inputs() == 1 && self.outputs() == 1);
@@ -180,6 +225,12 @@ pub trait AudioUnit48: Send + Sync + DynClone {
 
     /// Filter the next stereo sample `(x, y)`.
     /// The node must have exactly 2 inputs and 2 outputs.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// assert_eq!(add((2.0, 3.0)).filter_stereo(4.0, 5.0), (6.0, 8.0));
+    /// ```
     #[inline]
     fn filter_stereo(&mut self, x: f48, y: f48) -> (f48, f48) {
         debug_assert!(self.inputs() == 2 && self.outputs() == 2);
