@@ -26,6 +26,9 @@ pub use super::wave::*;
 pub use super::wavetable::*;
 pub use super::*;
 
+#[cfg(feature = "files")]
+pub use super::read::*;
+
 //use num_complex::Complex64;
 use super::adsr::{adsr, ADSR_2};
 use std::sync::Arc;

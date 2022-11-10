@@ -269,5 +269,8 @@ pub mod system;
 pub mod wave;
 pub mod wavetable;
 
+#[cfg(feature = "files")]
+pub mod read;
+
 // For Frame::generate.
 pub use generic_array::sequence::GenericSequence;

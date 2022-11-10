@@ -2,9 +2,11 @@
 
 use super::audionode::*;
 use super::audiounit::*;
+use super::combinator::*;
 use super::math::*;
 use super::*;
 use duplicate::duplicate_item;
+use numeric_array::typenum::Unsigned;
 use numeric_array::*;
 use rsor::Slice;
 use std::fs::File;
@@ -50,9 +52,9 @@ fn write_wav_header<W: Write>(
     let sample_bytes = if format == 1 { 2 } else { 4 };
     write32(writer, (sample_rate * channels) as u32 * sample_bytes)?;
     // Sample frame length in bytes.
-    write16(writer, channels as u16 * 2)?;
+    write16(writer, channels as u16 * sample_bytes as u16)?;
     // Bits per sample.
-    write16(writer, 16)?;
+    write16(writer, sample_bytes as u16 * 8)?;
     writer.write_all(b"data")?;
     // Length of data block.
     write32(writer, data_length as u32)?;
@@ -170,11 +172,10 @@ impl Wave48 {
     /// assert!(wave.channels() == 1 && wave.duration() == 0.5 && wave.amplitude() == 0.0);
     /// ```
     pub fn from_samples(sample_rate: f64, samples: &[f48]) -> Self {
-        let len = samples.len();
         Self {
-            vec: vec![Vec::from(samples); 1],
+            vec: vec![Vec::from(samples)],
             sr: sample_rate,
-            len,
+            len: samples.len(),
             slice: Slice::new(),
         }
     }
@@ -199,11 +200,6 @@ impl Wave48 {
         &self.vec[channel]
     }
 
-    /// Return a mutable reference to the requested channel.
-    pub fn channel_mut(&mut self, channel: usize) -> &mut Vec<f48> {
-        &mut self.vec[channel]
-    }
-
     /// Add a channel to the wave from a slice of samples.
     /// The length of the wave and the number of samples must match.
     pub fn push_channel(&mut self, samples: &[f48]) {
@@ -225,10 +221,10 @@ impl Wave48 {
         self.vec.insert(channel, samples.into());
     }
 
-    /// Remove channel `channel` from this wave.
-    pub fn remove_channel(&mut self, channel: usize) {
+    /// Remove channel `channel` from this wave. Returns the removed channel.
+    pub fn remove_channel(&mut self, channel: usize) -> Vec<f48> {
         assert!(channel < self.channels());
-        self.vec.remove(channel);
+        self.vec.remove(channel)
     }
 
     /// Return a reference to the channels vector as a slice of slices.
@@ -249,6 +245,36 @@ impl Wave48 {
     /// Set sample to value.
     pub fn set(&mut self, channel: usize, index: usize, value: f48) {
         self.vec[channel][index] = value;
+    }
+
+    /// Insert a new frame of samples to the end of the wave.
+    /// Pushing a scalar frame, the value is broadcast to any number of channels.
+    /// Otherwise, the number of channels must match.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut wave = Wave64::new(2, 44100.0);
+    /// wave.push(0.0);
+    /// assert!(wave.len() == 1 && wave.amplitude() == 0.0);
+    /// wave.push((-0.5, 0.5));
+    /// assert!(wave.len() == 2 && wave.amplitude() == 0.5);
+    /// ```
+    pub fn push<T: ConstantFrame<Sample = f48>>(&mut self, frame: T) {
+        let frame = frame.convert();
+        if T::Size::USIZE == 1 {
+            for channel in 0..self.channels() {
+                self.vec[channel].push(frame[0]);
+            }
+        } else {
+            assert!(self.channels() == T::Size::USIZE);
+            for channel in 0..self.channels() {
+                self.vec[channel].push(frame[channel]);
+            }
+        }
+        if self.channels() > 0 {
+            self.len += 1;
+        }
     }
 
     /// Length of the wave in samples.
@@ -354,6 +380,7 @@ impl Wave48 {
     /// ```
     /// use fundsp::hacker32::*;
     /// let wave = Wave32::render(44100.0, 10.0, &mut (brown()));
+    /// assert!(wave.channels() == 1 && wave.duration() == 10.0);
     /// ```
     pub fn render(sample_rate: f64, duration: f64, node: &mut dyn AudioUnit48) -> Self {
         assert!(node.inputs() == 0);
