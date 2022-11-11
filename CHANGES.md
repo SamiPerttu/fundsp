@@ -3,6 +3,7 @@
 ### Version 0.10
 
 - New opcode `resample` for variable speed cubic resampling.
+- `Wave32/64` improvements. Symphonia integration for reading audio files.
 
 ### Version 0.9
 

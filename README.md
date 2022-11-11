@@ -375,6 +375,39 @@ Some signals found flowing in audio networks.
 | stereo pan     | -1...1 (left to right) | For ergonomy, consider clamping any pan input to this range. |
 | control amount | 0...1                  | If there is no natural interpretation of the parameter. |
 
+## Working With Waves
+
+FunDSP includes multichannel wave abstractions. They are named `Wave32` and `Wave64`.
+For example, to render 10 seconds of pink noise:
+
+```rust
+use fundsp::hacker::*;
+let wave1 = Wave64::render(44100.0, 10.0, &mut (pink()));
+```
+
+Then filter it with a moving bandpass filter and normalize amplitude to -1..1:
+
+```rust
+let mut wave2 = wave1.filter(10.0, &mut ((pass() | lfo(|t| (xerp11(110.0, 880.0, spline_noise(0, t * 5.0)), 1.0))) >> bandpass()));
+wave2.normalize();
+```
+
+Saving of waves is possible in 16-bit or 32-bit WAV. The latter is floating point.
+For example, to save `wave2` to `test.wav`:
+
+```rust
+wave2.save_wav16(std::path::Path::new("test.wav")).expect("Could not save wave.");
+```
+
+Loading of audio files in various formats is handled by the
+[Symphonia](https://crates.io/crates/symphonia) crate.
+Symphonia integration is enabled by the `files` feature, which is enabled by default.
+
+For example, to load `test.wav`:
+
+```rust
+let wave3 = Wave64::load(std::path::Path::new("test.wav")).expect("Could not load wave.");
+```
 
 ## Signal Flow Analysis
 
@@ -401,6 +434,7 @@ has zero gain at the [Nyquist](https://en.wikipedia.org/wiki/Nyquist_frequency) 
 while a 3-point averaging filter does not:
 
 ```rust
+use fundsp::hacker::*;
 assert!((pass() & tick()).response(0, 22050.0).unwrap().norm() < 1.0e-9);
 assert!((pass() & tick() & tick() >> tick()).response(0, 22050.0).unwrap().norm() > 0.1);
 ```
@@ -408,6 +442,7 @@ assert!((pass() & tick() & tick() >> tick()).response(0, 22050.0).unwrap().norm(
 However, with appropriate scaling a 3-point FIR can vanish, too:
 
 ```rust
+use fundsp::hacker::*;
 assert!((0.5 * pass() & tick() & 0.5 * tick() >> tick()).response(0, 22050.0).unwrap().norm() < 1.0e-9);
 ```
 
@@ -994,6 +1029,7 @@ Declaring the full arity in the signature does enable use of the node
 in further combinations. For example:
 
 ```rust
+use fundsp::hacker::*;
 fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
     pass() ^ pass() ^ pass() ^ pass()
 }

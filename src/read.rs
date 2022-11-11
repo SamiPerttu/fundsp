@@ -12,7 +12,6 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
-/// Multichannel wave.
 #[duplicate_item(
     f48       Wave48       AudioUnit48;
     [ f64 ]   [ Wave64 ]   [ AudioUnit64 ];
@@ -20,12 +19,14 @@ use symphonia::core::probe::Hint;
 )]
 impl Wave48 {
     /// Load first track of audio file from the given path.
+    /// Supported formats are anything that Symphonia can read.
     pub fn load(path: &Path) -> Result<Wave48> {
         Wave48::load_track(path, None)
     }
 
     /// Load audio file from the given path. Track can be optionally selected.
     /// If not selected, the first track with a known codec will be loaded.
+    /// Supported formats are anything that Symphonia can read.
     pub fn load_track(path: &Path, track: Option<usize>) -> Result<Wave48> {
         let mut hint = Hint::new();
 

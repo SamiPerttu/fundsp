@@ -142,15 +142,17 @@ impl Wave48 {
         }
     }
 
-    /// Create a zero wave with the given `length` in samples and the number of `channels`.
+    /// Create an all-zeros wave with the given `duration` in seconds and number of `channels`.
     ///
     /// ### Example
     /// ```
     /// use fundsp::hacker32::*;
-    /// let wave = Wave32::silence(1, 44100.0, 44100);
+    /// let wave = Wave32::silence(1, 44100.0, 1.0);
     /// assert!(wave.duration() == 1.0 && wave.amplitude() == 0.0);
     /// ```
-    pub fn silence(channels: usize, sample_rate: f64, length: usize) -> Self {
+    pub fn silence(channels: usize, sample_rate: f64, duration: f64) -> Self {
+        let length = round(duration * sample_rate) as usize;
+        assert!(channels > 0 || length == 0);
         let mut vec = Vec::with_capacity(channels);
         for _i in 0..channels {
             vec.push(vec![0.0; length]);
@@ -167,8 +169,8 @@ impl Wave48 {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
-    /// let wave = Wave64::from_samples(44100.0, &[0.0; 22050]);
+    /// use fundsp::hacker32::*;
+    /// let wave = Wave32::from_samples(44100.0, &[0.0; 22050]);
     /// assert!(wave.channels() == 1 && wave.duration() == 0.5 && wave.amplitude() == 0.0);
     /// ```
     pub fn from_samples(sample_rate: f64, samples: &[f48]) -> Self {
@@ -181,6 +183,7 @@ impl Wave48 {
     }
 
     /// Sample rate of this wave.
+    #[inline]
     pub fn sample_rate(&self) -> f64 {
         self.sr
     }
@@ -191,11 +194,13 @@ impl Wave48 {
     }
 
     /// Number of channels in this wave.
+    #[inline]
     pub fn channels(&self) -> usize {
         self.vec.len()
     }
 
     /// Return a reference to the requested channel.
+    #[inline]
     pub fn channel(&self, channel: usize) -> &Vec<f48> {
         &self.vec[channel]
     }
@@ -238,11 +243,13 @@ impl Wave48 {
     }
 
     /// Sample accessor.
+    #[inline]
     pub fn at(&self, channel: usize, index: usize) -> f48 {
         self.vec[channel][index]
     }
 
     /// Set sample to value.
+    #[inline]
     pub fn set(&mut self, channel: usize, index: usize, value: f48) {
         self.vec[channel][index] = value;
     }
@@ -260,6 +267,7 @@ impl Wave48 {
     /// wave.push((-0.5, 0.5));
     /// assert!(wave.len() == 2 && wave.amplitude() == 0.5);
     /// ```
+    #[inline]
     pub fn push<T: ConstantFrame<Sample = f48>>(&mut self, frame: T) {
         let frame = frame.convert();
         if T::Size::USIZE == 1 {
@@ -278,11 +286,13 @@ impl Wave48 {
     }
 
     /// Length of the wave in samples.
+    #[inline]
     pub fn length(&self) -> usize {
         self.len
     }
 
     /// Length of the wave in samples.
+    #[inline]
     pub fn len(&self) -> usize {
         self.len
     }
@@ -295,6 +305,7 @@ impl Wave48 {
     /// let wave = Wave64::new(1, 44100.0);
     /// assert!(wave.is_empty());
     /// ```
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -307,6 +318,7 @@ impl Wave48 {
     /// let wave = Wave64::with_capacity(1, 44100.0, 44100);
     /// assert!(wave.duration() == 0.0);
     /// ```
+    #[inline]
     pub fn duration(&self) -> f64 {
         self.length() as f64 / self.sample_rate()
     }
@@ -372,15 +384,15 @@ impl Wave48 {
         }
     }
 
-    /// Render wave with length `duration` seconds from a generator `node`.
+    /// Render wave with length `duration` seconds from generator `node`.
     /// Resets `node` and sets its sample rate.
     /// Does not discard pre-delay.
     ///
-    /// ### Example: Render 10 Seconds Of Brown Noise
+    /// ### Example: Render 10 Seconds Of Stereo Brown Noise
     /// ```
     /// use fundsp::hacker32::*;
-    /// let wave = Wave32::render(44100.0, 10.0, &mut (brown()));
-    /// assert!(wave.channels() == 1 && wave.duration() == 10.0);
+    /// let wave = Wave32::render(44100.0, 10.0, &mut (brown() | brown()));
+    /// assert!(wave.sample_rate() == 44100.0 && wave.channels() == 2 && wave.duration() == 10.0);
     /// ```
     pub fn render(sample_rate: f64, duration: f64, node: &mut dyn AudioUnit48) -> Self {
         assert!(node.inputs() == 0);
@@ -405,9 +417,16 @@ impl Wave48 {
         wave
     }
 
-    /// Render wave with length `duration` seconds from a generator `node`.
+    /// Render wave with length `duration` seconds from generator `node`.
     /// Any pre-delay, as measured by signal latency, is discarded.
     /// Resets `node` and sets its sample rate.
+    ///
+    /// ### Example: Render 10 Seconds Of Square-Like Wave With Look-Ahead Limiter
+    /// ```
+    /// use fundsp::hacker32::*;
+    /// let wave = Wave32::render_latency(44100.0, 10.0, &mut (lfo(|t| (440.0, exp(-t))) >> dsf_square() >> limiter(0.5)));
+    /// assert!(wave.amplitude() <= 1.0 && wave.duration() == 10.0 && wave.sample_rate() == 44100.0);
+    /// ```
     pub fn render_latency(sample_rate: f64, duration: f64, node: &mut dyn AudioUnit48) -> Self {
         assert!(node.inputs() == 0);
         assert!(node.outputs() > 0);
@@ -421,7 +440,7 @@ impl Wave48 {
         let duration = duration_samples as f64 / sample_rate;
         if latency_samples > 0 {
             let latency_wave = Self::render(sample_rate, duration + latency_duration, node);
-            let mut wave = Self::silence(node.outputs(), sample_rate, duration_samples);
+            let mut wave = Self::silence(node.outputs(), sample_rate, duration);
             for channel in 0..wave.channels() {
                 for i in 0..duration_samples {
                     wave.set(channel, i, latency_wave.at(channel, i + latency_samples));
@@ -438,6 +457,15 @@ impl Wave48 {
     /// The `node` must have as many inputs as there are channels in this wave.
     /// All zeros input is used for the rest of the wave if
     /// the duration is greater than the duration of this wave.
+    ///
+    /// ### Example: Reverberate A Pulse Wave
+    /// ```
+    /// use fundsp::hacker32::*;
+    /// let wave1 = Wave32::render(44100.0, 2.0, &mut (lfo(|t| (220.0, lerp11(0.01, 0.99, sin_hz(0.5, t)))) >> pulse() >> pan(0.0)));
+    /// assert!(wave1.channels() == 2 && wave1.duration() == 2.0);
+    /// let wave2 = wave1.filter(3.0, &mut (multipass() & 0.2 * reverb_stereo(10.0, 1.0)));
+    /// assert!(wave2.channels() == 2 && wave2.duration() == 3.0 && wave2.amplitude() > wave1.amplitude());
+    /// ```
     pub fn filter(&self, duration: f64, node: &mut dyn AudioUnit48) -> Self {
         assert!(node.inputs() == self.channels());
         assert!(node.outputs() > 0);
@@ -503,7 +531,7 @@ impl Wave48 {
     /// Resets `node` and sets its sample rate.
     /// The `node` must have as many inputs as there are channels in this wave.
     /// All zeros input is used for the rest of the wave if
-    /// the duration is greater than the duration of this wave.
+    /// the `duration` is greater than the duration of this wave.
     pub fn filter_latency(&self, duration: f64, node: &mut dyn AudioUnit48) -> Self {
         assert!(node.inputs() == self.channels());
         assert!(node.outputs() > 0);
@@ -517,7 +545,7 @@ impl Wave48 {
         let duration = duration_samples as f64 / self.sample_rate();
         if latency_samples > 0 {
             let latency_wave = self.filter(duration + latency_duration, node);
-            let mut wave = Self::silence(node.outputs(), self.sample_rate(), duration_samples);
+            let mut wave = Self::silence(node.outputs(), self.sample_rate(), duration);
             for channel in 0..wave.channels() {
                 for i in 0..duration_samples {
                     wave.set(channel, i, latency_wave.at(channel, i + latency_samples));
@@ -529,7 +557,7 @@ impl Wave48 {
         }
     }
 
-    /// Writes the wave as a 16-bit WAV to a buffer.
+    /// Write the wave as a 16-bit WAV to a buffer.
     /// Individual samples are clipped to the range -1...1.
     pub fn write_wav16<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         assert!(self.channels() > 0);
@@ -549,7 +577,7 @@ impl Wave48 {
         std::io::Result::Ok(())
     }
 
-    /// Writes the wave as a 32-bit float WAV to a buffer.
+    /// Write the wave as a 32-bit float WAV to a buffer.
     /// Samples are not clipped to any range but some
     /// applications may expect the range to be -1...1.
     pub fn write_wav32<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
@@ -570,7 +598,7 @@ impl Wave48 {
         std::io::Result::Ok(())
     }
 
-    /// Saves the wave as a 16-bit WAV file.
+    /// Save the wave as a 16-bit WAV file.
     /// Individual samples are clipped to the range -1...1.
     pub fn save_wav16(&self, path: &Path) -> std::io::Result<()> {
         assert!(self.channels() > 0);
@@ -578,7 +606,7 @@ impl Wave48 {
         self.write_wav16(&mut file)
     }
 
-    /// Saves the wave as a 32-bit float WAV file.
+    /// Save the wave as a 32-bit float WAV file.
     /// Samples are not clipped to any range but some
     /// applications may expect the range to be -1...1.
     pub fn save_wav32(&self, path: &Path) -> std::io::Result<()> {
