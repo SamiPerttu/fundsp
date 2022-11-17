@@ -29,7 +29,6 @@ pub use super::*;
 #[cfg(feature = "files")]
 pub use super::read::*;
 
-use super::adsr::{adsr, ADSR_2};
 use num_complex::Complex64;
 use std::sync::Arc;
 
@@ -741,59 +740,30 @@ where
     An(Envelope3::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 
-/// This function accepts one input and outputs its value modulated by the ADSR volume controller.
+/// ADSR envelope.
 ///
-/// When a sound begins, its volume increases from zero to one in the time interval denoted by
-/// `attack`. It then decreases from 1.0 to the `sustain` volume in the time interval denoted by
-/// `decay`. It remains at the `sustain` level until a positive value is stored in
-/// `releaing`, after which it decreases from the `sustain` level to 0.0 in a time interval denoted
-/// by `release`. It will store a positive value in `finished` once the release time has completed.
+/// When a positive value is given by the input, its output increases from 0.0 to 1.0 in the time
+/// interval denoted by `attack`. It then decreases from 1.0 to the `sustain` level in the time
+/// interval denoted by `decay`. It remains at the `sustain` level until a negative value is given
+/// by the input, after which it decreases from the `sustain` level to 0.0 in a time interval
+/// denoted by `release`.
+///
+/// - Input 0: control start of attack and release
+/// - Output 0: scaled ADSR value from 0.0 to 1.0
 ///
 /// See [live_adsr.rs](https://github.com/SamiPerttu/fundsp/blob/master/examples/live_adsr.rs) for
-/// a program that uses this function to play music live from a MIDI instrument.
+/// a program that uses this function to control the volume of live notes from a MIDI instrument.
 #[inline]
 pub fn adsr_live<F>(
     attack: F,
     decay: F,
     sustain: F,
     release: F,
-    releasing: An<Var<F>>,
-    finished: An<Var<F>>,
-) -> An<Envelope<F, F, impl Fn(F) -> F + Sized + Clone, F>>
+) -> An<Envelope2<F, F, impl Fn(F, F) -> F + Sized + Clone, F>>
 where
     F: Float + Variable,
 {
-    adsr(attack, decay, sustain, release, None, releasing, finished)
-}
-
-/// This function accepts one input and outputs its value modulated by the ADSR volume controller.
-///
-/// When a sound begins, its volume increases from zero to one in the time interval denoted by
-/// `attack`. It then decreases from 1.0 to the `sustain_level` volume in the time interval denoted
-/// by `decay`. It remains at `sustain_level` until the `sustain_time` expires, after which it
-/// decreases from `sustain_level` to 0.0 in a time interval denoted by `release`. It will store a
-/// positive value in `finished` once the release time has completed.
-#[inline]
-pub fn adsr_fixed<F>(
-    attack: F,
-    decay: F,
-    sustain_time: F,
-    sustain_level: F,
-    release: F,
-    finished: An<Var<F>>,
-) -> An<Envelope<F, F, impl Fn(F) -> F + Sized + Clone, F>>
-where
-    F: Float + Variable,
-{
-    adsr(
-        attack,
-        decay,
-        sustain_level,
-        release,
-        Some(attack + decay + sustain_time),
-        var(ADSR_2, F::from_f64(0.0)),
-        finished,
-    )
+    super::adsr::adsr_live(attack, decay, sustain, release)
 }
 
 /// Maximum Length Sequence noise generator from an `n`-bit sequence (1 <= `n` <= 31).
