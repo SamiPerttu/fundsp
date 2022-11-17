@@ -1,19 +1,18 @@
-//! This is a fully functional demonstration of `adsr_live()` and of `var()`. It will
-//! listen to messages from the first connected MIDI input device it finds, and play the
-//! corresponding pitches with the volume moderated by an `adsr_live()` envelope. It uses two
-//! `var()` objects to control the `adsr_live()` envelope and another `var()` object
-//! to alter the pitches as they are running in response to MIDI `pitch_bend` messages.
+//! This is a monophonic synthesizer that demonstrates `adsr_live()` and `var()`. It
+//! listens to messages from the first connected MIDI input device it finds and plays the
+//! corresponding pitches with the volume moderated by an `adsr_live()` envelope. It uses
+//! four `var()` objects to share data between threads:
+//! * `pitch`: Controls the current pitch. Altered by MIDI `NoteOn` messages as they arrive.
+//! * `volume`: Controls the current volume. Altered by MIDI `NoteOn` and `NoteOff` messages as they arrive.
+//! * `pitch_bend`: Scales the current pitch according to MIDI `PitchBend` messages as they arrive.
+//! * `control`: Signals when to start the attack, stop the sustain, and start the release.
+//!    Altered by MIDI `NoteOn` and `NoteOff` messages as they arrive.
 //!
-//! This program's design is structured upon the following threads:
-//! * The `main()` thread listens for MIDI inputs, and places them in a `SegQueue`.
-//! * The thread started in `run_synth()` removes MIDI messages from the `SegQueue` and decides
-//! what to do with them. For `Note_on` messages, it calls `start_sound()`.
-//! * The `start_sound()` function creates a thread to output a particular sound.
-//!
-//! The `create_sound()` function is where `adsr_live()` is employed and where the pitch bend is
-//! incorporated. The `var()` containing the pitch bend is set up in the `run_synth()` function.
-//! It is altered whenever a pitch bend is received, with that alteration visible in the sound
-//! production thread.
+//! This program's design is structured around these two threads:
+//! * The `main()` thread listens for MIDI inputs and alters the `var()` objects as described above.
+//! * The thread spawned by the `run_synth()` function passes the `var()` objects to `create_sound()`.
+//!   It then starts playing the sound. As the `var()` objects change, the sound automatically
+//!   changes accordingly.
 //!
 //! The MIDI input code is adapted from the
 //! [`test_read_input`](https://github.com/Boddlnagg/midir/blob/master/examples/test_read_input.rs)
@@ -23,52 +22,56 @@
 use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Sample, SampleFormat, StreamConfig};
-use crossbeam_queue::SegQueue;
 use fundsp::hacker::{adsr_live, midi_hz, triangle, var};
 use fundsp::prelude::{An, AudioUnit64, Tag, Var};
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
 use midir::{Ignore, MidiInput, MidiInputPort};
 use read_input::prelude::*;
-use std::collections::VecDeque;
-use std::sync::Arc;
 
 const PITCH_TAG: Tag = 1;
-const FINISHED_TAG: Tag = PITCH_TAG + 1;
-const RELEASE_TAG: Tag = FINISHED_TAG + 1;
+const BEND_TAG: Tag = PITCH_TAG + 1;
+const RELEASE_TAG: Tag = BEND_TAG + 1;
+const VOLUME_TAG: Tag = RELEASE_TAG + 1;
 
+/// The `var()` objects are created in `main()`. They are cloned when passed to `run_output()` so
+/// as not to lose ownership. But as with other Rust types intended for sharing between threads
+/// (e.g. `Arc`), cloning does not duplicate them - it creates an alternative reference.
 fn main() -> anyhow::Result<()> {
     let mut midi_in = MidiInput::new("midir reading input")?;
     let in_port = get_midi_device(&mut midi_in)?;
 
-    let messages = Arc::new(SegQueue::new());
-    run_output(messages.clone());
-    run_input(messages, midi_in, in_port)
+    let pitch = var(PITCH_TAG, 0.0);
+    let volume = var(VOLUME_TAG, 0.0);
+    let pitch_bend = var(BEND_TAG, 1.0);
+    let control = var(RELEASE_TAG, 0.0);
+
+    run_output(
+        pitch.clone(),
+        volume.clone(),
+        pitch_bend.clone(),
+        control.clone(),
+    );
+    run_input(midi_in, in_port, pitch, volume, pitch_bend, control)
 }
 
 /// This function is where the `adsr_live()` function is employed. We have the following signal
 /// chain in place:
 ///
-/// * The `pitch_bend` value (determined by MIDI `pitch-bend` messages) is multiplied by the pitch.
+/// * The `pitch_bend` value (determined by MIDI `PitchBend` messages) is multiplied by the pitch.
 /// * The `triangle()` transforms the envelope output into a triangle waveform. For different
-/// sounds, try out some different waveform functions!
+///   sounds, try out some different waveform functions here!
 /// * The `adsr_live()` modulates the volume of the sound over time. Play around with the different
-/// values to get a feel for the impact of different ADSR levels.
-/// * Finally, we modulate the volume further using the MIDI velocity. As the `triangle()` tends to
-/// produce quiet sounds, we double the volume.
+///   values to get a feel for the impact of different ADSR levels. The `control` `var()` is set
+///   to 1.0 to start the attack and -1.0 to start the release.
+/// * Finally, we modulate the volume further using the MIDI velocity.
 ///
 fn create_sound(
-    note: u8,
-    velocity: u8,
+    pitch: An<Var<f64>>,
+    volume: An<Var<f64>>,
     pitch_bend: An<Var<f64>>,
-    releasing: An<Var<f64>>,
-    finished: An<Var<f64>>,
+    control: An<Var<f64>>,
 ) -> Box<dyn AudioUnit64> {
-    let pitch = midi_hz(note as f64);
-    let volume = velocity as f64 / 127.0;
-    Box::new(
-        pitch_bend * pitch
-            >> triangle() * adsr_live(0.1, 0.2, 0.4, 0.2, releasing, finished) * volume * 2.0,
-    )
+    Box::new(pitch_bend * pitch >> triangle() * (control >> adsr_live(0.1, 0.2, 0.4, 0.2)) * volume)
 }
 
 fn get_midi_device(midi_in: &mut MidiInput) -> anyhow::Result<MidiInputPort> {
@@ -85,10 +88,22 @@ fn get_midi_device(midi_in: &mut MidiInput) -> anyhow::Result<MidiInputPort> {
     }
 }
 
+/// This function is where MIDI events control the values of the `var()` objects.
+/// * A `NoteOn` event alters all four `var()` objects:
+///   * Using `midi_hz()`, a MIDI pitch is converted to a frequency and stored.
+///   * MIDI velocity values range from 0 to 127. We divide by 127 and store in `volume`.
+///   * Setting `pitch_bend` to 1.0 makes the bend neutral.
+///   * Setting `control` to 1.0 starts the attack.
+/// * A `NoteOff` event sets `control` to -1.0 to start the release.
+/// * A `PitchBend` event calls `pitch_bend_factor()` to convert the MIDI values into
+///   a scaling factor for the pitch, which it stores in `pitch_bend`.
 fn run_input(
-    outgoing_midi: Arc<SegQueue<MidiMsg>>,
     midi_in: MidiInput,
     in_port: MidiInputPort,
+    pitch: An<Var<f64>>,
+    volume: An<Var<f64>>,
+    pitch_bend: An<Var<f64>>,
+    control: An<Var<f64>>,
 ) -> anyhow::Result<()> {
     println!("\nOpening connection");
     let in_port_name = midi_in.port_name(&in_port)?;
@@ -98,7 +113,26 @@ fn run_input(
             "midir-read-input",
             move |_stamp, message, _| {
                 let (msg, _len) = MidiMsg::from_midi(message).unwrap();
-                outgoing_midi.push(msg);
+                if let MidiMsg::ChannelVoice { channel: _, msg } = msg {
+                    println!("Received {msg:?}");
+                    match msg {
+                        ChannelVoiceMsg::NoteOn { note, velocity } => {
+                            pitch.set_value(midi_hz(note as f64));
+                            volume.set_value(velocity as f64 / 127.0);
+                            pitch_bend.set_value(1.0);
+                            control.set_value(1.0);
+                        }
+                        ChannelVoiceMsg::NoteOff { note, velocity: _ } => {
+                            if pitch.value() == midi_hz(note as f64) {
+                                control.set_value(-1.0);
+                            }
+                        }
+                        ChannelVoiceMsg::PitchBend { bend } => {
+                            pitch_bend.set_value(pitch_bend_factor(bend));
+                        }
+                        _ => {}
+                    }
+                }
             },
             (),
         )
@@ -110,96 +144,48 @@ fn run_input(
     Ok(())
 }
 
-fn run_output(incoming_midi: Arc<SegQueue<MidiMsg>>) {
+/// This function figures out the sample format and calls `run_synth()` accordingly.
+fn run_output(
+    pitch: An<Var<f64>>,
+    volume: An<Var<f64>>,
+    pitch_bend: An<Var<f64>>,
+    control: An<Var<f64>>,
+) {
     let host = cpal::default_host();
     let device = host
         .default_output_device()
         .expect("failed to find a default output device");
     let config = device.default_output_config().unwrap();
     match config.sample_format() {
-        SampleFormat::F32 => run_synth::<f32>(incoming_midi, device, config.into()),
-        SampleFormat::I16 => run_synth::<i16>(incoming_midi, device, config.into()),
-        SampleFormat::U16 => run_synth::<u16>(incoming_midi, device, config.into()),
+        SampleFormat::F32 => {
+            run_synth::<f32>(pitch, volume, pitch_bend, control, device, config.into())
+        }
+        SampleFormat::I16 => {
+            run_synth::<i16>(pitch, volume, pitch_bend, control, device, config.into())
+        }
+        SampleFormat::U16 => {
+            run_synth::<u16>(pitch, volume, pitch_bend, control, device, config.into())
+        }
     }
 }
 
-/// This function is where `var()` is employed to create a thread-safe variable, `pitch_bend`.
-/// The `pitch_bend` variable is cloned when passed along to `start_sound()`, from which it
-/// eventually is passed to `create_sound()`. Each `var()` atomically stores a numerical value
-/// which can be altered in a different thread.
+/// This function is where the sound is created and played. Once the sound is playing, it loops
+/// infinitely, allowing the `var()` objects to shape the sound in response to MIDI events.
 fn run_synth<T: Sample>(
-    incoming_midi: Arc<SegQueue<MidiMsg>>,
+    pitch: An<Var<f64>>,
+    volume: An<Var<f64>>,
+    pitch_bend: An<Var<f64>>,
+    control: An<Var<f64>>,
     device: Device,
     config: StreamConfig,
 ) {
-    let sample_rate = config.sample_rate.0 as f64;
-    let device = Arc::new(device);
-    let config = Arc::new(config);
     std::thread::spawn(move || {
-        let pitch_bend = var(PITCH_TAG, 1.0);
-        let mut awaiting_release: VecDeque<An<Var<f64>>> = VecDeque::new();
-        loop {
-            if let Some(MidiMsg::ChannelVoice { channel: _, msg }) = incoming_midi.pop() {
-                println!("Received {msg:?}");
-                match msg {
-                    ChannelVoiceMsg::NoteOff {
-                        note: _,
-                        velocity: _,
-                    } => {
-                        release_all(&mut awaiting_release);
-                    }
-                    ChannelVoiceMsg::NoteOn { note, velocity } => {
-                        release_all(&mut awaiting_release);
-                        pitch_bend.set_value(1.0);
-                        let releasing = var(RELEASE_TAG, 0.0);
-                        awaiting_release.push_back(releasing.clone());
-                        start_sound::<T>(
-                            note,
-                            velocity,
-                            pitch_bend.clone(),
-                            releasing,
-                            sample_rate,
-                            device.clone(),
-                            config.clone(),
-                        );
-                    }
-                    ChannelVoiceMsg::PitchBend { bend } => {
-                        pitch_bend.set_value(pitch_bend_factor(bend));
-                    }
-                    _ => {}
-                }
-            }
-        }
-    });
-}
+        let sample_rate = config.sample_rate.0 as f64;
+        let mut sound = create_sound(pitch, volume, pitch_bend, control);
+        sound.reset(Some(sample_rate));
 
-// Algorithm is from here: https://sites.uci.edu/camp2014/2014/04/30/managing-midi-pitchbend-messages/
-// Converts MIDI pitch-bend message to +/- 1 semitone.
-fn pitch_bend_factor(bend: u16) -> f64 {
-    2.0_f64.powf(((bend as f64 - 8192.0) / 8192.0) / 12.0)
-}
-
-fn release_all(awaiting_release: &mut VecDeque<An<Var<f64>>>) {
-    while let Some(m) = awaiting_release.pop_front() {
-        m.set_value(1.0);
-    }
-}
-
-fn start_sound<T: Sample>(
-    note: u8,
-    velocity: u8,
-    pitch_bend: An<Var<f64>>,
-    releasing: An<Var<f64>>,
-    sample_rate: f64,
-    device: Arc<Device>,
-    config: Arc<StreamConfig>,
-) {
-    let finished = var(FINISHED_TAG, 0.0);
-    let mut sound = create_sound(note, velocity, pitch_bend, releasing, finished.clone());
-    sound.reset(Some(sample_rate));
-    let mut next_value = move || sound.get_stereo();
-    let channels = config.channels as usize;
-    std::thread::spawn(move || {
+        let mut next_value = move || sound.get_stereo();
+        let channels = config.channels as usize;
         let err_fn = |err| eprintln!("an error occurred on stream: {err}");
         let stream = device
             .build_output_stream(
@@ -212,10 +198,17 @@ fn start_sound<T: Sample>(
             .unwrap();
 
         stream.play().unwrap();
-        while finished.value() == 0.0 {}
+        loop {}
     });
 }
 
+/// Algorithm is from here: https://sites.uci.edu/camp2014/2014/04/30/managing-midi-pitchbend-messages/
+/// Converts MIDI pitch-bend message to +/- 1 semitone.
+fn pitch_bend_factor(bend: u16) -> f64 {
+    2.0_f64.powf(((bend as f64 - 8192.0) / 8192.0) / 12.0)
+}
+
+/// Callback function to send the current sample to the speakers.
 fn write_data<T: Sample>(
     output: &mut [T],
     channels: usize,
