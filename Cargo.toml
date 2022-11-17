@@ -34,7 +34,6 @@ criterion = "0.4.0"
 midi-msg = "0.4.0"
 midir = "0.8.0"
 read_input = "0.8.6"
-crossbeam-queue = "0.3.6"
 
 [[bench]]
 name = "benchmark"
