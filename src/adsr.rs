@@ -16,7 +16,7 @@
 //! an `adsr_live()` envelope.
 
 use super::audionode::{Tag, Variable};
-use super::prelude::{envelope2, lerp, var, An, Envelope2};
+use super::prelude::{clamp01, envelope2, lerp, var, An, Envelope2};
 use super::Float;
 
 pub const ADSR_1: Tag = 100000;
@@ -40,11 +40,11 @@ pub fn adsr_live<F: Float + Variable>(
             release_start.set_value(time);
             attack_start.set_value(neg1);
         }
-        if release_start.value() < zero {
+        clamp01(if release_start.value() < zero {
             ads(attack, decay, sustain, time - attack_start.value())
         } else {
             releasing(sustain, release, time - release_start.value())
-        }
+        })
     })
 }
 
