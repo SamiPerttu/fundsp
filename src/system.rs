@@ -96,12 +96,4 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone> AudioNode for Syste
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.x.route(input, frequency)
     }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter)
-    }
 }

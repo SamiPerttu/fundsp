@@ -201,19 +201,6 @@ where
     An(Constant::new(x.convert()))
 }
 
-/// Tagged constant. Outputs the (scalar) value of the tag.
-/// - Output 0: value
-///
-/// ### Example: Add Chorus
-/// ```
-/// use fundsp::hacker32::*;
-/// pass() & tag(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
-/// ```
-#[inline]
-pub fn tag(id: Tag, value: f32) -> An<Tagged<f32>> {
-    An(Tagged::new(id, value))
-}
-
 /// Zero generator.
 /// - Output 0: zero
 ///
@@ -280,20 +267,7 @@ pub fn multipass<N: Size<f32>>() -> An<MultiPass<N, f32>> {
     An(MultiPass::new())
 }
 
-/// Timer node. A node with no inputs or outputs that presents time as a parameter.
-/// It can be added to any node by stacking.
-///
-/// ### Example: Timer And LFO
-/// ```
-/// use fundsp::hacker32::*;
-/// timer(0) | lfo(|t| 1.0 / (1.0 + t));
-/// ```
-#[inline]
-pub fn timer(tag: Tag) -> An<Timer<f32>> {
-    An(Timer::new(DEFAULT_SR, tag))
-}
-
-/// Monitor node. Passes through input and presents as a parameter
+/// Monitor node. Passes through input. Communicates via the shared variable
 /// an aspect of the input signal according to the chosen metering mode.
 /// - Input 0: signal
 /// - Output 0: signal
@@ -301,11 +275,12 @@ pub fn timer(tag: Tag) -> An<Timer<f32>> {
 /// ### Example
 /// ```
 /// use fundsp::hacker32::*;
-/// monitor(Meter::Rms(0.99), 0);
+/// let rms = shared(0.0);
+/// monitor(&rms, Meter::Rms(0.99));
 /// ```
 #[inline]
-pub fn monitor(meter: Meter, tag: Tag) -> An<Monitor<f32>> {
-    An(Monitor::new(tag, DEFAULT_SR, meter))
+pub fn monitor(shared: &Shared<f32>, meter: Meter) -> An<Monitor<f32>> {
+    An(Monitor::new(DEFAULT_SR, shared, meter))
 }
 
 /// Meter node.
@@ -1864,23 +1839,66 @@ pub fn phaser<X: Fn(f32) -> f32 + Clone>(
     super::prelude::phaser::<f32, _>(feedback_amount, phase_f)
 }
 
-/// Variable constant. Outputs the (scalar) value of the variable.
+/// Shared float variable. Can be read from and written to from multiple threads.
 ///
-/// This uses atomics internally and therefore
-/// should be safe to manipulate from other threads.
+/// ### Example: Add Chorus With Wetness Control
+/// ```
+/// use fundsp::hacker32::*;
+/// let wet = shared(0.2);
+/// pass() & var(&wet) * chorus(0, 0.015, 0.005, 0.5);
+/// ```
+#[inline]
+pub fn shared(value: f32) -> Shared<f32> {
+    Shared::new(value)
+}
+
+/// Outputs the value of the shared variable.
+///
 /// - Output 0: value
 ///
-/// ### Example: Add Chorus
+/// ### Example: Add Chorus With Wetness Control
 /// ```
-/// use fundsp::prelude::*;
-/// pass() & var(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
+/// use fundsp::hacker32::*;
+/// let wet = shared(0.2);
+/// pass() & var(&wet) * chorus(0, 0.015, 0.005, 0.5);
 /// ```
-///
-/// ### Example with Threading
-/// See [live_adsr.rs](https://github.com/SamiPerttu/fundsp/blob/master/examples/live_adsr.rs) for
-/// a program that uses `var()` to alter pitches in another running thread as it receives MIDI
-/// pitch-bend messages.
 #[inline]
-pub fn var(tag: Tag, value: f32) -> An<Var<f32>> {
-    An(Var::new(tag, value))
+pub fn var(shared: &Shared<f32>) -> An<Var<f32>> {
+    An(Var::new(shared))
+}
+
+/// Shared variable mapped through a function.
+/// Outputs the value of the function, which may be scalar or tuple.
+///
+/// - Outputs: value
+///
+/// ### Example: Control Pitch In MIDI Semitones With Smoothing
+/// ```
+/// use fundsp::hacker32::*;
+/// let pitch = shared(69.0);
+/// var_fn(&pitch, |x| midi_hz(x)) >> follow(0.01) >> saw();
+/// ```
+#[inline]
+pub fn var_fn<F, R>(shared: &Shared<f32>, f: F) -> An<VarFn<f32, F, R>>
+where
+    F: Clone + Fn(f32) -> R,
+    R: ConstantFrame<Sample = f32>,
+    R::Size: Size<f32>,
+{
+    An(VarFn::new(shared, f))
+}
+
+/// Timer node. A node with no inputs or outputs that maintains
+/// current stream time in a shared variable.
+/// It can be added to any node by stacking.
+///
+/// ### Example: Timer And LFO
+/// ```
+/// use fundsp::hacker32::*;
+/// let time = shared(0.0);
+/// timer(&time) | lfo(|t: f32| 1.0 / (1.0 + t));
+/// ```
+#[inline]
+pub fn timer(shared: &Shared<f32>) -> An<Timer<f32>> {
+    An(Timer::new(DEFAULT_SR, shared))
 }

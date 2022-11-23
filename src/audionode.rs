@@ -20,9 +20,6 @@ impl<T, A: numeric_array::ArrayLength<T>> Size<T> for A {}
 /// Frames are used to transport audio data between `AudioNode` instances.
 pub type Frame<T, Size> = numeric_array::NumericArray<T, Size>;
 
-/// Tags are identified with parameters. Parameter values are always `f64`.
-pub type Tag = i64;
-
 /*
 Order of type arguments in nodes:
 1. Basic input and output arities excepting filter input selector arities.
@@ -113,33 +110,6 @@ pub trait AudioNode: Clone {
     #[allow(unused_variables)]
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         new_signal_frame(self.outputs())
-    }
-
-    /// Set parameter value recursively. The default implementation does nothing.
-    ///
-    /// ### Example
-    /// ```
-    /// use fundsp::hacker::*;
-    /// let mut node = tag(0, 1.0);
-    /// node.set(0, 2.0);
-    /// assert_eq!(node.get(0), Some(2.0));
-    /// ```
-    #[allow(unused_variables)]
-    fn set(&mut self, parameter: Tag, value: f64) {}
-
-    /// Query parameter value recursively. The first matching parameter is returned.
-    /// The default implementation returns `None`.
-    ///
-    /// ### Example
-    /// ```
-    /// use fundsp::hacker::*;
-    /// let node = tag(0, 3.0);
-    /// assert_eq!(node.get(0), Some(3.0));
-    /// assert_eq!(node.get(1), None);
-    /// ```
-    #[allow(unused_variables)]
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        None
     }
 
     // End of interface. There is no need to override the following.
@@ -391,67 +361,6 @@ impl<T: Float> AudioNode for Pass<T> {
     }
 }
 
-/// Present time as a parameter.
-#[derive(Default, Clone)]
-pub struct Timer<T> {
-    _marker: PhantomData<T>,
-    tag: Tag,
-    time: f64,
-    sample_duration: f64,
-}
-
-impl<T: Float> Timer<T> {
-    /// Create a new timer node. Current time can be read by querying the tag.
-    pub fn new(sample_rate: f64, tag: Tag) -> Self {
-        Self {
-            _marker: PhantomData::default(),
-            tag,
-            time: 0.0,
-            sample_duration: 1.0 / sample_rate,
-        }
-    }
-}
-
-impl<T: Float> AudioNode for Timer<T> {
-    const ID: u64 = 57;
-    type Sample = T;
-    type Inputs = U0;
-    type Outputs = U0;
-
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.time = 0.0;
-        if let Some(sr) = sample_rate {
-            self.sample_duration = 1.0 / sr;
-        }
-    }
-
-    #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        self.time += self.sample_duration;
-        *input
-    }
-
-    fn process(
-        &mut self,
-        size: usize,
-        _input: &[&[Self::Sample]],
-        _output: &mut [&mut [Self::Sample]],
-    ) {
-        self.time += size as f64 * self.sample_duration;
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        if self.tag == parameter {
-            Some(self.time)
-        } else {
-            None
-        }
-    }
-}
-
 /// Discard inputs.
 #[derive(Default, Clone)]
 pub struct Sink<N, T> {
@@ -538,72 +447,6 @@ impl<N: Size<T>, T: Float> AudioNode for Constant<N, T> {
             output[i] = Signal::Value(self.output[i].to_f64());
         }
         output
-    }
-}
-
-/// Output a tagged constant.
-#[derive(Clone)]
-pub struct Tagged<T: Float> {
-    tag: Tag,
-    value: T,
-}
-
-impl<T: Float> Tagged<T> {
-    /// Construct constant whose value can be set and queried via the tag.
-    pub fn new(tag: Tag, value: T) -> Self {
-        Tagged { tag, value }
-    }
-    /// Set the value of the constant.
-    pub fn set_value(&mut self, value: T) {
-        self.value = value;
-    }
-    /// Get the value of the constant.
-    pub fn value(&self) -> T {
-        self.value
-    }
-}
-
-impl<T: Float> AudioNode for Tagged<T> {
-    const ID: u64 = 54;
-    type Sample = T;
-    type Inputs = U0;
-    type Outputs = U1;
-
-    #[inline]
-    fn tick(
-        &mut self,
-        _input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        [self.value].into()
-    }
-
-    fn process(
-        &mut self,
-        size: usize,
-        _input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
-        output[0][..size].fill(self.value);
-    }
-
-    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = Signal::Value(self.value.to_f64());
-        output
-    }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        if self.tag == parameter {
-            self.value = T::from_f64(value);
-        }
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        if self.tag == parameter {
-            Some(self.value.to_f64())
-        } else {
-            None
-        }
     }
 }
 
@@ -1082,15 +925,6 @@ where
         }
         signal_x
     }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-        self.y.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter).or_else(|| self.y.get(parameter))
-    }
 }
 
 /// Provides unary operator implementations to the `Unop` node.
@@ -1305,14 +1139,6 @@ where
         }
         signal_x
     }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter)
-    }
 }
 
 /// Map any number of channels.
@@ -1466,15 +1292,6 @@ where
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.y.route(&self.x.route(input, frequency), frequency)
     }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-        self.y.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter).or_else(|| self.y.get(parameter))
-    }
 }
 
 /// Stack `X` and `Y` in parallel.
@@ -1600,15 +1417,6 @@ where
             .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
         signal_x
     }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-        self.y.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter).or_else(|| self.y.get(parameter))
-    }
 }
 
 /// Send the same input to `X` and `Y`. Concatenate outputs.
@@ -1718,15 +1526,6 @@ where
         signal_x[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
         signal_x
-    }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-        self.y.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter).or_else(|| self.y.get(parameter))
     }
 }
 
@@ -1845,15 +1644,6 @@ where
         }
         signal_x
     }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-        self.y.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter).or_else(|| self.y.get(parameter))
-    }
 }
 
 /// Pass through inputs without matching outputs.
@@ -1938,14 +1728,6 @@ impl<X: AudioNode> AudioNode for Thru<X> {
         output[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&input[X::Outputs::USIZE..Self::Outputs::USIZE]);
         output
-    }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter)
     }
 }
 
@@ -2066,21 +1848,6 @@ where
             }
         }
         output
-    }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        for x in self.x.iter_mut() {
-            x.set(parameter, value);
-        }
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        for x in self.x.iter() {
-            if let Some(value) = x.get(parameter) {
-                return Some(value);
-            }
-        }
-        None
     }
 }
 
@@ -2210,21 +1977,6 @@ where
                 .copy_from_slice(&output_i[0..X::Outputs::USIZE]);
         }
         output
-    }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        for x in self.x.iter_mut() {
-            x.set(parameter, value);
-        }
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        for x in self.x.iter() {
-            if let Some(value) = x.get(parameter) {
-                return Some(value);
-            }
-        }
-        None
     }
 }
 
@@ -2366,21 +2118,6 @@ where
         }
         output
     }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        for x in self.x.iter_mut() {
-            x.set(parameter, value);
-        }
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        for x in self.x.iter() {
-            if let Some(value) = x.get(parameter) {
-                return Some(value);
-            }
-        }
-        None
-    }
 }
 
 /// Branch into a bunch of similar nodes in parallel.
@@ -2495,21 +2232,6 @@ where
                 .copy_from_slice(&output_i[0..X::Outputs::USIZE]);
         }
         output
-    }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        for x in self.x.iter_mut() {
-            x.set(parameter, value);
-        }
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        for x in self.x.iter() {
-            if let Some(value) = x.get(parameter) {
-                return Some(value);
-            }
-        }
-        None
     }
 }
 
@@ -2648,21 +2370,6 @@ where
         }
         output
     }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        for x in self.x.iter_mut() {
-            x.set(parameter, value);
-        }
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        for x in self.x.iter() {
-            if let Some(value) = x.get(parameter) {
-                return Some(value);
-            }
-        }
-        None
-    }
 }
 
 /// Swap stereo channels.
@@ -2708,9 +2415,7 @@ impl<T: Float> AudioNode for Swap<T> {
 }
 
 /// A variable floating point number to use as a control.
-///
-/// See [`Var`] for a variable output [`AudioNode`].
-pub trait Variable: Float {
+pub trait Atomic: Float {
     type Storage;
 
     fn storage(t: Self) -> Self::Storage;
@@ -2718,7 +2423,7 @@ pub trait Variable: Float {
     fn get_stored(stored: &Self::Storage) -> Self;
 }
 
-impl Variable for f32 {
+impl Atomic for f32 {
     type Storage = AtomicU32;
 
     fn storage(t: Self) -> Self::Storage {
@@ -2735,7 +2440,7 @@ impl Variable for f32 {
     }
 }
 
-impl Variable for f64 {
+impl Atomic for f64 {
     type Storage = AtomicU64;
 
     fn storage(t: Self) -> Self::Storage {
@@ -2752,26 +2457,76 @@ impl Variable for f64 {
     }
 }
 
-/// A variable output node.
-///
-/// The value this node produces can be set from a clone.
-/// Clones are linked by atomics.
+/// A shared float variable that can be accessed from multiple threads.
 #[derive(Default)]
-pub struct Var<T: Variable> {
-    tag: Tag,
+pub struct Shared<T: Atomic> {
     value: Arc<T::Storage>,
 }
 
-impl<T: Variable> Clone for Var<T> {
+impl<T: Atomic> Clone for Shared<T> {
     fn clone(&self) -> Self {
         Self {
-            tag: self.tag,
             value: Arc::clone(&self.value),
         }
     }
 }
 
-impl<T: Variable + Float> AudioNode for Var<T> {
+impl<T: Atomic> Shared<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            value: Arc::new(T::storage(value)),
+        }
+    }
+
+    /// Get reference to underlying atomic.
+    pub fn get_shared(&self) -> &Arc<T::Storage> {
+        &self.value
+    }
+
+    /// Set the value of this variable.
+    pub fn set_value(&self, t: T) {
+        T::store(&self.value, t)
+    }
+
+    /// Get the value of this variable.
+    pub fn value(&self) -> T {
+        T::get_stored(&self.value)
+    }
+}
+
+/// Outputs the value of a shared variable.
+#[derive(Default)]
+pub struct Var<T: Atomic> {
+    value: Arc<T::Storage>,
+}
+
+impl<T: Atomic> Clone for Var<T> {
+    fn clone(&self) -> Self {
+        Self {
+            value: Arc::clone(&self.value),
+        }
+    }
+}
+
+impl<T: Atomic> Var<T> {
+    pub fn new(shared: &Shared<T>) -> Self {
+        Self {
+            value: Arc::clone(shared.get_shared()),
+        }
+    }
+
+    /// Set the value of this variable.
+    pub fn set_value(&self, t: T) {
+        T::store(&self.value, t)
+    }
+
+    /// Get the value of this variable.
+    pub fn value(&self) -> T {
+        T::get_stored(&self.value)
+    }
+}
+
+impl<T: Atomic + Float> AudioNode for Var<T> {
     const ID: u64 = 68;
 
     type Sample = T;
@@ -2786,36 +2541,144 @@ impl<T: Variable + Float> AudioNode for Var<T> {
         [sample].into()
     }
 
-    fn set(&mut self, parameter: Tag, value: f64) {
-        if self.tag == parameter {
-            self.set_value(T::from_f64(value))
-        }
+    fn process(
+        &mut self,
+        size: usize,
+        _input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        let sample = self.value();
+        output[0][..size].fill(sample);
     }
+}
 
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        if self.tag == parameter {
-            Some(self.value().to_f64())
-        } else {
-            None
+/// Outputs the value of a shared variable mapped through a function.
+#[derive(Default)]
+pub struct VarFn<T, F, R>
+where
+    T: Atomic + Float,
+    F: Clone + Fn(T) -> R,
+    R: ConstantFrame<Sample = T>,
+    R::Size: Size<T>,
+{
+    value: Arc<T::Storage>,
+    f: F,
+}
+
+impl<T, F, R> Clone for VarFn<T, F, R>
+where
+    T: Atomic + Float,
+    F: Clone + Fn(T) -> R,
+    R: ConstantFrame<Sample = T>,
+    R::Size: Size<T>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            value: Arc::clone(&self.value),
+            f: self.f.clone(),
         }
     }
 }
 
-impl<T: Variable> Var<T> {
-    pub fn new(tag: Tag, value: T) -> Self {
+impl<T, F, R> VarFn<T, F, R>
+where
+    T: Atomic + Float,
+    F: Clone + Fn(T) -> R,
+    R: ConstantFrame<Sample = T>,
+    R::Size: Size<T>,
+{
+    pub fn new(shared: &Shared<T>, f: F) -> Self {
         Self {
-            tag,
-            value: Arc::new(T::storage(value)),
+            value: Arc::clone(shared.get_shared()),
+            f,
         }
     }
+}
 
-    /// Set the value of this variable.
-    pub fn set_value(&self, t: T) {
-        T::store(&self.value, t)
+impl<T, F, R> AudioNode for VarFn<T, F, R>
+where
+    T: Atomic + Float,
+    F: Clone + Fn(T) -> R,
+    R: ConstantFrame<Sample = T>,
+    R::Size: Size<T>,
+{
+    const ID: u64 = 70;
+
+    type Sample = T;
+    type Inputs = U0;
+    type Outputs = R::Size;
+
+    fn tick(
+        &mut self,
+        _: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        (self.f)(T::get_stored(&self.value)).convert()
     }
 
-    /// Get the value of this variable.
-    pub fn value(&self) -> T {
-        T::get_stored(&self.value)
+    fn process(
+        &mut self,
+        size: usize,
+        _input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        let frame = (self.f)(T::get_stored(&self.value)).convert();
+        for channel in 0..self.outputs() {
+            output[channel][..size].fill(frame[channel]);
+        }
+    }
+}
+
+/// Store present time to a shared variable.
+#[derive(Clone)]
+pub struct Timer<T: Atomic + Float> {
+    shared: Shared<T>,
+    time: f64,
+    sample_duration: f64,
+}
+
+impl<T: Atomic + Float> Timer<T> {
+    /// Create a new timer node. Current time can be read from the shared variable.
+    pub fn new(sample_rate: f64, shared: &Shared<T>) -> Self {
+        shared.set_value(T::zero());
+        Self {
+            shared: shared.clone(),
+            time: 0.0,
+            sample_duration: 1.0 / sample_rate,
+        }
+    }
+}
+
+impl<T: Atomic + Float> AudioNode for Timer<T> {
+    const ID: u64 = 57;
+    type Sample = T;
+    type Inputs = U0;
+    type Outputs = U0;
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.time = 0.0;
+        if let Some(sr) = sample_rate {
+            self.sample_duration = 1.0 / sr;
+        }
+        self.shared.set_value(T::zero());
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        self.time += self.sample_duration;
+        self.shared.set_value(T::from_f64(self.time));
+        *input
+    }
+
+    fn process(
+        &mut self,
+        size: usize,
+        _input: &[&[Self::Sample]],
+        _output: &mut [&mut [Self::Sample]],
+    ) {
+        self.time += size as f64 * self.sample_duration;
+        self.shared.set_value(T::from_f64(self.time));
     }
 }

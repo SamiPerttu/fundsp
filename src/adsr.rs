@@ -15,14 +15,11 @@
 //! connected MIDI input device it finds, and play the corresponding pitches with the volume moderated by
 //! an `adsr_live()` envelope.
 
-use super::audionode::{Tag, Variable};
-use super::prelude::{clamp01, envelope2, lerp, var, An, Envelope2};
+use super::audionode::Atomic;
+use super::prelude::{clamp01, envelope2, lerp, shared, var, An, Envelope2};
 use super::Float;
 
-pub const ADSR_1: Tag = 100000;
-pub const ADSR_2: Tag = ADSR_1 + 1;
-
-pub fn adsr_live<F: Float + Variable>(
+pub fn adsr_live<F: Float + Atomic>(
     attack: F,
     decay: F,
     sustain: F,
@@ -30,8 +27,10 @@ pub fn adsr_live<F: Float + Variable>(
 ) -> An<Envelope2<F, F, impl Fn(F, F) -> F + Sized + Clone, F>> {
     let neg1 = F::from_f64(-1.0);
     let zero = F::from_f64(0.0);
-    let attack_start = var(ADSR_1, neg1);
-    let release_start = var(ADSR_2, neg1);
+    let a = shared(neg1);
+    let b = shared(neg1);
+    let attack_start = var(&a);
+    let release_start = var(&b);
     envelope2(move |time, control| {
         if attack_start.value() < zero && control >= zero {
             attack_start.set_value(time);

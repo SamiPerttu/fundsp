@@ -201,19 +201,6 @@ where
     An(Constant::new(x.convert()))
 }
 
-/// Tagged constant. Outputs the (scalar) value of the tag.
-/// - Output 0: value
-///
-/// ### Example: Add Chorus
-/// ```
-/// use fundsp::prelude::*;
-/// pass() & tag::<f32>(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
-/// ```
-#[inline]
-pub fn tag<T: Float>(tag: Tag, value: T) -> An<Tagged<T>> {
-    An(Tagged::new(tag, value))
-}
-
 /// Zero generator.
 /// - Output 0: zero
 ///
@@ -280,20 +267,7 @@ pub fn multipass<N: Size<T>, T: Float>() -> An<MultiPass<N, T>> {
     An(MultiPass::new())
 }
 
-/// Timer node. A node with no inputs or outputs that presents time as a parameter.
-/// It can be added to any node by stacking.
-///
-/// ### Example: Timer And LFO
-/// ```
-/// use fundsp::prelude::*;
-/// timer::<f32>(0) | lfo(|t: f32| 1.0 / (1.0 + t));
-/// ```
-#[inline]
-pub fn timer<T: Float>(tag: Tag) -> An<Timer<T>> {
-    An(Timer::new(DEFAULT_SR, tag))
-}
-
-/// Monitor node. Passes through input and presents as a parameter
+/// Monitor node. Passes through input. Communicates via the shared variable
 /// an aspect of the input signal according to the chosen metering mode.
 /// - Input 0: signal
 /// - Output 0: signal
@@ -301,11 +275,12 @@ pub fn timer<T: Float>(tag: Tag) -> An<Timer<T>> {
 /// ### Example
 /// ```
 /// use fundsp::prelude::*;
-/// monitor::<f32>(Meter::Rms(0.99), 0);
+/// let rms = shared::<f32>(0.0);
+/// monitor(&rms, Meter::Rms(0.99));
 /// ```
 #[inline]
-pub fn monitor<T: Real>(meter: Meter, tag: Tag) -> An<Monitor<T>> {
-    An(Monitor::new(tag, DEFAULT_SR, meter))
+pub fn monitor<T: Real + Atomic>(shared: &Shared<T>, meter: Meter) -> An<Monitor<T>> {
+    An(Monitor::new(DEFAULT_SR, shared, meter))
 }
 
 /// Meter node.
@@ -761,7 +736,7 @@ pub fn adsr_live<F>(
     release: F,
 ) -> An<Envelope2<F, F, impl Fn(F, F) -> F + Sized + Clone, F>>
 where
-    F: Float + Variable,
+    F: Float + Atomic,
 {
     super::adsr::adsr_live(attack, decay, sustain, release)
 }
@@ -2434,18 +2409,67 @@ pub fn phaser<T: Real, X: Fn(T) -> T + Clone>(
         )
 }
 
-/// Variable constant. Outputs the (scalar) value of the variable.
+/// Shared float variable. Can be read from and written to from multiple threads.
 ///
-/// This uses atomics internally and therefore
-/// should be safe to manipulate from other threads.
-/// - Output 0: value
-///
-/// ### Example: Add Chorus
+/// ### Example: Add Chorus With Wetness Control
 /// ```
 /// use fundsp::prelude::*;
-/// pass() & var::<f32>(0, 0.2) * chorus(0, 0.015, 0.005, 0.5);
+/// let wet = shared::<f32>(0.2);
+/// pass() & var(&wet) * chorus(0, 0.015, 0.005, 0.5);
 /// ```
 #[inline]
-pub fn var<T: Variable>(tag: Tag, value: T) -> An<Var<T>> {
-    An(Var::new(tag, value))
+pub fn shared<T: Atomic>(value: T) -> Shared<T> {
+    Shared::new(value)
+}
+
+/// Outputs the value of the shared variable.
+///
+/// - Output 0: value
+///
+/// ### Example: Add Chorus With Wetness Control
+/// ```
+/// use fundsp::prelude::*;
+/// let wet = shared::<f32>(0.2);
+/// pass() & var(&wet) * chorus(0, 0.015, 0.005, 0.5);
+/// ```
+#[inline]
+pub fn var<T: Atomic>(shared: &Shared<T>) -> An<Var<T>> {
+    An(Var::new(shared))
+}
+
+/// Shared variable mapped through a function.
+/// Outputs the value of the function, which may be scalar or tuple.
+///
+/// - Outputs: value
+///
+/// ### Example: Control Pitch In MIDI Semitones With Smoothing
+/// ```
+/// use fundsp::prelude::*;
+/// let pitch = shared::<f32>(69.0);
+/// var_fn(&pitch, |x| midi_hz(x)) >> follow(0.01) >> saw();
+/// ```
+#[inline]
+pub fn var_fn<T, F, R>(shared: &Shared<T>, f: F) -> An<VarFn<T, F, R>>
+where
+    T: Atomic + Float,
+    F: Clone + Fn(T) -> R,
+    R: ConstantFrame<Sample = T>,
+    R::Size: Size<T>,
+{
+    An(VarFn::new(shared, f))
+}
+
+/// Timer node. A node with no inputs or outputs that maintains
+/// current stream time in a shared variable.
+/// It can be added to any node by stacking.
+///
+/// ### Example: Timer And LFO
+/// ```
+/// use fundsp::prelude::*;
+/// let time = shared::<f32>(0.0);
+/// timer(&time) | lfo(|t: f32| 1.0 / (1.0 + t));
+/// ```
+#[inline]
+pub fn timer<T: Float + Atomic>(shared: &Shared<T>) -> An<Timer<T>> {
+    An(Timer::new(DEFAULT_SR, shared))
 }

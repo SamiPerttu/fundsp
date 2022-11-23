@@ -331,7 +331,7 @@ impl Wave48 {
     /// use fundsp::hacker::*;
     /// let mut wave = Wave64::new(1, 44100.0);
     /// wave.resize(44100);
-    /// assert!(wave.duration() == 1.0);
+    /// assert!(wave.duration() == 1.0 && wave.amplitude() == 0.0);
     /// ```
     pub fn resize(&mut self, length: usize) {
         assert!(self.channels() > 0);
@@ -350,7 +350,7 @@ impl Wave48 {
     /// use fundsp::hacker::*;
     /// let mut wave = Wave64::render(44100.0, 1.0, &mut (sine_hz(60.0)));
     /// let amplitude = wave.amplitude();
-    /// assert!(amplitude > 1.0 - 1.0e-5 && amplitude < 1.0 + 1.0e-5);
+    /// assert!(amplitude > 1.0 - 1.0e-5 && amplitude <= 1.0);
     /// ```
     pub fn amplitude(&self) -> f48 {
         let mut peak = 0.0;
@@ -382,6 +382,64 @@ impl Wave48 {
                 self.set(channel, i, self.at(channel, i) * z);
             }
         }
+    }
+
+    /// Applies a fade-in envelope to the wave with a duration of `time` seconds.
+    /// The duration may not exceed the duration of the wave.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut wave = Wave64::render(44100.0, 10.0, &mut(white()));
+    /// wave.fade_in(1.0);
+    /// ```
+    pub fn fade_in(&mut self, time: f64) {
+        assert!(time <= self.duration());
+        let fade_n = round(time * self.sample_rate());
+        for i in 0..fade_n as usize {
+            let a = smooth5((i + 1) as f64 / (fade_n + 1.0)) as f48;
+            for channel in 0..self.channels() {
+                self.set(channel, i, self.at(channel, i) * a);
+            }
+        }
+    }
+
+    /// Applies a fade-out envelope to the wave with a duration of `time` seconds.
+    /// The duration may not exceed the duration of the wave.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut wave = Wave64::render(44100.0, 10.0, &mut(brown() | brown()));
+    /// wave.fade_out(5.0);
+    /// ```
+    pub fn fade_out(&mut self, time: f64) {
+        assert!(time <= self.duration());
+        let fade_n = round(time * self.sample_rate());
+        let fade_i = fade_n as usize;
+        for i in 0..fade_i {
+            let a = smooth5((fade_n - i as f64) / (fade_n + 1.0)) as f48;
+            for channel in 0..self.channels() {
+                self.set(channel, self.len() - fade_i + i, self.at(channel, i) * a);
+            }
+        }
+    }
+
+    /// Applies both fade-in and fade-out to the wave with a duration of `time` seconds.
+    /// The duration may not exceed the duration of the wave.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut wave = Wave64::render(44100.0, 10.0, &mut(pink() | pink()));
+    /// wave.fade(1.0);
+    /// ```
+    pub fn fade(&mut self, time: f64) {
+        self.fade_in(time);
+        self.fade_out(time);
     }
 
     /// Render wave with length `duration` seconds from generator `node`.

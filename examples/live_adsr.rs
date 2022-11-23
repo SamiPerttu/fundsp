@@ -22,16 +22,11 @@
 use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Sample, SampleFormat, StreamConfig};
-use fundsp::hacker::{adsr_live, midi_hz, triangle, var};
-use fundsp::prelude::{An, AudioUnit64, Tag, Var};
+use fundsp::hacker::{adsr_live, midi_hz, shared, triangle, var, Shared};
+use fundsp::prelude::AudioUnit64;
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
 use midir::{Ignore, MidiInput, MidiInputPort};
 use read_input::prelude::*;
-
-const PITCH_TAG: Tag = 1;
-const BEND_TAG: Tag = PITCH_TAG + 1;
-const RELEASE_TAG: Tag = BEND_TAG + 1;
-const VOLUME_TAG: Tag = RELEASE_TAG + 1;
 
 /// The `var()` objects are created in `main()`. They are cloned when passed to `run_output()` so
 /// as not to lose ownership. But as with other Rust types intended for sharing between threads
@@ -40,10 +35,10 @@ fn main() -> anyhow::Result<()> {
     let mut midi_in = MidiInput::new("midir reading input")?;
     let in_port = get_midi_device(&mut midi_in)?;
 
-    let pitch = var(PITCH_TAG, 0.0);
-    let volume = var(VOLUME_TAG, 0.0);
-    let pitch_bend = var(BEND_TAG, 1.0);
-    let control = var(RELEASE_TAG, 0.0);
+    let pitch = shared(0.0);
+    let volume = shared(0.0);
+    let pitch_bend = shared(1.0);
+    let control = shared(0.0);
 
     run_output(
         pitch.clone(),
@@ -66,12 +61,15 @@ fn main() -> anyhow::Result<()> {
 /// * Finally, we modulate the volume further using the MIDI velocity.
 ///
 fn create_sound(
-    pitch: An<Var<f64>>,
-    volume: An<Var<f64>>,
-    pitch_bend: An<Var<f64>>,
-    control: An<Var<f64>>,
+    pitch: Shared<f64>,
+    volume: Shared<f64>,
+    pitch_bend: Shared<f64>,
+    control: Shared<f64>,
 ) -> Box<dyn AudioUnit64> {
-    Box::new(pitch_bend * pitch >> triangle() * (control >> adsr_live(0.1, 0.2, 0.4, 0.2)) * volume)
+    Box::new(
+        var(&pitch_bend) * var(&pitch)
+            >> triangle() * (var(&control) >> adsr_live(0.1, 0.2, 0.4, 0.2)) * var(&volume),
+    )
 }
 
 fn get_midi_device(midi_in: &mut MidiInput) -> anyhow::Result<MidiInputPort> {
@@ -100,10 +98,10 @@ fn get_midi_device(midi_in: &mut MidiInput) -> anyhow::Result<MidiInputPort> {
 fn run_input(
     midi_in: MidiInput,
     in_port: MidiInputPort,
-    pitch: An<Var<f64>>,
-    volume: An<Var<f64>>,
-    pitch_bend: An<Var<f64>>,
-    control: An<Var<f64>>,
+    pitch: Shared<f64>,
+    volume: Shared<f64>,
+    pitch_bend: Shared<f64>,
+    control: Shared<f64>,
 ) -> anyhow::Result<()> {
     println!("\nOpening connection");
     let in_port_name = midi_in.port_name(&in_port)?;
@@ -146,10 +144,10 @@ fn run_input(
 
 /// This function figures out the sample format and calls `run_synth()` accordingly.
 fn run_output(
-    pitch: An<Var<f64>>,
-    volume: An<Var<f64>>,
-    pitch_bend: An<Var<f64>>,
-    control: An<Var<f64>>,
+    pitch: Shared<f64>,
+    volume: Shared<f64>,
+    pitch_bend: Shared<f64>,
+    control: Shared<f64>,
 ) {
     let host = cpal::default_host();
     let device = host
@@ -172,10 +170,10 @@ fn run_output(
 /// This function is where the sound is created and played. Once the sound is playing, it loops
 /// infinitely, allowing the `var()` objects to shape the sound in response to MIDI events.
 fn run_synth<T: Sample>(
-    pitch: An<Var<f64>>,
-    volume: An<Var<f64>>,
-    pitch_bend: An<Var<f64>>,
-    control: An<Var<f64>>,
+    pitch: Shared<f64>,
+    volume: Shared<f64>,
+    pitch_bend: Shared<f64>,
+    control: Shared<f64>,
     device: Device,
     config: StreamConfig,
 ) {
@@ -198,7 +196,9 @@ fn run_synth<T: Sample>(
             .unwrap();
 
         stream.play().unwrap();
-        loop {}
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
     });
 }
 

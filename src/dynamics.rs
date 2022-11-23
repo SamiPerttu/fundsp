@@ -7,6 +7,7 @@ use super::math::*;
 use super::signal::*;
 use super::*;
 use numeric_array::typenum::*;
+use std::sync::Arc;
 
 /// Binary operation for the monoidal reducer.
 pub trait Monoidal<T>: Clone {
@@ -432,28 +433,38 @@ impl<T: Real> AudioNode for MeterNode<T> {
 }
 
 /// Pass through input unchanged.
-/// Summary of the input signal can be queried as a read-only parameter.
-#[derive(Clone)]
-pub struct Monitor<T: Real> {
-    tag: Tag,
+/// Summary of the input signal is placed in a shared variable.
+pub struct Monitor<T: Real + Atomic> {
     meter: Meter,
     state: MeterState<T>,
     sample_rate: f64,
+    shared: Arc<T::Storage>,
 }
 
-impl<T: Real> Monitor<T> {
-    /// Create a new monitor node.
-    pub fn new(tag: Tag, sample_rate: f64, meter: Meter) -> Self {
+impl<T: Real + Atomic> Clone for Monitor<T> {
+    fn clone(&self) -> Self {
         Self {
-            tag,
-            meter,
-            state: MeterState::new(meter, sample_rate),
-            sample_rate,
+            meter: self.meter,
+            state: self.state.clone(),
+            sample_rate: self.sample_rate,
+            shared: Arc::clone(&self.shared),
         }
     }
 }
 
-impl<T: Real> AudioNode for Monitor<T> {
+impl<T: Real + Atomic> Monitor<T> {
+    /// Create a new monitor node.
+    pub fn new(sample_rate: f64, shared: &Shared<T>, meter: Meter) -> Self {
+        Self {
+            meter,
+            state: MeterState::new(meter, sample_rate),
+            sample_rate,
+            shared: Arc::clone(shared.get_shared()),
+        }
+    }
+}
+
+impl<T: Real + Atomic> AudioNode for Monitor<T> {
     const ID: u64 = 56;
     type Sample = T;
     type Inputs = U1;
@@ -472,6 +483,7 @@ impl<T: Real> AudioNode for Monitor<T> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.state.tick(self.meter, input[0]);
+        T::store(&self.shared, self.state.value(self.meter));
         *input
     }
 
@@ -488,18 +500,12 @@ impl<T: Real> AudioNode for Monitor<T> {
                 self.state.tick(self.meter, input[0][i]);
             }
         }
+        // For efficiency, store the value only once per block.
+        T::store(&self.shared, self.state.value(self.meter));
         output[0][..size].clone_from_slice(&input[0][..size]);
     }
 
     fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         input.clone()
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        if self.tag == parameter {
-            Some(self.state.value(self.meter).to_f64())
-        } else {
-            None
-        }
     }
 }

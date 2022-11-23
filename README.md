@@ -659,7 +659,7 @@ The type parameters in the table refer to the hacker preludes.
 | `meter(mode)`          |    1    | 1 (meter) | Analyze input and output a summary according to the metering mode. |
 | `mls()`                |    -    |    1    | White [MLS noise](https://en.wikipedia.org/wiki/Maximum_length_sequence) source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence (1 <= `n` <= 31). |
-| `monitor(mode, id)`    |    1    |    1    | Pass-through node that analyzes data passed through as a parameter that can be queried. |
+| `monitor(&shared, mode)` |  1    |    1    | Pass-through node that analyzes data passed through, storing a summary into the shared variable. |
 | `moog()`               | 3 (audio, frequency, Q) | 1 | Moog resonant lowpass filter (4th order). |
 | `moog_hz(f, q)`        |    1    |    1    | Moog resonant lowpass filter (4th order) with cutoff frequency `f` and resonance `q`. |
 | `moog_q(q)`            | 2 (audio, frequency) | 1 | Moog resonant lowpass filter (4th order) with resonance `q`. |
@@ -712,12 +712,13 @@ The type parameters in the table refer to the hacker preludes.
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `system(x, dt, f)`     |   `x`   |   `x`   | Dynamical system that controls node `x` with update interval `dt` seconds and update function `f(t, dt, x)`.
 | `swap()`               |    2    |    2    | Swap stereo channels. |
-| `tag(id, value)`       |    -    |    1    | Tagged constant with tag `id` (`i64`) and initial value `value` (`f64`). |
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
 | `tick()`               |    1    |    1    | Single sample delay. |
-| `timer(id)`            |    -    |    -    | Timer node that presents time as a parameter that can be queried. |
+| `timer(&shared)`       |    -    |    -    | Maintain current stream time in a shared variable. |
 | `triangle()`           | 1 (frequency) | 1 | Bandlimited triangle wave oscillator. |
 | `triangle_hz(f)`       |    -    |    1    | Bandlimited triangle wave oscillator at `f` Hz. |
+| `var(&shared)`         |    -    |    1    | Output value of the shared variable. |
+| `var_fn(&shared, f)`   |    -    |   `f`   | Output value of the shared variable mapped through function `f`. |
 | `wave32(wave, channel, loop_point)` | - | 1 | Play back a channel of `Wave32`. Optional loop point is the index to jump to at the end of the wave. |
 | `wave64(wave, channel, loop_point)` | - | 1 | Play back a channel of `Wave64`. Optional loop point is the index to jump to at the end of the wave. |
 | `white()`              |    -    |    1    | [White noise](https://en.wikipedia.org/wiki/White_noise) source. Synonymous with `noise`. |
@@ -778,23 +779,35 @@ These are arguments to the `shape` opcode.
 - `Shape::Crush(levels)`: Apply a staircase function with configurable number of levels per unit.
 - `Shape::SoftCrush(levels)`: Apply a smooth staircase function with configurable number of levels per unit.
 
-#### Tagged Constants As Parameters
+#### Multithreading
 
-Tagged single channel constants can be instantiated with `tag(id, value)`, where `id` is `i64` and the initial value `value` is `f64`.
+We use shared atomic variables to communicate data from and to external contexts.
+A shared variable is declared with an initial value:
 
-Tagged constants enable a simple parameter system where a parameter can be set (recursively) with `set(id, value)`
-and queried (recursively) with `get(id)`. `set` sets all matching parameters contained under the node to the value,
-while `get` retrieves the first matching parameter, if any.
+```rust
+use fundsp::hacker::*;
+let amp = shared(1.0);
+```
 
-The `timer(id)` opcode instantiates current time in seconds as a parameter that can be queried.
-It has no inputs or outputs; it can be added to any node by stacking.
+Shared variables can be cloned and sent into another thread.
+To instantiate a shared variable output into an audio graph, use `var` and `var_fn` opcodes.
+For example, to control amplitude:
+
+```rust
+let amp_controlled = noise() * var(&amp);
+// Later we can set the amplitude from anywhere:
+amp.set_value(0.5);
+```
+
+The `timer` opcode maintains stream time in a shared variable.
+The timer node has no inputs or outputs and can be joined to any node by stacking.
 
 #### Metering Modes
 
-The `monitor(mode, id)` opcode is a pass-through node that presents
-some aspect of data passed through as parameter `id`. Metering modes are:
+The `monitor(&shared, mode)` opcode is a pass-through node that presents
+some aspect of data passed through in the shared variable. Metering modes are:
 
-- `Meter::Sample`: Retains the latest value passed through.
+- `Meter::Sample`: Stores the latest value passed through.
 - `Meter::Peak(smoothing)`: Peak amplitude meter with `smoothing` as per-sample smoothing factor in 0...1.
 - `Meter::Rms(smoothing)`: Root mean square meter with `smoothing` as per-sample smoothing factor in 0...1.
 

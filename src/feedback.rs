@@ -151,14 +151,6 @@ where
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.x.ping(probe, hash.hash(Self::ID))
     }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter)
-    }
 }
 
 /// Mix back output of contained node `X` to its input, with extra feedback processing `Y`.
@@ -250,14 +242,5 @@ where
 
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
-    }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-        self.y.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter).or_else(|| self.y.get(parameter))
     }
 }

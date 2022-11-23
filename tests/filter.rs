@@ -238,8 +238,9 @@ fn test_responses() {
     test_response(pan(0.5) >> join());
     test_response(pan(0.0) >> join());
     test_response(pan(-1.0) >> multijoin::<U1, U2>());
-    test_response(fir((0.5, 0.5)) >> monitor(Meter::Sample, 0));
-    test_response(fir((0.25, 0.5, 0.25)) | timer(0));
+    let tmp = shared(0.0);
+    test_response(fir((0.5, 0.5)) | timer(&tmp));
+    test_response(fir((0.25, 0.5, 0.25)) >> monitor(&tmp, Meter::Sample));
     test_response(fir((0.4, 0.3, 0.2, 0.1)));
     test_response(morph_hz(1000.0, 1.0, 0.5));
     test_response(morph_hz(2000.0, 2.0, -0.5));
@@ -278,7 +279,7 @@ fn test_responses() {
 
     let mut net7 = Net64::new(1, 1);
     net7.chain(Box::new(highpass_hz(1000.0, 1.0)));
-    test_response(Net64::wrap(Box::new(timer(0))) | net7);
+    test_response(net7);
 
     let mut net8 = Net64::new(1, 1);
     net8.chain(Box::new(highpole_hz(1500.0)));

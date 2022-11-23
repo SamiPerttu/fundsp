@@ -107,12 +107,4 @@ where
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.x.ping(probe, hash.hash(Self::ID))
     }
-
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.x.set(parameter, value);
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.x.get(parameter)
-    }
 }

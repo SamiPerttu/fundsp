@@ -668,21 +668,6 @@ impl AudioUnit48 for Net48 {
         }
         output_signal
     }
-
-    fn set(&mut self, parameter: audionode::Tag, value: f64) {
-        for vertex in &mut self.vertex {
-            vertex.unit.set(parameter, value);
-        }
-    }
-
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        for vertex in &self.vertex {
-            if let Some(value) = vertex.unit.get(parameter) {
-                return Some(value);
-            }
-        }
-        None
-    }
 }
 
 #[duplicate_item(

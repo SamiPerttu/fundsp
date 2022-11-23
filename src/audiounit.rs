@@ -45,17 +45,6 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     /// from inputs to outputs. Return output signal.
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame;
 
-    /// Set parameter to value. The default implementation does nothing.
-    #[allow(unused_variables)]
-    fn set(&mut self, parameter: Tag, value: f64) {}
-
-    /// Query parameter value. The first matching parameter is returned.
-    /// The default implementation returns None.
-    #[allow(unused_variables)]
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        None
-    }
-
     /// Return an ID code for this type of unit.
     fn get_id(&self) -> u64;
 
@@ -286,12 +275,6 @@ where
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.0.route(input, frequency)
     }
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.0.set(parameter, value);
-    }
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.0.get(parameter)
-    }
 }
 
 /// A big block adapter.
@@ -407,11 +390,5 @@ impl AudioUnit48 for BigBlockAdapter48 {
     }
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.source.route(input, frequency)
-    }
-    fn set(&mut self, parameter: Tag, value: f64) {
-        self.source.set(parameter, value);
-    }
-    fn get(&self, parameter: Tag) -> Option<f64> {
-        self.source.get(parameter)
     }
 }

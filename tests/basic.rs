@@ -251,9 +251,6 @@ fn test_basic() {
     check_wave(net);
 
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
-    check_wave(noise() >> monitor(Meter::Sample, 0) >> pan(-0.5) | timer(1));
-    check_wave(tag(0, 5.0) >> lfo2(|t, x| t * x) | tag(1, 1.0));
-    check_wave((tag(0, 5.0) | tag(1, 3.0)) >> lfo3(|t, x, y| t * x * y) | tag(1, 1.0));
 
     // Wave filtering, tick vs. process rendering, node reseting.
     let input = Wave64::render(44100.0, 1.0, &mut (noise() | noise()));
@@ -522,27 +519,4 @@ fn test_basic() {
     ); // A major chord generator
     assert_eq!(inouts(!zero()), (0, 0)); //  A null unit. Stacking it with a graph modifies its sound subtly, as the hash is altered.
     assert_eq!(inouts(!-!!!--!!!-!!--!zero()), (0, 0)); // Hot-rodded null unit with a custom hash. Uses more electricity.
-
-    // Tagged constants.
-    check_tagged(tag(0, 5.0));
-    check_tagged(tag(0, 5.0) >> sine());
-    check_tagged(tag(0, 5.0) ^ tag(1, 0.0));
-    check_tagged(tag(1, 5.0) ^ tag(0, 5.0));
-    check_tagged(tag(0, 5.0) | tag(1, 0.0));
-    check_tagged(tag(1, 1.0) | tag(0, 5.0));
-    check_tagged(tag(1, 1.0) & tag(0, 5.0));
-    check_tagged(tag(0, 5.0) & tag(1, 2.0));
-    check_tagged(oversample(tag(0, 5.0) & tag(1, 2.0)));
-}
-
-/// Check tag 0 behavior with initial value 5.0. Tag 2 should be unset.
-fn check_tagged<X: AudioNode>(mut x: An<X>) {
-    assert!(x.get(0).unwrap() == 5.0);
-    x.set(1, 1.0);
-    assert!(x.get(0).unwrap() == 5.0);
-    x.set(0, 2.0);
-    assert!(x.get(0).unwrap() == 2.0);
-    assert!(x.get(2).is_none());
-    x.set(2, 3.0);
-    assert!(x.get(2).is_none());
 }
