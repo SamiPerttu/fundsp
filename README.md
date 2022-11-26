@@ -385,18 +385,19 @@ use fundsp::hacker::*;
 let wave1 = Wave64::render(44100.0, 10.0, &mut (pink()));
 ```
 
-Then filter it with a moving bandpass filter and normalize amplitude to -1..1:
+Then filter it with a moving bandpass filter and normalize samples to -1..1:
 
 ```rust
 let mut wave2 = wave1.filter(10.0, &mut ((pass() | lfo(|t| (xerp11(110.0, 880.0, spline_noise(0, t * 5.0)), 1.0))) >> bandpass()));
 wave2.normalize();
 ```
 
-Saving of waves is possible in 16-bit or 32-bit WAV. The latter is floating point.
+Saving of waves is possible in 16-bit or 32-bit WAV.
+The latter is floating point.
 For example, to save `wave2` to `test.wav`:
 
 ```rust
-wave2.save_wav16(std::path::Path::new("test.wav")).expect("Could not save wave.");
+wave2.save_wav16("test.wav").expect("Could not save wave.");
 ```
 
 Loading of audio files in various formats is handled by the
@@ -406,7 +407,7 @@ Symphonia integration is enabled by the `files` feature, which is enabled by def
 For example, to load `test.wav`:
 
 ```rust
-let wave3 = Wave64::load(std::path::Path::new("test.wav")).expect("Could not load wave.");
+let wave3 = Wave64::load("test.wav").expect("Could not load wave.");
 ```
 
 ## Signal Flow Analysis
@@ -473,6 +474,14 @@ Verified frequency responses are available for all linear filters.
 | `peak`       | peaking (2nd order)    | frequency, Q | Simper SVF   | |
 | `pinkpass`   | lowpass (3 dB/octave)  | -            | mixed FIR / 1st order | Turns white noise into pink noise. |
 | `resonator`  | bandpass (2nd order)   | frequency, bandwidth | biquad | Gain stays constant as bandwidth is varied. |
+
+### Parameter Smoothing Filter
+
+The `follow` filter is special. It supports different rates for rising (attack) and falling (release) segments.
+For example, `follow((0.1, 0.2))` has a 0.1 second attack and a 0.2 second release.
+
+It also jumps immediately to the very first value in the input stream, and starts smoothing from there.
+This means the output value is always within input bounds.
 
 ### List of Nonlinear Filters
 

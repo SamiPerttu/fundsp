@@ -23,14 +23,15 @@ pub type WaveError = Error;
 impl Wave48 {
     /// Load first track of audio file from the given path.
     /// Supported formats are anything that Symphonia can read.
-    pub fn load(path: &Path) -> WaveResult<Wave48> {
+    pub fn load<P: AsRef<Path>>(path: P) -> WaveResult<Wave48> {
         Wave48::load_track(path, None)
     }
 
     /// Load audio file from the given path. Track can be optionally selected.
     /// If not selected, the first track with a known codec will be loaded.
     /// Supported formats are anything that Symphonia can read.
-    pub fn load_track(path: &Path, track: Option<usize>) -> WaveResult<Wave48> {
+    pub fn load_track<P: AsRef<Path>>(path: P, track: Option<usize>) -> WaveResult<Wave48> {
+        let path = path.as_ref();
         let mut hint = Hint::new();
 
         if let Some(extension) = path.extension() {

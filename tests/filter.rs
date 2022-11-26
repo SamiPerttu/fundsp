@@ -26,12 +26,14 @@ fn test_filter() {
         let sample_rate = xerp(10.0, 500_000.0, rnd.get01::<f64>());
         let mut x = follow(samples / sample_rate);
         x.reset(Some(sample_rate));
+        x.filter_mono(0.0);
         let goal = lerp(-100.0, 100.0, rnd.get01::<f64>());
         for _ in 0..samples as usize {
             x.filter_mono(goal);
         }
         // Promise was 0.5% accuracy between 1 and 500k samples.
         let response = x.value() / goal;
+        //println!("follow samples {}, goal {}, response {}", samples, goal, response);
         assert!(response >= 0.495 && response <= 0.505);
     }
 
@@ -44,6 +46,7 @@ fn test_filter() {
         let goal = lerp(-100.0, 100.0, rnd.get01::<f64>());
         let mut x = follow((attack_samples / sample_rate, release_samples / sample_rate));
         x.reset(Some(sample_rate));
+        x.filter_mono(0.0);
         for _ in 0..(if goal > 0.0 {
             attack_samples
         } else {
@@ -54,6 +57,7 @@ fn test_filter() {
         }
         // Promise was 0.5% accuracy between 1 and 500k samples.
         let response = x.value() / goal;
+        //println!("follow attack samples {}, release samples {}, goal {}, response {}", attack_samples, release_samples, goal, response);
         assert!(response >= 0.495 && response <= 0.505);
     }
 }

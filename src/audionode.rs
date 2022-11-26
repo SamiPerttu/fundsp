@@ -2526,7 +2526,7 @@ impl<T: Atomic> Var<T> {
     }
 }
 
-impl<T: Atomic + Float> AudioNode for Var<T> {
+impl<T: Atomic> AudioNode for Var<T> {
     const ID: u64 = 68;
 
     type Sample = T;
@@ -2556,7 +2556,7 @@ impl<T: Atomic + Float> AudioNode for Var<T> {
 #[derive(Default)]
 pub struct VarFn<T, F, R>
 where
-    T: Atomic + Float,
+    T: Atomic,
     F: Clone + Fn(T) -> R,
     R: ConstantFrame<Sample = T>,
     R::Size: Size<T>,
@@ -2567,7 +2567,7 @@ where
 
 impl<T, F, R> Clone for VarFn<T, F, R>
 where
-    T: Atomic + Float,
+    T: Atomic,
     F: Clone + Fn(T) -> R,
     R: ConstantFrame<Sample = T>,
     R::Size: Size<T>,
@@ -2582,7 +2582,7 @@ where
 
 impl<T, F, R> VarFn<T, F, R>
 where
-    T: Atomic + Float,
+    T: Atomic,
     F: Clone + Fn(T) -> R,
     R: ConstantFrame<Sample = T>,
     R::Size: Size<T>,
@@ -2597,7 +2597,7 @@ where
 
 impl<T, F, R> AudioNode for VarFn<T, F, R>
 where
-    T: Atomic + Float,
+    T: Atomic,
     F: Clone + Fn(T) -> R,
     R: ConstantFrame<Sample = T>,
     R::Size: Size<T>,
@@ -2630,13 +2630,13 @@ where
 
 /// Store present time to a shared variable.
 #[derive(Clone)]
-pub struct Timer<T: Atomic + Float> {
+pub struct Timer<T: Atomic> {
     shared: Shared<T>,
     time: f64,
     sample_duration: f64,
 }
 
-impl<T: Atomic + Float> Timer<T> {
+impl<T: Atomic> Timer<T> {
     /// Create a new timer node. Current time can be read from the shared variable.
     pub fn new(sample_rate: f64, shared: &Shared<T>) -> Self {
         shared.set_value(T::zero());
@@ -2648,7 +2648,7 @@ impl<T: Atomic + Float> Timer<T> {
     }
 }
 
-impl<T: Atomic + Float> AudioNode for Timer<T> {
+impl<T: Atomic> AudioNode for Timer<T> {
     const ID: u64 = 57;
     type Sample = T;
     type Inputs = U0;

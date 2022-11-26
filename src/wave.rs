@@ -658,18 +658,18 @@ impl Wave48 {
 
     /// Save the wave as a 16-bit WAV file.
     /// Individual samples are clipped to the range -1...1.
-    pub fn save_wav16(&self, path: &Path) -> std::io::Result<()> {
+    pub fn save_wav16<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
         assert!(self.channels() > 0);
-        let mut file = File::create(path)?;
+        let mut file = File::create(path.as_ref())?;
         self.write_wav16(&mut file)
     }
 
     /// Save the wave as a 32-bit float WAV file.
     /// Samples are not clipped to any range but some
     /// applications may expect the range to be -1...1.
-    pub fn save_wav32(&self, path: &Path) -> std::io::Result<()> {
+    pub fn save_wav32<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
         assert!(self.channels() > 0);
-        let mut file = File::create(path)?;
+        let mut file = File::create(path.as_ref())?;
         self.write_wav32(&mut file)
     }
 }

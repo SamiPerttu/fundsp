@@ -27,7 +27,7 @@ fn test_dynamics() {
     // Test limiter.
     for _ in 0..20 {
         let samples = round(xerp(2.0, 200_000.0, rnd.get01::<f64>())) as usize;
-        let sample_rate = 32768.0;
+        let sample_rate = 48000.0;
         let mut x = limiter((samples as f64 / sample_rate, samples as f64 / sample_rate));
         x.reset(Some(sample_rate));
         for _ in 0..samples {
@@ -40,6 +40,7 @@ fn test_dynamics() {
             assert!(y <= 1.0);
         }
         let value = x.filter_mono(edge);
+        //println!("limiter samples {}, value {}", samples, value);
         // The limiter leaves some headroom.
         // Check that the response is limited and has sufficient range.
         assert!(value >= 0.90 && value <= 1.00);

@@ -9,6 +9,7 @@ pub use super::envelope::*;
 pub use super::feedback::*;
 pub use super::filter::*;
 pub use super::fir::*;
+pub use super::follow::*;
 pub use super::math::*;
 pub use super::moog::*;
 pub use super::net::*;
