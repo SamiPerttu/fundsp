@@ -681,9 +681,9 @@ where
 ///
 /// When a positive value is given by the input, its output increases from 0.0 to 1.0 in the time
 /// interval denoted by `attack`. It then decreases from 1.0 to the `sustain` level in the time
-/// interval denoted by `decay`. It remains at the `sustain` level until a negative value is given
-/// by the input, after which it decreases from the `sustain` level to 0.0 in a time interval
-/// denoted by `release`.
+/// interval denoted by `decay`. It remains at the `sustain` level until a zero or negative value
+/// is given by the input, after which it decreases from the `sustain` level to 0.0 in a time
+/// interval denoted by `release`.
 ///
 /// - Input 0: control start of attack and release
 /// - Output 0: scaled ADSR value from 0.0 to 1.0

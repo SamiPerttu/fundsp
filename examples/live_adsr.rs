@@ -1,7 +1,7 @@
-//! This is a monophonic synthesizer that demonstrates `adsr_live()` and `var()`. It
+//! This is a monophonic synthesizer that demonstrates `adsr_live()`, `shared()`, and `var()`. It
 //! listens to messages from the first connected MIDI input device it finds and plays the
 //! corresponding pitches with the volume moderated by an `adsr_live()` envelope. It uses
-//! four `var()` objects to share data between threads:
+//! four `shared()` objects to share data between threads:
 //! * `pitch`: Controls the current pitch. Altered by MIDI `NoteOn` messages as they arrive.
 //! * `volume`: Controls the current volume. Altered by MIDI `NoteOn` and `NoteOff` messages as they arrive.
 //! * `pitch_bend`: Scales the current pitch according to MIDI `PitchBend` messages as they arrive.
@@ -9,9 +9,9 @@
 //!    Altered by MIDI `NoteOn` and `NoteOff` messages as they arrive.
 //!
 //! This program's design is structured around these two threads:
-//! * The `main()` thread listens for MIDI inputs and alters the `var()` objects as described above.
-//! * The thread spawned by the `run_synth()` function passes the `var()` objects to `create_sound()`.
-//!   It then starts playing the sound. As the `var()` objects change, the sound automatically
+//! * The `main()` thread listens for MIDI inputs and alters the `shared()` objects as described above.
+//! * The thread spawned by the `run_synth()` function passes the `shared()` objects to `create_sound()`.
+//!   It then starts playing the sound. As the `shared()` objects change, the sound automatically
 //!   changes accordingly.
 //!
 //! The MIDI input code is adapted from the
@@ -28,7 +28,7 @@ use midi_msg::{ChannelVoiceMsg, MidiMsg};
 use midir::{Ignore, MidiInput, MidiInputPort};
 use read_input::prelude::*;
 
-/// The `var()` objects are created in `main()`. They are cloned when passed to `run_output()` so
+/// The `shared()` objects are created in `main()`. They are cloned when passed to `run_output()` so
 /// as not to lose ownership. But as with other Rust types intended for sharing between threads
 /// (e.g. `Arc`), cloning does not duplicate them - it creates an alternative reference.
 fn main() -> anyhow::Result<()> {
@@ -49,15 +49,16 @@ fn main() -> anyhow::Result<()> {
     run_input(midi_in, in_port, pitch, volume, pitch_bend, control)
 }
 
-/// This function is where the `adsr_live()` function is employed. We have the following signal
+/// This function is where the `adsr_live()` function is employed. The `shared()` objects are wrapped
+/// in `var()` objects in order to be placed in the signal graph. We have the following signal
 /// chain in place:
 ///
 /// * The `pitch_bend` value (determined by MIDI `PitchBend` messages) is multiplied by the pitch.
 /// * The `triangle()` transforms the envelope output into a triangle waveform. For different
 ///   sounds, try out some different waveform functions here!
 /// * The `adsr_live()` modulates the volume of the sound over time. Play around with the different
-///   values to get a feel for the impact of different ADSR levels. The `control` `var()` is set
-///   to 1.0 to start the attack and -1.0 to start the release.
+///   values to get a feel for the impact of different ADSR levels. The `control` `shared()` is set
+///   to 1.0 to start the attack and 0.0 to start the release.
 /// * Finally, we modulate the volume further using the MIDI velocity.
 ///
 fn create_sound(
@@ -86,13 +87,13 @@ fn get_midi_device(midi_in: &mut MidiInput) -> anyhow::Result<MidiInputPort> {
     }
 }
 
-/// This function is where MIDI events control the values of the `var()` objects.
-/// * A `NoteOn` event alters all four `var()` objects:
+/// This function is where MIDI events control the values of the `shared()` objects.
+/// * A `NoteOn` event alters all four `shared()` objects:
 ///   * Using `midi_hz()`, a MIDI pitch is converted to a frequency and stored.
 ///   * MIDI velocity values range from 0 to 127. We divide by 127 and store in `volume`.
 ///   * Setting `pitch_bend` to 1.0 makes the bend neutral.
 ///   * Setting `control` to 1.0 starts the attack.
-/// * A `NoteOff` event sets `control` to -1.0 to start the release.
+/// * A `NoteOff` event sets `control` to 0.0 to start the release.
 /// * A `PitchBend` event calls `pitch_bend_factor()` to convert the MIDI values into
 ///   a scaling factor for the pitch, which it stores in `pitch_bend`.
 fn run_input(
@@ -122,7 +123,7 @@ fn run_input(
                         }
                         ChannelVoiceMsg::NoteOff { note, velocity: _ } => {
                             if pitch.value() == midi_hz(note as f64) {
-                                control.set_value(-1.0);
+                                control.set_value(0.0);
                             }
                         }
                         ChannelVoiceMsg::PitchBend { bend } => {
@@ -168,7 +169,7 @@ fn run_output(
 }
 
 /// This function is where the sound is created and played. Once the sound is playing, it loops
-/// infinitely, allowing the `var()` objects to shape the sound in response to MIDI events.
+/// infinitely, allowing the `shared()` objects to shape the sound in response to MIDI events.
 fn run_synth<T: Sample>(
     pitch: Shared<f64>,
     volume: Shared<f64>,
