@@ -6,6 +6,7 @@
 - `Wave32/64` improvements. Symphonia integration for reading audio files.
 - Tagged constants were removed. They were not scaleable.
 - Callbacks were removed from `Sequencer32/64` and `Net32/64`. Will reimplement if requested.
+- The `follow` filter now jumps immediately to the very first input value.
 
 ### Version 0.9
 
