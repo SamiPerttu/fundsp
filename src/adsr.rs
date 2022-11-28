@@ -32,10 +32,10 @@ pub fn adsr_live<F: Float + Atomic>(
     let attack_start = var(&a);
     let release_start = var(&b);
     envelope2(move |time, control| {
-        if attack_start.value() < zero && control >= zero {
+        if attack_start.value() < zero && control > zero {
             attack_start.set_value(time);
             release_start.set_value(neg1);
-        } else if release_start.value() < zero && control < zero {
+        } else if release_start.value() < zero && control <= zero {
             release_start.set_value(time);
             attack_start.set_value(neg1);
         }
