@@ -123,7 +123,7 @@ fn run_input(
                         }
                         ChannelVoiceMsg::NoteOff { note, velocity: _ } => {
                             if pitch.value() == midi_hz(note as f64) {
-                                control.set_value(0.0);
+                                control.set_value(-1.0);
                             }
                         }
                         ChannelVoiceMsg::PitchBend { bend } => {
