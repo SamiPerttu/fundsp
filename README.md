@@ -304,6 +304,10 @@ are disjoint and they are processed independently, in parallel.
 In stacks, components are written in channel order.
 In `A | B | C`, channels of `A` come first, followed by channels of `B`, then `C`.
 
+The stack is often used to build filter parameters. For example, in
+`(pass() | constant((440.0, 1.0))) >> lowpass()` the input signal is passed through
+the stack and two other signals, frequency and Q, are concatenated to form the input
+to a lowpass filter.
 
 ## Expressions Are Graphs
 
@@ -551,7 +555,7 @@ to examine frequency responses interactively:
 ```rust
 C:\rust>evcxr
 Welcome to evcxr. For help, type :help
->> :dep fundsp = "0.8.0"
+>> :dep fundsp = "0.10.0"
 >> use fundsp::hacker::*;
 >> bell_hz(1000.0, 1.0, db_amp(50.0))
  60 dB ------------------------------------------------  60 dB
@@ -961,7 +965,7 @@ Some examples of graph expressions.
 | `lfo(\|t\| xerp11(0.25, 4.0, spline_noise(1, t))) >> resample(pink())` | 0 | 1 | Resampled pink noise. |
 | `feedback(delay(1.0) * db_amp(-3.0))`    |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 | `feedback((delay(1.0) \| delay(1.0)) >> swap() * db_amp(-6.0))` | 2 | 2 | 1 second ping-pong delay with 6 dB attenuation. |
-| `tag(0, 0.1) * delay(1.0) & (1.0 - tag(0, 0.1)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by parameter 0. |
+| `var(&wet) * delay(1.0) & (dc(1.0) - var(&wet)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by shared variable `wet`. |
 | `sine() & mul(semitone_ratio(4.0)) >> sine() & mul(semitone_ratio(7.0)) >> sine()` | 1 | 1 | major chord |
 | `dc(midi_hz(72.0)) >> sine() & dc(midi_hz(76.0)) >> sine() & dc(midi_hz(79.0)) >> sine()` | 0 | 1 | C major chord generator |
 | `!zero()`                                |   0    |    0    | A null node. Stacking it with another node modifies its sound subtly, as the hash is altered. |
