@@ -104,6 +104,7 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x1 = F::zero();
@@ -182,6 +183,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.biquad.reset(sample_rate);
@@ -259,6 +261,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.biquad.reset(sample_rate);
@@ -335,6 +338,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
@@ -401,6 +405,7 @@ impl<T: Float, F: Real> AudioNode for DCBlock<T, F> {
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
@@ -467,6 +472,7 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+    type Setting = ();
 
     #[inline]
     fn reset(&mut self, _sample_rate: Option<f64>) {
@@ -562,6 +568,7 @@ impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
@@ -636,6 +643,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Highpole<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {

@@ -784,6 +784,7 @@ where
     type Sample = T;
     type Inputs = M::Inputs;
     type Outputs = U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.ic1eq = F::zero();
@@ -928,6 +929,7 @@ where
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.ic1eq = F::zero();

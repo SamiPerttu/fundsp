@@ -36,6 +36,7 @@ where
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+    type Setting = ();
 
     fn tick(
         &mut self,
@@ -104,6 +105,7 @@ impl<T: Real> AudioNode for Shaper<T> {
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+    type Setting = ();
 
     fn tick(
         &mut self,

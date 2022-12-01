@@ -20,6 +20,7 @@ pub use super::pan::*;
 pub use super::resample::*;
 pub use super::sequencer::*;
 pub use super::shape::*;
+pub use super::shared::*;
 pub use super::signal::*;
 pub use super::svf::*;
 pub use super::system::*;

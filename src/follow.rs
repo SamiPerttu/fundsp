@@ -83,6 +83,7 @@ impl<T: Float, F: Real> AudioNode for Follow<T, F> {
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.v3 = F::zero();
@@ -195,6 +196,7 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F,
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.v3 = F::zero();

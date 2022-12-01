@@ -115,6 +115,7 @@ impl<T: Float> AudioNode for Mls<T> {
     type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
         self.mls = MlsState::new_with_seed(self.mls.n, (self.hash >> 32) as u32);
@@ -163,6 +164,7 @@ impl<T: Float> AudioNode for Noise<T> {
     type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
         self.rnd = AttoRand::new(self.hash as u64);

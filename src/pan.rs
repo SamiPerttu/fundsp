@@ -42,6 +42,7 @@ impl<T: Real, N: Size<T>> AudioNode for Panner<T, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U2;
+    type Setting = ();
 
     #[inline]
     fn tick(

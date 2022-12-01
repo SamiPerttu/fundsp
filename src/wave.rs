@@ -717,6 +717,7 @@ impl<T: Float> AudioNode for Wave48Player<T> {
     type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
         self.index = 0;

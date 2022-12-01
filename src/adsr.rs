@@ -15,8 +15,8 @@
 //! connected MIDI input device it finds, and play the corresponding pitches with the volume moderated by
 //! an `adsr_live()` envelope.
 
-use super::audionode::Atomic;
 use super::prelude::{clamp01, envelope2, lerp, shared, var, An, Envelope2};
+use super::shared::Atomic;
 use super::Float;
 
 pub fn adsr_live<F: Float + Atomic>(

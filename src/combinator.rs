@@ -190,6 +190,44 @@ impl<X: AudioNode> core::ops::DerefMut for An<X> {
     }
 }
 
+// We relay some calls preferentially to the underlying AudioNode
+// - otherwise the AudioUnit implementation would be picked.
+impl<X: AudioNode> An<X> {
+    #[inline]
+    pub fn reset(&mut self, sample_rate: Option<f64>) {
+        self.0.reset(sample_rate);
+    }
+    #[inline]
+    pub fn tick(&mut self, input: &Frame<X::Sample, X::Inputs>) -> Frame<X::Sample, X::Outputs> {
+        self.0.tick(input)
+    }
+    #[inline]
+    pub fn process(
+        &mut self,
+        size: usize,
+        input: &[&[X::Sample]],
+        output: &mut [&mut [X::Sample]],
+    ) {
+        self.0.process(size, input, output);
+    }
+    #[inline]
+    pub fn inputs(&self) -> usize {
+        self.0.inputs()
+    }
+    #[inline]
+    pub fn outputs(&self) -> usize {
+        self.0.outputs()
+    }
+    #[inline]
+    pub fn set_hash(&mut self, hash: u64) {
+        self.0.set_hash(hash);
+    }
+    #[inline]
+    pub fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+        self.0.ping(probe, hash)
+    }
+}
+
 /// `-` unary operator: Negates node outputs. Any node can be negated.
 impl<X> std::ops::Neg for An<X>
 where

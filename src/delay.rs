@@ -29,6 +29,7 @@ impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
+    type Setting = ();
 
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -89,6 +90,7 @@ impl<T: Float> AudioNode for Delay<T> {
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+    type Setting = ();
 
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -181,6 +183,7 @@ where
     type Sample = T;
     type Inputs = Sum<N, U1>;
     type Outputs = U1;
+    type Setting = ();
 
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {

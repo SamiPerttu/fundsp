@@ -191,6 +191,7 @@ where
     type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = X::Outputs;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         let inner_sr = sample_rate.map(|sr| sr * 2.0);

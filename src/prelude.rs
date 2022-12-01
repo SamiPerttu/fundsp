@@ -20,6 +20,7 @@ pub use super::pan::*;
 pub use super::resample::*;
 pub use super::sequencer::*;
 pub use super::shape::*;
+pub use super::shared::*;
 pub use super::signal::*;
 pub use super::svf::*;
 pub use super::system::*;
@@ -2146,6 +2147,7 @@ impl<T: Float> AudioNode for PulseWave<T> {
     type Sample = T;
     type Inputs = U2;
     type Outputs = U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.pulse.reset(sample_rate);
@@ -2217,6 +2219,7 @@ impl<T: Float, F: Real> AudioNode for Morph<T, F> {
     type Sample = T;
     type Inputs = U4;
     type Outputs = U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.filter.reset(sample_rate);

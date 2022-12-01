@@ -263,6 +263,7 @@ pub mod resample;
 pub mod scale;
 pub mod sequencer;
 pub mod shape;
+pub mod shared;
 pub mod signal;
 pub mod sound;
 pub mod svf;

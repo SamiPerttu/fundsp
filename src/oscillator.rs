@@ -45,6 +45,7 @@ impl<T: Real> AudioNode for Sine<T> {
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.phase = match self.initial_phase {
@@ -148,6 +149,7 @@ impl<T: Real, N: Size<T>> AudioNode for Dsf<T, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.phase = T::from_f64(rnd(self.hash as i64));
@@ -246,6 +248,7 @@ impl<T: Float> AudioNode for Pluck<T> {
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sr) = sample_rate {

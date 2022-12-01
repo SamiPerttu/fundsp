@@ -64,6 +64,7 @@ where
     // The input is sampling speed where 1 is the original speed.
     type Inputs = U1;
     type Outputs = X::Outputs;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.reset(sample_rate);

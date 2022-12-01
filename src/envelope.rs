@@ -110,6 +110,7 @@ where
     type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = R::Size;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.t = F::zero();
@@ -285,6 +286,7 @@ where
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = R::Size;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.t = F::zero();
@@ -457,6 +459,7 @@ where
     type Sample = T;
     type Inputs = typenum::U2;
     type Outputs = R::Size;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.t = F::zero();

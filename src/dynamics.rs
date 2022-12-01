@@ -4,6 +4,7 @@ use super::audionode::*;
 use super::combinator::*;
 use super::follow::*;
 use super::math::*;
+use super::shared::*;
 use super::signal::*;
 use super::*;
 use numeric_array::typenum::*;
@@ -176,6 +177,7 @@ where
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.index = 0;
@@ -259,6 +261,7 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
@@ -396,6 +399,7 @@ impl<T: Real> AudioNode for MeterNode<T> {
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sr) = sample_rate {
@@ -469,6 +473,7 @@ impl<T: Real + Atomic> AudioNode for Monitor<T> {
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sr) = sample_rate {

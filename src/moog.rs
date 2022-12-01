@@ -58,6 +58,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {

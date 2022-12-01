@@ -211,6 +211,7 @@ where
     type Sample = T;
     type Inputs = numeric_array::typenum::U1;
     type Outputs = N;
+    type Setting = ();
 
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -296,6 +297,7 @@ where
     type Sample = T;
     type Inputs = numeric_array::typenum::U1;
     type Outputs = numeric_array::typenum::U1;
+    type Setting = ();
 
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {

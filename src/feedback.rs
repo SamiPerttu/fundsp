@@ -128,6 +128,7 @@ where
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.reset(sample_rate);
@@ -219,6 +220,7 @@ where
     type Sample = T;
     type Inputs = N;
     type Outputs = N;
+    type Setting = ();
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.reset(sample_rate);
