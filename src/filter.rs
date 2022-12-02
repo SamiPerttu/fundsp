@@ -66,6 +66,8 @@ impl<F: Real> BiquadCoefs<F> {
 }
 
 /// 2nd order IIR filter implemented in normalized Direct Form I.
+/// - Input 0: input signal.
+/// - Output 0: filtered signal.
 #[derive(Default, Clone)]
 pub struct Biquad<T, F> {
     _marker: std::marker::PhantomData<T>,
@@ -147,6 +149,7 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
 }
 
 /// Butterworth lowpass filter.
+/// Setting: cutoff.
 /// Number of inputs is `N`, either `U1` or `U2`.
 /// - Input 0: input signal
 /// - Input 1 (optional): cutoff frequency (Hz)
@@ -183,7 +186,11 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = ();
+    type Setting = F;
+
+    fn set(&mut self, setting: F) {
+        self.set_cutoff(setting);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.biquad.reset(sample_rate);
@@ -221,6 +228,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
 
 /// Constant-gain bandpass filter (resonator).
 /// Filter gain is (nearly) independent of bandwidth.
+/// Setting: (center, bandwidth).
 /// Number of inputs is `N`, either `U1` or `U3` (sic).
 /// - Input 0: input signal
 /// - Input 1 (optional): filter center frequency (peak) (Hz)
@@ -261,7 +269,11 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = ();
+    type Setting = (F, F);
+
+    fn set(&mut self, (center, bandwidth): Self::Setting) {
+        self.set_center_bandwidth(center, bandwidth);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.biquad.reset(sample_rate);
@@ -302,6 +314,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
 }
 
 /// One-pole lowpass filter.
+/// Setting: cutoff.
 /// The number of inputs is `N`, either `U1` or `U2`.
 /// - Input 0: input signal
 /// - Input 1 (optional): cutoff frequency (Hz)
@@ -338,7 +351,11 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = ();
+    type Setting = F;
+
+    fn set(&mut self, setting: Self::Setting) {
+        self.set_cutoff(setting);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
@@ -376,8 +393,9 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
     }
 }
 
-/// DC blocking filter.
-/// - Input 0: input signal
+/// DC blocking filter with cutoff frequency in Hz.
+/// Setting: cutoff.
+/// - Input 0: signal
 /// - Output 0: zero centered signal
 #[derive(Default, Clone)]
 pub struct DCBlock<T: Float, F: Real> {
@@ -398,6 +416,10 @@ impl<T: Float, F: Real> DCBlock<T, F> {
         node.reset(Some(sample_rate));
         node
     }
+    pub fn set_cutoff(&mut self, cutoff: F) {
+        self.cutoff = cutoff;
+        self.coeff = F::one() - F::from_f64(TAU) / self.sample_rate * cutoff;
+    }
 }
 
 impl<T: Float, F: Real> AudioNode for DCBlock<T, F> {
@@ -405,12 +427,16 @@ impl<T: Float, F: Real> AudioNode for DCBlock<T, F> {
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
-    type Setting = ();
+    type Setting = F;
+
+    fn set(&mut self, setting: Self::Setting) {
+        self.set_cutoff(setting);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
             self.sample_rate = convert(sample_rate);
-            self.coeff = F::one() - (F::from_f64(TAU / sample_rate) * self.cutoff);
+            self.set_cutoff(self.cutoff);
         }
         self.x1 = F::zero();
         self.y1 = F::zero();
@@ -529,6 +555,7 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
 }
 
 /// 1st order allpass filter.
+/// Setting: delay.
 /// The number of inputs is `N`, either `U1` or `U2`.
 /// - Input 0: input signal
 /// - Input 1 (optional): delay in samples (delay > 0)
@@ -568,7 +595,11 @@ impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = ();
+    type Setting = F;
+
+    fn set(&mut self, setting: Self::Setting) {
+        self.set_delay(setting);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
@@ -605,6 +636,7 @@ impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
 }
 
 /// One-pole, one-zero highpass filter.
+/// Setting: cutoff.
 /// The number of inputs is `N`, either `U1` or `U2`.
 /// - Input 0: input signal
 /// - Input 1 (optional): cutoff frequency (Hz)
@@ -643,7 +675,11 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Highpole<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = ();
+    type Setting = F;
+
+    fn set(&mut self, setting: Self::Setting) {
+        self.set_cutoff(setting);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {

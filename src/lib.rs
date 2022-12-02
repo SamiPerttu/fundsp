@@ -33,6 +33,8 @@ pub const MAX_BUFFER_SIZE: usize = 64;
 pub trait Num:
     Copy
     + Default
+    + Send
+    + Sync
     + std::fmt::Display
     + Add<Output = Self>
     + Sub<Output = Self>
@@ -262,6 +264,7 @@ pub mod prelude;
 pub mod resample;
 pub mod scale;
 pub mod sequencer;
+pub mod setting;
 pub mod shape;
 pub mod shared;
 pub mod signal;

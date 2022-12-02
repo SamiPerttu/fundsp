@@ -15,14 +15,15 @@ fn logistic<T: Real>(x: T) -> T {
 }
 
 fn halfway_coeff(samples: f64) -> f64 {
-    // This approximation is accurate to 0.5% when 1 <= response_samples <= 500_000.
+    // This approximation is accurate to 0.5% when 1 <= response samples <= 500_000.
     let r0 = log(max(1.0, samples)) - 0.861624594696583;
     let r1 = logistic(r0);
     let r2 = r1 * 1.13228543863477 - 0.1322853859;
     1.0 - min(0.9999999, r2)
 }
 
-/// Smoothing filter with adjustable edge response time.
+/// Smoothing filter with adjustable halfway response time (in seconds).
+/// Setting: response time.
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
 #[derive(Default, Clone)]
@@ -40,8 +41,8 @@ pub struct Follow<T: Float, F: Real> {
 }
 
 impl<T: Float, F: Real> Follow<T, F> {
-    /// Create new smoothing filter.
-    /// Response time is how long it takes for the follower to reach halfway to the new value.
+    /// Create new smoothing filter. Response time (in seconds)
+    /// is how long it takes for the follower to reach halfway to the new value.
     pub fn new(sample_rate: f64, response_time: F) -> Self {
         let mut node = Follow::<T, F> {
             response_time,
@@ -83,7 +84,11 @@ impl<T: Float, F: Real> AudioNode for Follow<T, F> {
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = ();
+    type Setting = F;
+
+    fn set(&mut self, setting: Self::Setting) {
+        self.set_response_time(setting);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.v3 = F::zero();
@@ -124,6 +129,7 @@ impl<T: Float, F: Real> AudioNode for Follow<T, F> {
 }
 
 /// Smoothing filter with adjustable edge response times for attack and release.
+/// Setting: same form as in constructor.
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
 #[derive(Default, Clone)]
@@ -196,7 +202,11 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F,
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = ();
+    type Setting = S;
+
+    fn set(&mut self, setting: Self::Setting) {
+        self.set_time(setting);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.v3 = F::zero();

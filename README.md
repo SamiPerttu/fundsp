@@ -306,7 +306,7 @@ In `A | B | C`, channels of `A` come first, followed by channels of `B`, then `C
 
 The stack is often used to build filter parameters. For example, in
 `(pass() | constant((440.0, 1.0))) >> lowpass()` the input signal is passed through
-the stack and two other signals, frequency and Q, are concatenated to form the input
+the stack and two other signals, frequency and Q, are concatenated to it to form the input
 to a lowpass filter.
 
 ## Expressions Are Graphs
@@ -500,6 +500,78 @@ Due to nonlinearity, we do not attempt to calculate frequency responses for thes
 
 ---
 
+### Multithreading And Real-Time Control
+
+There are two simple ways to introduce real-time control to graph expressions:
+shared atomic variables and setting listeners.
+
+#### Atomic Variables
+
+We may use shared atomic variables to communicate data from and to external contexts.
+A shared variable is declared with an initial value:
+
+```rust
+use fundsp::hacker::*;
+let amp = shared(1.0);
+```
+
+Shared variables can be cloned and sent into another thread.
+To instantiate a shared variable output into an audio graph, use `var` and `var_fn` opcodes.
+For example, to control amplitude:
+
+```rust
+let amp_controlled = noise() * var(&amp);
+```
+
+Later we can set the amplitude from anywhere:
+
+```rust
+amp.set_value(0.5);
+```
+
+The `timer` opcode maintains stream time in a shared variable.
+The timer node has no inputs or outputs and can be joined to any node by stacking.
+
+#### Settings
+
+A setting listener is instantiated with the `listen(graph)` opcode,
+which returns a `(sender, graph)` pair. The graph has been wrapped
+with a listener listening to settings sent through `sender`.
+
+The sender can be cloned and invoked from other threads.
+The format of the settings available through `sender` depends
+on the type of the graph.
+
+If a parameter has a dedicated input then it cannot be a setting.
+The way to get filters with parameters controlled via settings
+is to use the forms that specify all parameters
+as constant, for example, `lowpass_hz`.
+
+```rust
+use fundsp::hacker::*;
+let (sender, graph) = listen(lowpass_hz(1000.0, 1.0));
+```
+
+Later we can send filter parameters from anywhere via sender.
+The setting format of all Simper SVF filter modes is (center, Q, gain),
+where gain may be unused (as is the case here). Set filter center
+to 1 kHz and Q to 2.0:
+
+```rust
+sender.try_send((1000.0, 2.0, 0.0)).expect("Cannot send setting.");
+```
+
+If a listener is attached to a binary operation, then the
+different sides can be picked with the `left` or `right` function, respectively.
+For example, constants are exposed as settings:
+
+```rust
+let (sender, graph) = listen(dc(0.5) >> resample(pink()));
+sender.try_send(left([0.6].into())).expect("Cannot send setting.");
+```
+
+---
+
 ### Parametric Equalizer Recipe
 
 In this example we make a 12-band, double precision parametric equalizer
@@ -544,6 +616,22 @@ The default sample rate is 44.1 kHz. Set sample rate to 48 kHz:
 equalizer.reset(Some(48_000.0));
 ```
 
+For real-time control, the equalizer can be equipped with
+a setting listener.
+
+```rust
+let (sender, equalizer) = listen(equalizer);
+```
+
+Then, we can send settings of the form (band, (center, Q, gain)).
+The settings are available because we constructed the filter using
+the `bell_hz` form.
+Set band 1 to amplify by 3 dB at 1000 Hz with Q set to 2.0:
+
+```rust
+sender.try_send((1, (1000.0, 2.0, db_amp(3.0)))).expect("Cannot send setting.");
+```
+
 ### evcxr
 
 The `Debug` output of audio filters contains information about
@@ -582,8 +670,6 @@ Footprint      : 96 bytes
 
 >>
 ```
-
----
 
 ## Free Functions
 
@@ -792,33 +878,10 @@ These are arguments to the `shape` opcode.
 - `Shape::Crush(levels)`: Apply a staircase function with configurable number of levels per unit.
 - `Shape::SoftCrush(levels)`: Apply a smooth staircase function with configurable number of levels per unit.
 
-#### Multithreading
-
-We use shared atomic variables to communicate data from and to external contexts.
-A shared variable is declared with an initial value:
-
-```rust
-use fundsp::hacker::*;
-let amp = shared(1.0);
-```
-
-Shared variables can be cloned and sent into another thread.
-To instantiate a shared variable output into an audio graph, use `var` and `var_fn` opcodes.
-For example, to control amplitude:
-
-```rust
-let amp_controlled = noise() * var(&amp);
-// Later we can set the amplitude from anywhere:
-amp.set_value(0.5);
-```
-
-The `timer` opcode maintains stream time in a shared variable.
-The timer node has no inputs or outputs and can be joined to any node by stacking.
-
 #### Metering Modes
 
 The `monitor(&shared, mode)` opcode is a pass-through node that presents
-some aspect of data passed through in the shared variable. Metering modes are:
+some aspect of data passed through in a shared variable. Metering modes are:
 
 - `Meter::Sample`: Stores the latest value passed through.
 - `Meter::Peak(smoothing)`: Peak amplitude meter with `smoothing` as per-sample smoothing factor in 0...1.
@@ -965,7 +1028,7 @@ Some examples of graph expressions.
 | `lfo(\|t\| xerp11(0.25, 4.0, spline_noise(1, t))) >> resample(pink())` | 0 | 1 | Resampled pink noise. |
 | `feedback(delay(1.0) * db_amp(-3.0))`    |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 | `feedback((delay(1.0) \| delay(1.0)) >> swap() * db_amp(-6.0))` | 2 | 2 | 1 second ping-pong delay with 6 dB attenuation. |
-| `var(&wet) * delay(1.0) & (dc(1.0) - var(&wet)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by shared variable `wet`. |
+| `var(&wet) * delay(1.0) & (dc(1.0) - var(&wet)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by shared variable `wet`. The shared variable can be declared as `let wet = shared(0.5);` |
 | `sine() & mul(semitone_ratio(4.0)) >> sine() & mul(semitone_ratio(7.0)) >> sine()` | 1 | 1 | major chord |
 | `dc(midi_hz(72.0)) >> sine() & dc(midi_hz(76.0)) >> sine() & dc(midi_hz(79.0)) >> sine()` | 0 | 1 | C major chord generator |
 | `!zero()`                                |   0    |    0    | A null node. Stacking it with another node modifies its sound subtly, as the hash is altered. |

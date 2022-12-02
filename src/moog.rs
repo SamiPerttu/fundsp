@@ -7,6 +7,7 @@ use super::*;
 use numeric_array::*;
 
 /// Moog resonant lowpass filter.
+/// Setting: (cutoff, Q).
 /// The number of inputs is `N`, either `U1` or `U3`.
 /// - Input 0: input signal
 /// - Input 1 (optional): cutoff frequency (Hz)
@@ -58,7 +59,11 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = ();
+    type Setting = (F, F);
+
+    fn set(&mut self, (cutoff, q): Self::Setting) {
+        self.set_cutoff_q(cutoff, q);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {

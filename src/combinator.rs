@@ -115,7 +115,7 @@ impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T, T, T, T) {
 }
 
 /// Trait for 1-way/2-way distinctions, such as symmetric/asymmetric response times.
-pub trait ScalarOrPair: Clone + Default {
+pub trait ScalarOrPair: Clone + Default + Send + Sync {
     type Sample: Float;
     /// Construct new item from broadcast pair.
     fn construct(x: Self::Sample, y: Self::Sample) -> Self;
@@ -225,6 +225,22 @@ impl<X: AudioNode> An<X> {
     #[inline]
     pub fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.0.ping(probe, hash)
+    }
+    #[inline]
+    pub fn get_mono(&mut self) -> X::Sample {
+        self.0.get_mono()
+    }
+    #[inline]
+    pub fn get_stereo(&mut self) -> (X::Sample, X::Sample) {
+        self.0.get_stereo()
+    }
+    #[inline]
+    pub fn filter_mono(&mut self, x: X::Sample) -> X::Sample {
+        self.0.filter_mono(x)
+    }
+    #[inline]
+    pub fn filter_stereo(&mut self, x: X::Sample, y: X::Sample) -> (X::Sample, X::Sample) {
+        self.0.filter_stereo(x, y)
     }
 }
 

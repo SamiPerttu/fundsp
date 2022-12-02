@@ -19,6 +19,7 @@ pub use super::oversample::*;
 pub use super::pan::*;
 pub use super::resample::*;
 pub use super::sequencer::*;
+pub use super::setting::*;
 pub use super::shape::*;
 pub use super::shared::*;
 pub use super::signal::*;
@@ -652,10 +653,6 @@ where
     R::Size: Size<F>,
     R::Size: Size<T>,
 {
-    // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
-    // Therefore, sampling at 500 Hz means these signals are fairly well represented.
-    // While we represent time in double precision internally, it is often okay to use single precision
-    // in envelopes, as local component time typically does not get far from origin.
     An(Envelope2::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 
@@ -693,10 +690,6 @@ where
     R::Size: Size<F>,
     R::Size: Size<T>,
 {
-    // Signals containing frequencies no greater than about 20 Hz would be considered control rate.
-    // Therefore, sampling at 500 Hz means these signals are fairly well represented.
-    // While we represent time in double precision internally, it is often okay to use single precision
-    // in envelopes, as local component time typically does not get far from origin.
     An(Envelope3::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 

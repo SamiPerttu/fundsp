@@ -40,9 +40,9 @@ pub trait AudioNode: Clone {
     type Inputs: Size<Self::Sample>;
     /// Output arity.
     type Outputs: Size<Self::Sample>;
-    /// Setting type. Settings are parameters that do not have an input.
+    /// Setting type. Settings are parameters that do not have a dedicated input.
     /// This is the unit type if there are no settings.
-    type Setting: Sync + Send + Clone;
+    type Setting: Sync + Send + Clone + Default;
 
     /// Reset the input state of the component to an initial state where it has
     /// not processed any samples. In other words, reset time to zero.
@@ -432,7 +432,12 @@ impl<N: Size<T>, T: Float> AudioNode for Constant<N, T> {
     type Sample = T;
     type Inputs = U0;
     type Outputs = N;
-    type Setting = ();
+    type Setting = Frame<T, N>;
+
+    #[inline]
+    fn set(&mut self, setting: Self::Setting) {
+        self.output = setting;
+    }
 
     #[inline]
     fn tick(
@@ -893,7 +898,14 @@ where
     type Sample = T;
     type Inputs = Sum<X::Inputs, Y::Inputs>;
     type Outputs = X::Outputs;
-    type Setting = ();
+    type Setting = Side<X::Setting, Y::Setting>;
+
+    fn set(&mut self, setting: Self::Setting) {
+        match setting {
+            Side::Left(value) => self.x.set(value),
+            Side::Right(value) => self.y.set(value),
+        }
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.reset(sample_rate);
@@ -1122,7 +1134,11 @@ where
     type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = X::Outputs;
-    type Setting = ();
+    type Setting = X::Setting;
+
+    fn set(&mut self, setting: Self::Setting) {
+        self.x.set(setting);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.reset(sample_rate);
@@ -1213,9 +1229,25 @@ where
 
 /// Use setting from left or right side of a binary operation.
 #[derive(Clone)]
-pub enum Side<L: Clone, R: Clone> {
+pub enum Side<L: Clone + Default, R: Clone + Default> {
     Left(L),
     Right(R),
+}
+
+impl<L: Clone + Default, R: Clone + Default> Default for Side<L, R> {
+    fn default() -> Self {
+        Side::Left(L::default())
+    }
+}
+
+/// Return setting for left side of a binary operation.
+pub fn left<L: Clone + Default, R: Clone + Default>(value: L) -> Side<L, R> {
+    Side::<L, R>::Left(value)
+}
+
+/// Return setting for right side of a binary operation.
+pub fn right<L: Clone + Default, R: Clone + Default>(value: R) -> Side<L, R> {
+    Side::<L, R>::Right(value)
 }
 
 /// Pipe the output of `X` to `Y`.
@@ -1780,6 +1812,11 @@ impl<X: AudioNode> AudioNode for Thru<X> {
                 output[channel][..size].clone_from_slice(&input[channel][..size]);
             }
         }
+    }
+
+    #[inline]
+    fn set_hash(&mut self, hash: u64) {
+        self.x.set_hash(hash);
     }
 
     #[inline]

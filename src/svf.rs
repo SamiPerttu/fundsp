@@ -824,6 +824,8 @@ where
 }
 
 /// Simper SVF with fixed parameters.
+/// Setting: (center, Q, gain).
+/// If gain setting does not apply to the filter mode, then it can be set to any value.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[derive(Default, Clone)]
@@ -917,6 +919,19 @@ where
         self.params.gain = gain;
         self.mode.update_gain(&self.params, &mut self.coeffs);
     }
+
+    /// Set filter cutoff in Hz, Q and gain. Synonymous with `set_center_q_gain`.
+    pub fn set_cutoff_q_gain(&mut self, cutoff: F, q: F, gain: F) {
+        self.params.cutoff = cutoff;
+        self.params.q = q;
+        self.params.gain = gain;
+        self.mode.update(&self.params, &mut self.coeffs);
+    }
+
+    /// Set filter center in Hz, Q and gain. Synonymous with `set_cutoff_q_gain`.
+    pub fn set_center_q_gain(&mut self, center: F, q: F, gain: F) {
+        self.set_cutoff_q_gain(center, q, gain);
+    }
 }
 
 impl<T, F, M> AudioNode for FixedSvf<T, F, M>
@@ -929,7 +944,11 @@ where
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = ();
+    type Setting = (F, F, F);
+
+    fn set(&mut self, (center, q, gain): Self::Setting) {
+        self.set_center_q_gain(center, q, gain);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.ic1eq = F::zero();

@@ -21,6 +21,7 @@ rsor = "0.1.3"
 duplicate = "0.4.1"
 dyn-clone = "1.0.9"
 symphonia = { version = "0.5.1", optional = true, features = ["aac", "alac", "mp3", "isomp4"] }
+thingbuf = "0.1.3"
 
 [features]
 default = ["files"]

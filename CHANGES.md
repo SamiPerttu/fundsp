@@ -1,5 +1,9 @@
 ## Changes
 
+### Version 0.11
+
+-Composable setting system for making it easier to control basic settings in real time.
+
 ### Version 0.10
 
 - New opcode `resample` for variable speed cubic resampling.
