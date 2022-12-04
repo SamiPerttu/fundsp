@@ -5,6 +5,7 @@
 
 use super::audionode::*;
 use super::math::*;
+use super::signal::*;
 use super::*;
 use duplicate::duplicate_item;
 use numeric_array::typenum::*;
@@ -209,6 +210,10 @@ impl<X: AudioNode> An<X> {
         output: &mut [&mut [X::Sample]],
     ) {
         self.0.process(size, input, output);
+    }
+    #[inline]
+    pub fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.0.route(input, frequency)
     }
     #[inline]
     pub fn inputs(&self) -> usize {

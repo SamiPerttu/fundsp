@@ -15,6 +15,7 @@ fn pan_weights<T: Real>(value: T) -> (T, T) {
 }
 
 /// Mono-to-stereo equal power panner. Number of inputs is `N`, either 1 or 2.
+/// Setting: pan value.
 /// Input 0: mono audio
 /// Input 1 (optional): pan value in -1...1
 /// Output 0: left output
@@ -35,6 +36,11 @@ impl<T: Real, N: Size<T>> Panner<T, N> {
             right_weight,
         }
     }
+    pub fn set_pan(&mut self, value: T) {
+        let (left_weight, right_weight) = pan_weights(value);
+        self.left_weight = left_weight;
+        self.right_weight = right_weight;
+    }
 }
 
 impl<T: Real, N: Size<T>> AudioNode for Panner<T, N> {
@@ -42,7 +48,11 @@ impl<T: Real, N: Size<T>> AudioNode for Panner<T, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U2;
-    type Setting = ();
+    type Setting = T;
+
+    fn set(&mut self, setting: Self::Setting) {
+        self.set_pan(setting);
+    }
 
     #[inline]
     fn tick(
@@ -51,9 +61,7 @@ impl<T: Real, N: Size<T>> AudioNode for Panner<T, N> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         if N::USIZE > 1 {
             let value = input[1];
-            let (left_weight, right_weight) = pan_weights(value);
-            self.left_weight = left_weight;
-            self.right_weight = right_weight;
+            self.set_pan(value);
         }
         [self.left_weight * input[0], self.right_weight * input[0]].into()
     }

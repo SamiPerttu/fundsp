@@ -229,7 +229,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
 /// Constant-gain bandpass filter (resonator).
 /// Filter gain is (nearly) independent of bandwidth.
 /// Setting: (center, bandwidth).
-/// Number of inputs is `N`, either `U1` or `U3` (sic).
+/// Number of inputs is `N`, either `U1` or `U3`.
 /// - Input 0: input signal
 /// - Input 1 (optional): filter center frequency (peak) (Hz)
 /// - Input 2 (optional): filter bandwidth (distance) between -3 dB points (Hz)
@@ -288,7 +288,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        if N::USIZE > 2 {
+        if N::USIZE >= 3 {
             let center: F = convert(input[1]);
             let bandwidth: F = convert(input[2]);
             if center != self.center || bandwidth != self.bandwidth {

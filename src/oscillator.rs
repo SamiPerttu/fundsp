@@ -103,6 +103,7 @@ fn dsf<T: Real>(f: T, d: T, r: T, n: T) -> T {
 }
 
 /// DSF oscillator. Number of inputs is `N`, either 1 or 2.
+/// Setting: roughness.
 /// - Input 0: frequency in Hz.
 /// - Input 1 (optional): roughness in 0...1 is the relative amplitude of successive partials.
 /// - Output 0: DSF wave.
@@ -149,7 +150,11 @@ impl<T: Real, N: Size<T>> AudioNode for Dsf<T, N> {
     type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = ();
+    type Setting = T;
+
+    fn set(&mut self, setting: Self::Setting) {
+        self.set_roughness(setting);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.phase = T::from_f64(rnd(self.hash as i64));

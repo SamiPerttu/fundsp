@@ -84,11 +84,6 @@ impl<X: AudioNode> AudioNode for Listen<X> {
     }
 
     #[inline]
-    fn set_hash(&mut self, hash: u64) {
-        self.x.set_hash(hash);
-    }
-
-    #[inline]
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
         self.x.ping(probe, hash.hash(Self::ID))
     }
