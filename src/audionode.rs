@@ -71,6 +71,7 @@ pub trait AudioNode: Clone {
     /// Process up to 64 (`MAX_BUFFER_SIZE`) samples.
     /// The number of input and output buffers must match the number of inputs and outputs, respectively.
     /// All input and output buffers must be at least as large as `size`.
+    /// Size may be zero; in that case this call is a hint to preallocate any buffers needed for block processing.
     /// The default implementation is a fallback that calls into `tick`.
     fn process(
         &mut self,
@@ -78,7 +79,7 @@ pub trait AudioNode: Clone {
         input: &[&[Self::Sample]],
         output: &mut [&mut [Self::Sample]],
     ) {
-        debug_assert!(size > 0 && size <= MAX_BUFFER_SIZE);
+        debug_assert!(size <= MAX_BUFFER_SIZE);
         debug_assert!(input.len() == self.inputs());
         debug_assert!(output.len() == self.outputs());
         debug_assert!(input.iter().all(|x| x.len() >= size));
@@ -716,7 +717,7 @@ pub trait FrameBinop<N: Size<T>, T: Float>: Clone {
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
     /// Do binary op (x op y) on signals.
     fn propagate(x: Signal, y: Signal) -> Signal;
-    /// Do binary op (x op y) in-place lengthwise.
+    /// Do binary op (x op y) in-place lengthwise. Size may be zero.
     fn assign(size: usize, x: &mut [T], y: &[T]);
 }
 

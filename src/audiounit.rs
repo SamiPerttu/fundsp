@@ -28,6 +28,7 @@ pub trait AudioUnit48: Send + Sync + DynClone {
 
     /// Process up to 64 (MAX_BUFFER_SIZE) samples.
     /// Buffers are supplied as slices. All buffers must have room for at least `size` samples.
+    /// Size may be zero; in that case this is a hint to preallocate any buffers needed for block processing.
     /// The number of input and output buffers must be equal to `inputs` and `outputs`, respectively.
     fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]);
 
