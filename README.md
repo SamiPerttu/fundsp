@@ -722,9 +722,9 @@ The type parameters in the table refer to the hacker preludes.
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
 | `dsf_saw()`            | 2 (frequency, roughness) | 1 | Saw-like discrete summation formula oscillator. |
-| `dsf_saw_r(roughness)` | 1 (frequency) | 1 | Saw-like discrete summation formula oscillator with roughness in 0...1. |
+| `dsf_saw_r(r)`         | 1 (frequency) | 1 | Saw-like discrete summation formula oscillator with roughness `r` in 0...1. |
 | `dsf_square()`         | 2 (frequency, roughness) | 1 | Square-like discrete summation formula oscillator. |
-| `dsf_square_r(roughness)`| 1 (frequency) | 1 | Square-like discrete summation formula oscillator with roughness in 0...1. |
+| `dsf_square_r(r)`      | 1 (frequency) | 1 | Square-like discrete summation formula oscillator with roughness `r` in 0...1. |
 | `envelope(f)`          |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `envelope2(f)`         |  1 (x)  |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `lfo2`. |
 | `envelope3(f)`         | 2 (x, y) |  `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x, y\| y * exp(-t * x)`. Synonymous with `lfo3`. |

@@ -66,6 +66,7 @@ impl<F: Real> BiquadCoefs<F> {
 }
 
 /// 2nd order IIR filter implemented in normalized Direct Form I.
+/// Setting: coefficients as tuple (a1, a2, b0, b1, b2).
 /// - Input 0: input signal.
 /// - Output 0: filtered signal.
 #[derive(Default, Clone)]
@@ -106,7 +107,11 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
     type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
-    type Setting = ();
+    type Setting = (F, F, F, F, F);
+
+    fn set(&mut self, (a1, a2, b0, b1, b2): Self::Setting) {
+        self.set_coefs(BiquadCoefs::arbitrary(a1, a2, b0, b1, b2));
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x1 = F::zero();
