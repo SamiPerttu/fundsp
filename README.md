@@ -534,8 +534,12 @@ The timer node has no inputs or outputs and can be joined to any node by stackin
 
 #### Settings
 
-A setting listener is instantiated with the `listen(graph)` opcode,
-which returns a `(sender, graph)` pair. The graph has been wrapped
+Settings are all kinds of node parameters with no dedicated inputs.
+A node can respond to one type of setting.
+
+The purpose of settings is to automate setting listeners,
+which are instantiated with the `listen(graph)` opcode. It
+returns a `(sender, graph)` pair. The graph has been wrapped
 with a listener listening to settings sent through `sender`.
 
 The sender can be cloned and invoked from other threads.
@@ -803,8 +807,8 @@ The type parameters in the table refer to the hacker preludes.
 | `sine()`               | 1 (frequency) | 1 | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
 | `sink()`               |    1    |    -    | Consume signal. |
-| `softsaw()`            | 1 (frequency) | 1 | Bandlimited soft saw wave oscillator. |
-| `softsaw_hz(f)`        |    -    |    1    | Bandlimited soft saw wave oscillator at `f` Hz. |
+| `soft_saw()`           | 1 (frequency) | 1 | Bandlimited soft saw wave oscillator. |
+| `soft_saw_hz(f)`       |    -    |    1    | Bandlimited soft saw wave oscillator at `f` Hz. |
 | `split::<U>()`         |    1    |   `U`   | Split signal into `U` channels. |
 | `square()`             | 1 (frequency) | 1 | Bandlimited square wave oscillator. |
 | `square_hz(f)`         |    -    |    1    | Bandlimited square wave oscillator at frequency `f` Hz. |
