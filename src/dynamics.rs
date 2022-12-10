@@ -498,6 +498,9 @@ impl<T: Real + Atomic> AudioNode for Monitor<T> {
         input: &[&[Self::Sample]],
         output: &mut [&mut [Self::Sample]],
     ) {
+        if size == 0 {
+            return;
+        }
         if self.meter.latest_only() {
             self.state.tick(self.meter, input[0][size - 1]);
         } else {
