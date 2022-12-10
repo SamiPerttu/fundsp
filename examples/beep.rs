@@ -48,8 +48,11 @@ where
     //let c = zero() >> pluck(220.0, 0.8, 0.8);
     //let c = dc(110.0) >> dsf_saw_r(0.99);
     //let c = dc(110.0) >> triangle();
+    //let c = dc(110.0) >> soft_saw();
     //let c = lfo(|t| xerp11(20.0, 2000.0, sin_hz(0.1, t))) >> dsf_square_r(0.99) >> lowpole_hz(1000.0);
     //let c = dc(110.0) >> square();
+    //let c = 0.2 * (organ_hz(midi_hz(57.0)) + organ_hz(midi_hz(61.0)) + organ_hz(midi_hz(64.0)));
+    //let c = organ_hz(110.0);
 
     // Filtered noise tone.
     //let c = noise() >> resonator_hz(440.0, 5.0);

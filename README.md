@@ -776,6 +776,8 @@ The type parameters in the table refer to the hacker preludes.
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
 | `notch_hz(f, q)`       |    1    |    1    | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
 | `notch_q(q)`           | 2 (audio, frequency) | 1 | Notch filter (2nd order) with Q `q`. |
+| `organ()`              | 1 (frequency) | 1 | Bandlimited organ wave oscillator. |
+| `organ_hz(f)`          |    -    |    1    | Bandlimited organ wave oscillator at `f` Hz. |
 | `oversample(node)`     |  `node` |  `node` | 2x oversample enclosed `node`. |
 | `pan(pan)`             |    1    |    2    | Fixed mono-to-stereo equal power panner with pan in -1...1. |
 | `panner()`             | 2 (audio, pan) | 2 | Mono-to-stereo equal power panner with pan in -1...1. |
@@ -801,6 +803,8 @@ The type parameters in the table refer to the hacker preludes.
 | `sine()`               | 1 (frequency) | 1 | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
 | `sink()`               |    1    |    -    | Consume signal. |
+| `softsaw()`            | 1 (frequency) | 1 | Bandlimited soft saw wave oscillator. |
+| `softsaw_hz(f)`        |    -    |    1    | Bandlimited soft saw wave oscillator at `f` Hz. |
 | `split::<U>()`         |    1    |   `U`   | Split signal into `U` channels. |
 | `square()`             | 1 (frequency) | 1 | Bandlimited square wave oscillator. |
 | `square_hz(f)`         |    -    |    1    | Bandlimited square wave oscillator at frequency `f` Hz. |
@@ -809,13 +813,13 @@ The type parameters in the table refer to the hacker preludes.
 | `sub(x)`               |   `x`   |   `x`   | Subtract constant `x` from signal. |
 | `sum::<U, _, _>(f)`    | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
-| `system(x, dt, f)`     |   `x`   |   `x`   | Dynamical system that controls node `x` with update interval `dt` seconds and update function `f(t, dt, x)`.
 | `swap()`               |    2    |    2    | Swap stereo channels. |
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
 | `tick()`               |    1    |    1    | Single sample delay. |
 | `timer(&shared)`       |    -    |    -    | Maintain current stream time in a shared variable. |
 | `triangle()`           | 1 (frequency) | 1 | Bandlimited triangle wave oscillator. |
 | `triangle_hz(f)`       |    -    |    1    | Bandlimited triangle wave oscillator at `f` Hz. |
+| `update(x, dt, f)`     |   `x`   |   `x`   | Update node `x` with update interval `dt` seconds and update function `f(t, dt, x)`. |
 | `var(&shared)`         |    -    |    1    | Output value of the shared variable. |
 | `var_fn(&shared, f)`   |    -    |   `f`   | Output value of the shared variable mapped through function `f`. |
 | `wave32(wave, channel, loop_point)` | - | 1 | Play back a channel of `Wave32`. Optional loop point is the index to jump to at the end of the wave. |

@@ -230,11 +230,10 @@ pub fn multizero<N: Size<T>, T: Float>() -> An<Constant<N, T>> {
     An(Constant::new(Frame::splat(T::zero())))
 }
 
-/// Dynamical system. Update enclosed node `x`
-/// with approximately `dt` seconds between updates.
+/// Update enclosed node `x` with approximately `dt` seconds between updates.
 /// The update function is `f(t, dt, x)` where `t` is current time,
 /// `dt` is time from previous update, and `x` is the enclosed node.
-pub fn system<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone>(
+pub fn update<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone>(
     x: An<X>,
     dt: T,
     f: F,
@@ -1582,6 +1581,23 @@ pub fn triangle<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
 }
 
+/// Organ oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: organ wave
+#[inline]
+pub fn organ<T: Float>() -> An<WaveSynth<'static, T, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &ORGAN_TABLE))
+}
+
+/// Soft saw oscillator.
+/// Contains all partials, falls off like a triangle wave.
+/// - Input 0: frequency in Hz
+/// - Output 0: soft saw wave
+#[inline]
+pub fn soft_saw<T: Float>() -> An<WaveSynth<'static, T, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &SOFT_SAW_TABLE))
+}
+
 /// Fixed saw wave oscillator at `f` Hz.
 /// - Output 0: saw wave
 #[inline]
@@ -1601,6 +1617,21 @@ pub fn square_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'stati
 #[inline]
 pub fn triangle_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
     constant(f) >> triangle()
+}
+
+/// Fixed organ oscillator at `f` Hz.
+/// - Output 0: organ wave
+#[inline]
+pub fn organ_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
+    constant(f) >> organ()
+}
+
+/// Fixed soft saw oscillator at `f` Hz.
+/// Contains all partials, falls off like a triangle wave.
+/// - Output 0: soft saw wave
+#[inline]
+pub fn soft_saw_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
+    constant(f) >> soft_saw()
 }
 
 /// Lowpass filter.

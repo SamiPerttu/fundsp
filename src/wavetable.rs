@@ -384,3 +384,29 @@ lazy_static! {
         }
     );
 }
+
+lazy_static! {
+    // Organ wavetable. Emphasizes octave partials.
+    pub static ref ORGAN_TABLE: Wavetable = Wavetable::new(
+        20.0, 20_000.0, 4.0,
+        // Set phase to enable interpolation with saw, triangle and soft saw wavetables.
+        &|i| if (i & 3) == 3 { 0.5 } else if (i & 1) == 1 { 0.0 } else { 0.5 },
+        &|_, i| {
+            let z = i.trailing_zeros();
+            let j = i >> z;
+            1.0 / (i + j * j * j) as f64
+        }
+    );
+}
+
+lazy_static! {
+    // Soft saw wavetable. Falls off like a triangle wave, contains all partials.
+    pub static ref SOFT_SAW_TABLE: Wavetable = Wavetable::new(
+        20.0, 20_000.0, 4.0,
+        // Set phase to enable interpolation with saw, triangle and organ wavetables.
+        &|i| if (i & 3) == 3 { 0.5 } else if (i & 1) == 1 { 0.0 } else { 0.5 },
+        &|_, i| {
+            1.0 / (i * i) as f64
+        }
+    );
+}

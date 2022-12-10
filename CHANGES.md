@@ -3,6 +3,8 @@
 ### Version 0.11
 
 - Composable setting system for making it easier to control basic settings in real time.
+- `system` opcode was renamed `update`.
+- New waveforms, organ and soft saw.
 
 ### Version 0.10
 

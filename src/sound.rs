@@ -24,7 +24,7 @@ pub fn pebbles(
 ) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
     let mut d = [0.0f64; 100];
 
-    system(
+    update(
         bus::<U100, _, _>(move |i| dc(xerp(50.0, 5000.0, rnd(i ^ seed))) >> follow(0.01) >> sine()),
         0.01,
         move |t, dt, x| {

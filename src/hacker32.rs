@@ -230,11 +230,10 @@ pub fn multizero<N: Size<f32>>() -> An<Constant<N, f32>> {
     An(Constant::new(Frame::splat(0.0)))
 }
 
-/// Dynamical system. Update enclosed node `x`
-/// with approximately `dt` seconds between updates.
+/// Update enclosed node `x` with approximately `dt` seconds between updates.
 /// The update function is `f(t, dt, x)` where `t` is current time,
 /// `dt` is time from previous update, and `x` is the enclosed node.
-pub fn system<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone>(
+pub fn update<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone>(
     x: An<X>,
     dt: f32,
     f: F,
@@ -1448,6 +1447,23 @@ pub fn triangle() -> An<WaveSynth<'static, f32, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
 }
 
+/// Organ oscillator.
+/// - Input 0: frequency in Hz
+/// - Output 0: organ wave
+#[inline]
+pub fn organ() -> An<WaveSynth<'static, f32, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &ORGAN_TABLE))
+}
+
+/// Soft saw oscillator.
+/// Contains all partials, falls off like a triangle wave.
+/// - Input 0: frequency in Hz
+/// - Output 0: soft saw wave
+#[inline]
+pub fn soft_saw() -> An<WaveSynth<'static, f32, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &SOFT_SAW_TABLE))
+}
+
 /// Fixed saw wave oscillator at `f` Hz.
 /// - Output 0: saw wave
 #[inline]
@@ -1467,6 +1483,21 @@ pub fn square_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f
 #[inline]
 pub fn triangle_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f32, U1>>> {
     super::prelude::triangle_hz(f)
+}
+
+/// Fixed organ oscillator at `f` Hz.
+/// - Output 0: organ wave
+#[inline]
+pub fn organ_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f32, U1>>> {
+    constant(f) >> organ()
+}
+
+/// Fixed soft saw oscillator at `f` Hz.
+/// Contains all partials, falls off like a triangle wave.
+/// - Output 0: soft saw wave
+#[inline]
+pub fn soft_saw_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f32, U1>>> {
+    constant(f) >> soft_saw()
 }
 
 /// Lowpass filter.

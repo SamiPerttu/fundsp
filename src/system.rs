@@ -45,7 +45,12 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone> AudioNode for Syste
     type Sample = X::Sample;
     type Inputs = X::Inputs;
     type Outputs = X::Outputs;
-    type Setting = ();
+    type Setting = X::Setting;
+
+    #[inline]
+    fn set(&mut self, setting: Self::Setting) {
+        self.x.set(setting);
+    }
 
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
