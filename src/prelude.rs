@@ -642,7 +642,9 @@ where
 /// - Input 0: x
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn envelope2<T, F, E, R>(f: E) -> An<Envelope2<T, F, E, R>>
+pub fn envelope2<T, F, E, R>(
+    f: E,
+) -> An<EnvelopeIn<T, F, impl Fn(F, &Frame<T, U1>) -> R + Sized + Clone, U1, R>>
 where
     T: Float,
     F: Float,
@@ -651,7 +653,11 @@ where
     R::Size: Size<F>,
     R::Size: Size<T>,
 {
-    An(Envelope2::new(F::from_f64(0.002), DEFAULT_SR, f))
+    An(EnvelopeIn::new(
+        F::from_f64(0.002),
+        DEFAULT_SR,
+        move |t, i: &Frame<T, U1>| f(t, convert(i[0])),
+    ))
 }
 
 /// Control envelope from time-varying, input dependent function `f(t, x)` with `t` in seconds.
@@ -660,7 +666,9 @@ where
 /// - Input 0: x
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn lfo2<T, F, E, R>(f: E) -> An<Envelope2<T, F, E, R>>
+pub fn lfo2<T, F, E, R>(
+    f: E,
+) -> An<EnvelopeIn<T, F, impl Fn(F, &Frame<T, U1>) -> R + Sized + Clone, U1, R>>
 where
     T: Float,
     F: Float,
@@ -669,7 +677,11 @@ where
     R::Size: Size<F>,
     R::Size: Size<T>,
 {
-    An(Envelope2::new(F::from_f64(0.002), DEFAULT_SR, f))
+    An(EnvelopeIn::new(
+        F::from_f64(0.002),
+        DEFAULT_SR,
+        move |t, i: &Frame<T, U1>| f(t, convert(i[0])),
+    ))
 }
 
 /// Control envelope from time-varying, input dependent function `f(t, x, y)` with `t` in seconds.
@@ -679,7 +691,9 @@ where
 /// - Input 1: y
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn envelope3<T, F, E, R>(f: E) -> An<Envelope3<T, F, E, R>>
+pub fn envelope3<T, F, E, R>(
+    f: E,
+) -> An<EnvelopeIn<T, F, impl Fn(F, &Frame<T, U2>) -> R + Sized + Clone, U2, R>>
 where
     T: Float,
     F: Float,
@@ -688,15 +702,23 @@ where
     R::Size: Size<F>,
     R::Size: Size<T>,
 {
-    An(Envelope3::new(F::from_f64(0.002), DEFAULT_SR, f))
+    An(EnvelopeIn::new(
+        F::from_f64(0.002),
+        DEFAULT_SR,
+        move |t, i: &Frame<T, U2>| f(t, convert(i[0]), convert(i[1])),
+    ))
 }
 
 /// Control envelope from time-varying, input dependent function `f(t, x, y)` with `t` in seconds.
 /// Spaces samples using pseudorandom jittering.
 /// Synonymous with `envelope3`.
+/// - Input 0: x
+/// - Input 1: y
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn lfo3<T, F, E, R>(f: E) -> An<Envelope3<T, F, E, R>>
+pub fn lfo3<T, F, E, R>(
+    f: E,
+) -> An<EnvelopeIn<T, F, impl Fn(F, &Frame<T, U2>) -> R + Sized + Clone, U2, R>>
 where
     T: Float,
     F: Float,
@@ -705,7 +727,49 @@ where
     R::Size: Size<F>,
     R::Size: Size<T>,
 {
-    An(Envelope3::new(F::from_f64(0.002), DEFAULT_SR, f))
+    An(EnvelopeIn::new(
+        F::from_f64(0.002),
+        DEFAULT_SR,
+        move |t, i: &Frame<T, U2>| f(t, convert(i[0]), convert(i[1])),
+    ))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, i)` with `t` in seconds
+/// and `i` of type `&Frame<T, I>` where `I` is the number of input channels.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `lfo_in`.
+/// - Inputs: i
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+pub fn envelope_in<T, F, E, I, R>(f: E) -> An<EnvelopeIn<T, F, E, I, R>>
+where
+    T: Float,
+    F: Float,
+    E: Fn(F, &Frame<T, I>) -> R + Clone,
+    I: Size<T>,
+    R: ConstantFrame<Sample = F>,
+    R::Size: Size<F>,
+    R::Size: Size<T>,
+{
+    An(EnvelopeIn::new(F::from_f64(0.002), DEFAULT_SR, f))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, i)` with `t` in seconds
+/// and `i` of type `&Frame<T, I>` where `I` is the number of input channels.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `envelope_in`.
+/// - Inputs: i
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+pub fn lfo_in<T, F, E, I, R>(f: E) -> An<EnvelopeIn<T, F, E, I, R>>
+where
+    T: Float,
+    F: Float,
+    E: Fn(F, &Frame<T, I>) -> R + Clone,
+    I: Size<T>,
+    R: ConstantFrame<Sample = F>,
+    R::Size: Size<F>,
+    R::Size: Size<T>,
+{
+    An(EnvelopeIn::new(F::from_f64(0.002), DEFAULT_SR, f))
 }
 
 /// ADSR envelope.
@@ -727,7 +791,7 @@ pub fn adsr_live<F>(
     decay: F,
     sustain: F,
     release: F,
-) -> An<Envelope2<F, F, impl Fn(F, F) -> F + Sized + Clone, F>>
+) -> An<EnvelopeIn<F, F, impl Fn(F, &Frame<F, U1>) -> F + Sized + Clone, U1, F>>
 where
     F: Float + Atomic,
 {

@@ -185,6 +185,11 @@ fn test_basic() {
         lfo(|t| xerp(110.0, 220.0, clamp01(t))) >> sine()
             | (envelope(|t| xerp(220.0, 440.0, clamp01(t))) >> pass() >> sine()) & mls(),
     );
+    check_wave(dc(1.0) >> lfo2(|t, x| t * x) | dc(1.0) >> envelope2(|t, x| t * x));
+    check_wave(
+        dc((1.0, 2.0)) >> lfo3(|t, x, y| t * x * y)
+            | dc((1.0, 2.0)) >> envelope3(|t, x, y| t * x * y),
+    );
     check_wave(dc((110.0, 220.0)) >> multipass() >> -stackf::<U2, _, _>(|f| (f - 0.5) * sine()));
     check_wave(
         dc((110.0, 220.0, 440.0, 880.0)) >> multipass() >> (sink() | -sine() | sink() | sine()),

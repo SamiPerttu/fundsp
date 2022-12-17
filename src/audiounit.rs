@@ -67,8 +67,6 @@ pub trait AudioUnit48: Send + Sync + DynClone {
         hash.hash(self.get_id())
     }
 
-    // TODO. Should we have route() here?
-
     // End of interface. No need to override the following.
 
     /// Evaluate frequency response of `output` at `frequency` Hz.

@@ -15,7 +15,7 @@
 //! connected MIDI input device it finds, and play the corresponding pitches with the volume moderated by
 //! an `adsr_live()` envelope.
 
-use super::prelude::{clamp01, envelope2, lerp, shared, var, An, Envelope2};
+use super::prelude::{clamp01, envelope2, lerp, shared, var, An, EnvelopeIn, Frame, U1};
 use super::shared::Atomic;
 use super::Float;
 
@@ -24,7 +24,7 @@ pub fn adsr_live<F: Float + Atomic>(
     decay: F,
     sustain: F,
     release: F,
-) -> An<Envelope2<F, F, impl Fn(F, F) -> F + Sized + Clone, F>> {
+) -> An<EnvelopeIn<F, F, impl Fn(F, &Frame<F, U1>) -> F + Sized + Clone, U1, F>> {
     let neg1 = F::from_f64(-1.0);
     let zero = F::from_f64(0.0);
     let a = shared(neg1);

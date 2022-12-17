@@ -621,13 +621,19 @@ where
 /// - Input 0: x
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn envelope2<E, R>(f: E) -> An<Envelope2<f32, f32, E, R>>
+pub fn envelope2<E, R>(
+    f: E,
+) -> An<EnvelopeIn<f32, f32, impl Fn(f32, &Frame<f32, U1>) -> R + Sized + Clone, U1, R>>
 where
     E: Fn(f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
-    An(Envelope2::new(0.002, DEFAULT_SR, f))
+    An(EnvelopeIn::new(
+        0.002,
+        DEFAULT_SR,
+        move |t, i: &Frame<f32, U1>| f(t, i[0]),
+    ))
 }
 
 /// Control envelope from time-varying, input dependent function `f(t, x)` with `t` in seconds.
@@ -636,13 +642,19 @@ where
 /// - Input 0: x
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn lfo2<E, R>(f: E) -> An<Envelope2<f32, f32, E, R>>
+pub fn lfo2<E, R>(
+    f: E,
+) -> An<EnvelopeIn<f32, f32, impl Fn(f32, &Frame<f32, U1>) -> R + Sized + Clone, U1, R>>
 where
     E: Fn(f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
-    An(Envelope2::new(0.002, DEFAULT_SR, f))
+    An(EnvelopeIn::new(
+        0.002,
+        DEFAULT_SR,
+        move |t, i: &Frame<f32, U1>| f(t, i[0]),
+    ))
 }
 
 /// Control envelope from time-varying, input dependent function `f(t, x, y)` with `t` in seconds.
@@ -652,13 +664,19 @@ where
 /// - Input 1: y
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn envelope3<E, R>(f: E) -> An<Envelope3<f32, f32, E, R>>
+pub fn envelope3<E, R>(
+    f: E,
+) -> An<EnvelopeIn<f32, f32, impl Fn(f32, &Frame<f32, U2>) -> R + Sized + Clone, U2, R>>
 where
     E: Fn(f32, f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
-    An(Envelope3::new(0.002, DEFAULT_SR, f))
+    An(EnvelopeIn::new(
+        0.002,
+        DEFAULT_SR,
+        move |t, i: &Frame<f32, U2>| f(t, i[0], i[1]),
+    ))
 }
 
 /// Control envelope from time-varying, input dependent function `f(t, x, y)` with `t` in seconds.
@@ -668,13 +686,53 @@ where
 /// - Input 1: y
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 #[inline]
-pub fn lfo3<E, R>(f: E) -> An<Envelope3<f32, f32, E, R>>
+pub fn lfo3<E, R>(
+    f: E,
+) -> An<EnvelopeIn<f32, f32, impl Fn(f32, &Frame<f32, U2>) -> R + Sized + Clone, U2, R>>
 where
     E: Fn(f32, f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
-    An(Envelope3::new(0.002, DEFAULT_SR, f))
+    An(EnvelopeIn::new(
+        0.002,
+        DEFAULT_SR,
+        move |t, i: &Frame<f32, U2>| f(t, i[0], i[1]),
+    ))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, i)` with `t` in seconds
+/// and `i` of type `&Frame<f32, I>` where `I` is the number of input channels.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `lfo_in`.
+/// - Inputs: i
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+pub fn envelope_in<E, I, R>(f: E) -> An<EnvelopeIn<f32, f32, E, I, R>>
+where
+    E: Fn(f32, &Frame<f32, I>) -> R + Clone,
+    I: Size<f32>,
+    R: ConstantFrame<Sample = f32>,
+    R::Size: Size<f32>,
+    R::Size: Size<f32>,
+{
+    An(EnvelopeIn::new(0.002, DEFAULT_SR, f))
+}
+
+/// Control envelope from time-varying, input dependent function `f(t, i)` with `t` in seconds
+/// and `i` of type `&Frame<f32, I>` where `I` is the number of input channels.
+/// Spaces samples using pseudorandom jittering.
+/// Synonymous with `envelope_in`.
+/// - Inputs: i
+/// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+pub fn lfo_in<E, I, R>(f: E) -> An<EnvelopeIn<f32, f32, E, I, R>>
+where
+    E: Fn(f32, &Frame<f32, I>) -> R + Clone,
+    I: Size<f32>,
+    R: ConstantFrame<Sample = f32>,
+    R::Size: Size<f32>,
+    R::Size: Size<f32>,
+{
+    An(EnvelopeIn::new(0.002, DEFAULT_SR, f))
 }
 
 /// ADSR envelope.
@@ -696,7 +754,7 @@ pub fn adsr_live(
     decay: f32,
     sustain: f32,
     release: f32,
-) -> An<Envelope2<f32, f32, impl Fn(f32, f32) -> f32 + Sized + Clone, f32>> {
+) -> An<EnvelopeIn<f32, f32, impl Fn(f32, &Frame<f32, U1>) -> f32 + Sized + Clone, U1, f32>> {
     super::adsr::adsr_live(attack, decay, sustain, release)
 }
 
