@@ -22,11 +22,12 @@ impl<X: AudioNode> Clone for Listen<X> {
     }
 }
 
-/// Instantiate setting listener for `network`. Returns pair `(sender, network)`
-/// where `network` is now equipped with a setting listener and settings can be
-/// sent tnrough `sender`. The format of settings depends on the type of the network.
-pub fn listen<X: AudioNode>(network: An<X>) -> (Sender<X::Setting>, Listen<X>) {
-    Listen::new(network.0)
+/// Instantiate setting listener for `node`. Returns pair `(sender, node)`
+/// where `node` is now equipped with a setting listener and settings can be
+/// sent through `sender`. The format of settings depends on the type of the node.
+pub fn listen<X: AudioNode>(node: An<X>) -> (Sender<X::Setting>, An<Listen<X>>) {
+    let (sender, node) = Listen::new(node.0);
+    (sender, An(node))
 }
 
 impl<X: AudioNode> Listen<X> {
