@@ -244,7 +244,7 @@ pub fn a_weight<T: Real>(f: T) -> T {
 /// M-weighted response function normalized to 1 kHz.
 /// M-weighting is an unofficial name for
 /// the frequency response curve of the ITU-R 468 noise weighting standard.
-/// Returns equal loudness amplitude response at f Hz.
+/// Returns equal loudness amplitude response at `f` Hz.
 /// Normalized to 1.0 at 1 kHz.
 #[inline]
 pub fn m_weight<T: Real>(f: T) -> T {

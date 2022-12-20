@@ -463,7 +463,8 @@ Verified frequency responses are available for all linear filters.
 | `allpole`    | allpass (1st order)    | delay        | 1st order | Adjustable delay in samples. |
 | `bandpass`   | bandpass (2nd order)   | frequency, Q | Simper SVF   | |
 | `bell`       | peaking (2nd order)    | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
-| `butterpass` | lowpass (2nd order)    | frequency    | [biquad](https://en.wikipedia.org/wiki/Digital_biquad_filter) | [Butterworth](https://en.wikipedia.org/wiki/Butterworth_filter) lowpass has a maximally flat passband and monotonic frequency response. |
+| `biquad`     | biquad (2nd order)     | -            | [biquad](https://en.wikipedia.org/wiki/Digital_biquad_filter) | Arbitrary biquad with fixed parameters. |
+| `butterpass` | lowpass (2nd order)    | frequency    | biquad | [Butterworth](https://en.wikipedia.org/wiki/Butterworth_filter) lowpass has a maximally flat passband and monotonic frequency response. |
 | `dcblock`    | DC blocker (1st order) | frequency    | 1st order    | Zero centers signal, countering any constant offset ("direct current"). |
 | `fir`        | FIR                    | -            | [FIR](https://en.wikipedia.org/wiki/Finite_impulse_response) | |
 | `follow`     | lowpass (3rd order)    | response time | nested 1st order | Smoothing filter with adjustable edge response time. |
@@ -573,6 +574,34 @@ For example, constants are exposed as settings:
 let (sender, graph) = listen(dc(0.5) >> resample(pink()));
 sender.try_send(left([0.6].into())).expect("Cannot send setting.");
 ```
+
+The following table summarizes all available settings.
+
+| Opcode            | Setting Format |
+| ----------------- | --------------------------------- |
+| `allpass_hz`      | (cutoff, Q, gain), gain is unused |
+| `allpole_delay`   | delay in samples |
+| `bandpass_hz`     | (cutoff, Q, gain), gain is unused |
+| `bell_hz`         | (cutoff, Q, gain) |
+| `biquad`          | (a1, a2, b0, b1, b2) |
+| `butterpass_hz`   | cutoff |
+| `constant`        | constant value as `Frame<T, N>` |
+| `dc`              | constant value as `Frame<T, N>` |
+| `dcblock_hz`      | cutoff |
+| `dsf_saw_r`       | roughness > 0 |
+| `dsf_square_r`    | roughness > 0 |
+| `follow`          | (attack time, release time) in seconds |
+| `highpass_hz`     | (cutoff, Q, gain), gain is unused |
+| `highpole_hz`     | cutoff |
+| `highshelf_hz`    | (cutoff, Q, gain) |
+| `lowpass_hz`      | (cutoff, Q, gain), gain is unused |
+| `lowpole_hz`      | cutoff |
+| `lowshelf_hz`     | (cutoff, Q, gain) |
+| `moog_hz`         | (cutoff, Q) |
+| `notch_hz`        | (cutoff, Q, gain), gain is unused |
+| `pan`             | pan value in -1...1 |
+| `peak_hz`         | (cutoff, Q, gain), gain is unused |
+| `resonator_hz`    | (center, bandwidth) |
 
 ---
 
