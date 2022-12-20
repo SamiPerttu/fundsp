@@ -90,6 +90,7 @@ impl<X: AudioNode> AudioNode for Listen<X> {
 
     #[inline]
     fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        // TODO: We should read settings here.
         self.x.route(input, frequency)
     }
 }

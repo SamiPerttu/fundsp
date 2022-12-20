@@ -225,6 +225,11 @@ impl<F: Real> SvfCoeffs<F> {
 pub trait SvfMode<F: Real>: Clone + Default {
     /// Number of inputs, which includes the audio input. Equal to the number of continuous parameters plus one.
     type Inputs: Size<F>;
+    /// Format of settings for this mode.
+    type Setting: Sync + Send + Clone + Default;
+
+    /// Update coefficients and parameters from settings.
+    fn set(&mut self, setting: Self::Setting, params: &mut SvfParams<F>, coeffs: &mut SvfCoeffs<F>);
 
     /// Update coefficients and state from the full set of parameters.
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>);
@@ -246,14 +251,16 @@ pub trait SvfMode<F: Real>: Clone + Default {
     /// Update coefficients and state from gain. Gain is given as amplitude.
     /// Other parameters are untouched.
     /// Only equalizing modes (bell and shelf) support gain. It is ignored by default.
-    fn update_gain(&mut self, _params: &SvfParams<F>, _coeffs: &mut SvfCoeffs<F>) {}
+    #[allow(unused_variables)]
+    fn update_gain(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {}
 
     /// Update coefficients, parameters and state from input.
+    #[allow(unused_variables)]
     fn update_inputs(
         &mut self,
-        _input: &Frame<F, Self::Inputs>,
-        _params: &mut SvfParams<F>,
-        _coeffs: &mut SvfCoeffs<F>,
+        input: &Frame<F, Self::Inputs>,
+        params: &mut SvfParams<F>,
+        coeffs: &mut SvfCoeffs<F>,
     ) {
     }
 
@@ -287,6 +294,18 @@ impl<F: Real> LowpassMode<F> {
 
 impl<F: Real> SvfMode<F> for LowpassMode<F> {
     type Inputs = U3;
+    type Setting = (F, F);
+
+    fn set(
+        &mut self,
+        (cutoff, q): Self::Setting,
+        params: &mut SvfParams<F>,
+        coeffs: &mut SvfCoeffs<F>,
+    ) {
+        params.cutoff = cutoff;
+        params.q = q;
+        self.update(params, coeffs);
+    }
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::lowpass(params.sample_rate, params.cutoff, params.q);
     }
@@ -333,6 +352,18 @@ impl<F: Real> HighpassMode<F> {
 
 impl<F: Real> SvfMode<F> for HighpassMode<F> {
     type Inputs = U3;
+    type Setting = (F, F);
+
+    fn set(
+        &mut self,
+        (cutoff, q): Self::Setting,
+        params: &mut SvfParams<F>,
+        coeffs: &mut SvfCoeffs<F>,
+    ) {
+        params.cutoff = cutoff;
+        params.q = q;
+        self.update(params, coeffs);
+    }
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::highpass(params.sample_rate, params.cutoff, params.q);
     }
@@ -379,6 +410,18 @@ impl<F: Real> BandpassMode<F> {
 
 impl<F: Real> SvfMode<F> for BandpassMode<F> {
     type Inputs = U3;
+    type Setting = (F, F);
+
+    fn set(
+        &mut self,
+        (cutoff, q): Self::Setting,
+        params: &mut SvfParams<F>,
+        coeffs: &mut SvfCoeffs<F>,
+    ) {
+        params.cutoff = cutoff;
+        params.q = q;
+        self.update(params, coeffs);
+    }
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::bandpass(params.sample_rate, params.cutoff, params.q);
     }
@@ -425,6 +468,18 @@ impl<F: Real> NotchMode<F> {
 
 impl<F: Real> SvfMode<F> for NotchMode<F> {
     type Inputs = U3;
+    type Setting = (F, F);
+
+    fn set(
+        &mut self,
+        (cutoff, q): Self::Setting,
+        params: &mut SvfParams<F>,
+        coeffs: &mut SvfCoeffs<F>,
+    ) {
+        params.cutoff = cutoff;
+        params.q = q;
+        self.update(params, coeffs);
+    }
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::notch(params.sample_rate, params.cutoff, params.q);
     }
@@ -471,6 +526,18 @@ impl<F: Real> PeakMode<F> {
 
 impl<F: Real> SvfMode<F> for PeakMode<F> {
     type Inputs = U3;
+    type Setting = (F, F);
+
+    fn set(
+        &mut self,
+        (cutoff, q): Self::Setting,
+        params: &mut SvfParams<F>,
+        coeffs: &mut SvfCoeffs<F>,
+    ) {
+        params.cutoff = cutoff;
+        params.q = q;
+        self.update(params, coeffs);
+    }
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::peak(params.sample_rate, params.cutoff, params.q);
     }
@@ -518,6 +585,18 @@ impl<F: Real> AllpassMode<F> {
 
 impl<F: Real> SvfMode<F> for AllpassMode<F> {
     type Inputs = U3;
+    type Setting = (F, F);
+
+    fn set(
+        &mut self,
+        (cutoff, q): Self::Setting,
+        params: &mut SvfParams<F>,
+        coeffs: &mut SvfCoeffs<F>,
+    ) {
+        params.cutoff = cutoff;
+        params.q = q;
+        self.update(params, coeffs);
+    }
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::allpass(params.sample_rate, params.cutoff, params.q);
     }
@@ -565,6 +644,19 @@ impl<F: Real> BellMode<F> {
 
 impl<F: Real> SvfMode<F> for BellMode<F> {
     type Inputs = U4;
+    type Setting = (F, F, F);
+
+    fn set(
+        &mut self,
+        (cutoff, q, gain): Self::Setting,
+        params: &mut SvfParams<F>,
+        coeffs: &mut SvfCoeffs<F>,
+    ) {
+        params.cutoff = cutoff;
+        params.q = q;
+        params.gain = gain;
+        self.update(params, coeffs);
+    }
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::bell(params.sample_rate, params.cutoff, params.q, params.gain);
     }
@@ -616,6 +708,19 @@ impl<F: Real> LowshelfMode<F> {
 
 impl<F: Real> SvfMode<F> for LowshelfMode<F> {
     type Inputs = U4;
+    type Setting = (F, F, F);
+
+    fn set(
+        &mut self,
+        (cutoff, q, gain): Self::Setting,
+        params: &mut SvfParams<F>,
+        coeffs: &mut SvfCoeffs<F>,
+    ) {
+        params.cutoff = cutoff;
+        params.q = q;
+        params.gain = gain;
+        self.update(params, coeffs);
+    }
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::lowshelf(params.sample_rate, params.cutoff, params.q, params.gain);
     }
@@ -670,6 +775,19 @@ impl<F: Real> HighshelfMode<F> {
 
 impl<F: Real> SvfMode<F> for HighshelfMode<F> {
     type Inputs = U4;
+    type Setting = (F, F, F);
+
+    fn set(
+        &mut self,
+        (cutoff, q, gain): Self::Setting,
+        params: &mut SvfParams<F>,
+        coeffs: &mut SvfCoeffs<F>,
+    ) {
+        params.cutoff = cutoff;
+        params.q = q;
+        params.gain = gain;
+        self.update(params, coeffs);
+    }
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::highshelf(params.sample_rate, params.cutoff, params.q, params.gain);
     }
@@ -824,8 +942,7 @@ where
 }
 
 /// Simper SVF with fixed parameters.
-/// Setting: (center, Q, gain).
-/// If gain setting does not apply to the filter mode, then it can be set to any value.
+/// Setting: (center, Q, gain) for low shelf, high shelf and bell modes, otherwise (center, Q).
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[derive(Default, Clone)]
@@ -944,10 +1061,10 @@ where
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = (F, F, F);
+    type Setting = M::Setting;
 
-    fn set(&mut self, (center, q, gain): Self::Setting) {
-        self.set_center_q_gain(center, q, gain);
+    fn set(&mut self, setting: Self::Setting) {
+        self.mode.set(setting, &mut self.params, &mut self.coeffs);
     }
 
     fn reset(&mut self, sample_rate: Option<f64>) {

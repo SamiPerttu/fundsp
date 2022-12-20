@@ -42,7 +42,12 @@ impl<T: Float, N: Size<T>> AudioNode for Fir<T, N> {
     type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = ();
+    type Setting = Frame<T, N>;
+
+    #[inline]
+    fn set(&mut self, setting: Self::Setting) {
+        self.w = setting;
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.v = Frame::default();

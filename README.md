@@ -558,16 +558,15 @@ let (sender, graph) = listen(lowpass_hz(1000.0, 1.0));
 ```
 
 Later we can send filter parameters from anywhere via sender.
-The setting format of all Simper SVF filter modes is (center, Q, gain),
-where gain may be unused (as is the case here). Set filter center
-to 1 kHz and Q to 2.0:
+For example, the setting format of a lowpass filter is (cutoff, Q).
+Set filter cutoff to 1 kHz and Q to 2.0:
 
 ```rust
-sender.try_send((1000.0, 2.0, 0.0)).expect("Cannot send setting.");
+sender.try_send((1000.0, 2.0)).expect("Cannot send setting.");
 ```
 
 If a listener is attached to a binary operation, then the
-different sides can be picked with the `left` or `right` function, respectively.
+different sides can be picked with the `left` or `right` function.
 For example, constants are exposed as settings:
 
 ```rust
@@ -575,14 +574,14 @@ let (sender, graph) = listen(dc(0.5) >> resample(pink()));
 sender.try_send(left([0.6].into())).expect("Cannot send setting.");
 ```
 
-The following table summarizes all available settings.
+The following table summarizes the available settings.
 
 | Opcode            | Setting Format |
 | ----------------- | --------------------------------- |
-| `allpass_hz`      | (cutoff, Q, gain), gain is unused |
+| `allpass_hz`      | (center, Q) |
 | `allpole_delay`   | delay in samples |
-| `bandpass_hz`     | (cutoff, Q, gain), gain is unused |
-| `bell_hz`         | (cutoff, Q, gain) |
+| `bandpass_hz`     | (center, Q) |
+| `bell_hz`         | (center, Q, gain) |
 | `biquad`          | (a1, a2, b0, b1, b2) |
 | `butterpass_hz`   | cutoff |
 | `constant`        | constant value as `Frame<T, N>` |
@@ -590,18 +589,19 @@ The following table summarizes all available settings.
 | `dcblock_hz`      | cutoff |
 | `dsf_saw_r`       | roughness > 0 |
 | `dsf_square_r`    | roughness > 0 |
+| `fir`             | coefficients as `Frame<T, N>` |
 | `follow(t)`       | halfway follow time in seconds |
 | `follow((a, r))`  | (halfway attack time, halfway release time) in seconds |
-| `highpass_hz`     | (cutoff, Q, gain), gain is unused |
+| `highpass_hz`     | (cutoff, Q) |
 | `highpole_hz`     | cutoff |
 | `highshelf_hz`    | (cutoff, Q, gain) |
-| `lowpass_hz`      | (cutoff, Q, gain), gain is unused |
+| `lowpass_hz`      | (cutoff, Q) |
 | `lowpole_hz`      | cutoff |
 | `lowshelf_hz`     | (cutoff, Q, gain) |
 | `moog_hz`         | (cutoff, Q) |
-| `notch_hz`        | (cutoff, Q, gain), gain is unused |
+| `notch_hz`        | (center, Q) |
 | `pan`             | pan value in -1...1 |
-| `peak_hz`         | (cutoff, Q, gain), gain is unused |
+| `peak_hz`         | (center, Q) |
 | `resonator_hz`    | (center, bandwidth) |
 
 ---
