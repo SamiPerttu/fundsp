@@ -590,7 +590,8 @@ The following table summarizes all available settings.
 | `dcblock_hz`      | cutoff |
 | `dsf_saw_r`       | roughness > 0 |
 | `dsf_square_r`    | roughness > 0 |
-| `follow`          | (attack time, release time) in seconds |
+| `follow(t)`       | halfway follow time in seconds |
+| `follow((a, r))`  | (halfway attack time, halfway release time) in seconds |
 | `highpass_hz`     | (cutoff, Q, gain), gain is unused |
 | `highpole_hz`     | cutoff |
 | `highshelf_hz`    | (cutoff, Q, gain) |
