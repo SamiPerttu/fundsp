@@ -2254,7 +2254,7 @@ impl<T: Float> AudioNode for PulseWave<T> {
     ) {
         self.pulse.process(size, input, output);
     }
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.pulse.route(input, frequency)
     }
     fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {

@@ -37,6 +37,11 @@ impl<X: AudioNode> Listen<X> {
         node.ping(false, hash);
         (sender, node)
     }
+    fn receive_settings(&mut self) {
+        while let Result::Ok(setting) = self.rv.try_recv() {
+            self.set(setting);
+        }
+    }
 }
 
 impl<X: AudioNode> AudioNode for Listen<X> {
@@ -53,9 +58,7 @@ impl<X: AudioNode> AudioNode for Listen<X> {
 
     #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
-        while let Result::Ok(setting) = self.rv.try_recv() {
-            self.set(setting);
-        }
+        self.receive_settings();
         self.x.reset(sample_rate);
     }
 
@@ -64,9 +67,7 @@ impl<X: AudioNode> AudioNode for Listen<X> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        while let Result::Ok(setting) = self.rv.try_recv() {
-            self.set(setting);
-        }
+        self.receive_settings();
         self.x.tick(input)
     }
 
@@ -77,9 +78,7 @@ impl<X: AudioNode> AudioNode for Listen<X> {
         input: &[&[Self::Sample]],
         output: &mut [&mut [Self::Sample]],
     ) {
-        while let Result::Ok(setting) = self.rv.try_recv() {
-            self.set(setting);
-        }
+        self.receive_settings();
         self.x.process(size, input, output);
     }
 
@@ -89,8 +88,8 @@ impl<X: AudioNode> AudioNode for Listen<X> {
     }
 
     #[inline]
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        // TODO: We should read settings here.
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.receive_settings();
         self.x.route(input, frequency)
     }
 }

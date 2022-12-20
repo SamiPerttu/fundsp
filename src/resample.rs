@@ -100,7 +100,7 @@ where
         output
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         // TODO: Is this too optimistic?
         self.x.route(input, frequency)
     }

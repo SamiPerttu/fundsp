@@ -48,7 +48,7 @@ impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
         self.buffer = input.clone();
         output
     }
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         for i in 0..self.outputs() {
             output[i] = input[i].filter(1.0, |r| {
@@ -120,7 +120,7 @@ impl<T: Float> AudioNode for Delay<T> {
         [output].into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(self.buffer.len() as f64, |r| {
             r * Complex64::from_polar(
@@ -227,7 +227,7 @@ where
         [output].into()
     }
 
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].distort(self.min_delay.to_f64() * self.sample_rate.to_f64());
         output

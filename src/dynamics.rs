@@ -223,7 +223,7 @@ where
         }
     }
 
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             // We pretend that the limiter does not alter the frequency response.
@@ -309,7 +309,7 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
         }
     }
 
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         // We pretend that the declicker does not alter frequency response.
         output[0] = input[0];
@@ -429,7 +429,7 @@ impl<T: Real> AudioNode for MeterNode<T> {
         }
     }
 
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].distort(0.0);
         output
@@ -513,7 +513,7 @@ impl<T: Real + Atomic> AudioNode for Monitor<T> {
         output[0][..size].clone_from_slice(&input[0][..size]);
     }
 
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         input.clone()
     }
 }

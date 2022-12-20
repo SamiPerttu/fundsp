@@ -144,7 +144,7 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
         //   s2 = b2 * x0 - a2 * y0
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             r * self.coefs().response(frequency / self.sample_rate)
@@ -219,7 +219,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
         self.biquad.tick(&[input[0]].into())
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             r * self
@@ -306,7 +306,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
         self.biquad.tick(&[input[0]].into())
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             r * self
@@ -386,7 +386,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
         [convert(self.value)].into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             let c = self.coeff.to_f64();
@@ -459,7 +459,7 @@ impl<T: Float, F: Real> AudioNode for DCBlock<T, F> {
         [convert(y0)].into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             let c = self.coeff.to_f64();
@@ -541,7 +541,7 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
         [convert(out)].into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             let f = frequency * TAU / self.sample_rate.to_f64();
@@ -629,7 +629,7 @@ impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
         [convert(y0)].into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             let eta = self.eta.to_f64();
@@ -713,7 +713,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Highpole<T, F, N> {
         [convert(y0)].into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             let c = self.coeff.to_f64();

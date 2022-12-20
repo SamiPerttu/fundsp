@@ -934,7 +934,7 @@ where
         .into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| r * self.mode.response(&self.params, frequency));
         output
@@ -1093,7 +1093,7 @@ where
         .into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| r * self.mode.response(&self.params, frequency));
         output
@@ -1163,7 +1163,7 @@ impl<T: Float, F: Real> AudioNode for Morph<T, F> {
             self.morph = input[3][size - 1];
         }
     }
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = self.filter.route(input, frequency);
         output[0] = output[0].filter(0.0, |r| {
             (r + Complex64::new(self.morph.to_f64(), 0.0)) * 0.5

@@ -1,5 +1,10 @@
 ## Changes
 
+### Version 0.12 (Next Release)
+
+- More settings implemented.
+- Signal routing is now an exclusive operation, for practical reasons.
+
 ### Version 0.11
 
 - Composable setting system for making it easier to control basic settings in real time.

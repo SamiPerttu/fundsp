@@ -75,7 +75,7 @@ impl<T: Float, N: Size<T>> AudioNode for Fir<T, N> {
         [output].into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             let z1 = Complex64::from_polar(1.0, -TAU * frequency / self.sample_rate);

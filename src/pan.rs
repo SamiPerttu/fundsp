@@ -86,7 +86,7 @@ impl<T: Real, N: Size<T>> AudioNode for Panner<T, N> {
         }
     }
 
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         // Pretend the pan value is constant.
         output[0] = input[0].scale(self.left_weight.to_f64());

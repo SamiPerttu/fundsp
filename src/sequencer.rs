@@ -482,12 +482,16 @@ impl AudioUnit48 for Sequencer48 {
         self.outputs
     }
 
-    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         // Treat the sequencer as a generator.
         let mut signal = new_signal_frame(AudioUnit48::outputs(self));
         for i in 0..AudioUnit48::outputs(self) {
             signal[i] = Signal::Latency(0.0);
         }
         signal
+    }
+
+    fn footprint(&self) -> usize {
+        std::mem::size_of::<Sequencer48>()
     }
 }

@@ -137,7 +137,7 @@ impl<T: Float> AudioNode for Mls<T> {
         self.reset(None);
     }
 
-    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = Signal::Latency(0.0);
         output
@@ -185,7 +185,7 @@ impl<T: Float> AudioNode for Noise<T> {
         self.reset(None);
     }
 
-    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = Signal::Latency(0.0);
         output

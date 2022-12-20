@@ -145,7 +145,7 @@ where
         output
     }
 
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Arbitrary.propagate(input, self.outputs())
     }
 
@@ -238,7 +238,7 @@ where
         output
     }
 
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Arbitrary.propagate(input, self.outputs())
     }
 

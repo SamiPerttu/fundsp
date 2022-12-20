@@ -668,8 +668,8 @@ sender.try_send((1, (1000.0, 2.0, db_amp(3.0)))).expect("Cannot send setting.");
 
 ### evcxr
 
-The `Debug` output of audio filters contains information about
-the node and an ASCII chart of the frequency response of channel 0.
+The `display` method returns information about a node,
+including an ASCII chart of the frequency response of channel 0.
 
 Here is an example of using [`evcxr`](https://github.com/google/evcxr)
 to examine frequency responses interactively:
@@ -677,9 +677,9 @@ to examine frequency responses interactively:
 ```rust
 C:\rust>evcxr
 Welcome to evcxr. For help, type :help
->> :dep fundsp = "0.10.0"
+>> :dep fundsp = "0.12.0"
 >> use fundsp::hacker::*;
->> bell_hz(1000.0, 1.0, db_amp(50.0))
+>> print!("{}", bell_hz(1000.0, 1.0, db_amp(50.0)).display())
  60 dB ------------------------------------------------  60 dB
  
  50 dB -------------------------.----------------------  50 dB

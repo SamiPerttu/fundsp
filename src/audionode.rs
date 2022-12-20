@@ -114,7 +114,7 @@ pub trait AudioNode: Clone {
     /// from inputs to outputs. Return output signal.
     /// Default implementation marks all outputs unknown.
     #[allow(unused_variables)]
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         new_signal_frame(self.outputs())
     }
 
@@ -154,7 +154,7 @@ pub trait AudioNode: Clone {
     /// use num_complex::Complex64;
     /// assert_eq!(pass().response(0, 440.0), Some(Complex64::new(1.0, 0.0)));
     /// ```
-    fn response(&self, output: usize, frequency: f64) -> Option<Complex64> {
+    fn response(&mut self, output: usize, frequency: f64) -> Option<Complex64> {
         assert!(output < self.outputs());
         let mut input = new_signal_frame(self.inputs());
         for i in 0..self.inputs() {
@@ -177,7 +177,7 @@ pub trait AudioNode: Clone {
     /// let db = pass().response_db(0, 440.0).unwrap();
     /// assert!(db < 1.0e-7 && db > -1.0e-7);
     /// ```
-    fn response_db(&self, output: usize, frequency: f64) -> Option<f64> {
+    fn response_db(&mut self, output: usize, frequency: f64) -> Option<f64> {
         assert!(output < self.outputs());
         self.response(output, frequency).map(|r| amp_db(r.norm()))
     }
@@ -194,7 +194,7 @@ pub trait AudioNode: Clone {
     /// assert_eq!(sink().latency(), None);
     /// assert_eq!(lowpass_hz(440.0, 1.0).latency(), Some(0.0));
     /// ```
-    fn latency(&self) -> Option<f64> {
+    fn latency(&mut self) -> Option<f64> {
         if self.outputs() == 0 {
             return None;
         }
@@ -326,7 +326,7 @@ impl<N: Size<T>, T: Float> AudioNode for MultiPass<N, T> {
             output[i][..size].clone_from_slice(&input[i][..size]);
         }
     }
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         input.clone()
     }
 }
@@ -367,7 +367,7 @@ impl<T: Float> AudioNode for Pass<T> {
     ) {
         output[0][..size].clone_from_slice(&input[0][..size]);
     }
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         input.clone()
     }
 }
@@ -459,7 +459,7 @@ impl<N: Size<T>, T: Float> AudioNode for Constant<N, T> {
         }
     }
 
-    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             output[i] = Signal::Value(self.output[i].to_f64());
@@ -517,7 +517,7 @@ where
             output[channel][..size].clone_from_slice(&input[0][..size]);
         }
     }
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Split.propagate(input, self.outputs())
     }
 }
@@ -573,7 +573,7 @@ where
             output[channel][..size].clone_from_slice(&input[channel % M::USIZE][..size]);
         }
     }
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Split.propagate(input, self.outputs())
     }
 }
@@ -635,7 +635,7 @@ where
             }
         }
     }
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Join.propagate(input, self.outputs())
     }
 }
@@ -706,7 +706,7 @@ where
             }
         }
     }
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         Routing::Join.propagate(input, self.outputs())
     }
 }
@@ -944,7 +944,7 @@ where
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut signal_x = self.x.route(input, frequency);
         let signal_y = self.y.route(
             &copy_signal_frame(input, X::Inputs::USIZE, Y::Inputs::USIZE),
@@ -1167,7 +1167,7 @@ where
         self.x.ping(probe, hash.hash(Self::ID))
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut signal_x = self.x.route(input, frequency);
         for i in 0..Self::Outputs::USIZE {
             signal_x[i] = self.u.propagate(signal_x[i]);
@@ -1223,7 +1223,7 @@ where
         (self.f)(input).convert()
     }
 
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         self.routing.propagate(input, O::Size::USIZE)
     }
 }
@@ -1356,7 +1356,7 @@ where
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.y.route(&self.x.route(input, frequency), frequency)
     }
 }
@@ -1481,7 +1481,7 @@ where
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut signal_x = self.x.route(input, frequency);
         let signal_y = self.y.route(
             &copy_signal_frame(input, X::Inputs::USIZE, Y::Inputs::USIZE),
@@ -1602,7 +1602,7 @@ where
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut signal_x = self.x.route(input, frequency);
         let signal_y = self.y.route(input, frequency);
         signal_x.resize(self.outputs(), Signal::Unknown);
@@ -1727,7 +1727,7 @@ where
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut signal_x = self.x.route(input, frequency);
         let signal_y = self.y.route(input, frequency);
         for i in 0..Self::Outputs::USIZE {
@@ -1820,7 +1820,7 @@ impl<X: AudioNode> AudioNode for Thru<X> {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = self.x.route(input, frequency);
         output[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&input[X::Outputs::USIZE..Self::Outputs::USIZE]);
@@ -1935,7 +1935,7 @@ where
         hash
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
             return new_signal_frame(self.outputs());
         }
@@ -2073,7 +2073,7 @@ where
         hash
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
             return new_signal_frame(self.outputs());
         }
@@ -2220,7 +2220,7 @@ where
         hash
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
             return new_signal_frame(self.outputs());
         }
@@ -2345,7 +2345,7 @@ where
         hash
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         if self.x.is_empty() {
             return new_signal_frame(self.outputs());
         }
@@ -2495,7 +2495,7 @@ where
         hash
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = self.x[0].route(input, frequency);
         for i in 1..self.x.len() {
             output = self.x[i].route(&output, frequency);
@@ -2539,7 +2539,7 @@ impl<T: Float> AudioNode for Swap<T> {
         output[0][..size].clone_from_slice(&input[1][..size]);
         output[1][..size].clone_from_slice(&input[0][..size]);
     }
-    fn route(&self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[1];
         output[1] = input[0];

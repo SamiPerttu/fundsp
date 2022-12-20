@@ -247,7 +247,7 @@ where
         })
     }
 
-    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         for i in 0..N::USIZE {
             output[i] = Signal::Latency(0.0);
@@ -340,7 +340,7 @@ where
         })
     }
 
-    fn route(&self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = Signal::Latency(0.0);
         output

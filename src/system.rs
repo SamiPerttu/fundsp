@@ -99,7 +99,7 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone> AudioNode for Syste
         self.x.ping(probe, hash.hash(Self::ID))
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.x.route(input, frequency)
     }
 }

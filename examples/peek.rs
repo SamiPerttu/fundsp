@@ -1,10 +1,11 @@
-//! Show FunDSP Debug trait output.
+//! Show display method output.
 use fundsp::hacker::*;
 
 fn main() {
-    let node = lowpass_hz(1000.0, 0.5);
+    let mut node = lowpass_hz(1000.0, 0.5);
 
-    println!("Filter: lowpass_hz(1000.0, 0.5)\n");
-    // The Debug implementation prints an ASCII oscilloscope and other information about the node.
-    println!("{:?}", node);
+    print!("Filter: lowpass_hz(1000.0, 0.5)\n\n");
+
+    // The display method prints an ASCII oscilloscope and other information about the node.
+    print!("{}", node.display());
 }

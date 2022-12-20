@@ -115,7 +115,7 @@ impl<T: Float, F: Real> AudioNode for Follow<T, F> {
         [convert(self.v3)].into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| {
             let c = 1.0 - self.coeff.to_f64();
@@ -242,7 +242,7 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F,
         [convert(self.v3)].into()
     }
 
-    fn route(&self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         // The frequency response exists only in symmetric mode, as the asymmetric mode is nonlinear.
         if self.acoeff == self.rcoeff {
