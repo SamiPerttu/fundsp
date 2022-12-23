@@ -22,6 +22,7 @@ duplicate = "0.4.1"
 dyn-clone = "1.0.10"
 symphonia = { version = "0.5.1", optional = true, features = ["aac", "alac", "mp3", "isomp4"] }
 thingbuf = "0.1.3"
+funutd = "0.9.0"
 
 [features]
 default = ["files"]
@@ -63,6 +64,10 @@ path = "examples/plot.rs"
 [[example]]
 name = "file"
 path = "examples/file.rs"
+
+[[example]]
+name = "grain"
+path = "examples/grain.rs"
 
 [package.metadata.docs.rs]
 all-features = true

@@ -250,6 +250,7 @@ pub mod feedback;
 pub mod filter;
 pub mod fir;
 pub mod follow;
+pub mod granular;
 pub mod hacker;
 pub mod hacker32;
 pub mod math;

@@ -634,7 +634,7 @@ impl AudioUnit48 for Net48 {
     }
 
     fn footprint(&self) -> usize {
-        std::mem::size_of::<Net48>()
+        std::mem::size_of::<Self>()
     }
 }
 

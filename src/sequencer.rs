@@ -11,8 +11,6 @@ use std::cmp::Ord;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
-const ID: u64 = 64;
-
 #[duplicate_item(
     f48       Event48       AudioUnit48;
     [ f64 ]   [ Event64 ]   [ AudioUnit64 ];
@@ -324,11 +322,6 @@ impl Sequencer48 {
             }
         }
     }
-
-    /// Indicate to callback handler that time is about to elapse.
-    fn elapse(&mut self, _dt: f48) {
-        // TODO. Not implemented.
-    }
 }
 
 #[duplicate_item(
@@ -348,7 +341,7 @@ impl AudioUnit48 for Sequencer48 {
                 self.sample_rate = rate as f48;
                 self.sample_duration = 1.0 / rate as f48;
                 // If the sample rate changes, then we need to reset every unit.
-                // Otherwise, we know that the ready units are in a reset state,
+                // Otherwise, we know that ready units are in a reset state,
                 // and don't need to be reset again.
                 while let Some(ready) = self.ready.pop() {
                     self.active.push(ready);
@@ -365,7 +358,6 @@ impl AudioUnit48 for Sequencer48 {
     }
 
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {
-        self.elapse(self.sample_duration);
         for channel in 0..self.outputs {
             output[channel] = 0.0;
         }
@@ -411,7 +403,6 @@ impl AudioUnit48 for Sequencer48 {
     }
 
     fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]) {
-        self.elapse(self.sample_duration * size as f48);
         for channel in 0..self.outputs {
             for i in 0..size {
                 output[channel][i] = 0.0;
@@ -472,6 +463,7 @@ impl AudioUnit48 for Sequencer48 {
     }
 
     fn get_id(&self) -> u64 {
+        const ID: u64 = 64;
         ID
     }
 
@@ -492,6 +484,6 @@ impl AudioUnit48 for Sequencer48 {
     }
 
     fn footprint(&self) -> usize {
-        std::mem::size_of::<Sequencer48>()
+        std::mem::size_of::<Self>()
     }
 }
