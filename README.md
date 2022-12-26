@@ -722,6 +722,7 @@ The type parameters in the table refer to the hacker preludes.
 | Function               | Inputs  | Outputs | Explanation                                    |
 | ---------------------- |:-------:|:-------:| ---------------------------------------------- |
 | `add(x)`               |   `x`   |   `x`   | Add constant `x` to signal. |
+| `adsr_live(a, d, s, r)`|    1    |    1    | ADSR envelope. Attack time `a`, decay time `d`, sustain level `s`, and release time `r`. Input > 0.0 starts attack, input <= 0.0 starts release. Output in [0.0, 1.0].|
 | `allpass()`            | 3 (audio, frequency, Q) | 1 | Allpass filter (2nd order). |
 | `allpass_hz(f, q)`     |    1    |    1    | Allpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `allpass_q(q)`         | 2 (audio, frequency) | 1 | Allpass filter (2nd order) with Q `q`. |
