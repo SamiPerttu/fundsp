@@ -686,6 +686,8 @@ pub struct Wave48Player<T: Float> {
     wave: Arc<Wave48>,
     channel: usize,
     index: usize,
+    start_point: usize,
+    end_point: usize,
     loop_point: Option<usize>,
     _marker: PhantomData<T>,
 }
@@ -696,11 +698,21 @@ pub struct Wave48Player<T: Float> {
     [ f32 ]   [ Wave32 ]   [ Wave32Player ];
 )]
 impl<T: Float> Wave48Player<T> {
-    pub fn new(wave: Arc<Wave48>, channel: usize, loop_point: Option<usize>) -> Self {
+    pub fn new(
+        wave: &Arc<Wave48>,
+        channel: usize,
+        start_point: usize,
+        end_point: usize,
+        loop_point: Option<usize>,
+    ) -> Self {
+        assert!(channel < wave.channels());
+        assert!(end_point <= wave.length());
         Self {
-            wave,
+            wave: wave.clone(),
             channel,
-            index: 0,
+            index: start_point,
+            start_point,
+            end_point,
             loop_point,
             _marker: PhantomData::default(),
         }
@@ -720,7 +732,7 @@ impl<T: Float> AudioNode for Wave48Player<T> {
     type Setting = ();
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
-        self.index = 0;
+        self.index = self.start_point;
     }
 
     #[inline]
@@ -728,10 +740,10 @@ impl<T: Float> AudioNode for Wave48Player<T> {
         &mut self,
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        if self.index < self.wave.length() {
+        if self.index < self.end_point {
             let value = self.wave.at(self.channel, self.index);
             self.index += 1;
-            if self.index == self.wave.length() {
+            if self.index == self.end_point {
                 if let Some(point) = self.loop_point {
                     self.index = point;
                 }

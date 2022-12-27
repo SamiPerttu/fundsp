@@ -859,8 +859,10 @@ The type parameters in the table refer to the hacker preludes.
 | `update(x, dt, f)`     |   `x`   |   `x`   | Update node `x` with update interval `dt` seconds and update function `f(t, dt, x)`. |
 | `var(&shared)`         |    -    |    1    | Output value of the shared variable. |
 | `var_fn(&shared, f)`   |    -    |   `f`   | Output value of the shared variable mapped through function `f`. |
-| `wave32(wave, channel, loop_point)` | - | 1 | Play back a channel of `Wave32`. Optional loop point is the index to jump to at the end of the wave. |
-| `wave64(wave, channel, loop_point)` | - | 1 | Play back a channel of `Wave64`. Optional loop point is the index to jump to at the end of the wave. |
+| `wave32(&wave, channel, loop)` | - | 1 | Play back a channel of `Arc<Wave32>`. Optional loop point is the index to jump to at the end of the wave. |
+| `wave32_at(&wave, channel, start, end, loop)` | - | 1 | Play back a channel of `Arc<Wave32>` between indices `start` (inclusive) and `end` (exclusive), with optional `loop` index to jump to at the end. |
+| `wave64(&wave, channel, loop)` | - | 1 | Play back a channel of `Arc<Wave64>`. Optional loop point is the index to jump to at the end of the wave. |
+| `wave64_at(&wave, channel, start, end, loop)` | - | 1 | Play back a channel of `Arc<Wave64>` between indices `start` (inclusive) and `end` (exclusive), with optional `loop` index to jump to at the end. |
 | `white()`              |    -    |    1    | [White noise](https://en.wikipedia.org/wiki/White_noise) source. Synonymous with `noise`. |
 | `zero()`               |    -    |    1    | Zero signal. |
 

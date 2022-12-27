@@ -1851,22 +1851,88 @@ pub fn pulse() -> An<super::prelude::PulseWave<f32>> {
 /// Optional loop point is the index to jump to at the end of the wave.
 /// - Output 0: wave
 pub fn wave64(
-    wave: Arc<Wave64>,
+    wave: &Arc<Wave64>,
     channel: usize,
     loop_point: Option<usize>,
 ) -> An<Wave64Player<f32>> {
-    An(Wave64Player::new(wave, channel, loop_point))
+    An(Wave64Player::new(
+        wave,
+        channel,
+        0,
+        wave.length(),
+        loop_point,
+    ))
+}
+
+/// Play back a channel of a Wave64 starting from sample `start_point`, inclusive,
+/// and ending at sample `end_point`, exclusive.
+/// Optional loop point is the index to jump to at the end point.
+///
+/// ### Example: One-Shot Playback
+/// ```
+/// use fundsp::hacker32::*;
+/// let wave = std::sync::Arc::new(Wave64::render(44100.0, 1.0, &mut (fundsp::hacker::white())));
+/// let player = wave64_at(&wave, 0, 0, wave.length(), None);
+/// ```
+/// - Output 0: wave
+pub fn wave64_at(
+    wave: &Arc<Wave64>,
+    channel: usize,
+    start_point: usize,
+    end_point: usize,
+    loop_point: Option<usize>,
+) -> An<Wave64Player<f32>> {
+    An(Wave64Player::new(
+        wave,
+        channel,
+        start_point,
+        end_point,
+        loop_point,
+    ))
 }
 
 /// Play back a channel of a Wave32.
 /// Optional loop point is the index to jump to at the end of the wave.
 /// - Output 0: wave
 pub fn wave32(
-    wave: Arc<Wave32>,
+    wave: &Arc<Wave32>,
     channel: usize,
     loop_point: Option<usize>,
 ) -> An<Wave32Player<f32>> {
-    An(Wave32Player::new(wave, channel, loop_point))
+    An(Wave32Player::new(
+        wave,
+        channel,
+        0,
+        wave.length(),
+        loop_point,
+    ))
+}
+
+/// Play back a channel of a Wave32 starting from sample `start_point`, inclusive,
+/// and ending at sample `end_point`, exclusive.
+/// Optional loop point is the index to jump to at the end.
+///
+/// ### Example: Looping Playback
+/// ```
+/// use fundsp::hacker32::*;
+/// let wave = std::sync::Arc::new(Wave32::render(44100.0, 1.0, &mut (white())));
+/// let player = wave32_at(&wave, 0, 0, wave.length(), Some(0));
+/// ```
+/// - Output 0: wave
+pub fn wave32_at(
+    wave: &Arc<Wave32>,
+    channel: usize,
+    start_point: usize,
+    end_point: usize,
+    loop_point: Option<usize>,
+) -> An<Wave32Player<f32>> {
+    An(Wave32Player::new(
+        wave,
+        channel,
+        start_point,
+        end_point,
+        loop_point,
+    ))
 }
 
 /// Mono chorus, 5 voices. For stereo, stack two of these using different seed values.
