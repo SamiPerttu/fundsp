@@ -30,44 +30,84 @@ where
     let c = Granular64::new(
         2,
         32,
-        0.06,
-        0.02,
         2.0,
         60,
-        1, // 62
+        1, // 62, 105
         0.01,
         0.15,
         0.0,
         #[allow(unused_variables)]
-        //|t, b, v, x, y, z| Box::new(sine_hz(xerp11(30.0, 3000.0, x)) * 0.02 * y >> pan(v * 0.5)),
-        //|t, b, v, x, y, z| Box::new(triangle_hz(xerp11(50.0, 5000.0, x)) * 0.05 * y >> pan(v * 0.5)),
         /*|t, b, v, x, y, z| {
-            Box::new(
-                saw_hz(xerp11(20.0, 800.0, x)) * 0.1
-                    >> moog_hz(xerp11(20.0, 20000.0, y), lerp11(0.1, 0.6, z))
-                    >> pan(v),
+            (
+                0.06,
+                0.03,
+                Box::new(
+                    sine_hz(xerp11(30.0, 3000.0, x)) * xerp11(0.0005, 0.05, y) >> pan(v * 0.5),
+                ),
             )
         },*/
         /*|t, b, v, x, y, z| {
-            Box::new(
-                (pink() | dc((xerp11(20.0, 5000.0, x), 5.0 * y + 6.0)))
-                    >> !bandpass()
-                    >> bandpass() * 0.05 * z
-                    >> pan(v * 0.5),
+            (
+                0.02,
+                0.01,
+                Box::new(
+                    soft_saw_hz(xerp11(30.0, 3000.0, x)) * xerp11(0.0005, 0.05, y) >> pan(v * 0.5),
+                ),
             )
         },*/
         /*|t, b, v, x, y, z| {
-            Box::new(
-                (pink() | dc((xerp11(20.0, 4000.0, x), xerp11(4.0, 80.0, (x + y) * 0.5))))
-                    >> resonator() * 0.05
-                    >> pan(v * 0.8),
+            let scale = [
+                24.0, 26.0, 29.0, 31.0, 34.0, 36.0, 38.0, 41.0, 43.0, 46.0, 48.0, 50.0, 53.0, 55.0,
+                58.0, 60.0, 62.0, 65.0, 67.0, 70.0, 72.0,
+            ];
+            let d = lerp11(0.0, scale.len() as f64 - 0.01, x);
+            let f = midi_hz(scale[d as usize] + 0.05 * (d - round(d)));
+            (
+                0.06,
+                0.02,
+                Box::new(
+                    saw_hz(f) * 0.05
+                        >> moog_hz(xerp11(20.0, 20000.0, y), lerp11(0.1, 0.6, z))
+                        >> pan(v),
+                ),
             )
         },*/
         /*|t, b, v, x, y, z| {
-            Box::new(
-                sine_hz(xerp11(20.0, 4000.0, x))
-                    >> shape(Shape::Tanh(0.5 + y * y * 10.0)) * 0.02
-                    >> pan(z),
+            let length = xerp11(0.005, 0.02, z);
+            (
+                length,
+                length * 0.5,
+                Box::new(
+                    (pink() | dc((xerp11(30.0, 3000.0, x), lerp11(1.0, 8.0, y))))
+                        >> !bandpass()
+                        >> bandpass() * 0.05
+                        >> pan(v * 0.5),
+                ),
+            )
+        },*/
+        /*|t, b, v, x, y, z| {
+            let length = lerp11(0.003, 0.03, z);
+            (
+                length,
+                length * 0.5,
+                Box::new(
+                    (pink() | dc((xerp11(40.0, 4000.0, x), xerp11(4.0, 80.0, (x + y) * 0.5))))
+                        >> resonator() * 0.05
+                        >> pan(v * 0.7),
+                ),
+            )
+        },*/
+        /*|t, b, v, x, y, z| {
+            let f = xerp11(60.0, 3000.0, x);
+            (
+                0.05,
+                0.02,
+                Box::new(
+                    sine_hz(f)
+                        >> shape(Shape::Tanh(0.5 + xerp11(0.1, 10.0, y)))
+                            * (xerp11(0.002, 0.02, z) / a_weight(f))
+                        >> pan(v * 0.7),
+                ),
             )
         },*/
         /*|t, b, v, x, y, z| {
@@ -76,12 +116,16 @@ where
                 70.0, 72.0, 74.0, 77.0, 79.0, 82.0, 84.0, 86.0, 89.0, 91.0, 94.0, 96.0,
             ];
             let d = lerp11(0.0, scale.len() as f64 - 0.01, x);
-            let f = midi_hz(scale[d as usize] + 0.1 * (d - round(d)));
-            Box::new(
-                dc((f, lerp11(0.45, 0.99, y)))
-                    >> pulse() * (0.02 / a_weight(f))
-                    >> bandpass_hz(xerp11(100.0, 10000.0, z), 1.0)
-                    >> pan(v * 0.8),
+            let f = midi_hz(scale[d as usize] + 0.05 * (d - round(d)));
+            (
+                0.06,
+                0.02,
+                Box::new(
+                    dc((f, lerp11(0.45, 0.99, y)))
+                        >> pulse() * (0.02 / a_weight(f))
+                        >> bandpass_hz(xerp11(60.0, 6000.0, z), 1.0)
+                        >> pan(v * 0.7),
+                ),
             )
         },*/
         |t, b, v, x, y, z| {
@@ -90,17 +134,21 @@ where
                 69.0, 72.0, 74.0, 76.0, 79.0, 81.0, 84.0, 86.0, 88.0, 91.0, 93.0, 96.0,
             ];
             let d = lerp11(0.0, scale.len() as f64 - 0.01, x);
-            let f = midi_hz(scale[d as usize] + 0.1 * (d - round(d)));
-            Box::new(
-                organ_hz(f) * 0.1
-                    >> moog_hz(xerp11(20.0, 20000.0, y), lerp11(0.1, 0.6, z))
-                    >> pan(v * 0.8),
+            let f = midi_hz(scale[d as usize] + 0.05 * (d - round(d)));
+            (
+                0.06,
+                0.02,
+                Box::new(
+                    organ_hz(f) * (0.05 / a_weight(f))
+                        >> moog_hz(xerp11(20.0, 20000.0, y), lerp11(0.1, 0.6, z))
+                        >> pan(v * 0.7),
+                ),
             )
         },
     );
 
     let mut c = Net64::wrap(Box::new(c));
-    c = c >> (multipass() & 0.1 * reverb_stereo(10.0, 2.0));
+    c = c >> (multipass() & 0.1 * reverb_stereo(20.0, 2.0));
 
     c.reset(Some(sample_rate));
 
@@ -117,7 +165,7 @@ where
     )?;
     stream.play()?;
 
-    std::thread::sleep(std::time::Duration::from_millis(120000));
+    std::thread::sleep(std::time::Duration::from_millis(120_000));
 
     Ok(())
 }

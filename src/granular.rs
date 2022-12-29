@@ -31,12 +31,10 @@ struct Voice48 {
 )]
 #[derive(Clone)]
 pub struct Granular48<
-    X: Fn(f48, f48, f48, f48, f48, f48) -> Box<dyn AudioUnit48> + Sync + Send + Clone,
+    X: Fn(f48, f48, f48, f48, f48, f48) -> (f48, f48, Box<dyn AudioUnit48>) + Sync + Send + Clone,
 > {
     voices: Vec<Voice48>,
     outputs: usize,
-    grain_length: f48,
-    envelope_length: f48,
     beat_length: f48,
     beats_per_cycle: usize,
     texture: Box<dyn Texture>,
@@ -57,14 +55,13 @@ pub struct Granular48<
   [ f64 ]  [ Granular64 ]  [ Voice64 ]  [ AudioUnit64 ]  [ Sequencer64 ];
   [ f32 ]  [ Granular32 ]  [ Voice32 ]  [ AudioUnit32 ]  [ Sequencer32 ];
 )]
-impl<X: Fn(f48, f48, f48, f48, f48, f48) -> Box<dyn AudioUnit48> + Sync + Send + Clone>
-    Granular48<X>
+impl<
+        X: Fn(f48, f48, f48, f48, f48, f48) -> (f48, f48, Box<dyn AudioUnit48>) + Sync + Send + Clone,
+    > Granular48<X>
 {
     /// Create a new granular synthesizer.
     /// - `outputs`: number of outputs.
     /// - `voices`: number of parallel voices traced along a helix. For example, 16.
-    /// - `grain_length`: length of a grain in seconds. For example, 0.05 seconds.
-    /// - `envelope_length`: length of a grain envelope. May not exceed grain length. For example, 0.02 seconds.
     /// - `beat_length`: length of 1 revolution along the helix in seconds. For example, 1 second.
     /// - `beats_per_cycle`: how many revolutions until the helix returns to its point of origin. For example, 8.
     /// - `texture_seed`: seed of the texture which is sampled to get data for grains.
@@ -72,14 +69,14 @@ impl<X: Fn(f48, f48, f48, f48, f48, f48) -> Box<dyn AudioUnit48> + Sync + Send +
     /// - `outer_radius`: outer radius of the helix. The last voice is at the outer radius. For example, 0.2.
     /// - `jitter`: amount of random jitter added to sample points on the helix. For example, 0.0 or 0.01.
     /// - `generator`: the generator function `f(t, b, v, x, y, z)` for grains. `t` is time in seconds
-    /// and `b` is fractional beat number. The rest of the parameters are in the range -1...1.
+    /// and `b` is fractional beat number starting from zero. The rest of the parameters are in the range -1...1.
     /// `v` is a voice indicator and `x`, `y` and `z` are values obtained from our texture.
-    /// For example, `|t, b, v, x, y, z| Box::new(sine_hz(xerp11(20.0, 4000.0, x)) * 0.02 * y >> pan(v * 0.5))`.
+    /// The generator function returns the triple (grain length, envelope length, grain graph).
+    /// Lengths are in seconds.
+    /// For example, `|t, b, v, x, y, z| (0.06, 0.03, Box::new(sine_hz(xerp11(20.0, 4000.0, x)) * xerp11(0.0002, 0.02, y) >> pan(v * 0.5)))`.
     pub fn new(
         outputs: usize,
         voices: usize,
-        grain_length: f48,
-        envelope_length: f48,
         beat_length: f48,
         beats_per_cycle: usize,
         texture_seed: u64,
@@ -95,8 +92,6 @@ impl<X: Fn(f48, f48, f48, f48, f48, f48) -> Box<dyn AudioUnit48> + Sync + Send +
         let mut granular = Self {
             voices: voice_vector,
             outputs,
-            grain_length,
-            envelope_length,
             beat_length,
             beats_per_cycle,
             texture,
@@ -143,14 +138,13 @@ impl<X: Fn(f48, f48, f48, f48, f48, f48) -> Box<dyn AudioUnit48> + Sync + Send +
     fn instantiate(&mut self, voice: usize) {
         let t = self.voices[voice].next_time;
         let position = self.helix_position(voice, t);
-        self.voices[voice].next_time = t + self.grain_length - self.envelope_length;
         let v = self.texture.at(position);
         let voice_d = if self.voices.len() == 1 {
             0.5
         } else {
             voice as f48 / (self.voices.len() - 1) as f48
         };
-        let mut grain = (self.generator)(
+        let (grain_length, envelope_length, mut grain) = (self.generator)(
             t,
             t / self.beat_length,
             voice_d * 2.0 - 1.0,
@@ -158,21 +152,26 @@ impl<X: Fn(f48, f48, f48, f48, f48, f48) -> Box<dyn AudioUnit48> + Sync + Send +
             v.y as f48,
             v.z as f48,
         );
+        assert!(envelope_length >= 0.0);
+        assert!(envelope_length < grain_length);
+        if t == 0.0 {
+            // Offset voice start times based on the first grain.
+            for i in 1..self.voices.len() {
+                self.voices[i].next_time =
+                    (grain_length - envelope_length) * i as f48 / self.voices.len() as f48;
+            }
+        }
+        self.voices[voice].next_time = t + grain_length - envelope_length;
         // Use a random phase for each individual grain.
         grain.ping(false, AttoRand::new(self.rnd.u64()));
-        self.sequencer.add_duration(
-            t,
-            self.grain_length,
-            self.envelope_length,
-            self.envelope_length,
-            grain,
-        );
+        self.sequencer
+            .add_duration(t, grain_length, envelope_length, envelope_length, grain);
     }
     /// Check all voices and instantiate grains that start before the given time.
     fn instantiate_voices(&mut self, before_time: f48) {
-        for i in 0..self.voices.len() {
-            while self.voices[i].next_time < before_time {
-                self.instantiate(i);
+        for voice in 0..self.voices.len() {
+            while self.voices[voice].next_time < before_time {
+                self.instantiate(voice);
             }
         }
     }
@@ -183,8 +182,9 @@ impl<X: Fn(f48, f48, f48, f48, f48, f48) -> Box<dyn AudioUnit48> + Sync + Send +
   [ f64 ]  [ Granular64 ]  [ Thread64 ]  [ AudioUnit64 ]  [ Sequencer64 ];
   [ f32 ]  [ Granular32 ]  [ Thread32 ]  [ AudioUnit32 ]  [ Sequencer32 ];
 )]
-impl<X: Fn(f48, f48, f48, f48, f48, f48) -> Box<dyn AudioUnit48> + Sync + Send + Clone> AudioUnit48
-    for Granular48<X>
+impl<
+        X: Fn(f48, f48, f48, f48, f48, f48) -> (f48, f48, Box<dyn AudioUnit48>) + Sync + Send + Clone,
+    > AudioUnit48 for Granular48<X>
 {
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.sequencer.reset(sample_rate);
@@ -193,7 +193,7 @@ impl<X: Fn(f48, f48, f48, f48, f48, f48) -> Box<dyn AudioUnit48> + Sync + Send +
             self.sample_rate = rate as f48;
         }
         for i in 0..self.voices.len() {
-            self.voices[i].next_time = self.grain_length * i as f48 / self.voices.len() as f48;
+            self.voices[i].next_time = 0.0;
         }
         self.time = 0.0;
         self.rnd = Rnd::from_u64(self.rnd_seed);
