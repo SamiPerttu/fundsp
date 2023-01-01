@@ -22,7 +22,7 @@ duplicate = "0.4.1"
 dyn-clone = "1.0.10"
 symphonia = { version = "0.5.1", optional = true, features = ["aac", "alac", "mp3", "isomp4"] }
 thingbuf = "0.1.3"
-funutd = "0.9.0"
+funutd = "0.10.0"
 
 [features]
 default = ["files"]

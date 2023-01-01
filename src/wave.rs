@@ -94,6 +94,7 @@ impl Clone for Wave48 {
     }
 }
 
+#[allow(clippy::unnecessary_cast)]
 #[duplicate_item(
     f48       Wave48       AudioUnit48;
     [ f64 ]   [ Wave64 ]   [ AudioUnit64 ];

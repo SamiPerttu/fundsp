@@ -155,7 +155,7 @@ impl Wavetable {
                 }
                 i0
             };
-        let w = delerp(self.table[table].0, self.table[table + 1].0, frequency) as f32;
+        let w = delerp(self.table[table].0, self.table[table + 1].0, frequency);
         (
             // Note the different table index. We can use `table + 1` up to its designated pitch.
             (1.0 - w) * self.at(table + 1, phase) + w * self.at(table + 2, phase),

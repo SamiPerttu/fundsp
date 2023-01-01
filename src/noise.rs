@@ -167,7 +167,7 @@ impl<T: Float> AudioNode for Noise<T> {
     type Setting = ();
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
-        self.rnd = AttoRand::new(self.hash as u64);
+        self.rnd = AttoRand::new(self.hash);
     }
 
     #[inline]

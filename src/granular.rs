@@ -50,6 +50,7 @@ pub struct Granular48<
     rnd: Rnd,
 }
 
+#[allow(clippy::unnecessary_cast)]
 #[duplicate_item(
     f48      Granular48      Voice48      AudioUnit48      Sequencer48;
   [ f64 ]  [ Granular64 ]  [ Voice64 ]  [ AudioUnit64 ]  [ Sequencer64 ];
@@ -87,8 +88,8 @@ impl<
     ) -> Self {
         let voice_vector = vec![Voice48 { next_time: 0.0 }; voices];
         let mut dna = Dna::new(texture_seed);
-        let texture = funutd::map3gen::genmap3palette(20.0, TilingMode::Z, &mut dna);
-        //let texture = funutd::map3gen::genmap3(20.0, TilingMode::Z, &mut dna);
+        let texture = funutd::map3gen::genmap3palette(50.0, TilingMode::Z, &mut dna);
+        //let texture = funutd::map3gen::genmap3(50.0, TilingMode::Z, &mut dna);
         let mut granular = Self {
             voices: voice_vector,
             outputs,
@@ -110,7 +111,7 @@ impl<
         granular
     }
 
-    /// Position in space at the given time for the given thread.
+    /// Position in space at the given time for the given voice.
     fn helix_position(&mut self, voice: usize, time: f48) -> Vec3a {
         let cycle_length = self.beat_length * self.beats_per_cycle as f48;
         let cycle = (time / cycle_length).floor();
@@ -155,6 +156,7 @@ impl<
         assert!(envelope_length >= 0.0);
         assert!(envelope_length < grain_length);
         if t == 0.0 {
+            assert!(voice == 0);
             // Offset voice start times based on the first grain.
             for i in 1..self.voices.len() {
                 self.voices[i].next_time =
@@ -177,6 +179,7 @@ impl<
     }
 }
 
+#[allow(clippy::unnecessary_cast)]
 #[duplicate_item(
     f48      Granular48      Thread48      AudioUnit48      Sequencer48;
   [ f64 ]  [ Granular64 ]  [ Thread64 ]  [ AudioUnit64 ]  [ Sequencer64 ];

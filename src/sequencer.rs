@@ -186,6 +186,7 @@ pub struct Sequencer48 {
     tick_buffer: Vec<f48>,
 }
 
+#[allow(clippy::unnecessary_cast)]
 #[duplicate_item(
     f48       Event48       AudioUnit48       Sequencer48         Callback48;
     [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Callback64 ];
@@ -324,6 +325,7 @@ impl Sequencer48 {
     }
 }
 
+#[allow(clippy::unnecessary_cast)]
 #[duplicate_item(
     f48       Event48       AudioUnit48       Sequencer48      fade_in48      fade_out48;
     [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]  [ fade_in64 ]  [ fade_out64 ];
