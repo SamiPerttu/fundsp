@@ -227,7 +227,7 @@ impl<X: AudioNode> An<X> {
         self.0.set_hash(hash);
     }
     #[inline]
-    pub fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    pub fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.0.ping(probe, hash)
     }
     #[inline]

@@ -3,19 +3,20 @@
 
 use fundsp::dynamics::*;
 use fundsp::hacker::*;
+use funutd::*;
 
 #[test]
 fn test_dynamics() {
-    let mut rnd = AttoRand::new(1);
+    let mut rnd = Rnd::new();
 
     // Test ReduceBuffer.
     for _ in 0..100 {
-        let length = (rnd.get() as usize & 0xff) + 1;
+        let length = (rnd.u64() as usize & 0xff) + 1;
         let mut buffer = ReduceBuffer::<u32, _>::new(length, Maximum::new());
         let mut vector = vec![0u32; length];
         for _ in 0..1000 {
-            let i = rnd.get() as usize % length;
-            let value = rnd.get() >> (rnd.get() & 0x1f);
+            let i = rnd.u64() as usize % length;
+            let value = rnd.u64() >> (rnd.u64() & 0x1f);
             buffer.set(i, value as u32);
             vector[i] = value as u32;
             if i % 100 == 99 {
@@ -26,7 +27,7 @@ fn test_dynamics() {
 
     // Test limiter.
     for _ in 0..20 {
-        let samples = round(xerp(2.0, 200_000.0, rnd.get01::<f64>())) as usize;
+        let samples = round(xerp(2.0, 200_000.0, rnd.f64())) as usize;
         let sample_rate = 48000.0;
         let mut x = limiter((samples as f64 / sample_rate, samples as f64 / sample_rate));
         x.reset(Some(sample_rate));
@@ -51,7 +52,7 @@ fn test_dynamics() {
     let mut m1 = monitor(&s1, Meter::Sample);
     let mut m2 = meter(Meter::Sample);
     for _ in 0..10000 {
-        let x = rnd.get01();
+        let x = rnd.f64();
         let x1 = m1.filter_mono(x);
         let x2 = m2.filter_mono(x);
         assert!(x > 0.0 && x == x1 && x == x2);
@@ -61,7 +62,7 @@ fn test_dynamics() {
     let mut m1 = monitor(&s1, Meter::Peak(0.99));
     let mut m2 = meter(Meter::Peak(0.99));
     for _ in 0..10000 {
-        let x = rnd.get01();
+        let x = rnd.f64();
         let x1 = m1.filter_mono(x);
         let x2 = m2.filter_mono(x);
         assert!(x > 0.0 && x == x1 && x2 >= 0.0);

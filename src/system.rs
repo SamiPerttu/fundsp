@@ -34,7 +34,7 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone> System<T, X, F> {
             sample_rate: T::from_f64(DEFAULT_SR),
             _marker: PhantomData::default(),
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -95,7 +95,7 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone> AudioNode for Syste
     }
 
     #[inline]
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 

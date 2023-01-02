@@ -31,7 +31,7 @@ where
     /// at speed obtained from the input, where 1 is the original speed.
     pub fn new(sample_rate: f64, mut node: X) -> Self {
         node.reset(Some(sample_rate));
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         Self {
             x: node,
@@ -105,7 +105,7 @@ where
         self.x.route(input, frequency)
     }
 
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 }

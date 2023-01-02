@@ -157,7 +157,7 @@ where
     pub fn new(sample_rate: f64, mut node: X) -> Self {
         let inner_sr = sample_rate * 2.0;
         node.reset(Some(inner_sr));
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         Self {
             x: node,
@@ -234,7 +234,7 @@ where
         self.x.route(input, frequency)
     }
 
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 }

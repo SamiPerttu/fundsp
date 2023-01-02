@@ -1124,7 +1124,7 @@ impl<T: Float, F: Real> Morph<T, F> {
             filter: Svf::new(PeakMode::new(), &params),
             morph,
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -1170,7 +1170,7 @@ impl<T: Float, F: Real> AudioNode for Morph<T, F> {
         });
         output
     }
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.filter.ping(probe, hash).hash(Self::ID)
     }
 }

@@ -33,7 +33,7 @@ where
         2.0,
         60,
         1,
-        0.01,
+        0.05,
         0.15,
         0.0,
         #[allow(unused_variables)]
@@ -61,7 +61,7 @@ where
                 70.0, 72.0, 74.0, 77.0, 79.0, 82.0, 84.0,
             ];
             let d = lerp11(0.0, scale.len() as f64 - 0.01, x);
-            let f = midi_hz(scale[d as usize] + 0.05 * (d - round(d)));
+            let f = midi_hz(scale[d as usize] + 0.02 * (d - round(d)));
             (
                 0.06,
                 0.02,
@@ -74,32 +74,35 @@ where
         },*/
         /*|t, b, v, x, y, z| {
             let f = xerp11(30.0, 3000.0, x);
+            let c = xerp11(1.0, 100.0, y);
             (
                 0.10,
                 0.05,
-                Box::new((white() >> lowpass_hz(10.0, 1.0)) * sine_hz(f) >> pan(v * 0.5)),
+                Box::new((white() >> lowpass_hz(c, 1.0)) * sine_hz(f) * (xerp11(1.0, 10.0, z) / sqrt(c)) >> pan(v * 0.5)),
             )
         },*/
         /*|t, b, v, x, y, z| {
-            let d = b - floor(b);
+            let b = 2.0 * b;
+            let d = b - round(b);
             (
-                0.05,
-                0.025,
+                0.08,
+                0.04,
                 Box::new(
-                    (pink() | dc((xerp11(40.0, 4000.0, x), xerp11(4.0, 80.0, (x - d * 2.0) * 0.5))))
+                    (pink() | dc((xerp11(40.0, 4000.0, x - 0.1 * d), xerp11(2.0, 80.0, (x - d * 2.0) * 0.5))))
                         >> resonator() * 0.05
-                        >> pan(v * d),
+                        >> pan(v * (d + 0.5)),
                 ),
             )
         },*/
         /*|t, b, v, x, y, z| {
             let f = xerp11(60.0, 3000.0, x);
+            let d = 0.5 + xerp11(0.1, 10.0, y);
             (
-                0.05,
-                0.02,
+                0.050,
+                0.020,
                 Box::new(
                     sine_hz(f)
-                        >> shape(Shape::Tanh(0.5 + xerp11(0.1, 10.0, y)))
+                        >> shape(Shape::Tanh(d))
                             * (xerp11(0.002, 0.02, z) / a_weight(f))
                         >> pan(v * 0.7),
                 ),
@@ -111,14 +114,14 @@ where
                 70.0, 72.0, 74.0, 77.0, 79.0, 82.0, 84.0,
             ];
             let d = lerp11(0.0, scale.len() as f64 - 0.01, x);
-            let f = midi_hz(scale[d as usize] + 0.05 * (d - round(d)));
+            let f = midi_hz(scale[d as usize] + 0.02 * (d - round(d)));
             (
                 0.06,
                 0.03,
                 Box::new(
                     dc((f, lerp11(0.50, 0.99, y)))
-                        >> pulse() * (xerp11(0.005, 0.05, z) / a_weight(f))
-                        >> pan(v * 0.7),
+                    >> pulse() >> peak_hz(xerp11(60.0, 10000.0, z), 5.0) * (0.01 / a_weight(f))
+                    >> pan(v * 0.7),
                 ),
             )
         },*/
@@ -128,13 +131,13 @@ where
                 69.0, 72.0, 74.0, 76.0, 79.0, 81.0, 84.0, 86.0, 88.0, 91.0, 93.0, 96.0,
             ];
             let d = lerp11(0.0, scale.len() as f64 - 0.01, x);
-            let f = midi_hz(scale[d as usize] + 0.05 * (d - round(d)));
+            let f = midi_hz(scale[d as usize] + 0.02 * (d - round(d)));
             (
                 0.06,
                 0.02,
                 Box::new(
                     organ_hz(f) * (0.05 / a_weight(f))
-                        >> moog_hz(xerp11(20.0, 20000.0, y), lerp11(0.1, 0.6, z))
+                        >> moog_hz(xerp11(20.0, 20000.0, y), lerp11(0.10, 0.60, z))
                         >> pan(v * 0.7),
                 ),
             )

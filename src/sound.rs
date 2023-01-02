@@ -1,6 +1,7 @@
 //! FunDSP Sound Library. WIP.
 
 use super::hacker::*;
+use funutd::*;
 
 /// Sound 001. Risset Glissando, stereo.
 /// The direction of sound is up (true) or down (false).
@@ -85,7 +86,7 @@ pub fn snaredrum(
     seed: i64,
     sharpness: f64,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
-    let mut rng = AttoRand::new(seed as u64);
+    let mut rnd = Rnd::from_u64(seed as u64);
     // Snare drum mode frequencies.
     let f0 = 180.0;
     let f1 = 330.0;
@@ -98,8 +99,8 @@ pub fn snaredrum(
     let f8 = 616.0;
 
     let mut bend_sine = move |f: f64| {
-        let f0 = f + 1.0 * rng.get11::<f64>();
-        let f1 = f + 3.0 * rng.get11::<f64>();
+        let f0 = f + 1.0 * (rnd.f64() * 2.0 - 1.0);
+        let f1 = f + 3.0 * (rnd.f64() * 2.0 - 1.0);
         lfo(move |t| lerp(f0, f1, t)) >> sine()
     };
 
@@ -123,13 +124,13 @@ pub fn snaredrum(
 
 /// Sound 005. Some kind of cymbal, mono. Different `seed` values produce small variations of the same sound.
 pub fn cymbal(seed: i64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
-    let mut rng = AttoRand::new(seed as u64);
-    let f1 = 1339.0586 + 5.0 * rng.get11::<f64>();
-    let f2 = 1703.2929 + 5.0 * rng.get11::<f64>();
-    let f3 = 2090.1314 + 5.0 * rng.get11::<f64>();
-    let f4 = 1425.6187 + 5.0 * rng.get11::<f64>();
-    let f5 = 1189.1727 + 5.0 * rng.get11::<f64>();
-    let f6 = 1954.3242 + 5.0 * rng.get11::<f64>();
+    let mut rnd = Rnd::from_u64(seed as u64);
+    let f1 = 1339.0586 + 5.0 * (rnd.f64() * 2.0 - 1.0);
+    let f2 = 1703.2929 + 5.0 * (rnd.f64() * 2.0 - 1.0);
+    let f3 = 2090.1314 + 5.0 * (rnd.f64() * 2.0 - 1.0);
+    let f4 = 1425.6187 + 5.0 * (rnd.f64() * 2.0 - 1.0);
+    let f5 = 1189.1727 + 5.0 * (rnd.f64() * 2.0 - 1.0);
+    let f6 = 1954.3242 + 5.0 * (rnd.f64() * 2.0 - 1.0);
     let m1 = 54127.0;
     let m2 = 43480.0;
     let m3 = 56771.0;

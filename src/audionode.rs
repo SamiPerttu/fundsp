@@ -103,9 +103,9 @@ pub trait AudioNode: Clone {
     /// Leaf nodes should not need to override this.
     /// If `probe` is true, then this is a probe for computing the network hash
     /// and `set_hash` should not be called yet.
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         if !probe {
-            self.set_hash(hash.value());
+            self.set_hash(hash.state());
         }
         hash.hash(Self::ID)
     }
@@ -858,7 +858,7 @@ where
             b,
             buffer: Buffer::new(),
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -940,7 +940,7 @@ where
         }
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
@@ -1117,7 +1117,7 @@ where
             x,
             u,
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -1163,7 +1163,7 @@ where
             self.u.assign(size, output[i]);
         }
     }
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 
@@ -1279,7 +1279,7 @@ where
             y,
             buffer: Buffer::new(),
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -1352,7 +1352,7 @@ where
             .process(size, self.buffer.get_ref(self.y.inputs()), output);
     }
 
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
@@ -1387,7 +1387,7 @@ where
             x,
             y,
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -1477,7 +1477,7 @@ where
         );
     }
 
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
@@ -1518,7 +1518,7 @@ where
             x,
             y,
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -1598,7 +1598,7 @@ where
             .process(size, input, &mut output[X::Outputs::USIZE..]);
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
@@ -1641,7 +1641,7 @@ where
             y,
             buffer: Buffer::new(),
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -1723,7 +1723,7 @@ where
         }
     }
 
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 
@@ -1751,7 +1751,7 @@ impl<X: AudioNode> Thru<X> {
             x,
             buffer: Buffer::new(),
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -1816,7 +1816,7 @@ impl<X: AudioNode> AudioNode for Thru<X> {
     }
 
     #[inline]
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 
@@ -1859,7 +1859,7 @@ where
             x,
             buffer: Buffer::new(),
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -1927,7 +1927,7 @@ where
         }
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         let mut hash = hash.hash(Self::ID);
         for x in &mut self.x {
             hash = x.ping(probe, hash);
@@ -1988,7 +1988,7 @@ where
             _marker: PhantomData,
             x,
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -2065,7 +2065,7 @@ where
         }
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         let mut hash = hash.hash(Self::ID);
         for x in self.x.iter_mut() {
             hash = x.ping(probe, hash);
@@ -2131,7 +2131,7 @@ where
             buffer: Buffer::new(),
             _marker: PhantomData,
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -2212,7 +2212,7 @@ where
         }
     }
     #[inline]
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         let mut hash = hash.hash(Self::ID);
         for x in self.x.iter_mut() {
             hash = x.ping(probe, hash);
@@ -2269,7 +2269,7 @@ where
             _marker: PhantomData,
             x,
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -2337,7 +2337,7 @@ where
         }
     }
 
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         let mut hash = hash.hash(Self::ID);
         for x in self.x.iter_mut() {
             hash = x.ping(probe, hash);
@@ -2393,7 +2393,7 @@ where
             buffer_b: Buffer::new(),
             _marker: PhantomData,
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -2487,7 +2487,7 @@ where
         }
     }
 
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         let mut hash = hash.hash(Self::ID);
         for x in self.x.iter_mut() {
             hash = x.ping(probe, hash);

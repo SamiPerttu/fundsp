@@ -8,6 +8,7 @@ use super::math::*;
 use super::signal::*;
 use super::*;
 use duplicate::duplicate_item;
+use funutd::*;
 
 pub type NodeIndex = usize;
 pub type PortIndex = usize;
@@ -206,7 +207,7 @@ impl Net48 {
         }
         self.vertex.push(vertex);
         // Note. We have designed the hash to depend on vertices but not edges.
-        let hash = self.ping(true, AttoRand::new(ID));
+        let hash = self.ping(true, AttoHash::new(ID));
         self.ping(false, hash);
         self.invalidate_order();
         id
@@ -461,7 +462,7 @@ impl Net48 {
         net
     }
 
-    /// Create a network that outputs a scalar value.
+    /// Create a network that outputs a scalar value on all channels.
     pub fn scalar(channels: usize, scalar: f48) -> Net48 {
         let mut net = Net48::new(0, channels);
         let id = net.push(Box::new(super::prelude::dc(scalar)));
@@ -583,15 +584,12 @@ impl AudioUnit48 for Net48 {
     }
 
     fn set_hash(&mut self, hash: u64) {
-        let mut hash = AttoRand::new(hash);
+        let mut rnd = Rnd::from_u64(hash);
         for x in self.vertex.iter_mut() {
-            x.unit.set_hash(hash.get());
+            x.unit.set_hash(rnd.u64());
         }
     }
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
-        if !probe {
-            self.set_hash(hash.value());
-        }
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         let mut hash = hash.hash(ID);
         for x in self.vertex.iter_mut() {
             hash = x.unit.ping(probe, hash);

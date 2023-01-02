@@ -34,7 +34,7 @@ impl<X: AudioNode> Listen<X> {
     pub fn new(x: X) -> (Sender<X::Setting>, Self) {
         let (sender, receiver) = channel(64);
         let mut node = Self { rv: receiver, x };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         (sender, node)
     }
@@ -84,7 +84,7 @@ impl<X: AudioNode> AudioNode for Listen<X> {
     }
 
     #[inline]
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 

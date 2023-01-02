@@ -6,6 +6,7 @@ use super::fir::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
+use funutd::Rnd;
 use numeric_array::*;
 use std::marker::PhantomData;
 
@@ -239,9 +240,9 @@ impl<T: Float> Pluck<T> {
         let allpass_delay = total_delay - loop_delay;
         self.tuning = Allpole::new(self.sample_rate, T::from_f64(allpass_delay));
         self.line.resize(loop_delay as usize, T::zero());
-        let mut rnd = AttoRand::new(self.hash);
+        let mut rnd = Rnd::from_u64(self.hash);
         for i in 0..self.line.len() {
-            self.line[i] = rnd.get11();
+            self.line[i] = T::from_f32(rnd.f32() * 2.0 - 1.0);
         }
         self.pos = 0;
         self.initialized = true;

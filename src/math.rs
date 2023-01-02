@@ -1,6 +1,7 @@
 //! Math functions and utilities and procedural generation tools.
 
 use super::*;
+use funutd::Rnd;
 
 #[inline]
 pub fn abs<T: Num>(x: T) -> T {
@@ -416,30 +417,28 @@ pub fn bpm_hz<T: Real>(bpm: T) -> T {
     bpm / T::new(60)
 }
 
-/// Pico sized RNG.
+/// Pico sized hasher.
 #[derive(Default, Clone)]
-pub struct AttoRand {
+pub struct AttoHash {
     state: u64,
 }
 
-impl AttoRand {
-    /// Create new `AttoRand` from seed.
-    #[inline]
-    pub fn new(seed: u64) -> AttoRand {
-        AttoRand {
-            state: seed ^ 0x5555555555555555,
-        }
+impl AttoHash {
+    /// Create new hasher from seed.
+    #[inline(always)]
+    pub fn new(seed: u64) -> AttoHash {
+        AttoHash { state: seed }
     }
     /// Generator state.
-    #[inline]
+    #[inline(always)]
     pub fn state(&self) -> u64 {
         self.state
     }
-    /// Hashes `data`. Consumes self and returns a new `AttoRand`.
+    /// Hash `data`. Consumes self and returns a new `AttoHash`.
     #[inline]
     pub fn hash(self, data: u64) -> Self {
         // Hash taken from FxHasher.
-        AttoRand {
+        AttoHash {
             state: self
                 .state
                 .rotate_left(5)
@@ -447,32 +446,16 @@ impl AttoRand {
                 .wrapping_mul(0x517cc1b727220a95),
         }
     }
-    /// Current 64-bit value.
+    /// Get current hash in 0...1.
     #[inline]
-    pub fn value(&self) -> u64 {
-        // Use SplitMix hash.
-        let x = self.state.wrapping_mul(0x9e3779b97f4a7c15);
-        let x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
-        let x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
-        x ^ (x >> 31)
-    }
-    /// Get next 64-bit value.
-    #[inline]
-    pub fn get(&mut self) -> u64 {
-        // Multiplier taken from https://arxiv.org/abs/2001.05304.
-        self.state = self.state.wrapping_mul(0xd1342543de82ef95).wrapping_add(1);
-        self.value()
-    }
-    /// Get next floating point value in 0...1.
-    #[inline]
-    pub fn get01<T: Float>(&mut self) -> T {
-        let x = self.get();
+    pub fn hash01<T: Float>(self) -> T {
+        let x = funutd::hash::hash64a(self.state);
         T::from_f64((x >> 11) as f64 / (1u64 << 53) as f64)
     }
-    /// Get next floating point value in -1...1.
+    /// Get current hash in -1...1.
     #[inline]
-    pub fn get11<T: Float>(&mut self) -> T {
-        let x = self.get();
+    pub fn hash11<T: Float>(self) -> T {
+        let x = funutd::hash::hash64a(self.state);
         T::from_f64((x >> 10) as f64 / (1u64 << 53) as f64 - 1.0)
     }
 }
@@ -522,7 +505,7 @@ pub fn ease_noise<T: Float>(ease: impl SegmentInterpolator<T>, seed: i64, x: T) 
     let ix = fx.to_i64();
 
     fn get_point<T: Float>(seed: i64, i: i64) -> T {
-        AttoRand::new((seed ^ i) as u64).get11()
+        AttoHash::new(seed as u64).hash(i as u64).hash11()
     }
 
     let y1 = get_point(seed, ix);
@@ -541,7 +524,7 @@ pub fn spline_noise<T: Float>(seed: i64, x: T) -> T {
     let ix = fx.to_i64();
 
     fn get_point<T: Float>(seed: i64, i: i64) -> T {
-        AttoRand::new((seed ^ i) as u64).get11()
+        AttoHash::new(seed as u64).hash(i as u64).hash11()
     }
 
     let y0 = get_point(seed, ix.wrapping_sub(1));
@@ -564,11 +547,11 @@ pub fn fractal_noise<T: Float>(seed: i64, octaves: i64, roughness: T, x: T) -> T
     let mut total_weight = T::zero();
     let mut frequency = T::one();
     let mut result = T::zero();
-    let mut random = AttoRand::new(seed as u64);
+    let mut rnd = Rnd::from_u64(seed as u64);
     for _octave in 0..octaves {
         // Employ a pseudorandom offset for each octave.
-        let octave_x = x * frequency + random.get01();
-        result += octave_weight * spline_noise(random.state() as i64, octave_x);
+        let octave_x = x * frequency + T::from_f32(rnd.f32());
+        result += octave_weight * spline_noise(rnd.i64(), octave_x);
         total_weight += octave_weight;
         octave_weight *= roughness;
         frequency *= T::new(2);
@@ -592,11 +575,11 @@ pub fn fractal_ease_noise<T: Float>(
     let mut total_weight = T::zero();
     let mut frequency = T::one();
     let mut result = T::zero();
-    let mut random = AttoRand::new(seed as u64);
+    let mut rnd = Rnd::from_u64(seed as u64);
     for _octave in 0..octaves {
         // Employ a pseudorandom offset for each octave.
-        let octave_x = x * frequency + random.get01();
-        result += octave_weight * ease_noise(ease.clone(), random.state() as i64, octave_x);
+        let octave_x = x * frequency + T::from_f32(rnd.f32());
+        result += octave_weight * ease_noise(ease.clone(), rnd.i64(), octave_x);
         total_weight += octave_weight;
         octave_weight *= roughness;
         frequency *= T::new(2);

@@ -61,9 +61,9 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     /// Leaf nodes should not need to override this.
     /// If `probe` is true, then this is a probe for computing the network hash
     /// and `set_hash` should not be called yet.
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         if !probe {
-            self.set_hash(hash.value());
+            self.set_hash(hash.state());
         }
         hash.hash(self.get_id())
     }
@@ -381,7 +381,7 @@ where
     fn set_hash(&mut self, hash: u64) {
         self.0.set_hash(hash);
     }
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.0.ping(probe, hash)
     }
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
@@ -500,7 +500,7 @@ impl AudioUnit48 for BigBlockAdapter48 {
     fn set_hash(&mut self, hash: u64) {
         self.source.set_hash(hash);
     }
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.source.ping(probe, hash)
     }
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {

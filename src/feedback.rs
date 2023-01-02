@@ -109,7 +109,7 @@ where
             value: Frame::default(),
             feedback,
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -149,7 +149,7 @@ where
         Routing::Arbitrary.propagate(input, self.outputs())
     }
 
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 }
@@ -198,7 +198,7 @@ where
             value: Frame::default(),
             feedback,
         };
-        let hash = node.ping(true, AttoRand::new(Self::ID));
+        let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
     }
@@ -242,7 +242,7 @@ where
         Routing::Arbitrary.propagate(input, self.outputs())
     }
 
-    fn ping(&mut self, probe: bool, hash: AttoRand) -> AttoRand {
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
     }
 }

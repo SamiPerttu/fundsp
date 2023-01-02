@@ -11,6 +11,7 @@
 
 use fundsp::audiounit::*;
 use fundsp::hacker::*;
+use funutd::*;
 
 /// Check that the stereo generator given is rendered identically
 /// via `process` (block processing) and `tick` (single sample processing).
@@ -69,15 +70,14 @@ fn check_wave_filter(input: &Wave64, mut node: impl AudioUnit64) {
 }
 
 /// Attempt to test two nodes for equality.
-fn is_equal<X, Y>(rnd: &mut AttoRand, x: &mut An<X>, y: &mut An<Y>) -> bool
+fn is_equal<X, Y>(rnd: &mut Rnd, x: &mut An<X>, y: &mut An<Y>) -> bool
 where
     X: AudioNode,
     Y: AudioNode<Sample = X::Sample, Inputs = X::Inputs, Outputs = X::Outputs>,
 {
     // The signature constrains the structure already, try some random inputs.
     for _ in 0..1000 {
-        let input =
-            Frame::<X::Sample, X::Inputs>::generate(|_| X::Sample::new((rnd.get() as i64) % 3 - 1));
+        let input = Frame::<X::Sample, X::Inputs>::generate(|_| X::Sample::new(rnd.i64() % 3 - 1));
         let output_x = x.tick(&input.clone());
         let output_y = y.tick(&input.clone());
         if output_x != output_y {
@@ -88,7 +88,7 @@ where
 }
 
 /// Attempt to test two stereo filters for equality.
-fn is_equal_unit<X, Y>(rnd: &mut AttoRand, x: &mut X, y: &mut Y) -> bool
+fn is_equal_unit<X, Y>(rnd: &mut Rnd, x: &mut X, y: &mut Y) -> bool
 where
     X: AudioUnit64,
     Y: AudioUnit64,
@@ -97,8 +97,8 @@ where
     assert!(x.outputs() == 2 && 2 == y.outputs());
 
     for _ in 0..1000 {
-        let input0 = (rnd.get() & 0xf) as f64;
-        let input1 = (rnd.get() & 0xf) as f64;
+        let input0 = (rnd.u64() & 0xf) as f64;
+        let input1 = (rnd.u64() & 0xf) as f64;
         let output_x = x.filter_stereo(input0, input1);
         let output_y = y.filter_stereo(input0, input1);
         if output_x != output_y {
@@ -109,7 +109,7 @@ where
 }
 
 /// Check that the outputs of a node are all unique.
-fn outputs_diverge<X>(rnd: &mut AttoRand, x: &mut An<X>) -> bool
+fn outputs_diverge<X>(rnd: &mut Rnd, x: &mut An<X>) -> bool
 where
     X: AudioNode,
 {
@@ -119,8 +119,7 @@ where
 
     // Send 10 inputs. If none of them diverge, then we declare failure.
     for _ in 0..10 {
-        let input =
-            Frame::<X::Sample, X::Inputs>::generate(|_| X::Sample::new((rnd.get() as i64) % 3 - 1));
+        let input = Frame::<X::Sample, X::Inputs>::generate(|_| X::Sample::new(rnd.i64() % 3 - 1));
         let output = x.tick(&input);
         for i in 0..x.outputs() {
             for j in 0..x.outputs() {
@@ -143,39 +142,7 @@ where
 
 #[test]
 fn test_basic() {
-    // Sanity test AttoRand.
-    let mut random = AttoRand::new(0);
-    let mut minimum = 0.0;
-    let mut maximum = 0.0;
-    let mut average = 0.0;
-    let mut deviation = 0.0;
-    let mut variance = 0.0;
-    let n = 10000000;
-    for i in 0..n {
-        let x = match i % 2 {
-            0 => random.get11(),
-            _ => random.get01::<f64>() * 2.0 - 1.0,
-        };
-        minimum = min(minimum, x);
-        maximum = max(maximum, x);
-        average += x;
-        deviation += abs(x);
-        variance += squared(x);
-    }
-    average /= n as f64;
-    deviation /= n as f64;
-    variance /= n as f64;
-
-    //println!(
-    //    "min = {minimum}, max = {maximum}, avg = {average}, dev = {deviation}, var = {variance}"
-    //);
-
-    assert!(average >= -0.0002 && average <= 0.0002);
-    assert!(minimum <= -0.999999 && maximum >= 0.999999);
-    assert!(deviation >= 0.499 && deviation <= 0.501);
-    assert!(variance >= 0.333 && variance <= 0.334);
-
-    let mut rnd = AttoRand::new(0);
+    let mut rnd = Rnd::new();
 
     // Wave rendering, tick vs. process rendering, node reseting.
     check_wave(noise() >> declick() | noise() + noise());

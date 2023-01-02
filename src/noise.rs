@@ -1,9 +1,9 @@
 //! Noise components.
 
 use super::audionode::*;
-use super::math::*;
 use super::signal::*;
 use super::*;
+use funutd::Rnd;
 use numeric_array::*;
 
 /// Maximum length sequences (MLS) are pseudorandom, spectrally flat,
@@ -149,7 +149,7 @@ impl<T: Float> AudioNode for Mls<T> {
 #[derive(Default, Clone)]
 pub struct Noise<T> {
     _marker: std::marker::PhantomData<T>,
-    rnd: AttoRand,
+    rnd: Rnd,
     hash: u64,
 }
 
@@ -167,7 +167,7 @@ impl<T: Float> AudioNode for Noise<T> {
     type Setting = ();
 
     fn reset(&mut self, _sample_rate: Option<f64>) {
-        self.rnd = AttoRand::new(self.hash);
+        self.rnd = Rnd::from_u64(self.hash);
     }
 
     #[inline]
@@ -175,7 +175,7 @@ impl<T: Float> AudioNode for Noise<T> {
         &mut self,
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let value = self.rnd.get11();
+        let value = T::from_f32(self.rnd.f32() * 2.0 - 1.0);
         [value].into()
     }
 

@@ -88,8 +88,7 @@ impl<
     ) -> Self {
         let voice_vector = vec![Voice48 { next_time: 0.0 }; voices];
         let mut dna = Dna::new(texture_seed);
-        let texture = funutd::map3gen::genmap3palette(50.0, TilingMode::Z, &mut dna);
-        //let texture = funutd::map3gen::genmap3(50.0, TilingMode::Z, &mut dna);
+        let texture = funutd::map3gen::genmap3(100.0, TilingMode::Z, &mut dna);
         let mut granular = Self {
             voices: voice_vector,
             outputs,
@@ -149,9 +148,9 @@ impl<
             t,
             t / self.beat_length,
             voice_d * 2.0 - 1.0,
-            v.x as f48,
-            v.y as f48,
-            v.z as f48,
+            v.x.clamp(-1.0, 1.0) as f48,
+            v.y.clamp(-1.0, 1.0) as f48,
+            v.z.clamp(-1.0, 1.0) as f48,
         );
         assert!(envelope_length >= 0.0);
         assert!(envelope_length < grain_length);
@@ -165,7 +164,7 @@ impl<
         }
         self.voices[voice].next_time = t + grain_length - envelope_length;
         // Use a random phase for each individual grain.
-        grain.ping(false, AttoRand::new(self.rnd.u64()));
+        grain.ping(false, AttoHash::new(self.rnd.u64()));
         self.sequencer
             .add_duration(t, grain_length, envelope_length, envelope_length, grain);
     }
