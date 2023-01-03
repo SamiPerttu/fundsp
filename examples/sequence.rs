@@ -8,7 +8,7 @@ use fundsp::sound::*;
 use funutd::*;
 
 fn main() {
-    let mut rnd = Rnd::new();
+    let mut rng = Rnd::new();
 
     let bpm = 128.0;
 
@@ -25,6 +25,7 @@ fn main() {
     let bassd_line = "x.....x.x.......x.....x.xx......x.....x.x.......x.......x.x.....";
     let snare_line = "....x.......x.......x.......x.......x.......x.......x.......x...";
     let cymbl_line = "x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.";
+
     /*
     let bd = |seed: i64| {
         bus::<U40, _, _>(|i| {
@@ -74,29 +75,29 @@ fn main() {
         let t1 = t0 + 1.0;
         if bassd_line.as_bytes()[i % length] == b'x' {
             sequencer.add(
-                t0 + 0.001 * rnd.f64(),
+                t0 + 0.001 * rng.f64(),
                 t1,
                 0.0,
                 0.25,
-                Box::new(bassdrum(0.2 + rnd.f64() * 0.02, 180.0, 60.0) >> pan(0.0)),
+                Box::new(bassdrum(0.2 + rng.f64() * 0.02, 180.0, 60.0) >> pan(0.0)),
             );
         }
         if snare_line.as_bytes()[i % length] == b'x' {
             sequencer.add(
-                t0 + 0.001 * rnd.f64(),
+                t0 + 0.001 * rng.f64(),
                 t1,
                 0.0,
                 0.25,
-                Box::new(snaredrum(rnd.i64(), 0.4 + rnd.f64() * 0.02) * 1.5 >> pan(0.0)),
+                Box::new(snaredrum(rng.i64(), 0.4 + rng.f64() * 0.02) * 1.5 >> pan(0.0)),
             );
         }
         if cymbl_line.as_bytes()[i % length] == b'x' {
             sequencer.add(
-                t0 + 0.001 * rnd.f64(),
+                t0 + 0.001 * rng.f64(),
                 t1,
                 0.0,
                 0.25,
-                Box::new(cymbal(rnd.i64()) * 0.05 >> pan(0.0)),
+                Box::new(cymbal(rng.i64()) * 0.05 >> pan(0.0)),
             );
         }
     }
