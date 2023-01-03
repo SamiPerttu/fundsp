@@ -149,6 +149,8 @@ where
 
     c.reset(Some(sample_rate));
 
+    let mut c = BlockRateAdapter64::new(Box::new(c));
+
     let mut next_value = move || c.get_stereo();
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);

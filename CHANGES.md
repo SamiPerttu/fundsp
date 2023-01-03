@@ -5,6 +5,7 @@
 - More settings implemented.
 - Signal routing is now an exclusive operation, for practical reasons.
 - Granular synthesizer. FunUTD is now a dependency.
+- Block rate adapter that converts calls to block processing.
 
 ### Version 0.11
 

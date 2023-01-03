@@ -1,6 +1,7 @@
 //! The dynamical `AudioUnit64` and `AudioUnit32` abstractions.
 
 use super::audionode::*;
+use super::buffer::*;
 use super::combinator::*;
 use super::math::*;
 use super::signal::*;
@@ -508,5 +509,99 @@ impl AudioUnit48 for BigBlockAdapter48 {
     }
     fn footprint(&self) -> usize {
         self.source.footprint()
+    }
+}
+
+/// Block rate adapter converts processing calls to maximum length block processing.
+/// Maximizes performance at the expense of latency.
+#[duplicate_item(
+    f48       BlockRateAdapter48       AudioUnit48;
+    [ f64 ]   [ BlockRateAdapter64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ BlockRateAdapter32 ]   [ AudioUnit32 ];
+)]
+#[derive(Clone)]
+pub struct BlockRateAdapter48 {
+    unit: Box<dyn AudioUnit48>,
+    channels: usize,
+    buffer: Buffer<f48>,
+    index: usize,
+}
+
+#[duplicate_item(
+    f48       BlockRateAdapter48       AudioUnit48;
+    [ f64 ]   [ BlockRateAdapter64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ BlockRateAdapter32 ]   [ AudioUnit32 ];
+)]
+impl BlockRateAdapter48 {
+    /// Create new block rate adapter for the unit.
+    pub fn new(unit: Box<dyn AudioUnit48>) -> Self {
+        assert!(unit.inputs() == 0);
+        let channels = unit.outputs();
+        Self {
+            unit,
+            channels,
+            buffer: Buffer::new(),
+            index: MAX_BUFFER_SIZE,
+        }
+    }
+}
+
+#[duplicate_item(
+    f48       BlockRateAdapter48       AudioUnit48;
+    [ f64 ]   [ BlockRateAdapter64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ BlockRateAdapter32 ]   [ AudioUnit32 ];
+)]
+impl AudioUnit48 for BlockRateAdapter48 {
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.unit.reset(sample_rate);
+    }
+    fn tick(&mut self, _input: &[f48], output: &mut [f48]) {
+        if self.index == MAX_BUFFER_SIZE {
+            self.unit
+                .process(MAX_BUFFER_SIZE, &[], self.buffer.get_mut(self.channels));
+            self.index = 0;
+        }
+        for channel in 0..self.channels {
+            output[channel] = self.buffer.at(channel)[self.index];
+        }
+        self.index += 1;
+    }
+    fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]) {
+        let mut i = 0;
+        while i < size {
+            if self.index == MAX_BUFFER_SIZE {
+                self.unit
+                    .process(MAX_BUFFER_SIZE, input, self.buffer.get_mut(self.channels));
+                self.index = 0;
+            }
+            let n = min(size - i, MAX_BUFFER_SIZE - self.index);
+            for channel in 0..self.channels {
+                output[channel][i..i + n]
+                    .clone_from_slice(&self.buffer.at(channel)[self.index..self.index + n]);
+            }
+            i += n;
+            self.index += n;
+        }
+    }
+    fn inputs(&self) -> usize {
+        0
+    }
+    fn outputs(&self) -> usize {
+        self.channels
+    }
+    fn get_id(&self) -> u64 {
+        self.unit.get_id()
+    }
+    fn set_hash(&mut self, hash: u64) {
+        self.unit.set_hash(hash);
+    }
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
+        self.unit.ping(probe, hash)
+    }
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.unit.route(input, frequency)
+    }
+    fn footprint(&self) -> usize {
+        self.unit.footprint()
     }
 }
