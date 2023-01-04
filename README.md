@@ -982,6 +982,7 @@ The same modes are used in the `meter` opcode.
 | `m_weight(f)`          | [M-weighted](https://en.wikipedia.org/wiki/ITU-R_468_noise_weighting) amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `pow(x, y)`            | `x` raised to the power `y` |
 | `rnd(i)`               | pseudorandom number in 0...1 from integer `i` |
+| `rnd2(i)`              | pseudorandom number in 0...1 from integer `i` |
 | `round(x)`             | round `x` to nearest integer |
 | `semitone_ratio(x)`    | convert interval `x` semitones to frequency ratio |
 | `signum(x)`            | sign of `x` |

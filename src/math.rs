@@ -391,6 +391,14 @@ pub fn rnd(x: i64) -> f64 {
     (x >> 11) as f64 / (1u64 << 53) as f64
 }
 
+/// Output hash of Krull64 as an indexed RNG.
+/// Returns pseudorandom f64 in 0...1.
+#[inline]
+pub fn rnd2(x: i64) -> f64 {
+    let x = funutd::hash::hash64g(x as u64);
+    (x >> 11) as f64 / (1u64 << 53) as f64
+}
+
 /// 64-bit hash function.
 /// This hash is a pseudorandom permutation.
 #[inline]
@@ -540,7 +548,7 @@ pub fn spline_noise<T: Float>(seed: i64, x: T) -> T {
 /// 1-D fractal spline noise in -1...1.
 /// Sums octaves (`octaves` > 0) of spline noise.
 /// The lowest frequency of the noise is 1, with each successive octave doubling in frequency.
-/// Roughness (`roughness` > 0) is the multiplicative weighting of successive octaves.
+/// Roughness (`roughness` > 0) is the multiplicative weighting of successive octaves. For example, 0.5.
 pub fn fractal_noise<T: Float>(seed: i64, octaves: i64, roughness: T, x: T) -> T {
     assert!(octaves > 0);
     let mut octave_weight = T::one();
@@ -562,7 +570,7 @@ pub fn fractal_noise<T: Float>(seed: i64, octaves: i64, roughness: T, x: T) -> T
 /// 1-D fractal ease noise in -1...1.
 /// Sums octaves (`octaves` > 0) of ease noise with easing function `ease`.
 /// The lowest frequency of the noise is 1, with each successive octave doubling in frequency.
-/// Roughness (`roughness` > 0) is the multiplicative weighting of successive octaves.
+/// Roughness (`roughness` > 0) is the multiplicative weighting of successive octaves. For example, 0.5.
 pub fn fractal_ease_noise<T: Float>(
     ease: impl SegmentInterpolator<T>,
     seed: i64,

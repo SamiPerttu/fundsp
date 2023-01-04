@@ -6,6 +6,7 @@
 - Signal routing is now an exclusive operation, for practical reasons.
 - Granular synthesizer. FunUTD is now a dependency.
 - Block rate adapter that converts calls to block processing.
+- New random function `rnd2` from Krull64 output stage.
 
 ### Version 0.11
 

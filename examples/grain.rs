@@ -103,7 +103,7 @@ where
                 Box::new(
                     sine_hz(f)
                         >> shape(Shape::Tanh(d))
-                            * (xerp11(0.002, 0.02, z) / a_weight(f))
+                        >> morph_hz(f, 1.0, z) * (0.01 / a_weight(f))
                         >> pan(v * 0.7),
                 ),
             )
@@ -137,7 +137,7 @@ where
                 0.02,
                 Box::new(
                     organ_hz(f) * (0.05 / a_weight(f))
-                        >> moog_hz(xerp11(20.0, 20000.0, y), lerp11(0.10, 0.60, z))
+                        >> moog_hz(xerp11(20.0, 20000.0, y), lerp11(0.10, 0.65, z))
                         >> pan(v * 0.7),
                 ),
             )
