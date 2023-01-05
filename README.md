@@ -1,6 +1,6 @@
 # FunDSP
 
-[![Actions Status](https://github.com/SamiPerttu/fundsp/workflows/CI/badge.svg)](https://github.com/SamiPerttu/fundsp)
+[![Actions Status](https://github.com/SamiPerttu/fundsp/workflows/CI/badge.svg)](https://github.com/SamiPerttu/fundsp/actions)
 [![crates.io](https://img.shields.io/crates/v/fundsp.svg)](https://crates.io/crates/fundsp)
 
 ## Audio Processing and Synthesis Library for [Rust](https://www.rust-lang.org/)
