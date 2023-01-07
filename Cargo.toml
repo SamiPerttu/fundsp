@@ -3,7 +3,7 @@ name = "fundsp"
 description = "Audio processing and synthesis library."
 keywords = ["dsp", "audio", "synthesizer", "sound", "wave"]
 license = "MIT OR Apache-2.0"
-version = "0.11.0"
+version = "0.12.0"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
 homepage = "https://github.com/SamiPerttu/fundsp"
 repository = "https://github.com/SamiPerttu/fundsp"
@@ -22,7 +22,7 @@ duplicate = "0.4.1"
 dyn-clone = "1.0.10"
 symphonia = { version = "0.5.1", optional = true, features = ["aac", "alac", "mp3", "isomp4"] }
 thingbuf = "0.1.3"
-funutd = "0.10.0"
+funutd = "0.11.0"
 
 [features]
 default = ["files"]

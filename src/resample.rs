@@ -100,9 +100,10 @@ where
         output
     }
 
-    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        // TODO: Is this too optimistic?
-        self.x.route(input, frequency)
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output.fill(Signal::Latency(0.0));
+        output
     }
 
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
