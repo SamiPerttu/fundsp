@@ -1,6 +1,6 @@
 ## Changes
 
-### Version 0.12 (Next Release)
+### Version 0.12
 
 - More settings implemented.
 - Signal routing is now an exclusive operation, for practical reasons.
