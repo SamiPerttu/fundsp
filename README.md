@@ -2,6 +2,7 @@
 
 [![Actions Status](https://github.com/SamiPerttu/fundsp/workflows/CI/badge.svg)](https://github.com/SamiPerttu/fundsp/actions)
 [![crates.io](https://img.shields.io/crates/v/fundsp.svg)](https://crates.io/crates/fundsp)
+[![License](https://img.shields.io/crates/l/fundsp.svg)](https://github.com/SamiPerttu/fundsp/README.md)
 
 ## Audio Processing and Synthesis Library for [Rust](https://www.rust-lang.org/)
 
