@@ -35,6 +35,13 @@ procedural generation tools.
 To discuss FunDSP and other topics, come hang out with us at the
 [Rust Audio Discord](https://discord.gg/3hfDXS6hhQ).
 
+### Related Projects
+
+[bevy_fundsp](https://github.com/harudagondi/bevy_fundsp) integrates FunDSP into [Bevy](https://bevyengine.org/).
+
+[midi_fundsp](https://github.com/gjf2a/midi_fundsp) enables the easy creation
+of live synthesizer software using FunDSP for synthesis.
+
 ### Graph Notation
 
 *FunDSP Composable Graph Notation* expresses audio networks
