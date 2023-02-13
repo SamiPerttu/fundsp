@@ -11,6 +11,16 @@ use std::cmp::Ord;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
+/// Fade curves.
+#[derive(Clone)]
+pub enum Fade {
+    /// Equal power fade. Results in equal power mixing
+    /// when fade out of one event coincides with the fade in of another.
+    Power,
+    /// Smooth polynomial fade.
+    Smooth,
+}
+
 #[duplicate_item(
     f48       Event48       AudioUnit48;
     [ f64 ]   [ Event64 ]   [ AudioUnit64 ];
@@ -21,6 +31,7 @@ pub struct Event48 {
     pub unit: Box<dyn AudioUnit48>,
     pub start_time: f48,
     pub end_time: f48,
+    pub fade_ease: Fade,
     pub fade_in: f48,
     pub fade_out: f48,
 }
@@ -35,6 +46,7 @@ impl Event48 {
         unit: Box<dyn AudioUnit48>,
         start_time: f48,
         end_time: f48,
+        fade_ease: Fade,
         fade_in: f48,
         fade_out: f48,
     ) -> Self {
@@ -42,6 +54,7 @@ impl Event48 {
             unit,
             start_time,
             end_time,
+            fade_ease,
             fade_in,
             fade_out,
         }
@@ -93,12 +106,14 @@ impl Ord for Event48 {
     [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ fade_in64 ];
     [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ fade_in32 ];
 )]
+#[inline(always)]
 fn fade_in48(
     sample_duration: f48,
     time: f48,
     end_time: f48,
     start_index: usize,
     end_index: usize,
+    ease: Fade,
     fade_duration: f48,
     fade_start_time: f48,
     output: &mut [&mut [f48]],
@@ -117,11 +132,24 @@ fn fade_in48(
             fade_end_time,
             time + start_index as f48 * sample_duration,
         );
-        for channel in 0..output.len() {
-            let mut fade = fade_phase;
-            for i in 0..fade_end_i {
-                output[channel][i] *= smooth5(fade);
-                fade += fade_d;
+        match ease {
+            Fade::Power => {
+                for channel in 0..output.len() {
+                    let mut fade = fade_phase;
+                    for i in 0..fade_end_i {
+                        output[channel][i] *= sine_ease(fade);
+                        fade += fade_d;
+                    }
+                }
+            }
+            Fade::Smooth => {
+                for channel in 0..output.len() {
+                    let mut fade = fade_phase;
+                    for i in 0..fade_end_i {
+                        output[channel][i] *= smooth5(fade);
+                        fade += fade_d;
+                    }
+                }
             }
         }
     }
@@ -132,12 +160,14 @@ fn fade_in48(
     [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ fade_out64 ];
     [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ fade_out32 ];
 )]
+#[inline(always)]
 fn fade_out48(
     sample_duration: f48,
     time: f48,
     end_time: f48,
     _start_index: usize,
     end_index: usize,
+    ease: Fade,
     fade_duration: f48,
     fade_end_time: f48,
     output: &mut [&mut [f48]],
@@ -155,11 +185,24 @@ fn fade_out48(
             fade_end_time,
             time + fade_i as f48 * sample_duration,
         );
-        for channel in 0..output.len() {
-            let mut fade = fade_phase;
-            for i in fade_i..end_index {
-                output[channel][i] *= smooth5(1.0 - fade);
-                fade += fade_d;
+        match ease {
+            Fade::Power => {
+                for channel in 0..output.len() {
+                    let mut fade = fade_phase;
+                    for i in fade_i..end_index {
+                        output[channel][i] *= sine_ease(1.0 - fade);
+                        fade += fade_d;
+                    }
+                }
+            }
+            Fade::Smooth => {
+                for channel in 0..output.len() {
+                    let mut fade = fade_phase;
+                    for i in fade_i..end_index {
+                        output[channel][i] *= smooth5(1.0 - fade);
+                        fade += fade_d;
+                    }
+                }
             }
         }
     }
@@ -220,6 +263,7 @@ impl Sequencer48 {
         &mut self,
         start_time: f48,
         end_time: f48,
+        fade_ease: Fade,
         fade_in_time: f48,
         fade_out_time: f48,
         mut unit: Box<dyn AudioUnit48>,
@@ -233,6 +277,7 @@ impl Sequencer48 {
             unit,
             start_time,
             end_time,
+            fade_ease,
             fade_in_time,
             fade_out_time,
         ));
@@ -243,6 +288,7 @@ impl Sequencer48 {
         &mut self,
         start_time: f48,
         duration: f48,
+        fade_ease: Fade,
         fade_in_time: f48,
         fade_out_time: f48,
         unit: Box<dyn AudioUnit48>,
@@ -250,6 +296,7 @@ impl Sequencer48 {
         self.add(
             start_time,
             start_time + duration,
+            fade_ease,
             fade_in_time,
             fade_out_time,
             unit,
@@ -378,8 +425,17 @@ impl AudioUnit48 for Sequencer48 {
                         self.time,
                     );
                     if fade_in < 1.0 {
-                        for channel in 0..self.outputs {
-                            self.tick_buffer[channel] *= smooth5(fade_in);
+                        match self.active[i].fade_ease {
+                            Fade::Power => {
+                                for channel in 0..self.outputs {
+                                    self.tick_buffer[channel] *= sine_ease(fade_in);
+                                }
+                            }
+                            Fade::Smooth => {
+                                for channel in 0..self.outputs {
+                                    self.tick_buffer[channel] *= smooth5(fade_in);
+                                }
+                            }
                         }
                     }
                 }
@@ -390,8 +446,17 @@ impl AudioUnit48 for Sequencer48 {
                         self.time,
                     );
                     if fade_out > 0.0 {
-                        for channel in 0..self.outputs {
-                            self.tick_buffer[channel] *= smooth5(1.0 - fade_out);
+                        match self.active[i].fade_ease {
+                            Fade::Power => {
+                                for channel in 0..self.outputs {
+                                    self.tick_buffer[channel] *= sine_ease(1.0 - fade_out);
+                                }
+                            }
+                            Fade::Smooth => {
+                                for channel in 0..self.outputs {
+                                    self.tick_buffer[channel] *= smooth5(1.0 - fade_out);
+                                }
+                            }
                         }
                     }
                 }
@@ -438,6 +503,7 @@ impl AudioUnit48 for Sequencer48 {
                         end_time,
                         start_index,
                         end_index,
+                        self.active[i].fade_ease.clone(),
                         self.active[i].fade_in,
                         self.active[i].start_time,
                         buffer_output,
@@ -448,6 +514,7 @@ impl AudioUnit48 for Sequencer48 {
                         end_time,
                         start_index,
                         end_index,
+                        self.active[i].fade_ease.clone(),
                         self.active[i].fade_out,
                         self.active[i].end_time,
                         buffer_output,

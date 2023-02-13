@@ -69,6 +69,10 @@ path = "examples/file.rs"
 name = "grain"
 path = "examples/grain.rs"
 
+[[example]]
+name = "grain2"
+path = "examples/grain2.rs"
+
 [package.metadata.docs.rs]
 all-features = true
 rustc-args = ["--cfg", "docsrs"]

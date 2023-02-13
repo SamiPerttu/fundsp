@@ -134,6 +134,7 @@ impl<
         ) * self.jitter as f32;
         self.texture_origin + vec3a(x as f32, y as f32, z as f32) + random
     }
+
     /// Instantiate a grain.
     fn instantiate(&mut self, voice: usize) {
         let t = self.voices[voice].next_time;
@@ -165,9 +166,16 @@ impl<
         self.voices[voice].next_time = t + grain_length - envelope_length;
         // Use a random phase for each individual grain.
         grain.ping(false, AttoHash::new(self.rnd.u64()));
-        self.sequencer
-            .add_duration(t, grain_length, envelope_length, envelope_length, grain);
+        self.sequencer.add_duration(
+            t,
+            grain_length,
+            Fade::Power,
+            envelope_length,
+            envelope_length,
+            grain,
+        );
     }
+
     /// Check all voices and instantiate grains that start before the given time.
     fn instantiate_voices(&mut self, before_time: f48) {
         for voice in 0..self.voices.len() {

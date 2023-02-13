@@ -1,4 +1,4 @@
-//! Equitempered scales.
+//! Equitempered scales. WIP.
 
 use super::math::*;
 

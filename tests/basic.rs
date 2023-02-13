@@ -196,10 +196,24 @@ fn test_basic() {
     ));
 
     let mut sequencer = Sequencer64::new(44100.0, 2);
-    sequencer.add(0.1, 0.2, 0.01, 0.02, Box::new(noise() | sine_hz(220.0)));
-    sequencer.add(0.3, 0.4, 0.09, 0.08, Box::new(sine_hz(110.0) | noise()));
-    sequencer.add(0.25, 0.5, 0.0, 0.01, Box::new(mls() | noise()));
-    sequencer.add(0.6, 0.7, 0.01, 0.0, Box::new(noise() | mls()));
+    sequencer.add(
+        0.1,
+        0.2,
+        Fade::Smooth,
+        0.01,
+        0.02,
+        Box::new(noise() | sine_hz(220.0)),
+    );
+    sequencer.add(
+        0.3,
+        0.4,
+        Fade::Smooth,
+        0.09,
+        0.08,
+        Box::new(sine_hz(110.0) | noise()),
+    );
+    sequencer.add(0.25, 0.5, Fade::Power, 0.0, 0.01, Box::new(mls() | noise()));
+    sequencer.add(0.6, 0.7, Fade::Power, 0.01, 0.0, Box::new(noise() | mls()));
     check_wave(sequencer);
 
     let mut net = Net64::new(0, 2);

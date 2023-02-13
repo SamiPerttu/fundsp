@@ -216,13 +216,13 @@ pub fn dissonance_max<T: Num>(f: T) -> T {
     T::from_f64(1.0193) * f + T::from_f64(17.4672)
 }
 
-/// Convert decibels to gain. 0 dB = 1.0.
+/// Convert decibels to gain. 0 dB = 1.0 (unity gain).
 #[inline]
 pub fn db_amp<T: Real>(db: T) -> T {
     exp10(db / T::new(20))
 }
 
-/// Convert amplitude `gain` (`gain` > 0) to decibels. Unity gain = 0 dB.
+/// Convert amplitude `gain` (`gain` > 0) to decibels. 1.0 = 0 dB (unity gain).
 #[inline]
 pub fn amp_db<T: Real>(gain: T) -> T {
     log10(gain) * T::new(20)
@@ -349,16 +349,25 @@ pub fn smooth9<T: Num>(x: T) -> T {
         * x
 }
 
-/// A quarter circle fade that slopes upwards. Inverse function of `downarc`.
+/// A quarter circle ease that slopes upwards. Inverse function of `downarc`.
 #[inline]
 pub fn uparc<T: Real>(x: T) -> T {
     T::one() - sqrt(max(T::zero(), T::one() - x * x))
 }
 
-/// A quarter circle fade that slopes downwards. Inverse function of `uparc`.
+/// A quarter circle ease that slopes downwards. Inverse function of `uparc`.
 #[inline]
 pub fn downarc<T: Real>(x: T) -> T {
     sqrt(max(T::new(0), (T::new(2) - x) * x))
+}
+
+/// 90 degree sine ease.
+#[inline]
+pub fn sine_ease<T: Float>(x: T) -> T {
+    let x = x * T::from_f64(PI * 0.5);
+    // Use Bhaskara's sine approximation.
+    T::new(16) * x * (T::from_f64(PI) - x)
+        / (T::from_f64(5.0 * PI * PI) - T::new(4) * x * (T::from_f64(PI) - x))
 }
 
 /// Sine that oscillates at the specified frequency (Hz). Time is input in seconds.
@@ -414,6 +423,12 @@ pub fn hash(x: i64) -> i64 {
 /// Convert MIDI note number to frequency in Hz. Returns 440 Hz for A_4 (note number 69).
 /// The lowest key on a grand piano is A_0 at 27.5 Hz (note number 21).
 /// Note number 0 is C_-1.
+///
+/// ### Example (Major Chord)
+/// ```
+/// use fundsp::hacker::*;
+/// triangle_hz(midi_hz(69.0)) & triangle_hz(midi_hz(73.0)) & triangle_hz(midi_hz(76.0));
+/// ```
 #[inline]
 pub fn midi_hz<T: Real>(x: T) -> T {
     T::new(440) * exp2((x - T::new(69)) / T::new(12))

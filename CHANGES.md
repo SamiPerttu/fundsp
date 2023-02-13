@@ -1,5 +1,9 @@
 ## Changes
 
+### Version 0.13 (Next Version)
+
+- Fade curves for Sequencer events. To migrate, use the curve `Fade::Smooth`.
+
 ### Version 0.12
 
 - More settings implemented.

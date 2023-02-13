@@ -77,6 +77,7 @@ fn main() {
             sequencer.add(
                 t0 + 0.001 * rng.f64(),
                 t1,
+                Fade::Smooth,
                 0.0,
                 0.25,
                 Box::new(bassdrum(0.2 + rng.f64() * 0.02, 180.0, 60.0) >> pan(0.0)),
@@ -86,6 +87,7 @@ fn main() {
             sequencer.add(
                 t0 + 0.001 * rng.f64(),
                 t1,
+                Fade::Smooth,
                 0.0,
                 0.25,
                 Box::new(snaredrum(rng.i64(), 0.4 + rng.f64() * 0.02) * 1.5 >> pan(0.0)),
@@ -95,6 +97,7 @@ fn main() {
             sequencer.add(
                 t0 + 0.001 * rng.f64(),
                 t1,
+                Fade::Smooth,
                 0.0,
                 0.25,
                 Box::new(cymbal(rng.i64()) * 0.05 >> pan(0.0)),

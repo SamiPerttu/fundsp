@@ -498,9 +498,6 @@ impl AudioUnit48 for BigBlockAdapter48 {
     fn get_id(&self) -> u64 {
         self.source.get_id()
     }
-    fn set_hash(&mut self, hash: u64) {
-        self.source.set_hash(hash);
-    }
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.source.ping(probe, hash)
     }
@@ -514,6 +511,7 @@ impl AudioUnit48 for BigBlockAdapter48 {
 
 /// Block rate adapter converts processing calls to maximum length block processing.
 /// Maximizes performance at the expense of latency.
+/// The unit must have no inputs.
 #[duplicate_item(
     f48       BlockRateAdapter48       AudioUnit48;
     [ f64 ]   [ BlockRateAdapter64 ]   [ AudioUnit64 ];
@@ -554,6 +552,7 @@ impl BlockRateAdapter48 {
 impl AudioUnit48 for BlockRateAdapter48 {
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.unit.reset(sample_rate);
+        self.index = MAX_BUFFER_SIZE;
     }
     fn tick(&mut self, _input: &[f48], output: &mut [f48]) {
         if self.index == MAX_BUFFER_SIZE {
@@ -591,9 +590,6 @@ impl AudioUnit48 for BlockRateAdapter48 {
     }
     fn get_id(&self) -> u64 {
         self.unit.get_id()
-    }
-    fn set_hash(&mut self, hash: u64) {
-        self.unit.set_hash(hash);
     }
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.unit.ping(probe, hash)

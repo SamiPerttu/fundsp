@@ -10,6 +10,7 @@ pub use super::feedback::*;
 pub use super::filter::*;
 pub use super::fir::*;
 pub use super::follow::*;
+pub use super::gen::*;
 pub use super::granular::*;
 pub use super::math::*;
 pub use super::moog::*;
@@ -451,7 +452,7 @@ pub fn lowpole_hz(f: f64) -> An<Lowpole<f64, f64, U1>> {
     super::prelude::lowpole_hz(f)
 }
 
-/// Allpass filter with adjustable delay (delay > 0) in samples at DC.
+/// Allpass filter (1st order) with adjustable delay (delay > 0) in samples at DC.
 /// - Input 0: audio
 /// - Input 1: delay in samples
 /// - Output 0: filtered audio
@@ -460,12 +461,12 @@ pub fn allpole() -> An<Allpole<f64, f64, U2>> {
     An(Allpole::new(DEFAULT_SR, 1.0))
 }
 
-/// Allpass filter with delay (delay > 0) in samples at DC.
+/// Allpass filter (1st order) with `delay` (`delay` > 0) in samples at DC.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[inline]
-pub fn allpole_delay(delay_in_samples: f64) -> An<Allpole<f64, f64, U1>> {
-    An(Allpole::new(DEFAULT_SR, delay_in_samples))
+pub fn allpole_delay(delay: f64) -> An<Allpole<f64, f64, U1>> {
+    An(Allpole::new(DEFAULT_SR, delay))
 }
 
 /// One-pole, one-zero highpass filter (1st order).
@@ -1116,7 +1117,7 @@ pub fn panner() -> An<Panner<f64, U2>> {
     An(Panner::new(0.0))
 }
 
-/// Fixed equal power mono-to-stereo panner with pan value in -1...1.
+/// Fixed equal power mono-to-stereo panner with `pan` value in -1...1 (left to right).
 /// - Input 0: input signal
 /// - Output 0: left channel
 /// - Output 1: right channel

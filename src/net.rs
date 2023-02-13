@@ -84,11 +84,11 @@ impl Vertex48 {
     }
 
     pub fn inputs(&self) -> usize {
-        self.input.buffers()
+        self.tick_input.len()
     }
 
     pub fn outputs(&self) -> usize {
-        self.output.buffers()
+        self.tick_output.len()
     }
 
     pub fn update_source_vertex(&mut self) {
