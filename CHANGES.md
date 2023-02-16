@@ -3,6 +3,7 @@
 ### Version 0.13 (Next Version)
 
 - Fade curves for Sequencer events. To migrate, use the curve `Fade::Smooth`.
+- `Net32/64` now operates on stable node IDs of type `NodeId`. Other improvements.
 
 ### Version 0.12
 

@@ -222,18 +222,21 @@ fn test_basic() {
     ));
     net.connect_output(id, 0, 0);
     net.connect_output(id, 1, 1);
+    net.check();
     check_wave(net);
 
     let mut net = Net64::new(0, 2);
     net.chain(Box::new(noise() | noise()));
     net.chain(Box::new(moog_hz(1500.0, 0.5) | moog_hz(1000.0, 0.6)));
     net.chain(Box::new(lowpole_hz(1000.0) | lowpole_hz(500.0)));
+    net.check();
     check_wave(net);
 
     let mut net = Net64::new(0, 2);
     net.chain(Box::new(noise()));
     net.chain(Box::new(lowpole_hz(1000.0) ^ lowpole_hz(500.0)));
     net.chain(Box::new(lowpole_hz(1000.0) | lowpole_hz(500.0)));
+    net.check();
     check_wave(net);
 
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
@@ -294,32 +297,44 @@ fn test_basic() {
     // Nodes vs. networks.
     let mut pass_through = pass() | pass();
     let mut pass_through_net = Net64::new(2, 2);
-    pass_through_net.join(edge(Port::Global(0), Port::Global(0)));
-    pass_through_net.join(edge(Port::Global(1), Port::Global(1)));
+    pass_through_net.pass_through(0, 0);
+    pass_through_net.pass_through(1, 1);
     assert!(is_equal_unit(
         &mut rnd,
         &mut pass_through,
         &mut pass_through_net
     ));
+    pass_through_net.check();
 
     let mut swap_through = swap();
     let mut swap_through_net = Net64::new(2, 2);
-    swap_through_net.join(edge(Port::Global(0), Port::Global(1)));
-    swap_through_net.join(edge(Port::Global(1), Port::Global(0)));
+    swap_through_net.pass_through(0, 1);
+    swap_through_net.pass_through(1, 0);
     assert!(is_equal_unit(
         &mut rnd,
         &mut swap_through,
         &mut swap_through_net
     ));
+    swap_through_net.check();
 
     let mut multiply_2_3 = mul(2.0) | mul(3.0);
     let mut multiply_net = Net64::new(2, 2);
-    multiply_net.push(Box::new(mul(2.0)));
-    multiply_net.push(Box::new(mul(3.0)));
-    multiply_net.connect_input(0, 0, 0);
-    multiply_net.connect_input(1, 1, 0);
-    multiply_net.connect_output(0, 0, 0);
-    multiply_net.connect_output(1, 0, 1);
+    let id0 = multiply_net.push(Box::new(mul(2.0)));
+    let idd = multiply_net.push(Box::new(sink()));
+    let ide = multiply_net.push(Box::new(sine()));
+    let id1 = multiply_net.push(Box::new(mul(3.0)));
+    multiply_net.connect_input(0, id0, 0);
+    multiply_net.connect_input(1, id1, 0);
+    multiply_net.connect_output(id0, 0, 0);
+    multiply_net.connect_output(id1, 0, 1);
+    assert!(is_equal_unit(
+        &mut rnd,
+        &mut multiply_2_3,
+        &mut multiply_net
+    ));
+    multiply_net.remove(idd);
+    multiply_net.remove(ide);
+    multiply_net.check();
     assert!(is_equal_unit(
         &mut rnd,
         &mut multiply_2_3,
@@ -328,12 +343,15 @@ fn test_basic() {
 
     let mut add_2_3 = add((2.0, 3.0));
     let mut add_net = Net64::new(2, 2);
-    add_net.push(Box::new(add((2.0, 3.0))));
-    add_net.push(Box::new(multipass::<U2>()));
-    add_net.pipe_input(0);
-    add_net.pipe(0, 1);
-    add_net.pipe_output(1);
+    let id0 = add_net.push(Box::new(add((2.0, 3.0))));
+    let idd = add_net.push(Box::new(zero()));
+    let id1 = add_net.push(Box::new(multipass::<U2>()));
+    add_net.remove(idd);
+    add_net.pipe_input(id0);
+    add_net.pipe(id0, id1);
+    add_net.pipe_output(id1);
     assert!(is_equal_unit(&mut rnd, &mut add_2_3, &mut add_net));
+    add_net.check();
 
     // Test multichannel constants vs. stacked constants.
     assert!(is_equal(

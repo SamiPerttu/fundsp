@@ -9,14 +9,31 @@ use super::signal::*;
 use super::*;
 use duplicate::duplicate_item;
 use funutd::*;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub type NodeIndex = usize;
 pub type PortIndex = usize;
 
+/// Globally unique node ID for a node in a network.
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+pub struct NodeId(u64);
+
+/// This atomic supplies globally unique IDs.
+static GLOBAL_NODE_ID: AtomicU64 = AtomicU64::new(0);
+
+impl NodeId {
+    /// Create a new, globally unique node ID.
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        NodeId(GLOBAL_NODE_ID.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
 const ID: u64 = 63;
 
 /// Input or output port.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Port {
     /// Node input or output.
     Local(NodeIndex, PortIndex),
@@ -44,7 +61,7 @@ pub fn edge(source: Port, target: Port) -> Edge {
 )]
 #[derive(Clone)]
 /// Individual AudioUnits are vertices in the graph.
-pub struct Vertex48 {
+struct Vertex48 {
     /// The unit.
     pub unit: Box<dyn AudioUnit48>,
     /// Edges connecting into this vertex. The length is equal to the number of inputs.
@@ -57,8 +74,8 @@ pub struct Vertex48 {
     pub tick_input: Vec<f48>,
     /// Output for tick iteration. The length is equal to the number of outputs.
     pub tick_output: Vec<f48>,
-    /// Index or ID of this unit. This equals unit index in graph.
-    pub id: NodeIndex,
+    /// Stable, globally unique ID for this vertex.
+    pub id: NodeId,
     /// This is set if all vertex inputs are sourced from matching outputs of the indicated node.
     /// We can then omit copying and use the node outputs directly.
     pub source_vertex: Option<NodeIndex>,
@@ -70,27 +87,17 @@ pub struct Vertex48 {
     [ f32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
 impl Vertex48 {
-    pub fn new(id: NodeIndex, inputs: usize, outputs: usize) -> Self {
-        Self {
-            unit: Box::new(super::prelude::pass()),
-            source: vec![],
-            input: Buffer::with_size(inputs),
-            output: Buffer::with_size(outputs),
-            tick_input: vec![0.0; inputs],
-            tick_output: vec![0.0; outputs],
-            id,
-            source_vertex: None,
-        }
-    }
-
+    /// Number of input channels.
     pub fn inputs(&self) -> usize {
         self.tick_input.len()
     }
 
+    /// Number of output channels.
     pub fn outputs(&self) -> usize {
         self.tick_output.len()
     }
 
+    /// Update source vertex shortcut.
     pub fn update_source_vertex(&mut self) {
         self.source_vertex = None;
         if self.inputs() == 0 {
@@ -136,6 +143,8 @@ pub struct Net48 {
     vertex: Vec<Vertex48>,
     /// Ordering of vertex evaluation.
     order: Option<Vec<NodeIndex>>,
+    /// Translation map from node ID to vertex index.
+    node_index: HashMap<NodeId, NodeIndex>,
     sample_rate: f64,
     tmp_buffer: Buffer<f48>,
 }
@@ -152,7 +161,8 @@ impl Clone for Net48 {
             output: self.output.clone(),
             output_edge: self.output_edge.clone(),
             vertex: self.vertex.clone(),
-            order: None,
+            order: self.order.clone(),
+            node_index: self.node_index.clone(),
             sample_rate: self.sample_rate,
             tmp_buffer: self.tmp_buffer.clone(),
         }
@@ -167,6 +177,14 @@ impl Clone for Net48 {
 impl Net48 {
     /// Create a new network with the given number of inputs and outputs.
     /// The number of inputs and outputs is fixed after construction.
+    ///
+    /// ### Example (Sine Oscillator)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::new(1, 1);
+    /// net.chain(Box::new(sine()));
+    /// net.check();
+    /// ```
     pub fn new(inputs: usize, outputs: usize) -> Self {
         let mut net = Self {
             input: Buffer::with_size(inputs),
@@ -174,6 +192,7 @@ impl Net48 {
             output_edge: vec![],
             vertex: vec![],
             order: None,
+            node_index: HashMap::new(),
             sample_rate: DEFAULT_SR,
             tmp_buffer: Buffer::new(),
         };
@@ -185,13 +204,23 @@ impl Net48 {
     }
 
     /// Add a new unit to the network. Return its ID handle.
-    /// ID handles are always consecutive numbers starting from zero.
     /// The unit is reset with the sample rate of the network.
-    pub fn push(&mut self, mut unit: Box<dyn AudioUnit48>) -> NodeIndex {
+    ///
+    /// ### Example (Sine Oscillator)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::new(1, 1);
+    /// let id = net.push(Box::new(sine()));
+    /// net.pipe_input(id);
+    /// net.pipe_output(id);
+    /// net.check();
+    /// ```
+    pub fn push(&mut self, mut unit: Box<dyn AudioUnit48>) -> NodeId {
         unit.reset(Some(self.sample_rate));
-        let id = self.vertex.len();
+        let index = self.vertex.len();
         let inputs = unit.inputs();
         let outputs = unit.outputs();
+        let id = NodeId::new();
         let mut vertex = Vertex48 {
             unit,
             source: vec![],
@@ -203,9 +232,10 @@ impl Net48 {
             source_vertex: None,
         };
         for i in 0..vertex.inputs() {
-            vertex.source.push(edge(Port::Zero, Port::Local(id, i)));
+            vertex.source.push(edge(Port::Zero, Port::Local(index, i)));
         }
         self.vertex.push(vertex);
+        self.node_index.insert(id, index);
         // Note. We have designed the hash to depend on vertices but not edges.
         let hash = self.ping(true, AttoHash::new(ID));
         self.ping(false, hash);
@@ -223,18 +253,135 @@ impl Net48 {
         self.order = None;
     }
 
+    /// Remove `node` from network. Returns the unit that was removed.
+    ///
+    /// ### Example (Sine Oscillator)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::new(1, 1);
+    /// let id1 = net.push(Box::new(sine()));
+    /// let id2 = net.push(Box::new(sine()));
+    /// net.connect_input(0, id2, 0);
+    /// net.connect_output(id2, 0, 0);
+    /// net.remove(id1);
+    /// assert!(net.size() == 1);
+    /// net.check();
+    /// ```
+    pub fn remove(&mut self, node: NodeId) -> Box<dyn AudioUnit48> {
+        let node_index = self.node_index[&node];
+        // Replace with zero all global ports that use an output of the node.
+        for channel in 0..self.outputs() {
+            if let Port::Local(index, _port) = self.output_edge[channel].source {
+                if index == node_index {
+                    self.output_edge[channel].source = Port::Zero;
+                }
+            }
+        }
+        // Replace with zero all local ports that use an output of the node.
+        for vertex in 0..self.size() {
+            for channel in 0..self.vertex[vertex].inputs() {
+                if let Port::Local(index, _port) = self.vertex[vertex].source[channel].source {
+                    if index == node_index {
+                        self.vertex[vertex].source[channel].source = Port::Zero;
+                    }
+                }
+            }
+        }
+        self.node_index.remove(&self.vertex[node_index].id);
+        let last_index = self.size() - 1;
+        if last_index != node_index {
+            // Move node from `last_index` to `node_index`.
+            self.vertex.swap(node_index, last_index);
+            self.node_index
+                .insert(self.vertex[node_index].id, node_index);
+            for channel in 0..self.outputs() {
+                if let Port::Local(index, port) = self.output_edge[channel].source {
+                    if index == last_index {
+                        self.output_edge[channel].source = Port::Local(node_index, port);
+                    }
+                }
+            }
+            for vertex in 0..self.size() - 1 {
+                for channel in 0..self.vertex[vertex].inputs() {
+                    if let Port::Local(index, port) = self.vertex[vertex].source[channel].source {
+                        if index == last_index {
+                            self.vertex[vertex].source[channel].source =
+                                Port::Local(node_index, port);
+                        }
+                    }
+                }
+            }
+            for channel in 0..self.vertex[node_index].inputs() {
+                self.vertex[node_index].source[channel].target = Port::Local(node_index, channel);
+            }
+        }
+        self.invalidate_order();
+
+        self.vertex.pop().unwrap().unit
+    }
+
     /// Replaces the given node in the network.
     /// The replacement must have the same number of inputs and outputs
     /// as the node it is replacing.
-    pub fn replace(&mut self, node: NodeIndex, replacement: Box<dyn AudioUnit48>) {
-        assert!(replacement.inputs() == self.node(node).inputs());
-        assert!(replacement.outputs() == self.node(node).outputs());
-        self.vertex[node].unit = replacement;
+    /// Returns the unit that was replaced.
+    pub fn replace(
+        &mut self,
+        node: NodeId,
+        mut unit: Box<dyn AudioUnit48>,
+    ) -> Box<dyn AudioUnit48> {
+        let node_index = self.node_index[&node];
+        assert!(unit.inputs() == self.vertex[node_index].inputs());
+        assert!(unit.outputs() == self.vertex[node_index].outputs());
+        std::mem::swap(&mut self.vertex[node_index].unit, &mut unit);
+        unit
     }
 
     /// Connect the given unit output (`source`, `source_port`)
     /// to the given unit input (`target`, `target_port`).
+    ///
+    /// ### Example (Filtered Saw Oscillator)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::new(1, 1);
+    /// let id1 = net.push(Box::new(saw()));
+    /// let id2 = net.push(Box::new(lowpass_hz(1000.0, 1.0)));
+    /// net.connect(id1, 0, id2, 0);
+    /// net.pipe_input(id1);
+    /// net.pipe_output(id2);
+    /// net.check();
+    /// ```
     pub fn connect(
+        &mut self,
+        source: NodeId,
+        source_port: PortIndex,
+        target: NodeId,
+        target_port: PortIndex,
+    ) {
+        let source_index = self.node_index[&source];
+        let target_index = self.node_index[&target];
+        self.connect_index(source_index, source_port, target_index, target_port);
+    }
+
+    /// Disconnect `node` input `port`, replacing it with zero input.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::new(1, 1);
+    /// let id = net.chain(Box::new(pass()));
+    /// net.disconnect(id, 0);
+    /// assert!(net.filter_mono(1.0) == 0.0);
+    /// net.check();
+    /// ```
+    pub fn disconnect(&mut self, node: NodeId, port: PortIndex) {
+        let node_index = self.node_index[&node];
+        self.vertex[node_index].source[port].source = Port::Zero;
+        self.invalidate_order();
+    }
+
+    /// Connect the given unit output (`source`, `source_port`)
+    /// to the given unit input (`target`, `target_port`).
+    fn connect_index(
         &mut self,
         source: NodeIndex,
         source_port: PortIndex,
@@ -253,6 +400,18 @@ impl Net48 {
     pub fn connect_input(
         &mut self,
         global_input: PortIndex,
+        target: NodeId,
+        target_port: PortIndex,
+    ) {
+        let target_index = self.node_index[&target];
+        self.connect_input_index(global_input, target_index, target_port);
+    }
+
+    /// Connect the node input (`target`, `target_port`)
+    /// to the network input `global_input`.
+    fn connect_input_index(
+        &mut self,
+        global_input: PortIndex,
         target: NodeIndex,
         target_port: PortIndex,
     ) {
@@ -263,16 +422,35 @@ impl Net48 {
 
     /// Pipe global input to node `target`.
     /// Number of node inputs must match the number of network inputs.
-    pub fn pipe_input(&mut self, target: NodeIndex) {
-        assert!(self.vertex[target].inputs() == self.inputs());
+    pub fn pipe_input(&mut self, target: NodeId) {
+        let target_index = self.node_index[&target];
+        assert!(self.vertex[target_index].inputs() == self.inputs());
         for i in 0..self.inputs() {
-            self.vertex[target].source[i] = edge(Port::Global(i), Port::Local(target, i));
+            self.vertex[target_index].source[i] =
+                edge(Port::Global(i), Port::Local(target_index, i));
         }
         self.invalidate_order();
     }
 
     /// Connect node output (`source`, `source_port`) to network output `global_output`.
     pub fn connect_output(
+        &mut self,
+        source: NodeId,
+        source_port: PortIndex,
+        global_output: PortIndex,
+    ) {
+        let source_index = self.node_index[&source];
+        self.connect_output_index(source_index, source_port, global_output);
+    }
+
+    /// Disconnect global `output`. Replaces output with zero signal.
+    pub fn disconnect_output(&mut self, output: PortIndex) {
+        self.output_edge[output] = edge(Port::Zero, Port::Global(output));
+        self.invalidate_order();
+    }
+
+    /// Connect node output (`source`, `source_port`) to network output `global_output`.
+    fn connect_output_index(
         &mut self,
         source: NodeIndex,
         source_port: PortIndex,
@@ -287,32 +465,40 @@ impl Net48 {
 
     /// Pipe node outputs to global outputs.
     /// Number of outputs must match the number of network outputs.
-    pub fn pipe_output(&mut self, source: NodeIndex) {
-        assert!(self.vertex[source].outputs() == self.outputs());
-        for i in 0..self.outputs() {
-            self.output_edge[i] = edge(Port::Local(source, i), Port::Global(i));
+    pub fn pipe_output(&mut self, source: NodeId) {
+        let source_index = self.node_index[&source];
+        assert!(self.vertex[source_index].outputs() == self.outputs());
+        for channel in 0..self.outputs() {
+            self.output_edge[channel] =
+                edge(Port::Local(source_index, channel), Port::Global(channel));
         }
         self.invalidate_order();
     }
 
-    /// Add an arbitrary edge to the network.
-    pub fn join(&mut self, edge: Edge) {
-        match edge.target {
-            Port::Global(global_output) => self.output_edge[global_output] = edge,
-            Port::Local(target, target_port) => self.vertex[target].source[target_port] = edge,
-            _ => (),
-        }
+    /// Pass through global `input` to global `output`.
+    pub fn pass_through(&mut self, input: PortIndex, output: PortIndex) {
+        self.output_edge[output] = edge(Port::Global(input), Port::Global(output));
         self.invalidate_order();
     }
 
     /// Connect `source` to `target`.
     /// The number of outputs in `source` and number of inputs in `target` must match.
-    pub fn pipe(&mut self, source: NodeIndex, target: NodeIndex) {
-        assert!(self.vertex[source].outputs() == self.vertex[target].inputs());
-        for i in 0..self.vertex[target].inputs() {
-            self.vertex[target].source[i] = edge(Port::Local(source, i), Port::Local(target, i));
+    pub fn pipe(&mut self, source: NodeId, target: NodeId) {
+        let source_index = self.node_index[&source];
+        let target_index = self.node_index[&target];
+        assert!(self.vertex[source_index].outputs() == self.vertex[target_index].inputs());
+        for channel in 0..self.vertex[target_index].inputs() {
+            self.vertex[target_index].source[channel] = edge(
+                Port::Local(source_index, channel),
+                Port::Local(target_index, channel),
+            );
         }
         self.invalidate_order();
+    }
+
+    /// Number of nodes in the network.
+    pub fn size(&self) -> usize {
+        self.vertex.len()
     }
 
     /// Assuming this network is a chain of processing units ordered by increasing node ID,
@@ -320,16 +506,26 @@ impl Net48 {
     /// if possible. The number of inputs to the unit must match the number of outputs of the
     /// previous unit, or the number of network inputs if there is no previous unit.
     /// Returns the ID of the new unit.
-    pub fn chain(&mut self, unit: Box<dyn AudioUnit48>) -> NodeIndex {
+    ///
+    /// ### Example (Lowpass And Highpass Filters In Series)
+    /// ```
+    /// use fundsp::hacker32::*;
+    /// let mut net = Net32::new(1, 1);
+    /// net.chain(Box::new(lowpass_hz(2000.0, 1.0)));
+    /// net.chain(Box::new(highpass_hz(1000.0, 1.0)));
+    /// net.check();
+    /// ```
+    pub fn chain(&mut self, unit: Box<dyn AudioUnit48>) -> NodeId {
         let unit_inputs = unit.inputs();
         let unit_outputs = unit.outputs();
         let id = self.push(unit);
+        let index = self.node_index[&id];
         if self.outputs() == unit_outputs {
             self.pipe_output(id);
         }
         if unit_inputs > 0 {
-            if id > 0 {
-                self.pipe(id - 1, id);
+            if self.size() > 1 {
+                self.pipe(self.vertex[index - 1].id, id);
             } else {
                 self.pipe_input(id);
             }
@@ -338,13 +534,13 @@ impl Net48 {
     }
 
     /// Access node.
-    pub fn node(&self, node: NodeIndex) -> &dyn AudioUnit48 {
-        &*self.vertex[node].unit
+    pub fn node(&self, node: NodeId) -> &dyn AudioUnit48 {
+        &*self.vertex[self.node_index[&node]].unit
     }
 
     /// Access mutable node.
-    pub fn node_mut(&mut self, node: NodeIndex) -> &mut dyn AudioUnit48 {
-        &mut *self.vertex[node].unit
+    pub fn node_mut(&mut self, node: NodeId) -> &mut dyn AudioUnit48 {
+        &mut *self.vertex[self.node_index[&node]].unit
     }
 
     /// Compute and store node order for this network.
@@ -422,33 +618,6 @@ impl Net48 {
         true
     }
 
-    /// Returns an iterator over edges of the graph.
-    pub fn edges(&self) -> impl Iterator<Item = Edge> + '_ {
-        let mut node = 0;
-        let mut port = 0;
-        std::iter::from_fn(move || {
-            while node < self.vertex.len() {
-                if port >= self.vertex[node].inputs() {
-                    node += 1;
-                    port = 0;
-                } else {
-                    port += 1;
-                    return Some(self.vertex[node].source[port - 1]);
-                }
-            }
-            while node == self.vertex.len() {
-                if port >= self.outputs() {
-                    node += 1;
-                    port = 0;
-                } else {
-                    port += 1;
-                    return Some(self.output_edge[port - 1]);
-                }
-            }
-            None
-        })
-    }
-
     /// Wrap arbitrary unit in a network.
     pub fn wrap(unit: Box<dyn AudioUnit48>) -> Net48 {
         let mut net = Net48::new(unit.inputs(), unit.outputs());
@@ -470,6 +639,48 @@ impl Net48 {
             net.connect_output(id, 0, i);
         }
         net
+    }
+
+    /// Check internal consistency of the network. Panic if something is wrong.
+    pub fn check(&self) {
+        assert!(self.input.buffers() == self.inputs());
+        assert!(self.output.buffers() == self.outputs());
+        assert!(self.output_edge.len() == self.outputs());
+        assert!(self.node_index.len() == self.size());
+        for channel in 0..self.outputs() {
+            assert!(self.output_edge[channel].target == Port::Global(channel));
+            match self.output_edge[channel].source {
+                Port::Local(node, port) => {
+                    assert!(node < self.size());
+                    assert!(port < self.vertex[node].outputs());
+                }
+                Port::Global(port) => {
+                    assert!(port < self.inputs());
+                }
+                _ => (),
+            }
+        }
+        for index in 0..self.size() {
+            assert!(self.node_index[&self.vertex[index].id] == index);
+            assert!(self.vertex[index].source.len() == self.vertex[index].inputs());
+            assert!(self.vertex[index].input.buffers() == self.vertex[index].inputs());
+            assert!(self.vertex[index].output.buffers() == self.vertex[index].outputs());
+            assert!(self.vertex[index].tick_input.len() == self.vertex[index].inputs());
+            assert!(self.vertex[index].tick_output.len() == self.vertex[index].outputs());
+            for channel in 0..self.vertex[index].inputs() {
+                assert!(self.vertex[index].source[channel].target == Port::Local(index, channel));
+                match self.vertex[index].source[channel].source {
+                    Port::Local(node, port) => {
+                        assert!(node < self.size());
+                        assert!(port < self.vertex[node].outputs());
+                    }
+                    Port::Global(port) => {
+                        assert!(port < self.inputs());
+                    }
+                    _ => (),
+                }
+            }
+        }
     }
 }
 
@@ -686,7 +897,7 @@ impl Net48 {
             }
         }
         for node in offset..net1.vertex.len() {
-            net1.vertex[node].id = node;
+            net1.node_index.insert(net1.vertex[node].id, node);
             for port in 0..net1.vertex[node].inputs() {
                 match net1.vertex[node].source[port].source {
                     Port::Local(source_node, source_port) => {
@@ -737,7 +948,7 @@ impl Net48 {
             }
         }
         for node in offset..net1.vertex.len() {
-            net1.vertex[node].id = node;
+            net1.node_index.insert(net1.vertex[node].id, node);
             for port in 0..net1.vertex[node].inputs() {
                 match net1.vertex[node].source[port].source {
                     Port::Local(source_node, source_port) => {
@@ -782,7 +993,7 @@ impl Net48 {
         net1.vertex.append(&mut net2.vertex);
         net1.input.resize(inputs);
         for node in offset..net1.vertex.len() {
-            net1.vertex[node].id = node;
+            net1.node_index.insert(net1.vertex[node].id, node);
             for port in 0..net1.vertex[node].inputs() {
                 match net1.vertex[node].source[port].source {
                     Port::Local(source_node, source_port) => {
@@ -810,15 +1021,15 @@ impl Net48 {
                 Pass::<f48>::new(),
                 op.clone(),
             ))));
-            net1.connect_output(add_offset + i, 0, i);
+            net1.connect_output_index(add_offset + i, 0, i);
         }
         for i in 0..output1.len() {
             match output1[i].source {
                 Port::Local(source_node, source_port) => {
-                    net1.connect(source_node, source_port, add_offset + i, 0);
+                    net1.connect_index(source_node, source_port, add_offset + i, 0);
                 }
                 Port::Global(source_port) => {
-                    net1.connect_input(source_port, add_offset + i, 0);
+                    net1.connect_input_index(source_port, add_offset + i, 0);
                 }
                 _ => (),
             }
@@ -826,10 +1037,10 @@ impl Net48 {
         for i in 0..output2.len() {
             match output2[i].source {
                 Port::Local(source_node, source_port) => {
-                    net1.connect(source_node + offset, source_port, add_offset + i, 1);
+                    net1.connect_index(source_node + offset, source_port, add_offset + i, 1);
                 }
                 Port::Global(source_port) => {
-                    net1.connect_input(source_port + input_offset, add_offset + i, 1);
+                    net1.connect_input_index(source_port + input_offset, add_offset + i, 1);
                 }
                 _ => (),
             }
@@ -859,7 +1070,7 @@ impl Net48 {
         let offset = net1.vertex.len();
         net1.vertex.append(&mut net2.vertex);
         for node in offset..net1.vertex.len() {
-            net1.vertex[node].id = node;
+            net1.node_index.insert(net1.vertex[node].id, node);
             for port in 0..net1.vertex[node].inputs() {
                 match net1.vertex[node].source[port].source {
                     Port::Local(source_node, source_port) => {
@@ -885,15 +1096,15 @@ impl Net48 {
                 Pass::<f48>::new(),
                 FrameAdd::new(),
             ))));
-            net1.connect_output(add_offset + i, 0, i);
+            net1.connect_output_index(add_offset + i, 0, i);
         }
         for i in 0..output1.len() {
             match output1[i].source {
                 Port::Local(source_node, source_port) => {
-                    net1.connect(source_node, source_port, add_offset + i, 0);
+                    net1.connect_index(source_node, source_port, add_offset + i, 0);
                 }
                 Port::Global(source_port) => {
-                    net1.connect_input(source_port, add_offset + i, 0);
+                    net1.connect_input_index(source_port, add_offset + i, 0);
                 }
                 _ => (),
             }
@@ -901,10 +1112,10 @@ impl Net48 {
         for i in 0..output2.len() {
             match output2[i].source {
                 Port::Local(source_node, source_port) => {
-                    net1.connect(source_node + offset, source_port, add_offset + i, 1);
+                    net1.connect_index(source_node + offset, source_port, add_offset + i, 1);
                 }
                 Port::Global(source_port) => {
-                    net1.connect_input(source_port, add_offset + i, 1);
+                    net1.connect_input_index(source_port, add_offset + i, 1);
                 }
                 _ => (),
             }
@@ -926,7 +1137,7 @@ impl Net48 {
         net1.vertex.append(&mut net2.vertex);
         // Adjust local ports.
         for node in offset..net1.vertex.len() {
-            net1.vertex[node].id = node;
+            net1.node_index.insert(net1.vertex[node].id, node);
             for port in 0..net1.vertex[node].inputs() {
                 match net1.vertex[node].source[port].source {
                     Port::Local(source_node, source_port) => {
