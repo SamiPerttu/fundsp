@@ -324,10 +324,10 @@ pub fn multisink<N: Size<f64>>() -> An<Sink<N, f64>> {
 /// ### Example: Ping-Pong Delay
 /// ```
 /// use fundsp::hacker::*;
-/// feedback((delay(1.0) | delay(1.0)) >> swap() * db_amp(-3.0));
+/// feedback((delay(1.0) | delay(1.0)) >> swap_stereo() * db_amp(-3.0));
 /// ```
 #[inline]
-pub fn swap() -> An<Swap<f64>> {
+pub fn swap_stereo() -> An<Swap<f64>> {
     An(Swap::new())
 }
 

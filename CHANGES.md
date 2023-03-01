@@ -4,6 +4,7 @@
 
 - Fade curves for Sequencer events. To migrate, use the curve `Fade::Smooth`.
 - `Net32/64` now operates on stable node IDs of type `NodeId`. Other improvements.
+- `swap` opcode is now `swap_stereo`, to avoid possible conflics with `std::mem::swap`.
 
 ### Version 0.12
 
