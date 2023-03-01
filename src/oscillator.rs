@@ -195,6 +195,7 @@ impl<T: Real, N: Size<T>> AudioNode for Dsf<T, N> {
 }
 
 /// Karplus-Strong oscillator.
+/// Allocates: pluck buffer.
 /// - Input 0: extra string excitation.
 /// - Output 0: plucked string.
 #[derive(Clone)]
@@ -292,5 +293,11 @@ impl<T: Float> AudioNode for Pluck<T> {
         let mut output = new_signal_frame(self.outputs());
         output[0] = Signal::Latency(0.0);
         output
+    }
+
+    fn allocate(&mut self) {
+        if !self.initialized {
+            self.initialize_line();
+        }
     }
 }

@@ -898,6 +898,7 @@ pub fn multitick<N: Size<T>, T: Float>() -> An<Tick<N, T>> {
 
 /// Fixed delay of `t` seconds.
 /// Delay time is rounded to the nearest sample.
+/// Allocates: the delay line.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
 ///
@@ -913,6 +914,7 @@ pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
 
 /// Tapped delay line with cubic interpolation.
 /// Minimum and maximum delay times are in seconds.
+/// Allocates: the delay line.
 /// - Input 0: signal.
 /// - Input 1: delay time in seconds.
 /// - Output 0: delayed signal.
@@ -930,6 +932,7 @@ pub fn tap<T: Float>(min_delay: T, max_delay: T) -> An<Tap<U1, T>> {
 /// Tapped delay line with cubic interpolation.
 /// The number of taps is `N`.
 /// Minimum and maximum delay times are in seconds.
+/// Allocates: the delay line.
 /// - Input 0: signal.
 /// - Inputs 1...N: delay time in seconds.
 /// - Output 0: delayed signal.
@@ -1182,6 +1185,7 @@ pub fn follow<T: Float, F: Real, S: ScalarOrPair<Sample = F>>(t: S) -> An<AFollo
 
 /// Look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
+/// Allocates: look-ahead buffers.
 /// - Input 0: signal
 /// - Output 0: signal limited to -1...1
 #[inline]
@@ -1191,6 +1195,7 @@ pub fn limiter<T: Real, S: ScalarOrPair<Sample = T>>(time: S) -> An<Limiter<T, U
 
 /// Stereo look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
+/// Allocates: look-ahead buffers.
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: left signal limited to -1...1
@@ -1607,6 +1612,7 @@ pub fn dsf_square_r<T: Real>(roughness: T) -> An<Dsf<T, U1>> {
 
 /// Karplus-Strong plucked string oscillator with `frequency` in Hz.
 /// High frequency damping is in 0...1.
+/// Allocates: pluck buffer.
 /// - Input 0: string excitation
 /// - Output 0: oscillator output
 pub fn pluck<T: Float>(
@@ -1623,6 +1629,7 @@ pub fn pluck<T: Float>(
 }
 
 /// Saw wave oscillator.
+/// Allocates: global saw wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: saw wave
 #[inline]
@@ -1631,6 +1638,7 @@ pub fn saw<T: Float>() -> An<WaveSynth<'static, T, U1>> {
 }
 
 /// Square wave oscillator.
+/// Allocates: global square wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: square wave
 #[inline]
@@ -1639,6 +1647,7 @@ pub fn square<T: Float>() -> An<WaveSynth<'static, T, U1>> {
 }
 
 /// Triangle wave oscillator.
+/// Allocates: global triangle wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: triangle wave
 #[inline]
@@ -1647,6 +1656,7 @@ pub fn triangle<T: Float>() -> An<WaveSynth<'static, T, U1>> {
 }
 
 /// Organ oscillator.
+/// Allocates: global organ wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: organ wave
 #[inline]
@@ -1656,6 +1666,7 @@ pub fn organ<T: Float>() -> An<WaveSynth<'static, T, U1>> {
 
 /// Soft saw oscillator.
 /// Contains all partials, falls off like a triangle wave.
+/// Allocates: global soft saw wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: soft saw wave
 #[inline]
@@ -1664,6 +1675,7 @@ pub fn soft_saw<T: Float>() -> An<WaveSynth<'static, T, U1>> {
 }
 
 /// Fixed saw wave oscillator at `f` Hz.
+/// Allocates: global saw wavetable.
 /// - Output 0: saw wave
 #[inline]
 pub fn saw_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
@@ -1671,6 +1683,7 @@ pub fn saw_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, 
 }
 
 /// Fixed square wave oscillator at `f` Hz.
+/// Allocates: global square wavetable.
 /// - Output 0: square wave
 #[inline]
 pub fn square_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
@@ -1678,6 +1691,7 @@ pub fn square_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'stati
 }
 
 /// Fixed triangle wave oscillator at `f` Hz.
+/// Allocates: global triangle wavetable.
 /// - Output 0: triangle wave
 #[inline]
 pub fn triangle_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
@@ -1685,6 +1699,7 @@ pub fn triangle_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'sta
 }
 
 /// Fixed organ oscillator at `f` Hz.
+/// Allocates: global organ wavetable.
 /// - Output 0: organ wave
 #[inline]
 pub fn organ_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
@@ -1693,6 +1708,7 @@ pub fn organ_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static
 
 /// Fixed soft saw oscillator at `f` Hz.
 /// Contains all partials, falls off like a triangle wave.
+/// Allocates: global soft saw wavetable.
 /// - Output 0: soft saw wave
 #[inline]
 pub fn soft_saw_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {

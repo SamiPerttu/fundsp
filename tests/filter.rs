@@ -90,6 +90,8 @@ where
 {
     assert!(filter.inputs() == 1 && filter.outputs() == 1);
 
+    filter.allocate();
+
     let length = 0x10000;
     let sample_rate = 44_100.0;
 

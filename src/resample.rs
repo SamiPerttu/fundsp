@@ -109,4 +109,8 @@ where
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
+
+    fn allocate(&mut self) {
+        self.x.allocate();
+    }
 }

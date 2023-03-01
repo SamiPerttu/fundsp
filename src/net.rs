@@ -87,6 +87,25 @@ struct Vertex48 {
     [ f32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
 impl Vertex48 {
+    pub fn new(id: NodeId, index: NodeIndex, unit: Box<dyn AudioUnit48>) -> Self {
+        let inputs = unit.inputs();
+        let outputs = unit.outputs();
+        let mut vertex = Self {
+            unit,
+            source: vec![],
+            input: Buffer::with_size(inputs),
+            output: Buffer::with_size(outputs),
+            tick_input: vec![0.0; inputs],
+            tick_output: vec![0.0; outputs],
+            id,
+            source_vertex: None,
+        };
+        for i in 0..vertex.inputs() {
+            vertex.source.push(edge(Port::Zero, Port::Local(index, i)));
+        }
+        vertex
+    }
+
     /// Number of input channels.
     pub fn inputs(&self) -> usize {
         self.tick_input.len()
@@ -122,6 +141,11 @@ impl Vertex48 {
             }
         }
         self.source_vertex = Some(source_node);
+    }
+
+    /// Preallocate everything.
+    pub fn allocate(&mut self) {
+        self.unit.allocate();
     }
 }
 
@@ -218,22 +242,8 @@ impl Net48 {
     pub fn push(&mut self, mut unit: Box<dyn AudioUnit48>) -> NodeId {
         unit.reset(Some(self.sample_rate));
         let index = self.vertex.len();
-        let inputs = unit.inputs();
-        let outputs = unit.outputs();
         let id = NodeId::new();
-        let mut vertex = Vertex48 {
-            unit,
-            source: vec![],
-            input: Buffer::with_size(inputs),
-            output: Buffer::with_size(outputs),
-            tick_input: vec![0.0; inputs],
-            tick_output: vec![0.0; outputs],
-            id,
-            source_vertex: None,
-        };
-        for i in 0..vertex.inputs() {
-            vertex.source.push(edge(Port::Zero, Port::Local(index, i)));
-        }
+        let vertex = Vertex48::new(id, index, unit);
         self.vertex.push(vertex);
         self.node_index.insert(id, index);
         // Note. We have designed the hash to depend on vertices but not edges.
@@ -844,6 +854,15 @@ impl AudioUnit48 for Net48 {
 
     fn footprint(&self) -> usize {
         std::mem::size_of::<Self>()
+    }
+
+    fn allocate(&mut self) {
+        if !self.is_ordered() {
+            self.determine_order();
+        }
+        for vertex in self.vertex.iter_mut() {
+            vertex.allocate();
+        }
     }
 }
 

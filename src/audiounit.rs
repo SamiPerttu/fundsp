@@ -30,7 +30,7 @@ pub trait AudioUnit48: Send + Sync + DynClone {
 
     /// Process up to 64 (MAX_BUFFER_SIZE) samples.
     /// Buffers are supplied as slices. All buffers must have room for at least `size` samples.
-    /// Size may be zero; in that case this is a hint to preallocate any buffers needed for block processing.
+    /// If `size` is zero then this is a no-op, which is permitted.
     /// The number of input and output buffers must be equal to `inputs` and `outputs`, respectively.
     fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]);
 
@@ -69,7 +69,14 @@ pub trait AudioUnit48: Send + Sync + DynClone {
         hash.hash(self.get_id())
     }
 
-    // End of interface. No need to override the following.
+    /// Memory footprint of this unit in bytes, without counting buffers and other allocations.
+    fn footprint(&self) -> usize;
+
+    /// Preallocate all needed memory, including buffers for block processing.
+    /// The default implementation does nothing.
+    fn allocate(&mut self) {}
+
+    // End of interface. There is no need to override the following.
 
     /// Evaluate frequency response of `output` at `frequency` Hz.
     /// Any linear response can be composed.
@@ -231,9 +238,6 @@ pub trait AudioUnit48: Send + Sync + DynClone {
         (output[0], output[1])
     }
 
-    /// Memory footprint of this unit in bytes, without counting buffers and other allocations.
-    fn footprint(&self) -> usize;
-
     /// Print information about this unit into a string.
     fn display(&mut self) -> String {
         let mut string = String::new();
@@ -391,6 +395,9 @@ where
     fn footprint(&self) -> usize {
         std::mem::size_of::<X>()
     }
+    fn allocate(&mut self) {
+        self.0.allocate();
+    }
 }
 
 /// A big block adapter.
@@ -507,6 +514,15 @@ impl AudioUnit48 for BigBlockAdapter48 {
     fn footprint(&self) -> usize {
         self.source.footprint()
     }
+    fn allocate(&mut self) {
+        for input_buffer in self.input.iter_mut() {
+            input_buffer.resize(MAX_BUFFER_SIZE, 0.0);
+        }
+        for output_buffer in self.output.iter_mut() {
+            output_buffer.resize(MAX_BUFFER_SIZE, 0.0);
+        }
+        self.source.allocate();
+    }
 }
 
 /// Block rate adapter converts processing calls to maximum length block processing.
@@ -599,5 +615,9 @@ impl AudioUnit48 for BlockRateAdapter48 {
     }
     fn footprint(&self) -> usize {
         self.unit.footprint()
+    }
+    fn allocate(&mut self) {
+        self.buffer.resize(self.channels);
+        self.unit.allocate();
     }
 }

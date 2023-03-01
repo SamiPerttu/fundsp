@@ -27,6 +27,7 @@ impl<T: Num> Amplitude<T> {
 }
 
 impl<T: Num> Monoidal<T> for Amplitude<T> {
+    #[inline]
     fn binop(&self, x: T, y: T) -> T {
         max(abs(x), abs(y))
     }
@@ -44,6 +45,7 @@ impl<T: Num> Maximum<T> {
 }
 
 impl<T: Num> Monoidal<T> for Maximum<T> {
+    #[inline]
     fn binop(&self, x: T, y: T) -> T {
         max(x, y)
     }
@@ -75,12 +77,16 @@ where
     // Assumption: 0 is the zero element.
     pub fn new(length: usize, binop: B) -> Self {
         let leaf_offset = length.next_power_of_two();
-        ReduceBuffer {
-            buffer: vec![T::zero(); leaf_offset + length + (length & 1)],
+        let mut buffer = Self {
+            buffer: vec![],
             length,
             leaf_offset,
             binop,
-        }
+        };
+        buffer
+            .buffer
+            .resize(leaf_offset + length + (length & 1), T::zero());
+        buffer
     }
 
     pub fn length(&self) -> usize {
@@ -230,6 +236,13 @@ where
             output[i] = input[i].delay(self.reducer.length() as f64);
         }
         output
+    }
+
+    fn allocate(&mut self) {
+        if self.buffer.capacity() < self.reducer.length() {
+            self.buffer
+                .reserve(self.reducer.length() - self.buffer.capacity());
+        }
     }
 }
 

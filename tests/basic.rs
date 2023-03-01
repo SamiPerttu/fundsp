@@ -17,6 +17,7 @@ use funutd::*;
 /// via `process` (block processing) and `tick` (single sample processing).
 /// Also check that the generator is reset properly.
 fn check_wave(mut node: impl AudioUnit64) {
+    node.allocate();
     let wave = Wave64::render(44100.0, 1.0, &mut node);
 
     assert!(wave.channels() == 2);
@@ -39,6 +40,7 @@ fn check_wave_big(node: Box<dyn AudioUnit64>) {
     let mut wave = Wave64::with_capacity(2, 44100.0, 44100);
     wave.resize(44100);
     let mut big = BigBlockAdapter64::new(node);
+    big.allocate();
     big.process(44100, &[], wave.channels_mut());
     big.reset(None);
     for i in 0..44100 {
@@ -55,6 +57,7 @@ fn check_wave_big(node: Box<dyn AudioUnit64>) {
 /// via `process` (block processing) and `tick` (single sample processing).
 /// Also check that the generator is reset properly.
 fn check_wave_filter(input: &Wave64, mut node: impl AudioUnit64) {
+    node.allocate();
     let wave = input.filter(1.1, &mut node);
     assert!(wave.channels() == 2);
     assert!(wave.length() == 44100 + 4410);

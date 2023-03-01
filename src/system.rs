@@ -102,4 +102,8 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone> AudioNode for Syste
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.x.route(input, frequency)
     }
+
+    fn allocate(&mut self) {
+        self.x.allocate();
+    }
 }

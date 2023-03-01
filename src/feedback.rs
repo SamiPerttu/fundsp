@@ -152,6 +152,10 @@ where
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
+
+    fn allocate(&mut self) {
+        self.x.allocate();
+    }
 }
 
 /// Mix back output of contained node `X` to its input, with extra feedback processing `Y`.
@@ -244,5 +248,9 @@ where
 
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
+    }
+
+    fn allocate(&mut self) {
+        self.x.allocate();
     }
 }

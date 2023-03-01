@@ -71,7 +71,7 @@ pub trait AudioNode: Clone {
     /// Process up to 64 (`MAX_BUFFER_SIZE`) samples.
     /// The number of input and output buffers must match the number of inputs and outputs, respectively.
     /// All input and output buffers must be at least as large as `size`.
-    /// Size may be zero; in that case this call is a hint to preallocate any buffers needed for block processing.
+    /// If `size` is zero then this is a no-op, which is permitted.
     /// The default implementation is a fallback that calls into `tick`.
     fn process(
         &mut self,
@@ -117,6 +117,10 @@ pub trait AudioNode: Clone {
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         new_signal_frame(self.outputs())
     }
+
+    /// Preallocate all needed memory, including buffers for block processing.
+    /// The default implementation does nothing.
+    fn allocate(&mut self) {}
 
     // End of interface. There is no need to override the following.
 
@@ -955,6 +959,12 @@ where
         }
         signal_x
     }
+
+    fn allocate(&mut self) {
+        self.buffer.resize(self.outputs());
+        self.x.allocate();
+        self.y.allocate();
+    }
 }
 
 /// Provides unary operator implementations to the `Unop` node.
@@ -1174,6 +1184,9 @@ where
         }
         signal_x
     }
+    fn allocate(&mut self) {
+        self.x.allocate();
+    }
 }
 
 /// Map any number of channels.
@@ -1359,6 +1372,12 @@ where
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.y.route(&self.x.route(input, frequency), frequency)
     }
+
+    fn allocate(&mut self) {
+        self.buffer.resize(self.x.outputs());
+        self.x.allocate();
+        self.y.allocate();
+    }
 }
 
 /// Stack `X` and `Y` in parallel.
@@ -1492,6 +1511,11 @@ where
             .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
         signal_x
     }
+
+    fn allocate(&mut self) {
+        self.x.allocate();
+        self.y.allocate();
+    }
 }
 
 /// Send the same input to `X` and `Y`. Concatenate outputs.
@@ -1609,6 +1633,10 @@ where
         signal_x[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&signal_y[0..Y::Outputs::USIZE]);
         signal_x
+    }
+    fn allocate(&mut self) {
+        self.x.allocate();
+        self.y.allocate();
     }
 }
 
@@ -1735,6 +1763,12 @@ where
         }
         signal_x
     }
+
+    fn allocate(&mut self) {
+        self.buffer.resize(self.outputs());
+        self.x.allocate();
+        self.y.allocate();
+    }
 }
 
 /// Pass through inputs without matching outputs.
@@ -1802,7 +1836,7 @@ impl<X: AudioNode> AudioNode for Thru<X> {
             // The intermediate buffer is only used in this "degenerate" case where
             // we are not passing through inputs - we are cutting out some of them.
             self.x
-                .process(size, input, self.buffer.get_mut(X::Inputs::USIZE));
+                .process(size, input, self.buffer.get_mut(X::Outputs::USIZE));
             for channel in 0..X::Inputs::USIZE {
                 output[channel][..size].clone_from_slice(&self.buffer.at(channel)[..size]);
             }
@@ -1825,6 +1859,13 @@ impl<X: AudioNode> AudioNode for Thru<X> {
         output[X::Outputs::USIZE..Self::Outputs::USIZE]
             .copy_from_slice(&input[X::Outputs::USIZE..Self::Outputs::USIZE]);
         output
+    }
+
+    fn allocate(&mut self) {
+        if X::Inputs::USIZE < X::Outputs::USIZE {
+            self.buffer.resize(X::Outputs::USIZE);
+        }
+        self.x.allocate();
     }
 }
 
@@ -1952,6 +1993,13 @@ where
             }
         }
         output
+    }
+
+    fn allocate(&mut self) {
+        self.buffer.resize(X::Outputs::USIZE);
+        for x in &mut self.x {
+            x.allocate();
+        }
     }
 }
 
@@ -2088,6 +2136,12 @@ where
                 .copy_from_slice(&output_i[0..X::Outputs::USIZE]);
         }
         output
+    }
+
+    fn allocate(&mut self) {
+        for x in &mut self.x {
+            x.allocate();
+        }
     }
 }
 
@@ -2236,6 +2290,13 @@ where
         }
         output
     }
+
+    fn allocate(&mut self) {
+        self.buffer.resize(X::Outputs::USIZE);
+        for x in &mut self.x {
+            x.allocate();
+        }
+    }
 }
 
 /// Branch into a bunch of similar nodes in parallel.
@@ -2358,6 +2419,12 @@ where
         }
         output
     }
+
+    fn allocate(&mut self) {
+        for x in &mut self.x {
+            x.allocate();
+        }
+    }
 }
 
 /// Chain together a bunch of similar nodes.
@@ -2435,6 +2502,7 @@ where
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.iter_mut().for_each(|node| node.reset(sample_rate));
     }
+
     #[inline]
     fn tick(
         &mut self,
@@ -2446,6 +2514,7 @@ where
         }
         output
     }
+
     fn process(
         &mut self,
         size: usize,
@@ -2501,6 +2570,14 @@ where
             output = self.x[i].route(&output, frequency);
         }
         output
+    }
+
+    fn allocate(&mut self) {
+        self.buffer_a.resize(X::Outputs::USIZE);
+        self.buffer_b.resize(X::Outputs::USIZE);
+        for x in &mut self.x {
+            x.allocate();
+        }
     }
 }
 

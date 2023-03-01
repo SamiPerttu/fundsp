@@ -224,7 +224,7 @@ pub fn zero() -> An<Constant<U1, f32>> {
 /// ### Example: Stereo Pluck Oscillator
 /// ```
 /// use fundsp::hacker32::*;
-/// multizero::<U2>() >> (pluck(220.0, db_amp(-6.0), 0.5) | pluck(220.0, db_amp(-6.0), 0.5));
+/// multizero() >> (pluck(220.0, db_amp(-6.0), 0.5) | pluck(220.0, db_amp(-6.0), 0.5));
 /// ```
 #[inline]
 pub fn multizero<N: Size<f32>>() -> An<Constant<N, f32>> {
@@ -858,6 +858,7 @@ pub fn multitick<N: Size<f32>>() -> An<Tick<N, f32>> {
 
 /// Fixed delay of `t` seconds.
 /// Delay time is rounded to the nearest sample.
+/// Allocates: the delay line.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
 ///
@@ -873,6 +874,7 @@ pub fn delay(t: f32) -> An<Delay<f32>> {
 
 /// Tapped delay line with cubic interpolation.
 /// Minimum and maximum delay times are in seconds.
+/// Allocates: the delay line.
 /// - Input 0: signal.
 /// - Input 1: delay time in seconds.
 /// - Output 0: delayed signal.
@@ -890,6 +892,7 @@ pub fn tap(min_delay: f32, max_delay: f32) -> An<Tap<U1, f32>> {
 /// Tapped delay line with cubic interpolation.
 /// The number of taps is `N`.
 /// Minimum and maximum delay times are in seconds.
+/// Allocates: the delay line.
 /// - Input 0: signal.
 /// - Inputs 1...N: delay time in seconds.
 /// - Output 0: delayed signal.
@@ -1136,6 +1139,7 @@ pub fn follow<S: ScalarOrPair<Sample = f32>>(t: S) -> An<AFollow<f32, f32, S>> {
 
 /// Look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
+/// Allocates: look-ahead buffers.
 /// - Input 0: signal
 /// - Output 0: signal limited to -1...1
 #[inline]
@@ -1145,6 +1149,7 @@ pub fn limiter<S: ScalarOrPair<Sample = f32>>(time: S) -> An<Limiter<f32, U1, S>
 
 /// Stereo look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
+/// Allocates: look-ahead buffers.
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: left signal limited to -1...1
@@ -1471,6 +1476,7 @@ pub fn dsf_square_r(roughness: f32) -> An<Dsf<f32, U1>> {
 
 /// Karplus-Strong plucked string oscillator with `frequency` in Hz.
 /// High frequency damping is in 0...1.
+/// Allocates: pluck buffer.
 /// - Input 0: string excitation
 /// - Output 0: oscillator output
 pub fn pluck(frequency: f32, gain_per_second: f32, high_frequency_damping: f32) -> An<Pluck<f32>> {
@@ -1483,6 +1489,7 @@ pub fn pluck(frequency: f32, gain_per_second: f32, high_frequency_damping: f32) 
 }
 
 /// Saw wave oscillator.
+/// Allocates: global saw wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: saw wave
 #[inline]
@@ -1491,6 +1498,7 @@ pub fn saw() -> An<WaveSynth<'static, f32, U1>> {
 }
 
 /// Square wave oscillator.
+/// Allocates: global square wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: square wave
 #[inline]
@@ -1499,6 +1507,7 @@ pub fn square() -> An<WaveSynth<'static, f32, U1>> {
 }
 
 /// Triangle wave oscillator.
+/// Allocates: global triangle wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: triangle wave
 #[inline]
@@ -1507,6 +1516,7 @@ pub fn triangle() -> An<WaveSynth<'static, f32, U1>> {
 }
 
 /// Organ oscillator.
+/// Allocates: global organ wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: organ wave
 #[inline]
@@ -1516,6 +1526,7 @@ pub fn organ() -> An<WaveSynth<'static, f32, U1>> {
 
 /// Soft saw oscillator.
 /// Contains all partials, falls off like a triangle wave.
+/// Allocates: global soft saw wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: soft saw wave
 #[inline]
@@ -1524,6 +1535,7 @@ pub fn soft_saw() -> An<WaveSynth<'static, f32, U1>> {
 }
 
 /// Fixed saw wave oscillator at `f` Hz.
+/// Allocates: global saw wavetable.
 /// - Output 0: saw wave
 #[inline]
 pub fn saw_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f32, U1>>> {
@@ -1531,6 +1543,7 @@ pub fn saw_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f32,
 }
 
 /// Fixed square wave oscillator at `f` Hz.
+/// Allocates: global square wavetable.
 /// - Output 0: square wave
 #[inline]
 pub fn square_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f32, U1>>> {
@@ -1538,6 +1551,7 @@ pub fn square_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f
 }
 
 /// Fixed triangle wave oscillator at `f` Hz.
+/// Allocates: global triangle wavetable.
 /// - Output 0: triangle wave
 #[inline]
 pub fn triangle_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f32, U1>>> {
@@ -1545,6 +1559,7 @@ pub fn triangle_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static,
 }
 
 /// Fixed organ oscillator at `f` Hz.
+/// Allocates: global organ wavetable.
 /// - Output 0: organ wave
 #[inline]
 pub fn organ_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f32, U1>>> {
@@ -1553,6 +1568,7 @@ pub fn organ_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f3
 
 /// Fixed soft saw oscillator at `f` Hz.
 /// Contains all partials, falls off like a triangle wave.
+/// Allocates: global soft saw wavetable.
 /// - Output 0: soft saw wave
 #[inline]
 pub fn soft_saw_hz(f: f32) -> An<Pipe<f32, Constant<U1, f32>, WaveSynth<'static, f32, U1>>> {
