@@ -2,7 +2,7 @@
 #![allow(clippy::precedence)]
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-
+use cpal::{FromSample, SizedSample};
 use fundsp::hacker::*;
 use funutd::dna::*;
 
@@ -18,12 +18,13 @@ fn main() {
         cpal::SampleFormat::F32 => run::<f32>(&device, &config.into()).unwrap(),
         cpal::SampleFormat::I16 => run::<i16>(&device, &config.into()).unwrap(),
         cpal::SampleFormat::U16 => run::<u16>(&device, &config.into()).unwrap(),
+        _ => panic!("Unsupported format"),
     }
 }
 
 fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyhow::Error>
 where
-    T: cpal::Sample,
+    T: SizedSample + FromSample<f64>,
 {
     let sample_rate = config.sample_rate.0 as f64;
     let channels = config.channels as usize;
@@ -97,7 +98,7 @@ where
         move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
             write_data(data, channels, &mut next_value)
         },
-        err_fn,
+        err_fn, None
     )?;
     stream.play()?;
 
@@ -108,12 +109,12 @@ where
 
 fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f64, f64))
 where
-    T: cpal::Sample,
+    T: SizedSample + FromSample<f64>,
 {
     for frame in output.chunks_mut(channels) {
         let sample = next_sample();
-        let left: T = cpal::Sample::from::<f32>(&(sample.0 as f32));
-        let right: T = cpal::Sample::from::<f32>(&(sample.1 as f32));
+        let left: T = T::from_sample(sample.0);
+        let right: T = T::from_sample(sample.1);
 
         for (channel, sample) in frame.iter_mut().enumerate() {
             if channel & 1 == 0 {

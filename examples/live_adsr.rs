@@ -21,7 +21,7 @@
 
 use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, Sample, SampleFormat, StreamConfig};
+use cpal::{Device, SampleFormat, StreamConfig, FromSample, SizedSample};
 use fundsp::hacker::{adsr_live, midi_hz, shared, triangle, var, Shared};
 use fundsp::prelude::AudioUnit64;
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
@@ -165,12 +165,13 @@ fn run_output(
         SampleFormat::U16 => {
             run_synth::<u16>(pitch, volume, pitch_bend, control, device, config.into())
         }
+        _ => panic!("Unsupported format"),
     }
 }
 
 /// This function is where the sound is created and played. Once the sound is playing, it loops
 /// infinitely, allowing the `shared()` objects to shape the sound in response to MIDI events.
-fn run_synth<T: Sample>(
+fn run_synth<T: SizedSample + FromSample<f64>>(
     pitch: Shared<f64>,
     volume: Shared<f64>,
     pitch_bend: Shared<f64>,
@@ -192,7 +193,7 @@ fn run_synth<T: Sample>(
                 move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
                     write_data(data, channels, &mut next_value)
                 },
-                err_fn,
+                err_fn, None
             )
             .unwrap();
 
@@ -210,15 +211,15 @@ fn pitch_bend_factor(bend: u16) -> f64 {
 }
 
 /// Callback function to send the current sample to the speakers.
-fn write_data<T: Sample>(
+fn write_data<T: SizedSample + FromSample<f64>>(
     output: &mut [T],
     channels: usize,
     next_sample: &mut dyn FnMut() -> (f64, f64),
 ) {
     for frame in output.chunks_mut(channels) {
         let sample = next_sample();
-        let left: T = Sample::from::<f32>(&(sample.0 as f32));
-        let right: T = Sample::from::<f32>(&(sample.1 as f32));
+        let left: T = T::from_sample(sample.0);
+        let right: T = T::from_sample(sample.1);
 
         for (channel, sample) in frame.iter_mut().enumerate() {
             *sample = if channel & 1 == 0 { left } else { right };

@@ -501,7 +501,7 @@ impl Net48 {
         self.vertex.len()
     }
 
-    /// Assuming this network is a chain of processing units ordered by increasing node ID,
+    /// Assuming this network is a chain of processing units ordered by insertion order,
     /// add a new unit to the chain. Global outputs will be assigned to the outputs of the unit
     /// if possible. The number of inputs to the unit must match the number of outputs of the
     /// previous unit, or the number of network inputs if there is no previous unit.
