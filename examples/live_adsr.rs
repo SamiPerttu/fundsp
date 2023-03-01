@@ -21,7 +21,7 @@
 
 use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, SampleFormat, StreamConfig, FromSample, SizedSample};
+use cpal::{Device, FromSample, SampleFormat, SizedSample, StreamConfig};
 use fundsp::hacker::{adsr_live, midi_hz, shared, triangle, var, Shared};
 use fundsp::prelude::AudioUnit64;
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
@@ -193,7 +193,8 @@ fn run_synth<T: SizedSample + FromSample<f64>>(
                 move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
                     write_data(data, channels, &mut next_value)
                 },
-                err_fn, None
+                err_fn,
+                None,
             )
             .unwrap();
 

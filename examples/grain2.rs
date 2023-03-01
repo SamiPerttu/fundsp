@@ -98,7 +98,8 @@ where
         move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
             write_data(data, channels, &mut next_value)
         },
-        err_fn, None
+        err_fn,
+        None,
     )?;
     stream.play()?;
 
