@@ -203,7 +203,9 @@ pub fn dexerp11<T: Real>(a: T, b: T, x: T) -> T {
 }
 
 /// Return a dissonance amount between pure tones at `f0` and `f1` Hz.
-/// Dissonance amounts range between 0 and 1.
+/// Dissonance amounts range between 0 (no dissonance) and 1 (maximum dissonance).
+/// This function is often the basis for more sophisticated calculations
+/// that take overtones and octave equivalence into account.
 #[inline]
 pub fn dissonance<T: Real>(f0: T, f1: T) -> T {
     let q = abs(f0 - f1) / (T::from_f64(0.021) * min(f0, f1) + T::from_f64(19.0));
@@ -294,7 +296,7 @@ pub fn spline_mono<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
         + y1
 }
 
-/// Softsign function.
+/// Softsign function. Fast `tanh` like function. Squashes `x` to the range -1...1.
 #[inline]
 pub fn softsign<T: Num>(x: T) -> T {
     x / (T::one() + x.abs())

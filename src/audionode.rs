@@ -48,6 +48,13 @@ pub trait AudioNode: Clone {
     /// not processed any samples. In other words, reset time to zero.
     /// The sample rate can be set optionally. The default sample rate is 44.1 kHz.
     /// The default implementation does nothing.
+    ///
+    /// ### Example (Changing The Sample Rate)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut component = saw_hz(440.0);
+    /// component.reset(Some(48_000.0));
+    /// ```
     #[allow(unused_variables)]
     fn reset(&mut self, sample_rate: Option<f64>) {}
 

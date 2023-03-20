@@ -377,6 +377,20 @@ Connectivity checks are then deferred to runtime.
 `Net32` and `Net64` can also be combined inline with components from the preludes.
 The components are first converted to `Net32` or `Net64`.
 
+When you need dynamic processing, you can start it with `Net32::wrap` or `Net64::wrap`,
+which convert any unit into a network.
+
+```rust
+use fundsp::hacker::*;
+// Wrap saw wave in a network.
+let mut net = Net64::wrap(Box::new(saw()));
+// Now we can add filters conditionally.
+let add_filter = true;
+if add_filter {
+    net = net >> lowpass_hz(1000.0, 1.0);
+}
+```
+
 ## Input Modalities And Ranges
 
 Some signals found flowing in audio networks.
@@ -773,8 +787,8 @@ The type parameters in the table refer to the hacker preludes.
 | `envelope_in(f)`       |   `f`   |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, i: &Frame<f64, U1>\| exp(-t * i[0])`. Synonymous with `lfo_in`. |
 | `fdn(x)`               |   `x`   |   `x`   | Enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
 | `fdn2(x, y)`           | `x`, `y`| `x`, `y`| Enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback, with extra feedback loop processing `y`. The feedforward path does not include `y`. |
-| `feedback(x)`          |   `x`   |   `x`   | Enclose feedback circuit `x` (with equal number of inputs and outputs). |
-| `feedback2(x, y)`      | `x`, `y`| `x`, `y`| Enclose feedback circuit `x` (with equal number of inputs and outputs) with extra feedback loop processing `y`. The feedforward path does not include `y`. |
+| `feedback(x)`          |   `x`   |   `x`   | Enclose (single sample) feedback circuit `x` (with equal number of inputs and outputs). |
+| `feedback2(x, y)`      | `x`, `y`| `x`, `y`| Enclose (single sample) feedback circuit `x` (with equal number of inputs and outputs) with extra feedback loop processing `y`. The feedforward path does not include `y`. |
 | `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))`. |
 | `flanger(fb, min_d, max_d, f)`| 1|    1    | Flanger effect with feedback amount `fb`, minimum delay `min_d` seconds, maximum delay `max_d` seconds and delay function `f`, e.g., `\|t\| lerp11(0.01, 0.02, sin_hz(0.1, t))`. |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
@@ -1083,7 +1097,7 @@ Some examples of graph expressions.
 | `lfo(\|t\| xerp11(0.25, 4.0, spline_noise(1, t))) >> resample(pink())` | 0 | 1 | Resampled pink noise. |
 | `feedback(delay(1.0) * db_amp(-3.0))`    |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 | `feedback((delay(1.0) \| delay(1.0)) >> swap_stereo() * db_amp(-6.0))` | 2 | 2 | 1 second ping-pong delay with 6 dB attenuation. |
-| `var(&wet) * delay(1.0) & (dc(1.0) - var(&wet)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by shared variable `wet`. The shared variable can be declared as `let wet = shared(0.5);` |
+| `var(&wet) * delay(1.0) & (1.0 - var(&wet)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by shared variable `wet`. The shared variable can be declared as `let wet = shared(0.5);` |
 | `sine() & mul(semitone_ratio(4.0)) >> sine() & mul(semitone_ratio(7.0)) >> sine()` | 1 | 1 | major chord |
 | `dc(midi_hz(72.0)) >> sine() & dc(midi_hz(76.0)) >> sine() & dc(midi_hz(79.0)) >> sine()` | 0 | 1 | C major chord generator |
 | `!zero()`                                |   0    |    0    | A null node. Stacking it with another node modifies its sound subtly, as the hash is altered. |

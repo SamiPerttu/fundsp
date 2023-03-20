@@ -331,9 +331,20 @@ impl Net48 {
     }
 
     /// Replaces the given node in the network.
+    /// All connections are retained.
     /// The replacement must have the same number of inputs and outputs
     /// as the node it is replacing.
     /// Returns the unit that was replaced.
+    ///
+    /// ### Example (Replace Saw Wave With Square Wave)
+    /// ```
+    /// use fundsp::hacker32::*;
+    /// let mut net = Net32::new(0, 1);
+    /// let id = net.push(Box::new(saw()));
+    /// net.pipe_output(id);
+    /// net.replace(id, Box::new(square()));
+    /// net.check();
+    /// ```
     pub fn replace(
         &mut self,
         node: NodeId,
@@ -629,6 +640,16 @@ impl Net48 {
     }
 
     /// Wrap arbitrary unit in a network.
+    ///
+    /// ### Example (Conditional Processing)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::wrap(Box::new(square_hz(440.0)));
+    /// let add_filter = true;
+    /// if add_filter {
+    ///     net = net >> lowpass_hz(880.0, 1.0);
+    /// }
+    /// ```
     pub fn wrap(unit: Box<dyn AudioUnit48>) -> Net48 {
         let mut net = Net48::new(unit.inputs(), unit.outputs());
         let id = net.push(unit);
@@ -689,6 +710,20 @@ impl Net48 {
                     }
                     _ => (),
                 }
+            }
+        }
+    }
+
+    /// Disambiguate IDs in this network so they don't conflict with those in `other` network.
+    /// Conflict is possible as a result of cloning and recombination.
+    fn disambiguate_ids(&mut self, other: &Net48) {
+        for i in 0..self.size() {
+            let id = self.vertex[i].id;
+            if other.node_index.contains_key(&id) {
+                self.node_index.remove(&id);
+                let new_id = NodeId::new();
+                self.vertex[i].id = new_id;
+                self.node_index.insert(new_id, i);
             }
         }
     }
@@ -893,6 +928,7 @@ impl Net48 {
                 net2.inputs()
             );
         }
+        net2.disambiguate_ids(&net1);
         let offset = net1.vertex.len();
         let output_offset = net1.outputs();
         let outputs = net1.outputs() + net2.outputs();
@@ -940,6 +976,7 @@ impl Net48 {
 
     /// Given nets A and B, create and return net A | B.
     pub fn stack_op(mut net1: Net48, mut net2: Net48) -> Net48 {
+        net2.disambiguate_ids(&net1);
         let offset = net1.vertex.len();
         let output_offset = net1.outputs();
         let input_offset = net1.inputs();
@@ -1004,6 +1041,7 @@ impl Net48 {
                 net2.outputs()
             );
         }
+        net2.disambiguate_ids(&net1);
         let output1 = net1.output_edge.clone();
         let output2 = net2.output_edge.clone();
         let input_offset = net1.inputs();
@@ -1084,6 +1122,7 @@ impl Net48 {
                 net2.outputs()
             );
         }
+        net2.disambiguate_ids(&net1);
         let output1 = net1.output_edge.clone();
         let output2 = net2.output_edge.clone();
         let offset = net1.vertex.len();
@@ -1152,6 +1191,7 @@ impl Net48 {
                 net2.inputs()
             );
         }
+        net2.disambiguate_ids(&net1);
         let offset = net1.vertex.len();
         net1.vertex.append(&mut net2.vertex);
         // Adjust local ports.

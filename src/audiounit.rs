@@ -101,7 +101,7 @@ pub trait AudioUnit48: Send + Sync + DynClone {
         }
     }
 
-    /// Evaluate frequency response of `output` in dB at `frequency Hz`.
+    /// Evaluate frequency response of `output` in dB at `frequency` Hz.
     /// Any linear response can be composed.
     /// Return `None` if there is no response or it could not be calculated.
     ///

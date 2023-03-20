@@ -64,7 +64,10 @@ impl<T: Real> AudioNode for Sine<T> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.phase += input[0] * self.sample_duration;
-        self.phase -= self.phase.floor();
+        // This is supposedly faster than self.phase -= self.phase.floor();
+        while self.phase > T::one() {
+            self.phase -= T::one();
+        }
         [sin(self.phase * T::from_f64(TAU))].into()
     }
 
