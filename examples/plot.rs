@@ -146,10 +146,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .draw_series(LineSeries::new(
             (-200..=200)
                 .map(|x| x as f32 / 100.0)
-                .map(|x| (x, ease_noise(id, 100, x))),
+                .map(|x| (x, ease_noise(identity, 100, x))),
             RGBColor(96, 96, 96).stroke_width(2),
         ))?
-        .label("id")
+        .label("identity")
         .legend(|(x, y)| {
             PathElement::new(
                 vec![(x, y), (x + 20, y)],
@@ -227,10 +227,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .draw_series(LineSeries::new(
             (-200..=200)
                 .map(|x| x as f32 / 100.0)
-                .map(|x| (x, fractal_ease_noise(id, 108, 4, 0.7, x))),
+                .map(|x| (x, fractal_ease_noise(identity, 108, 4, 0.7, x))),
             RGBColor(96, 96, 96).stroke_width(2),
         ))?
-        .label("id")
+        .label("identity")
         .legend(|(x, y)| {
             PathElement::new(
                 vec![(x, y), (x + 20, y)],

@@ -4,8 +4,9 @@
 
 - Fade curves for Sequencer events. To migrate, use the curve `Fade::Smooth`.
 - `Net32/64` now operates on stable node IDs of type `NodeId`. Other improvements.
-- `swap` opcode is now `swap_stereo`, to avoid possible conflics with `std::mem::swap`.
+- `swap` opcode is now `swap_stereo`, to avoid possible conflicts with `std::mem::swap`.
 - New method `AudioNode::allocate` for preallocating everything.
+- Identity function has been renamed from `id` to `identity`, to match the standard library.
 
 ### Version 0.12
 

@@ -169,8 +169,8 @@ pub struct Net48 {
     order: Option<Vec<NodeIndex>>,
     /// Translation map from node ID to vertex index.
     node_index: HashMap<NodeId, NodeIndex>,
+    /// Current sample rate.
     sample_rate: f64,
-    tmp_buffer: Buffer<f48>,
 }
 
 #[duplicate_item(
@@ -188,7 +188,6 @@ impl Clone for Net48 {
             order: self.order.clone(),
             node_index: self.node_index.clone(),
             sample_rate: self.sample_rate,
-            tmp_buffer: self.tmp_buffer.clone(),
         }
     }
 }
@@ -218,7 +217,6 @@ impl Net48 {
             order: None,
             node_index: HashMap::new(),
             sample_rate: DEFAULT_SR,
-            tmp_buffer: Buffer::new(),
         };
         for channel in 0..outputs {
             net.output_edge
@@ -340,9 +338,9 @@ impl Net48 {
     /// ```
     /// use fundsp::hacker32::*;
     /// let mut net = Net32::new(0, 1);
-    /// let id = net.push(Box::new(saw()));
+    /// let id = net.push(Box::new(saw_hz(220.0)));
     /// net.pipe_output(id);
-    /// net.replace(id, Box::new(square()));
+    /// net.replace(id, Box::new(square_hz(220.0)));
     /// net.check();
     /// ```
     pub fn replace(
@@ -378,6 +376,7 @@ impl Net48 {
         target: NodeId,
         target_port: PortIndex,
     ) {
+        assert!(source != target);
         let source_index = self.node_index[&source];
         let target_index = self.node_index[&target];
         self.connect_index(source_index, source_port, target_index, target_port);
@@ -663,6 +662,13 @@ impl Net48 {
     }
 
     /// Create a network that outputs a scalar value on all channels.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker32::*;
+    /// let mut net = Net32::scalar(2, 1.0);
+    /// assert!(net.get_stereo() == (1.0, 1.0));
+    /// ```
     pub fn scalar(channels: usize, scalar: f48) -> Net48 {
         let mut net = Net48::new(0, channels);
         let id = net.push(Box::new(super::prelude::dc(scalar)));
@@ -674,8 +680,8 @@ impl Net48 {
 
     /// Check internal consistency of the network. Panic if something is wrong.
     pub fn check(&self) {
-        assert!(self.input.buffers() == self.inputs());
-        assert!(self.output.buffers() == self.outputs());
+        assert!(self.input.channels() == self.inputs());
+        assert!(self.output.channels() == self.outputs());
         assert!(self.output_edge.len() == self.outputs());
         assert!(self.node_index.len() == self.size());
         for channel in 0..self.outputs() {
@@ -694,8 +700,8 @@ impl Net48 {
         for index in 0..self.size() {
             assert!(self.node_index[&self.vertex[index].id] == index);
             assert!(self.vertex[index].source.len() == self.vertex[index].inputs());
-            assert!(self.vertex[index].input.buffers() == self.vertex[index].inputs());
-            assert!(self.vertex[index].output.buffers() == self.vertex[index].outputs());
+            assert!(self.vertex[index].input.channels() == self.vertex[index].inputs());
+            assert!(self.vertex[index].output.channels() == self.vertex[index].outputs());
             assert!(self.vertex[index].tick_input.len() == self.vertex[index].inputs());
             assert!(self.vertex[index].tick_output.len() == self.vertex[index].outputs());
             for channel in 0..self.vertex[index].inputs() {
@@ -703,6 +709,7 @@ impl Net48 {
                 match self.vertex[index].source[channel].source {
                     Port::Local(node, port) => {
                         assert!(node < self.size());
+                        assert!(node != index);
                         assert!(port < self.vertex[node].outputs());
                     }
                     Port::Global(port) => {
@@ -736,11 +743,11 @@ impl Net48 {
 )]
 impl AudioUnit48 for Net48 {
     fn inputs(&self) -> usize {
-        self.input.buffers()
+        self.input.channels()
     }
 
     fn outputs(&self) -> usize {
-        self.output.buffers()
+        self.output.channels()
     }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
@@ -796,31 +803,39 @@ impl AudioUnit48 for Net48 {
         for &node_index in self.order.get_or_insert(Vec::new()).iter() {
             if let Some(source_node) = self.vertex[node_index].source_vertex {
                 // We can source inputs directly from a source vertex.
-                std::mem::swap(&mut self.tmp_buffer, &mut self.vertex[source_node].output);
+                let ptr = &mut self.vertex[source_node].output as *mut Buffer<f48>;
                 let vertex = &mut self.vertex[node_index];
-                vertex
-                    .unit
-                    .process(size, self.tmp_buffer.self_ref(), vertex.output.self_mut());
-                std::mem::swap(&mut self.tmp_buffer, &mut self.vertex[source_node].output);
+                // Safety: we know there is no aliasing, as self connections are prohibited.
+                unsafe {
+                    vertex
+                        .unit
+                        .process(size, (*ptr).self_ref(), vertex.output.self_mut());
+                }
             } else {
-                std::mem::swap(&mut self.tmp_buffer, &mut self.vertex[node_index].input);
+                let ptr = &mut self.vertex[node_index].input as *mut Buffer<f48>;
                 // Gather inputs for this vertex.
                 for channel in 0..self.vertex[node_index].inputs() {
-                    match self.vertex[node_index].source[channel].source {
-                        Port::Zero => self.tmp_buffer.mut_at(channel)[..size].fill(0.0),
-                        Port::Global(port) => self.tmp_buffer.mut_at(channel)[..size]
-                            .copy_from_slice(&input[port][..size]),
-                        Port::Local(source, port) => {
-                            self.tmp_buffer.mut_at(channel)[..size]
-                                .copy_from_slice(&self.vertex[source].output.at(port)[..size]);
+                    // Safety: we know there is no aliasing, as self connections are prohibited.
+                    unsafe {
+                        match self.vertex[node_index].source[channel].source {
+                            Port::Zero => (*ptr).mut_at(channel)[..size].fill(0.0),
+                            Port::Global(port) => {
+                                (*ptr).mut_at(channel)[..size].copy_from_slice(&input[port][..size])
+                            }
+                            Port::Local(source, port) => {
+                                (*ptr).mut_at(channel)[..size]
+                                    .copy_from_slice(&self.vertex[source].output.at(port)[..size]);
+                            }
                         }
                     }
                 }
                 let vertex = &mut self.vertex[node_index];
-                vertex
-                    .unit
-                    .process(size, self.tmp_buffer.self_ref(), vertex.output.self_mut());
-                std::mem::swap(&mut self.tmp_buffer, &mut self.vertex[node_index].input);
+                // Safety: we know there is no aliasing, as self connections are prohibited.
+                unsafe {
+                    vertex
+                        .unit
+                        .process(size, (*ptr).self_ref(), vertex.output.self_mut());
+                }
             }
         }
 

@@ -3,83 +3,102 @@
 use super::*;
 use funutd::Rnd;
 
+/// The absolute function.
 #[inline]
 pub fn abs<T: Num>(x: T) -> T {
     x.abs()
 }
+/// The sign function.
 #[inline]
 pub fn signum<T: Num>(x: T) -> T {
     x.signum()
 }
+/// Minimum function.
 #[inline]
 pub fn min<T: Num>(x: T, y: T) -> T {
     x.min(y)
 }
+/// Maximum function.
 #[inline]
 pub fn max<T: Num>(x: T, y: T) -> T {
     x.max(y)
 }
+/// Power function.
 #[inline]
 pub fn pow<T: Num>(x: T, y: T) -> T {
     x.pow(y)
 }
+/// Floor function.
 #[inline]
 pub fn floor<T: Num>(x: T) -> T {
     x.floor()
 }
+/// Fraction function.
 #[inline]
 pub fn fract<T: Num>(x: T) -> T {
     x.fract()
 }
+/// Ceiling function.
 #[inline]
 pub fn ceil<T: Num>(x: T) -> T {
     x.ceil()
 }
+/// Rounds `x`.
 #[inline]
 pub fn round<T: Num>(x: T) -> T {
     x.round()
 }
-
+/// Square root function.
 #[inline]
 pub fn sqrt<T: Real>(x: T) -> T {
     x.sqrt()
 }
+/// Exponential function.
 #[inline]
 pub fn exp<T: Real>(x: T) -> T {
     x.exp()
 }
+/// Power of 2 function.
 #[inline]
 pub fn exp2<T: Real>(x: T) -> T {
     x.exp2()
 }
+/// Power of 10 function.
 #[inline]
 pub fn exp10<T: Real>(x: T) -> T {
     (x * T::from_f64(LN_10)).exp()
 }
+/// Natural logarithm.
 #[inline]
 pub fn log<T: Real>(x: T) -> T {
     x.log()
 }
+/// Binary logarithm.
 #[inline]
 pub fn log2<T: Real>(x: T) -> T {
     x.log2()
 }
+/// Base 10 logarithm.
 #[inline]
 pub fn log10<T: Real>(x: T) -> T {
     x.log10()
 }
+/// Sine function.
 #[inline]
 pub fn sin<T: Real>(x: T) -> T {
     x.sin()
 }
 #[inline]
+/// Cosine function.
 pub fn cos<T: Real>(x: T) -> T {
     x.cos()
 }
+/// Tangent function.
 #[inline]
 pub fn tan<T: Real>(x: T) -> T {
     x.tan()
 }
+/// Hyperbolic tangent function. Squashes `x` to -1...1.
 #[inline]
 pub fn tanh<T: Real>(x: T) -> T {
     x.tanh()
@@ -116,7 +135,7 @@ pub fn clamp11<T: Num>(x: T) -> T {
 
 /// Identity function.
 #[inline]
-pub fn id<T>(x: T) -> T {
+pub fn identity<T>(x: T) -> T {
     x
 }
 
@@ -161,12 +180,24 @@ pub fn lerp11<U: Lerp<T>, T: Num>(a: U, b: U, t: T) -> U {
 }
 
 /// Linear de-interpolation. Recovers `t` from interpolated `x`.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert_eq!(delerp(2.0, 4.0, 3.0), 0.5);
+/// ```
 #[inline]
 pub fn delerp<T: Num>(a: T, b: T, x: T) -> T {
     (x - a) / (b - a)
 }
 
 /// Linear de-interpolation. Recovers `t` in -1...1 from interpolated `x`.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert_eq!(delerp11(5.0, 9.0, 7.0), 0.0);
+/// ```
 #[inline]
 pub fn delerp11<T: Num>(a: T, b: T, x: T) -> T {
     (x - a) / (b - a) * T::new(2) - T::new(1)
@@ -385,6 +416,12 @@ pub fn cos_hz<T: Real>(hz: T, t: T) -> T {
 }
 
 /// Converts from semitone interval to frequency ratio.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert_eq!(semitone_ratio(0.0), 1.0);
+/// ```
 #[inline]
 pub fn semitone_ratio<T: Real>(x: T) -> T {
     exp2(x / T::from_f64(12.0))

@@ -37,7 +37,8 @@ To discuss FunDSP and other topics, come hang out with us at the
 
 ### Related Projects
 
-[bevy_fundsp](https://github.com/harudagondi/bevy_fundsp) integrates FunDSP into [Bevy](https://bevyengine.org/).
+[bevy_fundsp](https://github.com/harudagondi/bevy_fundsp) integrates FunDSP into
+the [Bevy](https://bevyengine.org/) game engine.
 
 [midi_fundsp](https://github.com/gjf2a/midi_fundsp) enables the easy creation
 of live synthesizer software using FunDSP for synthesis.
@@ -256,7 +257,7 @@ Of special interest among operators are the four custom combinators:
 The pipe is a serial operator where components appear in *processing* order. Branch, stack, and
 arithmetic operators are parallel operators where components appear in *channel* order.
 
-Bus is a commutative operator where components may appear in any order.
+The bus is a commutative operator where components may appear in any order.
 The other operators are not commutative in general.
 
 All four are fully associative, and
@@ -992,7 +993,7 @@ The same modes are used in the `meter` opcode.
 | `fract(x)`             | fract function |
 | `fractal_noise(seed, octaves, roughness, x)` | fractal spline noise (`octaves` > 0, `roughness` > 0) |
 | `fractal_ease_noise(ease, seed, octaves, roughness, x)` | fractal ease noise (`octaves` > 0, `roughness` > 0) interpolated with easing function `ease` |
-| `id(x)`                | identity function (linear easing function) |
+| `identity(x)`          | identity function (linear easing function) |
 | `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` with `t` in 0...1 |
 | `lerp11(x0, x1, t)`    | linear interpolation between `x0` and `x1` with `t` in -1...1 |
 | `log(x)`               | natural logarithm |
@@ -1039,7 +1040,7 @@ These math functions have the shape of an easing function.
 | ---------------------- | ---------------------------------------------- |
 | `cubed(x)`             | cube of `x` |
 | `downarc(x)`           | concave quarter circle easing curve (inverse function of `uparc` in 0...1) |
-| `id(x)`                | identity function (linear easing function) |
+| `identity(x)`          | identity function (linear easing function) |
 | `smooth3(x)`           | smooth cubic easing polynomial |
 | `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
 | `smooth7(x)`           | smooth 7th degree easing polynomial |
