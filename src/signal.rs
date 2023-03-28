@@ -5,9 +5,10 @@ use num_complex::Complex64;
 use tinyvec::TinyVec;
 
 /// Contents of a mono signal. Used in latency and frequency response analysis.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub enum Signal {
     /// Signal with unknown properties.
+    #[default]
     Unknown,
     /// Constant signal with value.
     Value(f64),
@@ -16,12 +17,6 @@ pub enum Signal {
     /// Signal that is connected to inputs or generators
     /// with complex frequency response and latency in samples.
     Response(Complex64, f64),
-}
-
-impl Default for Signal {
-    fn default() -> Signal {
-        Signal::Unknown
-    }
 }
 
 impl Signal {
