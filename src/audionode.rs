@@ -637,12 +637,15 @@ where
         output: &mut [&mut [Self::Sample]],
     ) {
         let z = T::one() / T::new(N::I64);
-        for i in 0..size {
-            output[0][i] = input[0][i] * z;
+        for (o, i) in output[0][..size].iter_mut().zip(input[0][..size].iter()) {
+            *o = *i * z;
         }
         for channel in 1..N::USIZE {
-            for i in 0..size {
-                output[0][i] += input[channel][i] * z;
+            for (o, i) in output[0][..size]
+                .iter_mut()
+                .zip(input[channel][..size].iter())
+            {
+                *o += *i * z;
             }
         }
     }
@@ -707,13 +710,19 @@ where
     ) {
         let z = T::one() / T::new(N::I64);
         for channel in 0..M::USIZE {
-            for i in 0..size {
-                output[channel][i] = input[channel][i] * z;
+            for (o, i) in output[channel][..size]
+                .iter_mut()
+                .zip(input[channel][..size].iter())
+            {
+                *o = *i * z;
             }
         }
         for channel in M::USIZE..M::USIZE * N::USIZE {
-            for i in 0..size {
-                output[channel % M::USIZE][i] += input[channel][i] * z;
+            for (o, i) in output[channel % M::USIZE][..size]
+                .iter_mut()
+                .zip(input[channel][..size].iter())
+            {
+                *o += *i * z;
             }
         }
     }
@@ -754,8 +763,8 @@ impl<N: Size<T>, T: Float> FrameBinop<N, T> for FrameAdd<N, T> {
     }
     #[inline]
     fn assign(size: usize, x: &mut [T], y: &[T]) {
-        for i in 0..size {
-            x[i] += y[i];
+        for (o, i) in x[..size].iter_mut().zip(y[..size].iter()) {
+            *o += *i;
         }
     }
 }
@@ -782,8 +791,8 @@ impl<N: Size<T>, T: Float> FrameBinop<N, T> for FrameSub<N, T> {
     }
     #[inline]
     fn assign(size: usize, x: &mut [T], y: &[T]) {
-        for i in 0..size {
-            x[i] -= y[i];
+        for (o, i) in x[..size].iter_mut().zip(y[..size].iter()) {
+            *o -= *i;
         }
     }
 }
@@ -827,8 +836,8 @@ impl<N: Size<T>, T: Float> FrameBinop<N, T> for FrameMul<N, T> {
     }
     #[inline]
     fn assign(size: usize, x: &mut [T], y: &[T]) {
-        for i in 0..size {
-            x[i] *= y[i];
+        for (o, i) in x[..size].iter_mut().zip(y[..size].iter()) {
+            *o *= *i;
         }
     }
 }
@@ -1010,8 +1019,8 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameNeg<N, T> {
     }
     #[inline]
     fn assign(&self, size: usize, x: &mut [T]) {
-        for i in 0..size {
-            x[i] = -x[i];
+        for o in x[..size].iter_mut() {
+            *o = -*o;
         }
     }
 }
@@ -1069,8 +1078,8 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameAddScalar<N, T> {
     }
     #[inline]
     fn assign(&self, size: usize, x: &mut [T]) {
-        for i in 0..size {
-            x[i] += self.scalar;
+        for o in x[..size].iter_mut() {
+            *o += self.scalar;
         }
     }
 }
@@ -1105,8 +1114,8 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameMulScalar<N, T> {
     }
     #[inline]
     fn assign(&self, size: usize, x: &mut [T]) {
-        for i in 0..size {
-            x[i] *= self.scalar;
+        for o in x[..size].iter_mut() {
+            *o *= self.scalar;
         }
     }
 }
@@ -1750,10 +1759,11 @@ where
         self.y
             .process(size, input, self.buffer.get_mut(self.outputs()));
         for channel in 0..self.outputs() {
-            let src = self.buffer.at(channel);
-            let dst = &mut output[channel];
-            for i in 0..size {
-                dst[i] += src[i];
+            for (o, i) in output[channel][..size]
+                .iter_mut()
+                .zip(self.buffer.at(channel)[..size].iter())
+            {
+                *o += *i;
             }
         }
     }
@@ -1966,10 +1976,11 @@ where
         for i in 1..N::USIZE {
             self.x[i].process(size, input, self.buffer.get_mut(X::Outputs::USIZE));
             for channel in 0..X::Outputs::USIZE {
-                let src = self.buffer.at(channel);
-                let dst = &mut output[channel];
-                for j in 0..size {
-                    dst[j] += src[j];
+                for (o, i) in output[channel][..size]
+                    .iter_mut()
+                    .zip(self.buffer.at(channel)[..size].iter())
+                {
+                    *o += *i;
                 }
             }
         }
