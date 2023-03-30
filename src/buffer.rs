@@ -68,8 +68,6 @@ impl<T: Float> Buffer<T> {
     #[inline]
     pub fn get_ref(&mut self, channels: usize) -> &[&[T]] {
         self.resize(channels);
-        let mut x: Vec<[T; 128]> = Vec::new();
-        self.slice.from_muts(&mut x);
         self.slice.from_refs(&self.buffer)
     }
 
