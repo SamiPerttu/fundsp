@@ -775,6 +775,9 @@ impl Net48 {
         let (sender_a, receiver_a) = channel(64);
         let (sender_b, receiver_b) = channel(64);
         self.front = Some((sender_a, receiver_b));
+        if !self.is_ordered() {
+            self.determine_order();
+        }
         let mut net = self.clone();
         net.allocate();
         Net48Backend::new(sender_b, receiver_a, net)
