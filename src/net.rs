@@ -5,12 +5,14 @@ use super::audiounit::*;
 use super::buffer::*;
 use super::combinator::*;
 use super::math::*;
+use super::realnet::*;
 use super::signal::*;
 use super::*;
 use duplicate::duplicate_item;
 use funutd::*;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
+use thingbuf::mpsc::blocking::{channel, Receiver, Sender};
 
 pub type NodeIndex = usize;
 pub type PortIndex = usize;
@@ -33,17 +35,18 @@ impl NodeId {
 const ID: u64 = 63;
 
 /// Input or output port.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Port {
     /// Node input or output.
     Local(NodeIndex, PortIndex),
     /// Network input or output.
     Global(PortIndex),
     /// Unconnected input. Unconnected output ports are not marked anywhere.
+    #[default]
     Zero,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Edge {
     pub source: Port,
     pub target: Port,
@@ -156,6 +159,7 @@ impl Vertex48 {
 )]
 /// Network unit. It can contain other units and maintain connections between them.
 /// Outputs of the network are sourced from user specified unit outputs or global inputs.
+#[derive(Default)]
 pub struct Net48 {
     /// Global input buffers.
     input: Buffer<f48>,
@@ -171,6 +175,8 @@ pub struct Net48 {
     node_index: HashMap<NodeId, NodeIndex>,
     /// Current sample rate.
     sample_rate: f64,
+    /// Optional frontend.
+    front: Option<(Sender<Net48>, Receiver<Net48>)>,
 }
 
 #[duplicate_item(
@@ -188,14 +194,15 @@ impl Clone for Net48 {
             order: self.order.clone(),
             node_index: self.node_index.clone(),
             sample_rate: self.sample_rate,
+            front: None,
         }
     }
 }
 
 #[duplicate_item(
-    f48       Net48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
+    f48       Net48       Net48Backend       Vertex48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ Net64Backend ]   [ Vertex64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ Net32Backend ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
 impl Net48 {
     /// Create a new network with the given number of inputs and outputs.
@@ -217,6 +224,7 @@ impl Net48 {
             order: None,
             node_index: HashMap::new(),
             sample_rate: DEFAULT_SR,
+            front: None,
         };
         for channel in 0..outputs {
             net.output_edge
@@ -734,6 +742,63 @@ impl Net48 {
             }
         }
     }
+
+    /// Migrate existing units to the new network. This is an internal function.
+    pub fn migrate(&mut self, new: &mut Net48) {
+        for (id, &index) in self.node_index.iter() {
+            if new.node_index.contains_key(id) {
+                std::mem::swap(
+                    &mut self.vertex[index].unit,
+                    &mut new.vertex[new.node_index[id]].unit,
+                );
+            }
+        }
+    }
+
+    /// Create a realtime friendly backend for this network.
+    /// This network is then the frontend and any changes made can be committed to the backend.
+    /// This can be called only once for a network.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::new(0, 1);
+    /// net.chain(Box::new(dc(1.0)));
+    /// let mut backend = net.backend();
+    /// net.chain(Box::new(mul(2.0)));
+    /// assert!(backend.get_mono() == 1.0);
+    /// net.commit();
+    /// assert!(backend.get_mono() == 2.0);
+    /// ```
+    pub fn backend(&mut self) -> Net48Backend {
+        assert!(self.front.is_none());
+        let (sender_a, receiver_a) = channel(64);
+        let (sender_b, receiver_b) = channel(64);
+        self.front = Some((sender_a, receiver_b));
+        let mut net = self.clone();
+        net.allocate();
+        Net48Backend::new(sender_b, receiver_a, net)
+    }
+
+    /// Returns whether this network has a backend.
+    pub fn has_backend(&self) -> bool {
+        self.front.is_some()
+    }
+
+    /// Commit changes made to this network to the backend.
+    pub fn commit(&mut self) {
+        assert!(self.front.is_some());
+        if !self.is_ordered() {
+            self.determine_order();
+        }
+        let mut net = self.clone();
+        net.allocate();
+        if let Some((sender, receiver)) = &mut self.front {
+            // Deallocate all previous versions.
+            while receiver.try_recv().is_ok() {}
+            sender.send(net).unwrap();
+        }
+    }
 }
 
 #[duplicate_item(
@@ -854,12 +919,14 @@ impl AudioUnit48 for Net48 {
         ID
     }
 
+    // TODO: Is this necessary? Is it ever called?
     fn set_hash(&mut self, hash: u64) {
         let mut rnd = Rnd::from_u64(hash);
         for x in self.vertex.iter_mut() {
             x.unit.set_hash(rnd.u64());
         }
     }
+
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         let mut hash = hash.hash(ID);
         for x in self.vertex.iter_mut() {
@@ -986,6 +1053,9 @@ impl Net48 {
                 }
             }
         }
+        if net2.front.is_some() && net1.front.is_none() {
+            std::mem::swap(&mut net1.front, &mut net2.front);
+        }
         net1
     }
 
@@ -1039,6 +1109,9 @@ impl Net48 {
                     }
                 }
             }
+        }
+        if net2.front.is_some() && net1.front.is_none() {
+            std::mem::swap(&mut net1.front, &mut net2.front);
         }
         net1
     }
@@ -1118,6 +1191,9 @@ impl Net48 {
             }
         }
         net1.invalidate_order();
+        if net2.front.is_some() && net1.front.is_none() {
+            std::mem::swap(&mut net1.front, &mut net2.front);
+        }
         net1
     }
 
@@ -1194,6 +1270,9 @@ impl Net48 {
             }
         }
         net1.invalidate_order();
+        if net2.front.is_some() && net1.front.is_none() {
+            std::mem::swap(&mut net1.front, &mut net2.front);
+        }
         net1
     }
 
@@ -1252,6 +1331,9 @@ impl Net48 {
             }
         }
         net1.invalidate_order();
+        if net2.front.is_some() && net1.front.is_none() {
+            std::mem::swap(&mut net1.front, &mut net2.front);
+        }
         net1
     }
 }

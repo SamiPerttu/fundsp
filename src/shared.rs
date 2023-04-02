@@ -1,3 +1,5 @@
+//! Shared atomic controls.
+
 use super::audionode::*;
 use super::combinator::*;
 use super::*;

@@ -1,10 +1,11 @@
 //! Setting listener using MPSC from the thingbuf crate.
+
 use super::audionode::*;
 use super::combinator::*;
 use super::math::*;
 use super::signal::*;
-pub use thingbuf::mpsc::Sender;
-use thingbuf::mpsc::{channel, Receiver};
+pub use thingbuf::mpsc::blocking::Sender;
+use thingbuf::mpsc::blocking::{channel, Receiver};
 
 pub struct Listen<X: AudioNode> {
     x: X,

@@ -7,6 +7,8 @@
 - `swap` opcode is now `swap_stereo`, to avoid possible conflicts with `std::mem::swap`.
 - New method `AudioNode::allocate` for preallocating everything.
 - Identity function has been renamed from `id` to `identity`, to match the standard library.
+- Setting system MPSC channels were async by mistake; they are now blocking.
+- `Net32/64` can now have a realtime safe backend.
 
 ### Version 0.12
 

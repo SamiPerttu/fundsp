@@ -19,6 +19,7 @@ pub use super::noise::*;
 pub use super::oscillator::*;
 pub use super::oversample::*;
 pub use super::pan::*;
+pub use super::realnet::*;
 pub use super::resample::*;
 pub use super::sequencer::*;
 pub use super::setting::*;
