@@ -82,6 +82,8 @@ struct Vertex48 {
     /// This is set if all vertex inputs are sourced from matching outputs of the indicated node.
     /// We can then omit copying and use the node outputs directly.
     pub source_vertex: Option<NodeIndex>,
+    /// Whether the unit has been replaced after the previous commit without changing its ID.
+    pub is_replaced: bool,
 }
 
 #[duplicate_item(
@@ -102,6 +104,7 @@ impl Vertex48 {
             tick_output: vec![0.0; outputs],
             id,
             source_vertex: None,
+            is_replaced: false,
         };
         for i in 0..vertex.inputs() {
             vertex.source.push(edge(Port::Zero, Port::Local(index, i)));
@@ -360,6 +363,7 @@ impl Net48 {
         assert!(unit.inputs() == self.vertex[node_index].inputs());
         assert!(unit.outputs() == self.vertex[node_index].outputs());
         std::mem::swap(&mut self.vertex[node_index].unit, &mut unit);
+        self.vertex[node_index].is_replaced = true;
         unit
     }
 
@@ -746,11 +750,13 @@ impl Net48 {
     /// Migrate existing units to the new network. This is an internal function.
     pub fn migrate(&mut self, new: &mut Net48) {
         for (id, &index) in self.node_index.iter() {
-            if new.node_index.contains_key(id) {
-                std::mem::swap(
-                    &mut self.vertex[index].unit,
-                    &mut new.vertex[new.node_index[id]].unit,
-                );
+            if let Some(&new_index) = new.node_index.get(id) {
+                if !new.vertex[new_index].is_replaced {
+                    std::mem::swap(
+                        &mut self.vertex[index].unit,
+                        &mut new.vertex[new_index].unit,
+                    );
+                }
             }
         }
     }
@@ -778,6 +784,9 @@ impl Net48 {
         if !self.is_ordered() {
             self.determine_order();
         }
+        for vertex in self.vertex.iter_mut() {
+            vertex.is_replaced = false;
+        }
         let mut net = self.clone();
         net.allocate();
         Net48Backend::new(sender_b, receiver_a, net)
@@ -800,6 +809,9 @@ impl Net48 {
             // Deallocate all previous versions.
             while receiver.try_recv().is_ok() {}
             sender.send(net).unwrap();
+        }
+        for vertex in self.vertex.iter_mut() {
+            vertex.is_replaced = false;
         }
     }
 }
