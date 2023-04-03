@@ -422,8 +422,9 @@ impl Wave48 {
         let fade_i = fade_n as usize;
         for i in 0..fade_i {
             let a = smooth5((fade_n - i as f64) / (fade_n + 1.0)) as f48;
+            let sample = self.len() - fade_i + i;
             for channel in 0..self.channels() {
-                self.set(channel, self.len() - fade_i + i, self.at(channel, i) * a);
+                self.set(channel, sample, self.at(channel, sample) * a);
             }
         }
     }
