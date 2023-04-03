@@ -1,9 +1,14 @@
 //! Make some noise via cpal.
 #![allow(clippy::precedence)]
 
+use assert_no_alloc::*;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
 use fundsp::hacker::*;
+
+#[cfg(debug_assertions)] // required when disable_release is set (default)
+#[global_allocator]
+static A: AllocDisabler = AllocDisabler;
 
 fn main() {
     let host = cpal::default_host();
@@ -94,9 +99,11 @@ where
         //>> (multipass() & 0.2 * reverb_stereo(10.0, 3.0))
         >> limiter_stereo((1.0, 5.0));
     //let mut c = c * 0.1;
-    c.reset(Some(sample_rate));
 
-    let mut next_value = move || c.get_stereo();
+    c.reset(Some(sample_rate));
+    c.allocate();
+
+    let mut next_value = move || assert_no_alloc(|| c.get_stereo());
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 

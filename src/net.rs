@@ -82,8 +82,8 @@ struct Vertex48 {
     /// This is set if all vertex inputs are sourced from matching outputs of the indicated node.
     /// We can then omit copying and use the node outputs directly.
     pub source_vertex: Option<NodeIndex>,
-    /// Whether the unit has been replaced after the previous commit without changing its ID.
-    pub is_replaced: bool,
+    /// Network revision in which this vertex was changed last.
+    pub changed: u64,
 }
 
 #[duplicate_item(
@@ -104,7 +104,7 @@ impl Vertex48 {
             tick_output: vec![0.0; outputs],
             id,
             source_vertex: None,
-            is_replaced: false,
+            changed: 0,
         };
         for i in 0..vertex.inputs() {
             vertex.source.push(edge(Port::Zero, Port::Local(index, i)));
@@ -180,6 +180,9 @@ pub struct Net48 {
     sample_rate: f64,
     /// Optional frontend.
     front: Option<(Sender<Net48>, Receiver<Net48>)>,
+    /// Revision number. This is used by frontends and backends only.
+    /// The revision is incremented after each commit.
+    revision: u64,
 }
 
 #[duplicate_item(
@@ -198,6 +201,7 @@ impl Clone for Net48 {
             node_index: self.node_index.clone(),
             sample_rate: self.sample_rate,
             front: None,
+            revision: self.revision,
         }
     }
 }
@@ -210,6 +214,7 @@ impl Clone for Net48 {
 impl Net48 {
     /// Create a new network with the given number of inputs and outputs.
     /// The number of inputs and outputs is fixed after construction.
+    /// Network global outputs are initialized to zero.
     ///
     /// ### Example (Sine Oscillator)
     /// ```
@@ -228,6 +233,7 @@ impl Net48 {
             node_index: HashMap::new(),
             sample_rate: DEFAULT_SR,
             front: None,
+            revision: 0,
         };
         for channel in 0..outputs {
             net.output_edge
@@ -238,6 +244,7 @@ impl Net48 {
 
     /// Add a new unit to the network. Return its ID handle.
     /// The unit is reset with the sample rate of the network.
+    /// Unit inputs are initially set to zero.
     ///
     /// ### Example (Sine Oscillator)
     /// ```
@@ -273,6 +280,7 @@ impl Net48 {
     }
 
     /// Remove `node` from network. Returns the unit that was removed.
+    /// All connections from the unit are replaced with zeros.
     ///
     /// ### Example (Sine Oscillator)
     /// ```
@@ -363,12 +371,13 @@ impl Net48 {
         assert!(unit.inputs() == self.vertex[node_index].inputs());
         assert!(unit.outputs() == self.vertex[node_index].outputs());
         std::mem::swap(&mut self.vertex[node_index].unit, &mut unit);
-        self.vertex[node_index].is_replaced = true;
+        self.vertex[node_index].changed = self.revision;
         unit
     }
 
     /// Connect the given unit output (`source`, `source_port`)
     /// to the given unit input (`target`, `target_port`).
+    /// There is one connection for each unit input.
     ///
     /// ### Example (Filtered Saw Oscillator)
     /// ```
@@ -401,6 +410,7 @@ impl Net48 {
     /// use fundsp::hacker::*;
     /// let mut net = Net64::new(1, 1);
     /// let id = net.chain(Box::new(pass()));
+    /// assert!(net.filter_mono(1.0) == 1.0);
     /// net.disconnect(id, 0);
     /// assert!(net.filter_mono(1.0) == 0.0);
     /// net.check();
@@ -513,8 +523,19 @@ impl Net48 {
         self.invalidate_order();
     }
 
-    /// Connect `source` to `target`.
+    /// Connect `source` node outputs to `target` node inputs.
     /// The number of outputs in `source` and number of inputs in `target` must match.
+    ///
+    /// ### Example (Panned Sine Wave)
+    /// ```
+    /// use fundsp::hacker32::*;
+    /// let mut net = Net32::new(0, 2);
+    /// let id1 = net.push(Box::new(sine_hz(440.0)));
+    /// let id2 = net.push(Box::new(pan(0.0)));
+    /// net.pipe(id1, id2);
+    /// net.pipe_output(id2);
+    /// net.check();
+    /// ```
     pub fn pipe(&mut self, source: NodeId, target: NodeId) {
         let source_index = self.node_index[&source];
         let target_index = self.node_index[&target];
@@ -570,7 +591,8 @@ impl Net48 {
         &*self.vertex[self.node_index[&node]].unit
     }
 
-    /// Access mutable node.
+    /// Access mutable node. Note that any changes made via this method
+    /// are not accounted in the backend.
     pub fn node_mut(&mut self, node: NodeId) -> &mut dyn AudioUnit48 {
         &mut *self.vertex[self.node_index[&node]].unit
     }
@@ -751,7 +773,8 @@ impl Net48 {
     pub fn migrate(&mut self, new: &mut Net48) {
         for (id, &index) in self.node_index.iter() {
             if let Some(&new_index) = new.node_index.get(id) {
-                if !new.vertex[new_index].is_replaced {
+                // We may use the existing unit if no changes have been made since our last update.
+                if new.vertex[new_index].changed <= self.revision {
                     std::mem::swap(
                         &mut self.vertex[index].unit,
                         &mut new.vertex[new_index].unit,
@@ -763,6 +786,7 @@ impl Net48 {
 
     /// Create a realtime friendly backend for this network.
     /// This network is then the frontend and any changes made can be committed to the backend.
+    /// The backend is initialized with the current state of the network.
     /// This can be called only once for a network.
     ///
     /// ### Example
@@ -778,17 +802,15 @@ impl Net48 {
     /// ```
     pub fn backend(&mut self) -> Net48Backend {
         assert!(self.front.is_none());
-        let (sender_a, receiver_a) = channel(64);
-        let (sender_b, receiver_b) = channel(64);
+        let (sender_a, receiver_a) = channel(256);
+        let (sender_b, receiver_b) = channel(256);
         self.front = Some((sender_a, receiver_b));
         if !self.is_ordered() {
             self.determine_order();
         }
-        for vertex in self.vertex.iter_mut() {
-            vertex.is_replaced = false;
-        }
         let mut net = self.clone();
         net.allocate();
+        self.revision += 1;
         Net48Backend::new(sender_b, receiver_a, net)
     }
 
@@ -810,9 +832,7 @@ impl Net48 {
             while receiver.try_recv().is_ok() {}
             sender.send(net).unwrap();
         }
-        for vertex in self.vertex.iter_mut() {
-            vertex.is_replaced = false;
-        }
+        self.revision += 1;
     }
 }
 
@@ -1071,6 +1091,7 @@ impl Net48 {
         if net2.front.is_some() && net1.front.is_none() {
             std::mem::swap(&mut net1.front, &mut net2.front);
         }
+        net1.revision = max(net1.revision, net2.revision);
         net1
     }
 
@@ -1128,6 +1149,7 @@ impl Net48 {
         if net2.front.is_some() && net1.front.is_none() {
             std::mem::swap(&mut net1.front, &mut net2.front);
         }
+        net1.revision = max(net1.revision, net2.revision);
         net1
     }
 
@@ -1209,6 +1231,7 @@ impl Net48 {
         if net2.front.is_some() && net1.front.is_none() {
             std::mem::swap(&mut net1.front, &mut net2.front);
         }
+        net1.revision = max(net1.revision, net2.revision);
         net1
     }
 
@@ -1288,6 +1311,7 @@ impl Net48 {
         if net2.front.is_some() && net1.front.is_none() {
             std::mem::swap(&mut net1.front, &mut net2.front);
         }
+        net1.revision = max(net1.revision, net2.revision);
         net1
     }
 
@@ -1349,6 +1373,7 @@ impl Net48 {
         if net2.front.is_some() && net1.front.is_none() {
             std::mem::swap(&mut net1.front, &mut net2.front);
         }
+        net1.revision = max(net1.revision, net2.revision);
         net1
     }
 }

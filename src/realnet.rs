@@ -58,11 +58,18 @@ impl Net48Backend {
         #[allow(clippy::while_let_loop)]
         loop {
             match self.receiver.try_recv() {
-                Ok(net) => latest_net = Some(net),
+                Ok(net) => {
+                    if let Some(net) = latest_net {
+                        // This is not the latest network, send it back immediately for deallocation.
+                        self.sender.send(net).unwrap();
+                    }
+                    latest_net = Some(net)
+                }
                 _ => break,
             }
         }
         if let Some(mut net) = latest_net {
+            // Migrate existing nodes to the new network.
             self.net.migrate(&mut net);
             std::mem::swap(&mut net, &mut self.net);
             // Send the previous network back for deallocation.

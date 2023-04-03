@@ -29,13 +29,14 @@ default = ["files"]
 files = ["dep:symphonia"]
 
 [dev-dependencies]
-cpal = "0.15.1"
+cpal = "0.15.2"
 anyhow = "1.0.70"
 plotters = "0.3.4"
 criterion = "0.4.0"
 midi-msg = "0.4.0"
 midir = "0.9.1"
 read_input = "0.8.6"
+assert_no_alloc = "1.1.2"
 
 [[bench]]
 name = "benchmark"
@@ -72,6 +73,10 @@ path = "examples/grain.rs"
 [[example]]
 name = "grain2"
 path = "examples/grain2.rs"
+
+[[example]]
+name = "network"
+path = "examples/network.rs"
 
 [package.metadata.docs.rs]
 all-features = true

@@ -55,6 +55,10 @@ impl<T: Float> Buffer<T> {
             if self.buffer.len() > channels {
                 self.buffer.truncate(channels);
             } else {
+                self.slice.fill(|mut v| {
+                    v.reserve_exact(channels);
+                    v
+                });
                 while self.buffer.len() < channels {
                     let mut v = Vec::with_capacity(MAX_BUFFER_SIZE);
                     v.resize(MAX_BUFFER_SIZE, T::default());
