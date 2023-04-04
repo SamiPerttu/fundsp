@@ -59,6 +59,7 @@ where
 
     let mut rnd = Rnd::from_time();
     let mut delay_added = false;
+    let mut filter_added = false;
 
     loop {
         std::thread::sleep(std::time::Duration::from_millis(rnd.u64_in(200, 500)));
@@ -76,6 +77,10 @@ where
             net.pipe(id_noise, id_delay);
             net.pipe(id_delay, id_pan);
             delay_added = true;
+        }
+        if !filter_added && rnd.bool(0.05) {
+            net = net >> (peak_hz(1000.0, 2.0) | peak_hz(1000.0, 2.0));
+            filter_added = true;
         }
 
         net.commit();

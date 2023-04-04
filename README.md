@@ -392,6 +392,26 @@ if add_filter {
 }
 ```
 
+For realtime situations, a `Net32` or `Net64` can be divided into a frontend
+and a backend. The frontend handles changes to the network,
+while the realtime safe backend renders audio.
+
+```rust
+use fundsp::hacker::*;
+let mut net = Net64::new(0, 1);
+let noise_id = net.chain(Box::new(pink()));
+// Create the backend.
+let mut backend = net.backend();
+// The backend is now ready to be sent into an audio thread.
+// We can make changes to the frontend and then commit them to the backend.
+net.replace(noise_id, Box::new(brown()));
+net.commit();
+// We can also use the graph syntax to make changes, as long as connectivity
+// is maintained at commit time.
+net = net >> peak_hz(1000.0, 1.0);
+net.commit();
+```
+
 ## Input Modalities And Ranges
 
 Some signals found flowing in audio networks.
@@ -527,9 +547,9 @@ Due to nonlinearity, we do not attempt to calculate frequency responses for thes
 
 ---
 
-### Multithreading And Real-Time Control
+### More On Multithreading And Realtime Control
 
-There are two simple ways to introduce real-time control to graph expressions:
+Besides `Net32` and `Net64`, there are two ways to introduce realtime control to graph expressions:
 shared atomic variables and setting listeners.
 
 #### Atomic Variables
