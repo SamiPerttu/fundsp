@@ -1,6 +1,6 @@
 ## Changes
 
-### Version 0.13 (Next Version)
+### Version 0.13
 
 - Fade curves for Sequencer events. To migrate, use the curve `Fade::Smooth`.
 - `Net32/64` now operates on stable node IDs of type `NodeId`. Other improvements.
@@ -8,7 +8,7 @@
 - New method `AudioNode::allocate` for preallocating everything.
 - Identity function has been renamed from `id` to `identity`, to match the standard library.
 - Setting system MPSC channels were async by mistake; they are now blocking.
-- `Net32/64` can now have a realtime safe backend.
+- `Net32/64` can now have a real-time safe backend.
 
 ### Version 0.12
 
