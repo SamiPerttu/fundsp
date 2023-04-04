@@ -1,5 +1,9 @@
 ## Changes
 
+### Version 0.14 (Next Version)
+
+- New math functions `sqr_hz` and `tri_hz` for non-bandlimited square and triangle waves.
+
 ### Version 0.13
 
 - Fade curves for Sequencer events. To migrate, use the curve `Fade::Smooth`.
