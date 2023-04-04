@@ -415,6 +415,44 @@ pub fn cos_hz<T: Real>(hz: T, t: T) -> T {
     cos(t * hz * T::from_f64(TAU))
 }
 
+/// Square wave that oscillates at the specified frequency (Hz). Not bandlimited.
+/// Time is input in seconds.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert_eq!(sqr_hz(1.0, 0.25), 1.0);
+/// assert_eq!(sqr_hz(1.0, 0.75), -1.0);
+/// ```
+#[inline]
+pub fn sqr_hz<T: Float>(hz: T, t: T) -> T {
+    let x = t * hz;
+    let x = x - x.floor();
+    if x <= T::from_f32(0.5) {
+        T::one()
+    } else {
+        -T::one()
+    }
+}
+
+/// Triangle wave that oscillates at the specified frequency (Hz). Not bandlimited.
+/// Time is input in seconds.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert_eq!(tri_hz(1.0, 0.0), 0.0);
+/// assert_eq!(tri_hz(1.0, 0.25), 1.0);
+/// assert_eq!(tri_hz(1.0, 0.5), 0.0);
+/// assert_eq!(tri_hz(1.0, 0.75), -1.0);
+/// ```
+#[inline]
+pub fn tri_hz<T: Float>(hz: T, t: T) -> T {
+    let x = t * hz - T::from_f32(0.25);
+    let x = x - x.floor();
+    abs(x - T::from_f32(0.5)) * T::new(4) - T::one()
+}
+
 /// Converts from semitone interval to frequency ratio.
 ///
 /// ### Example

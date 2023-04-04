@@ -1377,8 +1377,7 @@ where
     ) {
         self.x
             .process(size, input, self.buffer.get_mut(self.x.outputs()));
-        self.y
-            .process(size, self.buffer.get_ref(self.y.inputs()), output);
+        self.y.process(size, self.buffer.self_ref(), output);
     }
 
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
@@ -2547,23 +2546,19 @@ where
                 if i & 1 > 0 {
                     self.x[i].process(
                         size,
-                        self.buffer_a.get_ref(X::Outputs::USIZE),
+                        self.buffer_a.self_ref(),
                         self.buffer_b.get_mut(X::Outputs::USIZE),
                     );
                 } else {
                     self.x[i].process(
                         size,
                         self.buffer_b.get_ref(X::Outputs::USIZE),
-                        self.buffer_a.get_mut(X::Outputs::USIZE),
+                        self.buffer_a.self_mut(),
                     );
                 }
             }
             if (N::USIZE - 1) & 1 > 0 {
-                self.x[N::USIZE - 1].process(
-                    size,
-                    self.buffer_a.get_ref(X::Outputs::USIZE),
-                    output,
-                );
+                self.x[N::USIZE - 1].process(size, self.buffer_a.self_ref(), output);
             } else {
                 self.x[N::USIZE - 1].process(
                     size,

@@ -1039,12 +1039,14 @@ The same modes are used in the `meter` opcode.
 | `softmix(x, y, bias)`  | weighted average of `x` and `y` according to `bias`: polynomial softmin when `bias` < 0, average when `bias` = 0, polynomial softmax when `bias` > 0 |
 | `softsign(x)`          | softsign function, a polynomial alternative to `tanh` |
 | `squared(x)`           | square of `x` |
+| `sqr_hz(f, t)`         | square wave (non-bandlimited) that oscillates at `f` Hz at time `t` seconds |
 | `sqrt(x)`              | square root of `x` |
 | `spline(x0, x1, x2, x3, t)` | [Catmull-Rom](https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Catmull%E2%80%93Rom_spline) cubic interpolation between `x1` and `x2`, taking `x0` and `x3` into account |
 | `spline_mono(x0, x1, x2, x3, t)` | [monotonic cubic interpolation](https://en.wikipedia.org/wiki/Monotone_cubic_interpolation) between `x1` and `x2`, taking `x0` and `x3` into account |
 | `spline_noise(seed, x)`| value noise in -1...1 interpolated with a cubic spline, with one interpolation point per integer cell |
 | `tan(x)`               | tan |
 | `tanh(x)`              | hyperbolic tangent |
+| `tri_hz(f, t)`         | triangle wave (non-bandlimited) that oscillates at `f` Hz at time `t` seconds |
 | `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
 | `xerp(x0, x1, t)`      | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) with `t` in 0...1 |
 | `xerp11(x0, x1, t)`    | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) with `t` in -1...1 |
