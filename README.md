@@ -392,9 +392,9 @@ if add_filter {
 }
 ```
 
-For realtime situations, a `Net32` or `Net64` can be divided into a frontend
+For real-time situations, a `Net32` or `Net64` can be divided into a frontend
 and a backend. The frontend handles changes to the network,
-while the realtime safe backend renders audio.
+while the real-time safe backend renders audio.
 
 ```rust
 use fundsp::hacker::*;
@@ -547,9 +547,9 @@ Due to nonlinearity, we do not attempt to calculate frequency responses for thes
 
 ---
 
-### More On Multithreading And Realtime Control
+### More On Multithreading And Real-Time Control
 
-Besides `Net32` and `Net64`, there are two ways to introduce realtime control to graph expressions:
+Besides `Net32` and `Net64`, there are two ways to introduce real-time control to graph expressions:
 shared atomic variables and setting listeners.
 
 #### Atomic Variables
