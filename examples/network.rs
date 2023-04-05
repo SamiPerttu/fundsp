@@ -1,4 +1,4 @@
-//! Make realtime changes to a network while it is playing.
+//! Make real-time changes to a network while it is playing.
 #![allow(clippy::precedence)]
 
 use assert_no_alloc::*;

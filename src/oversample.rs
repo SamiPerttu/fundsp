@@ -6,11 +6,9 @@ use super::signal::*;
 use super::*;
 use numeric_array::typenum::*;
 
-/*
-Coefficients from https://fiiir.com/, a Kaiser windowed filter with
-normalized frequency cutoff 0.22, transition band 0.06 and 80 dB stopband attenuation.
-Gain is -1.5 dB at 0.21 (18522 Hz @ 88.2 kHz) and -79 dB at 0.25.
-*/
+// Coefficients from https://fiiir.com/, a Kaiser windowed filter with
+// normalized frequency cutoff 0.22, transition band 0.06 and 80 dB stopband attenuation.
+// Gain is -1.5 dB at 0.21 (18522 Hz @ 88.2 kHz) and -79 dB at 0.25.
 const HALFBAND_LEN: usize = 85;
 #[allow(clippy::excessive_precision)]
 const HALFBAND: [f32; HALFBAND_LEN] = [
@@ -99,6 +97,58 @@ const HALFBAND: [f32; HALFBAND_LEN] = [
     -0.000061492255405391,
     0.000004861974285292,
     0.000020220200441046,
+];
+
+// Minimum phase version of the linear filter. Generated with scipy at:
+// https://www.tutorialspoint.com/execute_scipy_online.php
+// from scipy.signal import minimum_phase
+// min_phase = minimum_phase(linear_phase, method='homomorphic')
+const _MINIMUM_PHASE_LEN: usize = 43;
+#[allow(clippy::excessive_precision)]
+const _MINIMUM_PHASE: [f32; _MINIMUM_PHASE_LEN] = [
+    4.73552339e-02,
+    1.81988040e-01,
+    3.49148434e-01,
+    3.92748135e-01,
+    2.18230867e-01,
+    -5.31842843e-02,
+    -1.79186566e-01,
+    -7.34488007e-02,
+    8.94524103e-02,
+    1.00868556e-01,
+    -2.08681451e-02,
+    -8.82510989e-02,
+    -2.07640777e-02,
+    6.22587555e-02,
+    4.07776255e-02,
+    -3.52258090e-02,
+    -4.57407870e-02,
+    1.27033444e-02,
+    4.14376136e-02,
+    3.30799834e-03,
+    -3.24608206e-02,
+    -1.27856355e-02,
+    2.21659033e-02,
+    1.67803711e-02,
+    -1.27406974e-02,
+    -1.68177367e-02,
+    5.35518220e-03,
+    1.44761581e-02,
+    -3.70651781e-04,
+    -1.11140183e-02,
+    -2.40622311e-03,
+    7.71596027e-03,
+    3.48227062e-03,
+    -4.86763558e-03,
+    -3.45536353e-03,
+    2.79880054e-03,
+    2.86736431e-03,
+    -1.48746153e-03,
+    -2.11827989e-03,
+    7.72684113e-04,
+    1.44384114e-03,
+    -4.49807048e-04,
+    -9.41945265e-04,
 ];
 
 fn tick_even<T: Float>(v: &Frame<T, U128>, j: usize) -> T {

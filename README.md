@@ -772,7 +772,7 @@ The type parameters in the table refer to the hacker preludes.
 | `allpass()`            | 3 (audio, frequency, Q) | 1 | Allpass filter (2nd order). |
 | `allpass_hz(f, q)`     |    1    |    1    | Allpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `allpass_q(q)`         | 2 (audio, frequency) | 1 | Allpass filter (2nd order) with Q `q`. |
-| `allpole`              | 2 (audio, delay) | 1 | Allpass filter (1st order). 2nd input is delay in samples (`delay` > 0). |
+| `allpole()`            | 2 (audio, delay) | 1 | Allpass filter (1st order). 2nd input is delay in samples (`delay` > 0). |
 | `allpole_delay(delay)` |    1    |    1    | Allpass filter (1st order) with `delay` in samples (`delay` > 0). |
 | `bandpass()`           | 3 (audio, frequency, Q) | 1 | Bandpass filter (2nd order). |
 | `bandpass_hz(f, q)`    |    1    |    1    | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |

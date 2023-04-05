@@ -180,6 +180,10 @@ pub struct Net48 {
     sample_rate: f64,
     /// Optional frontend.
     front: Option<(Sender<Net48>, Receiver<Net48>)>,
+    /// Number of inputs in the backend. This is for checking consistency during commits.
+    backend_inputs: usize,
+    /// Number of outputs in the backend. This is for checking consistency during commits.
+    backend_outputs: usize,
     /// Revision number. This is used by frontends and backends only.
     /// The revision is incremented after each commit.
     revision: u64,
@@ -200,7 +204,10 @@ impl Clone for Net48 {
             order: self.order.clone(),
             node_index: self.node_index.clone(),
             sample_rate: self.sample_rate,
+            /// Frontend is never cloned.
             front: None,
+            backend_inputs: self.backend_inputs,
+            backend_outputs: self.backend_outputs,
             revision: self.revision,
         }
     }
@@ -233,6 +240,8 @@ impl Net48 {
             node_index: HashMap::new(),
             sample_rate: DEFAULT_SR,
             front: None,
+            backend_inputs: inputs,
+            backend_outputs: outputs,
             revision: 0,
         };
         for channel in 0..outputs {
@@ -439,6 +448,16 @@ impl Net48 {
 
     /// Connect the node input (`target`, `target_port`)
     /// to the network input `global_input`.
+    ///
+    /// ### Example (Saw Wave)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::new(1, 1);
+    /// let id = net.push(Box::new(saw()));
+    /// net.connect_input(0, id, 0);
+    /// net.connect_output(id, 0, 0);
+    /// net.check();
+    /// ```
     pub fn connect_input(
         &mut self,
         global_input: PortIndex,
@@ -464,6 +483,16 @@ impl Net48 {
 
     /// Pipe global input to node `target`.
     /// Number of node inputs must match the number of network inputs.
+    ///
+    /// ### Example (Stereo Filter)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::new(2, 2);
+    /// let id = net.push(Box::new(peak_hz(1000.0, 1.0) | peak_hz(1000.0, 1.0)));
+    /// net.pipe_input(id);
+    /// net.pipe_output(id);
+    /// net.check();
+    /// ```
     pub fn pipe_input(&mut self, target: NodeId) {
         let target_index = self.node_index[&target];
         assert!(self.vertex[target_index].inputs() == self.inputs());
@@ -475,6 +504,7 @@ impl Net48 {
     }
 
     /// Connect node output (`source`, `source_port`) to network output `global_output`.
+    /// There is one connection for each global output.
     pub fn connect_output(
         &mut self,
         source: NodeId,
@@ -507,6 +537,16 @@ impl Net48 {
 
     /// Pipe node outputs to global outputs.
     /// Number of outputs must match the number of network outputs.
+    ///
+    /// ### Example (Stereo Reverb)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::new(2, 2);
+    /// let id = net.push(Box::new(multipass() & reverb_stereo(10.0, 1.0)));
+    /// net.pipe_input(id);
+    /// net.pipe_output(id);
+    /// net.check();
+    /// ```
     pub fn pipe_output(&mut self, source: NodeId) {
         let source_index = self.node_index[&source];
         assert!(self.vertex[source_index].outputs() == self.outputs());
@@ -518,6 +558,15 @@ impl Net48 {
     }
 
     /// Pass through global `input` to global `output`.
+    ///
+    /// ### Example (Stereo Pass-Through)
+    /// ```
+    /// use fundsp::hacker32::*;
+    /// let mut net = Net32::new(2, 2);
+    /// net.pass_through(0, 0);
+    /// net.pass_through(1, 1);
+    /// net.check();
+    /// ```
     pub fn pass_through(&mut self, input: PortIndex, output: PortIndex) {
         self.output_edge[output] = edge(Port::Global(input), Port::Global(output));
         self.invalidate_order();
@@ -592,7 +641,8 @@ impl Net48 {
     }
 
     /// Access mutable node. Note that any changes made via this method
-    /// are not accounted in the backend.
+    /// are not accounted in the backend. This can be used to, e.g.,
+    /// query for frequency responses.
     pub fn node_mut(&mut self, node: NodeId) -> &mut dyn AudioUnit48 {
         &mut *self.vertex[self.node_index[&node]].unit
     }
@@ -801,10 +851,13 @@ impl Net48 {
     /// assert!(backend.get_mono() == 2.0);
     /// ```
     pub fn backend(&mut self) -> Net48Backend {
-        assert!(self.front.is_none());
-        let (sender_a, receiver_a) = channel(256);
-        let (sender_b, receiver_b) = channel(256);
+        assert!(!self.has_backend());
+        // Create huge channel buffers to make sure we don't run out of space easily.
+        let (sender_a, receiver_a) = channel(1024);
+        let (sender_b, receiver_b) = channel(1024);
         self.front = Some((sender_a, receiver_b));
+        self.backend_inputs = self.inputs();
+        self.backend_outputs = self.outputs();
         if !self.is_ordered() {
             self.determine_order();
         }
@@ -820,19 +873,41 @@ impl Net48 {
     }
 
     /// Commit changes made to this network to the backend.
+    /// This may be called only if the network has a backend.
     pub fn commit(&mut self) {
-        assert!(self.front.is_some());
+        assert!(self.has_backend());
+        if self.inputs() != self.backend_inputs {
+            panic!("The number of inputs has changed since last commit. The number of inputs must stay the same.");
+        }
+        if self.outputs() != self.backend_outputs {
+            panic!("The number of outputs has changed since last commit. The number of outputs must stay the same.");
+        }
         if !self.is_ordered() {
             self.determine_order();
         }
         let mut net = self.clone();
+        // Preallocate all necessary memory.
         net.allocate();
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all previous versions.
             while receiver.try_recv().is_ok() {}
+            // Send the new version over.
             sender.send(net).unwrap();
         }
         self.revision += 1;
+    }
+
+    /// Resolve new frontend for a binary combination.
+    fn resolve_frontend(&mut self, other: &mut Net48) {
+        if self.has_backend() && other.has_backend() {
+            panic!("Cannot combine two frontends.");
+        }
+        if other.has_backend() {
+            std::mem::swap(&mut self.front, &mut other.front);
+            self.backend_inputs = other.backend_inputs;
+            self.backend_outputs = other.backend_outputs;
+            self.revision = other.revision;
+        }
     }
 }
 
@@ -1088,10 +1163,7 @@ impl Net48 {
                 }
             }
         }
-        if net2.front.is_some() && net1.front.is_none() {
-            std::mem::swap(&mut net1.front, &mut net2.front);
-        }
-        net1.revision = max(net1.revision, net2.revision);
+        net1.resolve_frontend(&mut net2);
         net1
     }
 
@@ -1146,10 +1218,7 @@ impl Net48 {
                 }
             }
         }
-        if net2.front.is_some() && net1.front.is_none() {
-            std::mem::swap(&mut net1.front, &mut net2.front);
-        }
-        net1.revision = max(net1.revision, net2.revision);
+        net1.resolve_frontend(&mut net2);
         net1
     }
 
@@ -1228,10 +1297,7 @@ impl Net48 {
             }
         }
         net1.invalidate_order();
-        if net2.front.is_some() && net1.front.is_none() {
-            std::mem::swap(&mut net1.front, &mut net2.front);
-        }
-        net1.revision = max(net1.revision, net2.revision);
+        net1.resolve_frontend(&mut net2);
         net1
     }
 
@@ -1308,10 +1374,7 @@ impl Net48 {
             }
         }
         net1.invalidate_order();
-        if net2.front.is_some() && net1.front.is_none() {
-            std::mem::swap(&mut net1.front, &mut net2.front);
-        }
-        net1.revision = max(net1.revision, net2.revision);
+        net1.resolve_frontend(&mut net2);
         net1
     }
 
@@ -1352,8 +1415,8 @@ impl Net48 {
         }
         // Adjust output ports.
         let output_edge1 = net1.output_edge;
-        net1.output_edge = net2.output_edge;
-        net1.output = net2.output;
+        net1.output_edge = net2.output_edge.clone();
+        net1.output = net2.output.clone();
         for output_port in 0..net1.outputs() {
             match net1.output_edge[output_port].source {
                 Port::Local(source_node, source_port) => {
@@ -1370,10 +1433,7 @@ impl Net48 {
             }
         }
         net1.invalidate_order();
-        if net2.front.is_some() && net1.front.is_none() {
-            std::mem::swap(&mut net1.front, &mut net2.front);
-        }
-        net1.revision = max(net1.revision, net2.revision);
+        net1.resolve_frontend(&mut net2);
         net1
     }
 }
