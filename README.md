@@ -806,8 +806,8 @@ The type parameters in the table refer to the hacker preludes.
 | `envelope2(f)`         |  1 (x)  |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `lfo2`. |
 | `envelope3(f)`         | 2 (x, y) |  `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x, y\| y * exp(-t * x)`. Synonymous with `lfo3`. |
 | `envelope_in(f)`       |   `f`   |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, i: &Frame<f64, U1>\| exp(-t * i[0])`. Synonymous with `lfo_in`. |
-| `fdn(x)`               |   `x`   |   `x`   | Enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
-| `fdn2(x, y)`           | `x`, `y`| `x`, `y`| Enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback, with extra feedback loop processing `y`. The feedforward path does not include `y`. |
+| `fdn(x)`               |   `x`   |   `x`   | Feedback Delay Network: enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback. |
+| `fdn2(x, y)`           | `x`, `y`| `x`, `y`| Feedback Delay Network: enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback, with extra feedback loop processing `y`. The feedforward path does not include `y`. |
 | `feedback(x)`          |   `x`   |   `x`   | Enclose (single sample) feedback circuit `x` (with equal number of inputs and outputs). |
 | `feedback2(x, y)`      | `x`, `y`| `x`, `y`| Enclose (single sample) feedback circuit `x` (with equal number of inputs and outputs) with extra feedback loop processing `y`. The feedforward path does not include `y`. |
 | `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))`. |
