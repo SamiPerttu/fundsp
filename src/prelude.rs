@@ -359,6 +359,20 @@ pub fn sine_hz<T: Real>(f: T) -> An<Pipe<T, Constant<U1, T>, Sine<T>>> {
     constant(f) >> sine()
 }
 
+/// Rossler dynamical system oscillator.
+/// - Input 0: frequency. The Rossler oscillator exhibits peaks at multiples of this frequency.
+/// - Output 0: system output
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// lfo(|t| 440.0 + 10.0 * sin_hz(6.0, t)) >> rossler::<f64>();
+/// ```
+#[inline]
+pub fn rossler<T: Float>() -> An<Rossler<T>> {
+    An(Rossler::new())
+}
+
 /// Add constant to signal.
 /// - Input(s): signal
 /// - Output(s): signal plus constant
@@ -718,6 +732,15 @@ where
 /// - Input 0: x
 /// - Input 1: y
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+///
+/// ### Example (Clamped Sine)
+/// ```
+/// use fundsp::prelude::*;
+/// let min = shared::<f64>(-1.0);
+/// let max = shared::<f64>(1.0);
+/// (var(&min) | var(&max)) >> lfo3(|t, min, max| clamp(min, max, sin_hz(110.0, t)));
+/// max.set(0.5);
+/// ```
 #[inline]
 pub fn lfo3<T, F, E, R>(
     f: E,

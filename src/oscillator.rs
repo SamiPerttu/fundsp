@@ -304,3 +304,67 @@ impl<T: Float> AudioNode for Pluck<T> {
         }
     }
 }
+
+/// Rossler dynamical system oscillator.
+/// - Input 0: frequency. The Rossler oscillator exhibits peaks at multiples of this frequency.
+/// - Output 0: system output
+#[derive(Clone, Default)]
+pub struct Rossler<T: Float> {
+    x: T,
+    y: T,
+    z: T,
+    rate: T,
+    hash: u64,
+}
+
+impl<T: Float> Rossler<T> {
+    /// Create new Rossler oscillator.
+    pub fn new() -> Self {
+        let mut rossler = Self::default();
+        rossler.reset(Some(DEFAULT_SR));
+        rossler
+    }
+}
+
+impl<T: Float> AudioNode for Rossler<T> {
+    const ID: u64 = 73;
+    type Sample = T;
+    type Inputs = typenum::U1;
+    type Outputs = typenum::U1;
+    type Setting = ();
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sr) = sample_rate {
+            self.rate = T::from_f64(sr);
+        }
+        self.x = lerp(T::zero(), T::one(), convert(rnd(self.hash as i64)));
+        self.y = T::one();
+        self.z = T::one();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let dx = -self.y - self.z;
+        let dy = self.x + T::from_f64(0.15) * self.y;
+        let dz = T::from_f64(0.2) + self.z * (self.x - T::from_f64(10.0));
+        let dt = T::from_f64(2.91) * input[0] / self.rate;
+        self.x += dx * dt;
+        self.y += dy * dt;
+        self.z += dz * dt;
+        [self.x * T::from_f64(0.05757)].into()
+    }
+
+    fn set_hash(&mut self, hash: u64) {
+        self.hash = hash;
+        self.reset(None);
+    }
+
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = Signal::Latency(0.0);
+        output
+    }
+}

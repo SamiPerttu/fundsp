@@ -168,12 +168,28 @@ where
 }
 
 /// Linear interpolation.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert!(lerp(0.0, 5.0, 0.0) == 0.0);
+/// assert!(lerp(0.0, 5.0, 0.5) == 2.5);
+/// assert!(lerp(0.0, 5.0, 1.0) == 5.0);
+/// ```
 #[inline]
 pub fn lerp<U: Lerp<T>, T>(a: U, b: U, t: T) -> U {
     a.lerp(b, t)
 }
 
 /// Linear interpolation with `t` in -1...1.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert!(lerp11(0.0, 5.0, -1.0) == 0.0);
+/// assert!(lerp11(0.0, 5.0, 0.0) == 2.5);
+/// assert!(lerp11(0.0, 5.0, 1.0) == 5.0);
+/// ```
 #[inline]
 pub fn lerp11<U: Lerp<T>, T: Num>(a: U, b: U, t: T) -> U {
     a.lerp(b, t * T::from_f32(0.5) + T::from_f32(0.5))
@@ -184,7 +200,9 @@ pub fn lerp11<U: Lerp<T>, T: Num>(a: U, b: U, t: T) -> U {
 /// ### Example
 /// ```
 /// use fundsp::hacker::*;
+/// assert_eq!(delerp(2.0, 4.0, 2.0), 0.0);
 /// assert_eq!(delerp(2.0, 4.0, 3.0), 0.5);
+/// assert_eq!(delerp(2.0, 4.0, 4.0), 1.0);
 /// ```
 #[inline]
 pub fn delerp<T: Num>(a: T, b: T, x: T) -> T {
@@ -196,7 +214,9 @@ pub fn delerp<T: Num>(a: T, b: T, x: T) -> T {
 /// ### Example
 /// ```
 /// use fundsp::hacker::*;
+/// assert_eq!(delerp11(5.0, 9.0, 5.0), -1.0);
 /// assert_eq!(delerp11(5.0, 9.0, 7.0), 0.0);
+/// assert_eq!(delerp11(5.0, 9.0, 9.0), 1.0);
 /// ```
 #[inline]
 pub fn delerp11<T: Num>(a: T, b: T, x: T) -> T {
@@ -244,12 +264,25 @@ pub fn dissonance<T: Real>(f0: T, f1: T) -> T {
 }
 
 /// Return the maximally dissonant pure frequency above `f` Hz.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert!(dissonance_max(60.0) > 78.625 && dissonance_max(60.0) < 78.626);
+/// assert!(dissonance_max(440.0) > 465.959 && dissonance_max(440.0) < 465.960);
+/// ```
 #[inline]
 pub fn dissonance_max<T: Num>(f: T) -> T {
     T::from_f64(1.0193) * f + T::from_f64(17.4672)
 }
 
 /// Convert decibels to gain. 0 dB = 1.0 (unity gain).
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert!(db_amp(3.0) > 1.4125 && db_amp(3.0) < 1.4126);
+/// ```
 #[inline]
 pub fn db_amp<T: Real>(db: T) -> T {
     exp10(db / T::new(20))
@@ -264,6 +297,12 @@ pub fn amp_db<T: Real>(gain: T) -> T {
 /// A-weighted response function.
 /// Returns equal loudness amplitude response at `f` Hz.
 /// Normalized to 1.0 at 1 kHz.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert!(a_weight(1_000.0) > 0.9999 && a_weight(1_000.0) < 1.0001);
+/// ```
 #[inline]
 pub fn a_weight<T: Real>(f: T) -> T {
     let f2 = squared(f);
@@ -280,6 +319,12 @@ pub fn a_weight<T: Real>(f: T) -> T {
 /// the frequency response curve of the ITU-R 468 noise weighting standard.
 /// Returns equal loudness amplitude response at `f` Hz.
 /// Normalized to 1.0 at 1 kHz.
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// assert!(m_weight(1_000.0) > 0.9999 && m_weight(1_000.0) < 1.0001);
+/// ```
 #[inline]
 pub fn m_weight<T: Real>(f: T) -> T {
     let c0 = T::from_f64(1.246332637532143 * 1.0e-4);
@@ -428,7 +473,7 @@ pub fn cos_hz<T: Real>(hz: T, t: T) -> T {
 pub fn sqr_hz<T: Float>(hz: T, t: T) -> T {
     let x = t * hz;
     let x = x - x.floor();
-    if x <= T::from_f32(0.5) {
+    if x < T::from_f32(0.5) {
         T::one()
     } else {
         -T::one()

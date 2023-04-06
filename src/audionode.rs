@@ -437,6 +437,10 @@ impl<N: Size<T>, T: Float> Constant<N, T> {
     pub fn value(&self) -> Frame<T, N> {
         self.output.clone()
     }
+    /// Set a scalar value on all channels.
+    pub fn set_scalar(&mut self, output: T) {
+        self.output = Frame::splat(output);
+    }
 }
 
 impl<N: Size<T>, T: Float> AudioNode for Constant<N, T> {

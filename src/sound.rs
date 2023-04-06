@@ -39,10 +39,7 @@ pub fn pebbles(
             d[0] = 110.0;
             // Write frequencies.
             for i in 0..d.len() {
-                x.node_mut(i)
-                    .left_mut()
-                    .left_mut()
-                    .set_value(Frame::from([d[i]]));
+                x.node_mut(i).left_mut().left_mut().set_scalar(d[i]);
             }
             // Compute "gravity".
             for i in 0..d.len() {

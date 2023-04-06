@@ -24,10 +24,12 @@ impl Atomic for f32 {
         AtomicU32::from(t.to_bits())
     }
 
+    #[inline]
     fn store(stored: &Self::Storage, t: Self) {
         stored.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
     }
 
+    #[inline]
     fn get_stored(stored: &Self::Storage) -> Self {
         let u = stored.load(std::sync::atomic::Ordering::Relaxed);
         f32::from_bits(u)
@@ -41,10 +43,12 @@ impl Atomic for f64 {
         AtomicU64::from(t.to_bits())
     }
 
+    #[inline]
     fn store(stored: &Self::Storage, t: Self) {
         stored.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
     }
 
+    #[inline]
     fn get_stored(stored: &Self::Storage) -> Self {
         let u = stored.load(std::sync::atomic::Ordering::Relaxed);
         f64::from_bits(u)
@@ -73,16 +77,25 @@ impl<T: Atomic> Shared<T> {
     }
 
     /// Get reference to underlying atomic.
+    #[inline]
     pub fn get_shared(&self) -> &Arc<T::Storage> {
         &self.value
     }
 
-    /// Set the value of this variable.
+    /// Set the value of this variable. Synonymous with `set`.
+    #[inline]
     pub fn set_value(&self, t: T) {
         T::store(&self.value, t)
     }
 
+    /// Set the value of this variable. Synonymous with `set_value`.
+    #[inline]
+    pub fn set(&self, t: T) {
+        T::store(&self.value, t)
+    }
+
     /// Get the value of this variable.
+    #[inline]
     pub fn value(&self) -> T {
         T::get_stored(&self.value)
     }
@@ -128,6 +141,7 @@ impl<T: Atomic> AudioNode for Var<T> {
     type Outputs = U1;
     type Setting = ();
 
+    #[inline]
     fn tick(
         &mut self,
         _: &Frame<Self::Sample, Self::Inputs>,
@@ -204,6 +218,7 @@ where
     type Outputs = R::Size;
     type Setting = ();
 
+    #[inline]
     fn tick(
         &mut self,
         _: &Frame<Self::Sample, Self::Inputs>,

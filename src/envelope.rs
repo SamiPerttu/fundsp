@@ -55,6 +55,7 @@ where
     R::Size: Size<F>,
     R::Size: Size<T>,
 {
+    /// Create new envelope with `interval` seconds between samples.
     pub fn new(interval: F, sample_rate: f64, envelope: E) -> Self {
         assert!(interval > F::zero());
         let mut node = Envelope::<T, F, E, R> {
@@ -75,6 +76,7 @@ where
         node
     }
 
+    /// Move to the next segment.
     fn next_segment(&mut self) {
         self.t_0 = self.t_1;
         self.value_0 = self.value_1.clone();
@@ -228,6 +230,7 @@ where
     R::Size: Size<F>,
     R::Size: Size<T>,
 {
+    /// Create new envelope with `interval` seconds between samples.
     pub fn new(interval: F, sample_rate: f64, envelope: E) -> Self {
         assert!(interval > F::zero());
         let mut node = Self {
@@ -249,6 +252,7 @@ where
         node
     }
 
+    /// Move to the next segment.
     fn next_segment(&mut self, input: &Frame<T, I>) {
         if self.t_0 == F::zero() && self.t_1 == F::zero() {
             // Get the initial value.
