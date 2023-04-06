@@ -829,6 +829,7 @@ The type parameters in the table refer to the hacker preludes.
 | `lfo_in(f)`            |   `f`   |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, i: &Frame<f64, U1>\| exp(-t * i[0])`. Synonymous with `envelope_in`. |
 | `limiter((a, r))`      |    1    |    1    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `limiter_stereo((a, r))`|   2    |    2    | Stereo look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
+| `lorenz()`             | 1 (frequency) | 1 | Lorenz dynamical system oscillator. |
 | `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
 | `lowpass_hz(f, q)`     |    1    |    1    | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `lowpass_q(q)`         | 2 (audio, frequency) | 1 | Lowpass filter (2nd order) with Q `q`. |

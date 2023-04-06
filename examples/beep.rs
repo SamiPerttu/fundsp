@@ -57,6 +57,7 @@ where
     //let c = dc(110.0) >> square();
     let c = 0.2 * (organ_hz(midi_hz(57.0)) + organ_hz(midi_hz(61.0)) + organ_hz(midi_hz(64.0)));
     //let c = dc(440.0) >> rossler();
+    //let c = dc(110.0) >> lorenz();
     //let c = organ_hz(110.1) + organ_hz(54.9);
 
     // Filtered noise tone.

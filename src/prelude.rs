@@ -373,6 +373,20 @@ pub fn rossler<T: Float>() -> An<Rossler<T>> {
     An(Rossler::new())
 }
 
+/// Lorenz dynamical system oscillator.
+/// - Input 0: frequency. The Lorenz system exhibits slight frequency effects.
+/// - Output 0: system output
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude::*;
+/// lfo(|t| 110.0 + 5.0 * sin_hz(5.0, t)) >> lorenz::<f64>();
+/// ```
+#[inline]
+pub fn lorenz<T: Float>() -> An<Lorenz<T>> {
+    An(Lorenz::new())
+}
+
 /// Add constant to signal.
 /// - Input(s): signal
 /// - Output(s): signal plus constant

@@ -313,7 +313,7 @@ pub struct Rossler<T: Float> {
     x: T,
     y: T,
     z: T,
-    rate: T,
+    sr: T,
     hash: u64,
 }
 
@@ -335,7 +335,7 @@ impl<T: Float> AudioNode for Rossler<T> {
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sr) = sample_rate {
-            self.rate = T::from_f64(sr);
+            self.sr = T::from_f64(sr);
         }
         self.x = lerp(T::zero(), T::one(), convert(rnd(self.hash as i64)));
         self.y = T::one();
@@ -350,11 +350,75 @@ impl<T: Float> AudioNode for Rossler<T> {
         let dx = -self.y - self.z;
         let dy = self.x + T::from_f64(0.15) * self.y;
         let dz = T::from_f64(0.2) + self.z * (self.x - T::from_f64(10.0));
-        let dt = T::from_f64(2.91) * input[0] / self.rate;
+        let dt = T::from_f64(2.91) * input[0] / self.sr;
         self.x += dx * dt;
         self.y += dy * dt;
         self.z += dz * dt;
         [self.x * T::from_f64(0.05757)].into()
+    }
+
+    fn set_hash(&mut self, hash: u64) {
+        self.hash = hash;
+        self.reset(None);
+    }
+
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = Signal::Latency(0.0);
+        output
+    }
+}
+
+/// Lorenz dynamical system oscillator.
+/// - Input 0: frequency. The Lorenz system exhibits slight frequency effects.
+/// - Output 0: system output
+#[derive(Clone, Default)]
+pub struct Lorenz<T: Float> {
+    x: T,
+    y: T,
+    z: T,
+    sr: T,
+    hash: u64,
+}
+
+impl<T: Float> Lorenz<T> {
+    /// Create new Lorenz oscillator.
+    pub fn new() -> Self {
+        let mut lorenz = Self::default();
+        lorenz.reset(Some(DEFAULT_SR));
+        lorenz
+    }
+}
+
+impl<T: Float> AudioNode for Lorenz<T> {
+    const ID: u64 = 74;
+    type Sample = T;
+    type Inputs = typenum::U1;
+    type Outputs = typenum::U1;
+    type Setting = ();
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        if let Some(sr) = sample_rate {
+            self.sr = T::from_f64(sr);
+        }
+        self.x = lerp(T::zero(), T::one(), convert(rnd(self.hash as i64)));
+        self.y = T::one();
+        self.z = T::one();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let dx = T::from_f64(10.0) * (self.y - self.x);
+        let dy = self.x * (T::from_f64(28.0) - self.z) - self.y;
+        let dz = self.x * self.y - T::from_f64(2.666) * self.z;
+        let dt = input[0] / self.sr;
+        self.x += dx * dt;
+        self.y += dy * dt;
+        self.z += dz * dt;
+        [self.x * T::from_f64(0.05107)].into()
     }
 
     fn set_hash(&mut self, hash: u64) {

@@ -373,6 +373,20 @@ pub fn rossler() -> An<Rossler<f32>> {
     An(Rossler::new())
 }
 
+/// Lorenz dynamical system oscillator.
+/// - Input 0: frequency. The Lorenz system exhibits slight frequency effects.
+/// - Output 0: system output
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker::*;
+/// lfo(|t| 110.0 + 5.0 * sin_hz(5.0, t)) >> lorenz();
+/// ```
+#[inline]
+pub fn lorenz() -> An<Lorenz<f32>> {
+    An(Lorenz::new())
+}
+
 /// Add constant to signal.
 /// - Input(s): signal
 /// - Output(s): signal plus constant
