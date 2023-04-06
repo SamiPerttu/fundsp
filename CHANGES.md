@@ -3,6 +3,7 @@
 ### Version 0.14 (Next Version)
 
 - New math functions `sqr_hz` and `tri_hz` for non-bandlimited square and triangle waves.
+- Lorenz and Rossler chaotic system oscillators.
 
 ### Version 0.13
 
