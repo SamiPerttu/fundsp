@@ -53,7 +53,7 @@ impl Net48Backend {
     }
 
     /// Handle changes made to the backend.
-    pub fn handle_messages(&mut self) {
+    fn handle_messages(&mut self) {
         let mut latest_net: Option<Net48> = None;
         #[allow(clippy::while_let_loop)]
         loop {

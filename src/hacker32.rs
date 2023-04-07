@@ -651,6 +651,13 @@ where
 /// Synonymous with `lfo2`.
 /// - Input 0: x
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+///
+/// ### Example (LFO Speed Control)
+/// ```
+/// use fundsp::hacker32::*;
+/// let speed = shared(1.0);
+/// var(&speed) >> envelope2(|t, speed| exp(-t * speed));
+/// ```
 #[inline]
 pub fn envelope2<E, R>(
     f: E,
@@ -672,6 +679,13 @@ where
 /// Synonymous with `envelope2`.
 /// - Input 0: x
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
+///
+/// ### Example (Amplitude Control)
+/// ```
+/// use fundsp::hacker32::*;
+/// let amp = shared(1.0);
+/// var(&amp) >> lfo2(|t, amp| amp * exp(-t));
+/// ```
 #[inline]
 pub fn lfo2<E, R>(
     f: E,
@@ -1162,6 +1176,12 @@ pub fn panner() -> An<Panner<f32, U2>> {
 /// - Input 0: input signal
 /// - Output 0: left channel
 /// - Output 1: right channel
+///
+/// ### Example (Center Panned Saw Wave)
+/// ```
+/// use fundsp::hacker32::*;
+/// saw_hz(440.0) >> pan(0.0);
+/// ```
 #[inline]
 pub fn pan(pan: f32) -> An<Panner<f32, U1>> {
     An(Panner::new(pan))
@@ -1170,6 +1190,13 @@ pub fn pan(pan: f32) -> An<Panner<f32, U1>> {
 /// Parameter follower filter with halfway response time `t` seconds.
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
+///
+/// ### Example (Smoothed Atomic Parameter)
+/// ```
+/// use fundsp::hacker32::*;
+/// let parameter = shared(1.0);
+/// var(&parameter) >> follow(0.01);
+/// ```
 #[inline]
 pub fn follow<S: ScalarOrPair<Sample = f32>>(t: S) -> An<AFollow<f32, f32, S>> {
     An(AFollow::new(DEFAULT_SR, t))

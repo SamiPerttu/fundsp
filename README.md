@@ -829,7 +829,7 @@ The type parameters in the table refer to the hacker preludes.
 | `lfo_in(f)`            |   `f`   |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, i: &Frame<f64, U1>\| exp(-t * i[0])`. Synonymous with `envelope_in`. |
 | `limiter((a, r))`      |    1    |    1    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
 | `limiter_stereo((a, r))`|   2    |    2    | Stereo look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
-| `lorenz()`             | 1 (frequency) | 1 | Lorenz dynamical system oscillator. |
+| `lorenz()`             | 1 (frequency) | 1 | [Lorenz dynamical system](https://en.wikipedia.org/wiki/Lorenz_system) oscillator. |
 | `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
 | `lowpass_hz(f, q)`     |    1    |    1    | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |
 | `lowpass_q(q)`         | 2 (audio, frequency) | 1 | Lowpass filter (2nd order) with Q `q`. |
@@ -880,7 +880,7 @@ The type parameters in the table refer to the hacker preludes.
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `reverb_stereo(r, t)`  |    2    |    2    | Stereo reverb with room size `r` meters (10 is average) and reverberation time `t` seconds. |
-| `rossler()`            | 1 (frequency) | 1 | Rossler dynamical system oscillator. |
+| `rossler()`            | 1 (frequency) | 1 | [Rössler dynamical system](https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor) oscillator. |
 | `saw()`                | 1 (frequency) | 1 | Bandlimited saw wave oscillator. |
 | `saw_hz(f)`            |    -    |    1    | Bandlimited saw wave oscillator at `f` Hz. |
 | `shape(mode)`          |    1    |    1    | Shape signal with waveshaper mode `mode`. |

@@ -99,7 +99,6 @@ where
 
     let mut input = 1.0;
     let mut buffer = Vec::with_capacity(length);
-    //let mut sum = 0.0;
     // Try to remove effect of DC by warming up the filter.
     for _i in 0..length / 4 {
         filter.filter_mono(0.0);
@@ -108,19 +107,10 @@ where
         // Apply a Hann window.
         //let window = 0.5 + 0.5 * cos(_i as f64 / length as f64 * PI);
         let x = filter.filter_mono(input);
-        //sum += x;
         //buffer.push(re(x * window));
         buffer.push(re(x));
         input = 0.0;
     }
-    //let mean = sum / length as f64;
-    //for x in buffer.iter_mut() {
-    //    *x -= mean;
-    //}
-    //for i in 0..length {
-    //    let window = 0.5 + 0.5 * cos(i as f64 / length as f64 * PI);
-    //    buffer[i] *= window;
-    //}
 
     let fft = Radix4::new(length, FftDirection::Forward);
     // Note. Output from process() appears normalized, contrary to documentation.

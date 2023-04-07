@@ -413,7 +413,7 @@ impl<T: Float> AudioNode for Lorenz<T> {
     ) -> Frame<Self::Sample, Self::Outputs> {
         let dx = T::from_f64(10.0) * (self.y - self.x);
         let dy = self.x * (T::from_f64(28.0) - self.z) - self.y;
-        let dz = self.x * self.y - T::from_f64(2.666) * self.z;
+        let dz = self.x * self.y - T::from_f64(8.0 / 3.0) * self.z;
         let dt = input[0] / self.sr;
         self.x += dx * dt;
         self.y += dy * dt;
