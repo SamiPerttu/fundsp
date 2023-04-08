@@ -103,6 +103,10 @@ Both systems operate on audio signals synchronously as an infinite stream.
 At the moment, block processing via `AudioNode::process` requires heap allocation.
 Some nodes may also use the heap for audio buffers and the like.
 
+The `allocate` method preallocates all needed memory. It should be called last before
+sending something into a real-time context. This is done automatically in
+the `Net32` and `Net64` frontend.
+
 The purpose of the `AudioUnit` system is to grant more flexibility in dynamic situations:
 decisions about input and output arities and contents can be deferred to runtime.
 
@@ -266,8 +270,11 @@ each come with their own connectivity rules.
 #### Pipe
 
 The pipe ( `>>` ) operator builds traditional processing chains akin to composition of functions.
-In `A >> B`, each output of `A` is piped to a matching input of `B`, so
+`A` runs first, then `B`. In `A >> B`, each output of `A` is piped to a matching input of `B`, so
 the output arity of `A` must match the input arity of `B`.
+
+The whole combination then has the input arity of `A` and the output arity of `B`.
+Pipe is a fundamental operation. It wires units in series.
 
 It is possible to pipe a sink to a generator. This is similar to stacking.
 Processing works as normal and the sink processes its inputs before the generator is run.
@@ -303,6 +310,10 @@ In `A & B`, both components source from the same inputs, and the number of input
 One application of the bus is controlling effect mix in conjunction with the `pass` opcode,
 which passes signal through unchanged. For example, to add 20% chorus to a mono signal,
 one might type `pass() & 0.2 * chorus(0, 0.0, 0.01, 0.3)`.
+
+Or, to add 20% reverb to a stereo signal, `multipass() & 0.2 * reverb_stereo(20.0, 2.0)`.
+Type inference works in our favor here, saving us the need to write the arity of `multipass`,
+and the constant `0.2` is broadcast to two channels.
 
 #### Stack
 
