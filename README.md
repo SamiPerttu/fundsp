@@ -554,14 +554,16 @@ Due to nonlinearity, we do not attempt to calculate frequency responses for thes
 
 | Opcode       | Type                   | Parameters   | Family       | Notes     |
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
-| `moog`       | lowpass (4th order)    | frequency, Q | Moog ladder  | Sensitive to input level. |
+| `bandrez`    | bandpass (2nd order)   | frequency, Q | nested 1st order | Sensitive to input level. |
+| `lowrez`     | lowpass (2nd order)    | frequency, Q | nested 1st order | -..- |
+| `moog`       | lowpass (4th order)    | frequency, Q | Moog ladder  | -..- |
 
 ---
 
 ### More On Multithreading And Real-Time Control
 
-Besides `Net32` and `Net64`, there are two ways to introduce real-time control to graph expressions:
-shared atomic variables and setting listeners.
+Besides `Net32` and `Net64` frontends, there are two ways to introduce real-time
+control to graph expressions: shared atomic variables and setting listeners.
 
 #### Atomic Variables
 
@@ -788,6 +790,9 @@ The type parameters in the table refer to the hacker preludes.
 | `bandpass()`           | 3 (audio, frequency, Q) | 1 | Bandpass filter (2nd order). |
 | `bandpass_hz(f, q)`    |    1    |    1    | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `bandpass_q(q)`        | 2 (audio, frequency) | 1 | Bandpass filter (2nd order) with Q `q`. |
+| `bandrez()`            | 3 (audio, frequency, Q) | 1 | Resonant bandpass filter (2nd order). |
+| `bandrez_hz(f, q)`     |    1    |    1    | Resonant bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
+| `bandrez_q(q)`         | 2 (audio, frequency) | 1 | Resonant bandpass filter (2nd order) with Q `q`. |
 | `bell()`               | 4 (audio, frequency, Q, gain) | 1 | Peaking filter (2nd order) with adjustable amplitude gain. |
 | `bell_hz(f, q, gain)`  |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `bell_q(q, gain)`      | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q` and amplitude gain `gain`. |
@@ -846,6 +851,9 @@ The type parameters in the table refer to the hacker preludes.
 | `lowpass_q(q)`         | 2 (audio, frequency) | 1 | Lowpass filter (2nd order) with Q `q`. |
 | `lowpole()`            | 2 (audio, frequency) | 1 | 1-pole lowpass filter (1st order). |
 | `lowpole_hz(f)`        |    1    |    1    | 1-pole lowpass filter (1st order) with cutoff frequency `f` Hz. |
+| `lowrez()`             | 3 (audio, frequency, Q) | 1 | Resonant lowpass filter (2nd order). |
+| `lowrez_hz(f, q)`      |    1    |    1    | Resonant lowpass filter (2nd order) centered at `f` Hz with Q `q`. |
+| `lowrez_q(q)`          | 2 (audio, frequency) | 1 | Resonant lowpass filter (2nd order) with Q `q`. |
 | `lowshelf()`           | 4 (audio, frequency, Q, gain) | 1 | Low shelf filter (2nd order) with adjustable amplitude gain. |
 | `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `lowshelf_q(q, gain)`  | 2 (audio, frequency) | 1 | Low shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |

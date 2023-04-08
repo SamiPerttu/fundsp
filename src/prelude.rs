@@ -21,6 +21,7 @@ pub use super::oversample::*;
 pub use super::pan::*;
 pub use super::realnet::*;
 pub use super::resample::*;
+pub use super::rez::*;
 pub use super::sequencer::*;
 pub use super::setting::*;
 pub use super::shape::*;
@@ -2189,6 +2190,58 @@ pub fn highshelf_q<T: Float, F: Real>(
                 gain: F::one(),
             },
         ))
+}
+
+/// Resonant two-pole lowpass filter.
+/// - Input 0: audio
+/// - Input 1: cutoff frequency
+/// - Input 2: Q
+/// - Output 0: filtered audio
+pub fn lowrez<T: Float, F: Real>() -> An<Rez<T, F, U3>> {
+    An(Rez::new(F::zero(), F::new(440), F::one()))
+}
+
+/// Resonant two-pole lowpass filter with fixed cutoff frequency and Q.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn lowrez_hz<T: Float, F: Real>(cutoff: F, q: F) -> An<Rez<T, F, U1>> {
+    An(Rez::new(F::zero(), cutoff, q))
+}
+
+/// Resonant two-pole lowpass filter with fixed Q.
+/// - Input 0: audio
+/// - Input 1: cutoff frequency
+/// - Output 0: filtered audio
+pub fn lowrez_q<T: Float, F: Real>(
+    q: F,
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U1, T>>, Rez<T, F, U3>>> {
+    (multipass::<U2, T>() | dc(convert::<F, T>(q))) >> lowrez()
+}
+
+/// Resonant two-pole bandpass filter.
+/// - Input 0: audio
+/// - Input 1: center frequency
+/// - Input 2: Q
+/// - Output 0: filtered audio
+pub fn bandrez<T: Float, F: Real>() -> An<Rez<T, F, U3>> {
+    An(Rez::new(F::one(), F::new(440), F::one()))
+}
+
+/// Resonant two-pole bandpass filter with fixed center frequency and Q.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn bandrez_hz<T: Float, F: Real>(center: F, q: F) -> An<Rez<T, F, U3>> {
+    An(Rez::new(F::one(), center, q))
+}
+
+/// Resonant two-pole bandpass filter with fixed Q.
+/// - Input 0: audio
+/// - Input 1: cutoff frequency
+/// - Output 0: filtered audio
+pub fn bandrez_q<T: Float, F: Real>(
+    q: F,
+) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U1, T>>, Rez<T, F, U3>>> {
+    (multipass::<U2, T>() | dc(convert::<F, T>(q))) >> bandrez()
 }
 
 /// Pulse wave oscillator.

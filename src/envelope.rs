@@ -159,8 +159,8 @@ where
             for channel in 0..self.outputs() {
                 let mut value = self.value[channel];
                 let delta = self.value_d[channel];
-                for j in i..i + loop_samples {
-                    output[channel][j] = value;
+                for o in output[channel][i..i + loop_samples].iter_mut() {
+                    *o = value;
                     value += delta;
                 }
                 self.value[channel] = value;
@@ -342,8 +342,8 @@ where
             for channel in 0..self.outputs() {
                 let mut value = self.value[channel];
                 let delta = self.value_d[channel];
-                for j in i..i + loop_samples {
-                    output[channel][j] = value;
+                for o in output[channel][i..i + loop_samples].iter_mut() {
+                    *o = value;
                     value += delta;
                 }
                 self.value[channel] = value;

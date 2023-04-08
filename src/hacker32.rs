@@ -21,6 +21,7 @@ pub use super::oversample::*;
 pub use super::pan::*;
 pub use super::realnet::*;
 pub use super::resample::*;
+pub use super::rez::*;
 pub use super::sequencer::*;
 pub use super::setting::*;
 pub use super::shape::*;
@@ -1833,6 +1834,58 @@ pub fn highshelf_q(
     Pipe<f32, Stack<f32, MultiPass<U2, f32>, Constant<U2, f32>>, Svf<f32, f32, HighshelfMode<f32>>>,
 > {
     super::prelude::highshelf_q::<f32, f32>(q, gain)
+}
+
+/// Resonant two-pole lowpass filter.
+/// - Input 0: audio
+/// - Input 1: cutoff frequency
+/// - Input 2: Q
+/// - Output 0: filtered audio
+pub fn lowrez() -> An<Rez<f32, f32, U3>> {
+    An(Rez::new(0.0, 440.0, 1.0))
+}
+
+/// Resonant two-pole lowpass filter with fixed cutoff frequency and Q.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn lowrez_hz(cutoff: f32, q: f32) -> An<Rez<f32, f32, U1>> {
+    An(Rez::new(0.0, cutoff, q))
+}
+
+/// Resonant two-pole lowpass filter with fixed Q.
+/// - Input 0: audio
+/// - Input 1: cutoff frequency
+/// - Output 0: filtered audio
+pub fn lowrez_q(
+    q: f32,
+) -> An<Pipe<f32, Stack<f32, MultiPass<U2, f32>, Constant<U1, f32>>, Rez<f32, f32, U3>>> {
+    (multipass::<U2>() | dc(q)) >> lowrez()
+}
+
+/// Resonant two-pole bandpass filter.
+/// - Input 0: audio
+/// - Input 1: center frequency
+/// - Input 2: Q
+/// - Output 0: filtered audio
+pub fn bandrez() -> An<Rez<f32, f32, U3>> {
+    An(Rez::new(1.0, 440.0, 1.0))
+}
+
+/// Resonant two-pole bandpass filter with fixed center frequency and Q.
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn bandrez_hz(center: f32, q: f32) -> An<Rez<f32, f32, U3>> {
+    An(Rez::new(1.0, center, q))
+}
+
+/// Resonant two-pole bandpass filter with fixed Q.
+/// - Input 0: audio
+/// - Input 1: center frequency
+/// - Output 0: filtered audio
+pub fn bandrez_q(
+    q: f32,
+) -> An<Pipe<f32, Stack<f32, MultiPass<U2, f32>, Constant<U1, f32>>, Rez<f32, f32, U3>>> {
+    (multipass::<U2>() | dc(q)) >> bandrez()
 }
 
 /// Pulse wave oscillator.

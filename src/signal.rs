@@ -135,7 +135,7 @@ pub enum Routing {
     Split,
     /// Join or multijoin semantics.
     Join,
-    /// Reverse channel order semantics.
+    /// Reverse channel order semantics. Equal number of inputs and outputs.
     Reverse,
 }
 
@@ -177,6 +177,7 @@ impl Routing {
                 }
             }
             Routing::Reverse => {
+                assert!(input.len() == outputs);
                 for i in 0..outputs {
                     output[i] = input[input.len() - 1 - i];
                 }

@@ -265,6 +265,7 @@ pub mod pattern;
 pub mod prelude;
 pub mod realnet;
 pub mod resample;
+pub mod rez;
 pub mod scale;
 pub mod sequencer;
 pub mod setting;

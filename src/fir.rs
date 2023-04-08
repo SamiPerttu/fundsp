@@ -69,8 +69,8 @@ impl<T: Float, N: Size<T>> AudioNode for Fir<T, N> {
             }
         });
         let mut output = T::zero();
-        for i in 0..N::USIZE {
-            output += self.w[i] * self.v[i];
+        for (i1, i2) in self.w[..N::USIZE].iter().zip(self.v[..N::USIZE].iter()) {
+            output += *i1 * *i2;
         }
         [output].into()
     }

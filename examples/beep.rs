@@ -67,7 +67,8 @@ where
     //let c = lfo(|t| xerp11(50.0, 5000.0, ease_noise(smooth9, 0, t))) >> triangle();
 
     // Bandpass filtering.
-    let c = c >> (pass() | envelope(|t| xerp11(500.0, 5000.0, sin_hz(0.05, t)))) >> bandpass_q(5.0);
+    //let c = c >> (pass() | envelope(|t| xerp11(500.0, 5000.0, sin_hz(0.05, t)))) >> bandpass_q(5.0);
+    //let c = c >> (pass() | envelope(|t| (xerp11(500.0, 5000.0, sin_hz(0.05, t)), 0.9))) >> !bandrez() >> bandrez();
 
     // Waveshaper.
     //let c = c >> shape(Shape::Crush(20.0));
