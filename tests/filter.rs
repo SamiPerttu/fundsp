@@ -196,7 +196,7 @@ fn test_responses() {
     test_response(allpole_delay(0.5) & allpole_delay(1.3) & allpole_delay(0.1));
     test_response(highpole_hz(5000.0) & highpole_hz(500.0) & highpole_hz(2000.0));
     test_response(
-        (delay(0.001) ^ delay(0.002)) >> swap_stereo() >> (delay(0.003) | delay(0.007)) >> join(),
+        (delay(0.001) ^ delay(0.002)) >> reverse() >> (delay(0.003) | delay(0.007)) >> join(),
     );
     test_response(
         (butterpass_hz(15000.0) ^ allpass_hz(10000.0, 10.0)) >> lowpole_hz(500.0) + pass(),

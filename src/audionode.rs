@@ -2598,23 +2598,23 @@ where
     }
 }
 
-/// Swap stereo channels.
+/// Reverse channel order.
 #[derive(Default, Clone)]
-pub struct Swap<T> {
-    _marker: PhantomData<T>,
+pub struct Reverse<N, T> {
+    _marker: PhantomData<(N, T)>,
 }
 
-impl<T: Float> Swap<T> {
+impl<N: Size<T>, T: Float> Reverse<N, T> {
     pub fn new() -> Self {
-        Swap::default()
+        Reverse::default()
     }
 }
 
-impl<T: Float> AudioNode for Swap<T> {
+impl<N: Size<T>, T: Float> AudioNode for Reverse<N, T> {
     const ID: u64 = 45;
     type Sample = T;
-    type Inputs = U2;
-    type Outputs = U2;
+    type Inputs = N;
+    type Outputs = N;
     type Setting = ();
 
     #[inline]
@@ -2622,7 +2622,7 @@ impl<T: Float> AudioNode for Swap<T> {
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        [input[1], input[0]].into()
+        Frame::generate(|i| input[N::USIZE - 1 - i])
     }
     fn process(
         &mut self,
@@ -2630,13 +2630,11 @@ impl<T: Float> AudioNode for Swap<T> {
         input: &[&[Self::Sample]],
         output: &mut [&mut [Self::Sample]],
     ) {
-        output[0][..size].clone_from_slice(&input[1][..size]);
-        output[1][..size].clone_from_slice(&input[0][..size]);
+        for i in 0..N::USIZE {
+            output[i][..size].clone_from_slice(&input[N::USIZE - 1 - i][..size]);
+        }
     }
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[1];
-        output[1] = input[0];
-        output
+        Routing::Reverse.propagate(input, N::USIZE)
     }
 }

@@ -135,6 +135,8 @@ pub enum Routing {
     Split,
     /// Join or multijoin semantics.
     Join,
+    /// Reverse channel order semantics.
+    Reverse,
 }
 
 impl Routing {
@@ -170,8 +172,13 @@ impl Routing {
                             |x, y| x + y,
                         );
                     }
-                    // Normalize.
+                    // Normalize. This is done to make join an inverse of split.
                     output[i] = combo.scale(output.len() as f64 / input.len() as f64);
+                }
+            }
+            Routing::Reverse => {
+                for i in 0..outputs {
+                    output[i] = input[input.len() - 1 - i];
                 }
             }
         }

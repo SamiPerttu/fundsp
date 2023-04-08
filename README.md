@@ -891,6 +891,7 @@ The type parameters in the table refer to the hacker preludes.
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `reverb_stereo(r, t)`  |    2    |    2    | Stereo reverb with room size `r` meters (10 is average) and reverberation time `t` seconds. |
+| `reverse::<N>()`       |   `N`   |   `N`   | Reverse channel order, e.g., swap left and right channels. |
 | `rossler()`            | 1 (frequency) | 1 | [Rössler dynamical system](https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor) oscillator. |
 | `saw()`                | 1 (frequency) | 1 | Bandlimited saw wave oscillator. |
 | `saw_hz(f)`            |    -    |    1    | Bandlimited saw wave oscillator at `f` Hz. |
@@ -909,7 +910,6 @@ The type parameters in the table refer to the hacker preludes.
 | `sub(x)`               |   `x`   |   `x`   | Subtract constant `x` from signal. |
 | `sum::<U, _, _>(f)`    | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
-| `swap_stereo()`        |    2    |    2    | Swap stereo channels. |
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
 | `tick()`               |    1    |    1    | Single sample delay. |
 | `timer(&shared)`       |    -    |    -    | Maintain current stream time in a shared variable. |
@@ -1132,7 +1132,7 @@ Some examples of graph expressions.
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
 | `lfo(\|t\| xerp11(0.25, 4.0, spline_noise(1, t))) >> resample(pink())` | 0 | 1 | Resampled pink noise. |
 | `feedback(delay(1.0) * db_amp(-3.0))`    |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
-| `feedback((delay(1.0) \| delay(1.0)) >> swap_stereo() * db_amp(-6.0))` | 2 | 2 | 1 second ping-pong delay with 6 dB attenuation. |
+| `feedback((delay(1.0) \| delay(1.0)) >> reverse() * db_amp(-6.0))` | 2 | 2 | 1 second ping-pong delay with 6 dB attenuation. |
 | `var(&wet) * delay(1.0) & (1.0 - var(&wet)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by shared variable `wet`. The shared variable can be declared as `let wet = shared(0.5);` |
 | `sine() & mul(semitone_ratio(4.0)) >> sine() & mul(semitone_ratio(7.0)) >> sine()` | 1 | 1 | major chord |
 | `dc(midi_hz(72.0)) >> sine() & dc(midi_hz(76.0)) >> sine() & dc(midi_hz(79.0)) >> sine()` | 0 | 1 | C major chord generator |

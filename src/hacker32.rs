@@ -306,19 +306,17 @@ pub fn multisink<N: Size<f32>>() -> An<Sink<N, f32>> {
     An(Sink::new())
 }
 
-/// Swap stereo channels.
-/// - Input 0: left channel
-/// - Input 1: right channel
-/// - Output 0: right channel
-/// - Output 1: left channel
+/// Reverse channel order.
+/// - Input(s): signal
+/// - Output(s): signal in reverse channel order
 ///
 /// ### Example: Ping-Pong Delay
 /// ```
 /// use fundsp::hacker32::*;
-/// feedback((delay(1.0) | delay(1.0)) >> swap_stereo() * db_amp(-3.0));
+/// feedback((delay(1.0) | delay(1.0)) >> reverse() * db_amp(-3.0));
 /// ```
-pub fn swap_stereo() -> An<Swap<f32>> {
-    An(Swap::new())
+pub fn reverse<N: Size<f32>>() -> An<Reverse<N, f32>> {
+    An(Reverse::new())
 }
 
 /// Sine oscillator.
