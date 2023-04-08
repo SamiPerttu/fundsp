@@ -3,8 +3,9 @@
 ### Version 0.14 (Next Version)
 
 - New math functions `sqr_hz` and `tri_hz` for non-bandlimited square and triangle waves.
-- Lorenz and Rössler chaotic system oscillators.
+- Lorenz and Rössler chaotic system oscillators as opcodes `lorenz` and `rossler`.
 - `swap_stereo` is now generic `reverse`, which reverses channel order.
+- Resonant two-pole filter by Paul Kellett as `bandrez` and `lowrez`.
 
 ### Version 0.13
 
