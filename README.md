@@ -791,8 +791,8 @@ The type parameters in the table refer to the hacker preludes.
 | `bandpass_hz(f, q)`    |    1    |    1    | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `bandpass_q(q)`        | 2 (audio, frequency) | 1 | Bandpass filter (2nd order) with Q `q`. |
 | `bandrez()`            | 3 (audio, frequency, Q) | 1 | Resonant bandpass filter (2nd order). |
-| `bandrez_hz(f, q)`     |    1    |    1    | Resonant bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
-| `bandrez_q(q)`         | 2 (audio, frequency) | 1 | Resonant bandpass filter (2nd order) with Q `q`. |
+| `bandrez_hz(f, q)`     |    1    |    1    | Resonant bandpass filter (2nd order) centered at `f` Hz with resonance `q` in 0...1. |
+| `bandrez_q(q)`         | 2 (audio, frequency) | 1 | Resonant bandpass filter (2nd order) with resonance `q` in 0...1. |
 | `bell()`               | 4 (audio, frequency, Q, gain) | 1 | Peaking filter (2nd order) with adjustable amplitude gain. |
 | `bell_hz(f, q, gain)`  |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `bell_q(q, gain)`      | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q` and amplitude gain `gain`. |
@@ -852,8 +852,8 @@ The type parameters in the table refer to the hacker preludes.
 | `lowpole()`            | 2 (audio, frequency) | 1 | 1-pole lowpass filter (1st order). |
 | `lowpole_hz(f)`        |    1    |    1    | 1-pole lowpass filter (1st order) with cutoff frequency `f` Hz. |
 | `lowrez()`             | 3 (audio, frequency, Q) | 1 | Resonant lowpass filter (2nd order). |
-| `lowrez_hz(f, q)`      |    1    |    1    | Resonant lowpass filter (2nd order) centered at `f` Hz with Q `q`. |
-| `lowrez_q(q)`          | 2 (audio, frequency) | 1 | Resonant lowpass filter (2nd order) with Q `q`. |
+| `lowrez_hz(f, q)`      |    1    |    1    | Resonant lowpass filter (2nd order) centered at `f` Hz with resonance `q` in 0...1. |
+| `lowrez_q(q)`          | 2 (audio, frequency) | 1 | Resonant lowpass filter (2nd order) with resonance `q` in 0...1. |
 | `lowshelf()`           | 4 (audio, frequency, Q, gain) | 1 | Low shelf filter (2nd order) with adjustable amplitude gain. |
 | `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `lowshelf_q(q, gain)`  | 2 (audio, frequency) | 1 | Low shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |

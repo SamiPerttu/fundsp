@@ -76,7 +76,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Rez<T, F, N> {
         }
         let hp: F = convert::<T, F>(input[0]) - self.buf0;
         let bp = self.buf0 - self.buf1;
-        self.buf0 += self.f * (hp + self.fb * bp);
+        self.buf0 += self.f * (hp + self.fb * tanh(bp));
         self.buf1 += self.f * (self.buf0 - self.buf1);
 
         [convert(self.buf1 - self.bandpass * self.buf0)].into()
