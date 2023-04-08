@@ -100,7 +100,7 @@ pub trait AudioNode: Clone {
     }
 
     /// Set node pseudorandom phase hash. Override this to use the hash.
-    /// This is called from `ping`. It should not be called by users.
+    /// This is called from `ping` (only). It should not be called by users.
     /// The default implementation does nothing.
     #[allow(unused_variables)]
     fn set_hash(&mut self, hash: u64) {}

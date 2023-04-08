@@ -9,7 +9,6 @@ use super::realnet::*;
 use super::signal::*;
 use super::*;
 use duplicate::duplicate_item;
-use funutd::*;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use thingbuf::mpsc::blocking::{channel, Receiver, Sender};
@@ -1027,14 +1026,6 @@ impl AudioUnit48 for Net48 {
 
     fn get_id(&self) -> u64 {
         ID
-    }
-
-    // TODO: Is this necessary? Is it ever called?
-    fn set_hash(&mut self, hash: u64) {
-        let mut rnd = Rnd::from_u64(hash);
-        for x in self.vertex.iter_mut() {
-            x.unit.set_hash(rnd.u64());
-        }
     }
 
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {

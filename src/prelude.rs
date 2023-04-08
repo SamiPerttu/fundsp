@@ -2259,6 +2259,9 @@ impl<T: Float> AudioNode for PulseWave<T> {
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.pulse.ping(probe, hash).hash(Self::ID)
     }
+    fn allocate(&mut self) {
+        self.pulse.allocate();
+    }
 }
 
 /// Pulse wave oscillator.

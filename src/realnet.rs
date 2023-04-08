@@ -111,11 +111,6 @@ impl AudioUnit48 for Net48Backend {
         self.net.get_id()
     }
 
-    // TODO: Is this necessary? Is it ever called?
-    fn set_hash(&mut self, hash: u64) {
-        self.net.set_hash(hash);
-    }
-
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.handle_messages();
         self.net.ping(probe, hash)
