@@ -1222,6 +1222,14 @@ where
 }
 
 /// Bus `N` similar nodes from indexed generator `f`.
+/// - Input(s): from `f`.
+/// - Output(s): from `f`.
+///
+/// ### Example (Sine Bundle)
+/// ```
+/// use fundsp::hacker::*;
+/// bus::<U20, _, _>(|i| sine_hz(110.0 * exp(lerp(-0.2, 0.2, rnd(i)))));
+/// ```
 pub fn bus<N, X, F>(f: F) -> An<MultiBus<N, f64, X>>
 where
     N: Size<f64>,
@@ -1236,6 +1244,14 @@ where
 
 /// Bus `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
+/// - Input(s): from `f`.
+/// - Output(s): from `f`.
+///
+/// ### Example (Noise Bundle)
+/// ```
+/// use fundsp::hacker::*;
+/// busf::<U20, _, _>(|t| (noise() | dc((xerp(100.0, 1000.0, t), 20.0))) >> !resonator() >> resonator());
+/// ```
 pub fn busf<N, X, F>(f: F) -> An<MultiBus<N, f64, X>>
 where
     N: Size<f64>,
@@ -1249,6 +1265,8 @@ where
 }
 
 /// Stack `N` similar nodes from indexed generator `f`.
+/// - Input(s): `N` times `f`.
+/// - Output(s): `N` times `f`.
 pub fn stack<N, X, F>(f: F) -> An<MultiStack<N, f64, X>>
 where
     N: Size<f64>,
@@ -1265,6 +1283,8 @@ where
 
 /// Stack `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
+/// - Input(s): `N` times `f`.
+/// - Output(s): `N` times `f`.
 pub fn stackf<N, X, F>(f: F) -> An<MultiStack<N, f64, X>>
 where
     N: Size<f64>,
@@ -1280,6 +1300,8 @@ where
 }
 
 /// Branch into `N` similar nodes from indexed generator `f`.
+/// - Input(s): from `f`.
+/// - Output(s): `N` times `f`.
 pub fn branch<N, X, F>(f: F) -> An<MultiBranch<N, f64, X>>
 where
     N: Size<f64>,
@@ -1295,6 +1317,8 @@ where
 
 /// Branch into `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
+/// - Input(s): from `f`.
+/// - Output(s): `N` times `f`.
 pub fn branchf<N, X, F>(f: F) -> An<MultiBranch<N, f64, X>>
 where
     N: Size<f64>,
@@ -1309,6 +1333,8 @@ where
 }
 
 /// Mix together `N` similar nodes from indexed generator `f`.
+/// - Input(s): `N` times `f`.
+/// - Output(s): from `f`.
 pub fn sum<N, X, F>(f: F) -> An<Reduce<N, f64, X, FrameAdd<X::Outputs, f64>>>
 where
     N: Size<f64>,
@@ -1324,6 +1350,8 @@ where
 
 /// Mix together `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
+/// - Input(s): `N` times `f`.
+/// - Output(s): from `f`.
 pub fn sumf<N, X, F>(f: F) -> An<Reduce<N, f64, X, FrameAdd<X::Outputs, f64>>>
 where
     N: Size<f64>,
@@ -1338,6 +1366,8 @@ where
 }
 
 /// Chain together `N` similar nodes from indexed generator `f`.
+/// - Input(s): from `f`.
+/// - Output(s): from `f`.
 pub fn pipe<N, X, F>(f: F) -> An<Chain<N, f64, X>>
 where
     N: Size<f64>,
@@ -1352,6 +1382,8 @@ where
 
 /// Chain together `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
+/// - Input(s): from `f`.
+/// - Output(s): from `f`.
 pub fn pipef<N, X, F>(f: F) -> An<Chain<N, f64, X>>
 where
     N: Size<f64>,
@@ -1365,6 +1397,8 @@ where
 }
 
 /// Split signal into N channels.
+/// - Input 0: signal.
+/// - Output(s): `N` copies of signal.
 pub fn split<N>() -> An<Split<N, f64>>
 where
     N: Size<f64>,
@@ -1372,7 +1406,9 @@ where
     super::prelude::split::<N, f64>()
 }
 
-/// Split M channels into N branches. The output has M * N channels.
+/// Split `M` channels into `N` branches. The output has `N` * `M` channels.
+/// - Input(s): `M`.
+/// - Output(s): `N` * `M`. Each branch contains a copy of the input(s).
 pub fn multisplit<M, N>() -> An<MultiSplit<M, N, f64>>
 where
     M: Size<f64> + Mul<N>,
@@ -1382,7 +1418,9 @@ where
     super::prelude::multisplit::<M, N, f64>()
 }
 
-/// Average N channels into one. Inverse of `split`.
+/// Average `N` channels into one. Inverse of `split`.
+/// - Input(s): `N`.
+/// - Output 0: average.
 pub fn join<N>() -> An<Join<N, f64>>
 where
     N: Size<f64>,
@@ -1391,7 +1429,9 @@ where
 }
 
 /// Average `N` branches of `M` channels into one branch with `M` channels.
-/// The input has `M` * `N` channels. Inverse of `multisplit::<M, N>`.
+/// The input has `N` * `M` channels. Inverse of `multisplit::<M, N>`.
+/// - Input(s): `N` * `M`.
+/// - Output(s): `M`.
 pub fn multijoin<M, N>() -> An<MultiJoin<M, N, f64>>
 where
     M: Size<f64> + Mul<N>,

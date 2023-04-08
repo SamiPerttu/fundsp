@@ -1269,6 +1269,14 @@ where
 }
 
 /// Bus `N` similar nodes from indexed generator `f`.
+/// - Input(s): from `f`.
+/// - Output(s): from `f`.
+///
+/// ### Example (Sine Bundle)
+/// ```
+/// use fundsp::prelude::*;
+/// bus::<U20, f32, _, _>(|i| sine_hz(110.0 * exp(lerp(-0.2, 0.2, rnd(i) as f32))));
+/// ```
 pub fn bus<N, T, X, F>(f: F) -> An<MultiBus<N, T, X>>
 where
     T: Float,
@@ -1286,6 +1294,14 @@ where
 
 /// Bus `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
+/// - Input(s): from `f`.
+/// - Output(s): from `f`.
+///
+/// ### Example (Noise Bundle)
+/// ```
+/// use fundsp::prelude::*;
+/// busf::<U20, _, _, _>(|t| (noise() | dc((xerp(100.0, 1000.0, t as f32), 20.0))) >> !resonator::<f32, f32>() >> resonator::<f32, f32>());
+/// ```
 pub fn busf<N, T, X, F>(f: F) -> An<MultiBus<N, T, X>>
 where
     N: Size<T>,
@@ -1309,6 +1325,8 @@ where
 }
 
 /// Stack `N` similar nodes from indexed generator `f`.
+/// - Input(s): `N` times `f`.
+/// - Output(s): `N` times `f`.
 pub fn stack<N, T, X, F>(f: F) -> An<MultiStack<N, T, X>>
 where
     T: Float,
@@ -1328,6 +1346,8 @@ where
 
 /// Stack `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
+/// - Input(s): `N` times `f`.
+/// - Output(s): `N` times `f`.
 pub fn stackf<N, T, X, F>(f: F) -> An<MultiStack<N, T, X>>
 where
     N: Size<T>,
@@ -1353,6 +1373,8 @@ where
 }
 
 /// Branch into `N` similar nodes from indexed generator `f`.
+/// - Input(s): from `f`.
+/// - Output(s): `N` times `f`.
 pub fn branch<N, T, X, F>(f: F) -> An<MultiBranch<N, T, X>>
 where
     N: Size<T>,
@@ -1370,6 +1392,8 @@ where
 
 /// Branch into `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
+/// - Input(s): from `f`.
+/// - Output(s): `N` times `f`.
 pub fn branchf<N, T, X, F>(f: F) -> An<MultiBranch<N, T, X>>
 where
     N: Size<T>,
@@ -1393,6 +1417,8 @@ where
 }
 
 /// Mix together `N` similar nodes from indexed generator `f`.
+/// - Input(s): `N` times `f`.
+/// - Output(s): from `f`.
 pub fn sum<N, T, X, F>(f: F) -> An<Reduce<N, T, X, FrameAdd<X::Outputs, T>>>
 where
     T: Float,
@@ -1410,6 +1436,8 @@ where
 
 /// Mix together `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
+/// - Input(s): `N` times `f`.
+/// - Output(s): from `f`.
 pub fn sumf<N, T, X, F>(f: F) -> An<Reduce<N, T, X, FrameAdd<X::Outputs, T>>>
 where
     N: Size<T>,
@@ -1433,6 +1461,8 @@ where
 }
 
 /// Chain together `N` similar nodes from indexed generator `f`.
+/// - Input(s): from `f`.
+/// - Output(s): from `f`.
 pub fn pipe<N, T, X, F>(f: F) -> An<Chain<N, T, X>>
 where
     N: Size<T>,
@@ -1449,6 +1479,8 @@ where
 
 /// Chain together `N` similar nodes from fractional generator `f`.
 /// The fractional generator is given values in the range 0...1.
+/// - Input(s): from `f`.
+/// - Output(s): from `f`.
 pub fn pipef<N, T, X, F>(f: F) -> An<Chain<N, T, X>>
 where
     N: Size<T>,
@@ -1471,6 +1503,8 @@ where
 }
 
 /// Split signal into N channels.
+/// - Input 0: signal.
+/// - Output(s): `N` copies of signal.
 pub fn split<N, T>() -> An<Split<N, T>>
 where
     N: Size<T>,
@@ -1479,7 +1513,9 @@ where
     An(Split::new())
 }
 
-/// Split M channels into N branches. The output has M * N channels.
+/// Split `M` channels into `N` branches. The output has `N` * `M` channels.
+/// - Input(s): `M`.
+/// - Output(s): `N` * `M`. Each branch contains a copy of the input(s).
 pub fn multisplit<M, N, T>() -> An<MultiSplit<M, N, T>>
 where
     M: Size<T> + Mul<N>,
@@ -1490,7 +1526,9 @@ where
     An(MultiSplit::new())
 }
 
-/// Average N channels into one. Inverse of `split`.
+/// Average `N` channels into one. Inverse of `split`.
+/// - Input(s): `N`.
+/// - Output 0: average.
 pub fn join<N, T>() -> An<Join<N, T>>
 where
     T: Float,
@@ -1500,7 +1538,9 @@ where
 }
 
 /// Average `N` branches of `M` channels into one branch with `M` channels.
-/// The input has `M` * `N` channels. Inverse of `multisplit::<M, N>`.
+/// The input has `N` * `M` channels. Inverse of `multisplit::<M, N>`.
+/// - Input(s): `N` * `M`.
+/// - Output(s): `M`.
 pub fn multijoin<M, N, T>() -> An<MultiJoin<M, N, T>>
 where
     N: Size<T>,
@@ -2199,7 +2239,7 @@ impl<T: Float> AudioNode for PulseWave<T> {
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.pulse.reset(sample_rate);
     }
-        fn tick(
+    fn tick(
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
