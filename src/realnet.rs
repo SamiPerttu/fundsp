@@ -1,4 +1,4 @@
-//! Realtime friendly backend for Net64/Net32.
+//! Real-time friendly backend for Net64 and Net32.
 
 use super::audiounit::*;
 use super::math::*;
