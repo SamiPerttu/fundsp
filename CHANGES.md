@@ -6,7 +6,7 @@
 - Lorenz and Rössler chaotic system oscillators as opcodes `lorenz` and `rossler`.
 - `swap_stereo` is now generic `reverse`, which reverses channel order.
 - Resonant two-pole filter by Paul Kellett as `bandrez` and `lowrez`.
-- Sample-and-hold opcodes `hold`, `hold_hz` and `hold_v`.
+- Sample-and-hold opcodes `hold` and `hold_hz`.
 
 ### Version 0.13
 

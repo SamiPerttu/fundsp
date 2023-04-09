@@ -194,15 +194,16 @@ impl<T: Float> AudioNode for Noise<T> {
 }
 
 /// Sample-and-hold component.
+/// Setting: variability in 0...1 is the randomness in individual hold times.
 /// - Input 0: signal.
 /// - Input 1: sampling frequency (Hz).
-/// - Input 2: variability in 0...1. Variability is randomness amount in individual hold times.
 /// - Output 0: sampled signal.
 #[derive(Default, Clone)]
 pub struct Hold<T> {
     rnd: Rnd,
     hash: u64,
     sample_duration: f64,
+    variability: T,
     t: f64,
     next_t: f64,
     hold: T,
@@ -210,19 +211,35 @@ pub struct Hold<T> {
 
 impl<T: Float> Hold<T> {
     /// Create new sample-and-hold component.
-    pub fn new() -> Self {
-        let mut node = Self::default();
+    /// Variability is the randomness in individual hold times in 0...1.
+    pub fn new(variability: T) -> Self {
+        let mut node = Self {
+            variability,
+            ..Self::default()
+        };
         node.reset(Some(DEFAULT_SR));
         node
+    }
+    /// Variability is the randomness in individual hold times in 0...1.
+    pub fn variability(&self) -> T {
+        self.variability
+    }
+    /// Set variability. Variability is the randomness in individual hold times in 0...1.
+    pub fn set_variability(&mut self, variability: T) {
+        self.variability = variability;
     }
 }
 
 impl<T: Float> AudioNode for Hold<T> {
     const ID: u64 = 76;
     type Sample = T;
-    type Inputs = typenum::U3;
+    type Inputs = typenum::U2;
     type Outputs = typenum::U1;
-    type Setting = ();
+    type Setting = T;
+
+    fn set(&mut self, setting: T) {
+        self.set_variability(setting);
+    }
 
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.rnd = Rnd::from_u64(self.hash);
@@ -242,8 +259,8 @@ impl<T: Float> AudioNode for Hold<T> {
             self.hold = input[0];
             self.next_t = self.t
                 + lerp(
-                    1.0 - input[2].to_f64(),
-                    1.0 + input[2].to_f64(),
+                    1.0 - self.variability.to_f64(),
+                    1.0 + self.variability.to_f64(),
                     self.rnd.f64(),
                 ) / input[1].to_f64();
         }

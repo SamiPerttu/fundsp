@@ -862,19 +862,18 @@ pub fn white<T: Float>() -> An<Noise<T>> {
     An(Noise::new())
 }
 
-/// Sample-and-hold component.
+/// Sample-and-hold component. Sampling frequency `variability` is in 0...1.
 /// - Input 0: signal.
 /// - Input 1: sampling frequency (Hz).
-/// - Input 2: sampling frequency variability in 0...1.
 /// - Output 0: sampled signal.
 ///
 /// ### Example (Sampled And Held Noise)
 /// ```
 /// use fundsp::prelude::*;
-/// (noise() | dc((440.0, 0.0))) >> hold::<f64>();
+/// (pink::<f64, f64>() | dc(440.0)) >> hold::<f64>(0.5);
 /// ```
-pub fn hold<T: Float>() -> An<Hold<T>> {
-    An(Hold::new())
+pub fn hold<T: Float>(variability: T) -> An<Hold<T>> {
+    An(Hold::new(variability))
 }
 
 /// Sample-and-hold component. Sampling frequency `variability` is in 0...1.
@@ -883,18 +882,8 @@ pub fn hold<T: Float>() -> An<Hold<T>> {
 pub fn hold_hz<T: Float>(
     f: T,
     variability: T,
-) -> An<Pipe<T, Stack<T, Pass<T>, Constant<U2, T>>, Hold<T>>> {
-    (pass() | dc((f, variability))) >> hold()
-}
-
-/// Sample-and-hold component. Sampling frequency `variability` is in 0...1.
-/// - Input 0: signal.
-/// - Input 1: sampling frequency (Hz).
-/// - Output 0: sampled signal.
-pub fn hold_v<T: Float>(
-    variability: T,
-) -> An<Pipe<T, Stack<T, MultiPass<U2, T>, Constant<U1, T>>, Hold<T>>> {
-    (multipass::<U2, T>() | dc(variability)) >> hold()
+) -> An<Pipe<T, Stack<T, Pass<T>, Constant<U1, T>>, Hold<T>>> {
+    (pass() | dc(f)) >> hold(variability)
 }
 
 /// FIR filter.
