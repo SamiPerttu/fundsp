@@ -1,6 +1,7 @@
 //! Noise components.
 
 use super::audionode::*;
+use super::math::*;
 use super::signal::*;
 use super::*;
 use funutd::Rnd;
@@ -101,8 +102,8 @@ pub struct Mls<T> {
 }
 
 impl<T: Float> Mls<T> {
-    pub fn new(mls: MlsState) -> Mls<T> {
-        Mls {
+    pub fn new(mls: MlsState) -> Self {
+        Self {
             _marker: std::marker::PhantomData,
             mls,
             hash: 0,
@@ -154,7 +155,7 @@ pub struct Noise<T> {
 }
 
 impl<T: Float> Noise<T> {
-    pub fn new() -> Noise<T> {
+    pub fn new() -> Self {
         Noise::default()
     }
 }
@@ -188,6 +189,77 @@ impl<T: Float> AudioNode for Noise<T> {
     fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = Signal::Latency(0.0);
+        output
+    }
+}
+
+/// Sample-and-hold component.
+/// - Input 0: signal.
+/// - Input 1: sampling frequency (Hz).
+/// - Input 2: variability in 0...1. Variability is randomness amount in individual hold times.
+/// - Output 0: sampled signal.
+#[derive(Default, Clone)]
+pub struct Hold<T> {
+    rnd: Rnd,
+    hash: u64,
+    sample_duration: f64,
+    t: f64,
+    next_t: f64,
+    hold: T,
+}
+
+impl<T: Float> Hold<T> {
+    /// Create new sample-and-hold component.
+    pub fn new() -> Self {
+        let mut node = Self::default();
+        node.reset(Some(DEFAULT_SR));
+        node
+    }
+}
+
+impl<T: Float> AudioNode for Hold<T> {
+    const ID: u64 = 76;
+    type Sample = T;
+    type Inputs = typenum::U3;
+    type Outputs = typenum::U1;
+    type Setting = ();
+
+    fn reset(&mut self, sample_rate: Option<f64>) {
+        self.rnd = Rnd::from_u64(self.hash);
+        self.t = 0.0;
+        self.next_t = 0.0;
+        if let Some(sr) = sample_rate {
+            self.sample_duration = 1.0 / sr;
+        }
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        if self.t >= self.next_t {
+            self.hold = input[0];
+            self.next_t = self.t
+                + lerp(
+                    1.0 - input[2].to_f64(),
+                    1.0 + input[2].to_f64(),
+                    self.rnd.f64(),
+                ) / input[1].to_f64();
+        }
+        self.t += self.sample_duration;
+        [self.hold].into()
+    }
+
+    #[inline]
+    fn set_hash(&mut self, hash: u64) {
+        self.hash = hash;
+        self.reset(None);
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        output[0] = input[0].distort(0.0);
         output
     }
 }

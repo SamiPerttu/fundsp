@@ -822,6 +822,41 @@ pub fn white() -> An<Noise<f32>> {
     An(Noise::new())
 }
 
+/// Sample-and-hold component.
+/// - Input 0: signal.
+/// - Input 1: sampling frequency (Hz).
+/// - Input 2: sampling frequency variability in 0...1.
+/// - Output 0: sampled signal.
+///
+/// ### Example (Sampled And Held Noise)
+/// ```
+/// use fundsp::hacker32::*;
+/// (noise() | dc((440.0, 0.0))) >> hold();
+/// ```
+pub fn hold() -> An<Hold<f32>> {
+    An(Hold::new())
+}
+
+/// Sample-and-hold component. Sampling frequency `variability` is in 0...1.
+/// - Input 0: signal.
+/// - Output 0: sampled signal.
+pub fn hold_hz(
+    f: f32,
+    variability: f32,
+) -> An<Pipe<f32, Stack<f32, Pass<f32>, Constant<U2, f32>>, Hold<f32>>> {
+    (pass() | dc((f, variability))) >> hold()
+}
+
+/// Sample-and-hold component. Sampling frequency `variability` is in 0...1.
+/// - Input 0: signal.
+/// - Input 1: sampling frequency (Hz).
+/// - Output 0: sampled signal.
+pub fn hold_v(
+    variability: f32,
+) -> An<Pipe<f32, Stack<f32, MultiPass<U2, f32>, Constant<U1, f32>>, Hold<f32>>> {
+    (multipass::<U2>() | dc(variability)) >> hold()
+}
+
 /// FIR filter.
 /// - Input 0: signal.
 /// - Output 0: filtered signal.

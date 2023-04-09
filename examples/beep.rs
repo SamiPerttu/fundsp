@@ -59,6 +59,7 @@ where
     //let c = dc(440.0) >> rossler();
     //let c = dc(110.0) >> lorenz();
     //let c = organ_hz(110.1) + organ_hz(54.9);
+    //let c = pink() >> hold_hz(440.0, 0.0);
 
     // Filtered noise tone.
     //let c = (noise() | dc((440.0, 50.0))) >> !resonator() >> resonator();

@@ -338,7 +338,7 @@ The expression `A >> (B ^ C ^ D)` defines a signal processing graph.
 It has whatever inputs `A` has, and outputs everything from `B` and `C` and `D` in parallel.
 
 The whole structure is packed, monomorphized and inlined with the constituent nodes consumed.
-If you want to reuse components, define them as functions or closures.
+If you want to reuse components, define them as functions or closures, or clone them.
 See the preludes for examples.
 
 Connectivity is checked during compilation.
@@ -838,6 +838,9 @@ The type parameters in the table refer to the hacker preludes.
 | `highshelf()`          | 4 (audio, frequency, Q, gain) | 1 | High shelf filter (2nd order) with adjustable amplitude gain. |
 | `highshelf_hz(f, q, gain)`| 1    |    1    | High shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `highshelf_q(q, gain)` | 2 (audio, frequency) | 1 | High shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
+| `hold()`               | 3 (signal, frequency, variability) | 1 | Sample-and-hold component with time `variability` in 0...1. |
+| `hold_hz(f, variability)` | 1    |    1    | Sample-and-hold component at `f` Hz with time `variability` in 0...1. |
+| `hold_v(variability)`  | 2 (signal, frequency) | 1 | Sample-and-hold component with time `variability` in 0...1. |
 | `join::<U>()`          |   `U`   |    1    | Average together `U` channels. Inverse of `split`. |
 | `lfo(f)`               |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
 | `lfo2(f)`              |  1 (x)  |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `envelope2`. |
