@@ -276,7 +276,7 @@ impl Wave48 {
                 self.vec[channel].push(frame[0]);
             }
         } else {
-            assert!(self.channels() == T::Size::USIZE);
+            assert_eq!(self.channels(), T::Size::USIZE);
             for channel in 0..self.channels() {
                 self.vec[channel].push(frame[channel]);
             }
@@ -527,7 +527,7 @@ impl Wave48 {
     /// assert!(wave2.channels() == 2 && wave2.duration() == 3.0 && wave2.amplitude() > wave1.amplitude());
     /// ```
     pub fn filter(&self, duration: f64, node: &mut dyn AudioUnit48) -> Self {
-        assert!(node.inputs() == self.channels());
+        assert_eq!(node.inputs(), self.channels());
         assert!(node.outputs() > 0);
         assert!(duration >= 0.0);
         node.reset(Some(self.sample_rate()));
@@ -593,7 +593,7 @@ impl Wave48 {
     /// All zeros input is used for the rest of the wave if
     /// the `duration` is greater than the duration of this wave.
     pub fn filter_latency(&self, duration: f64, node: &mut dyn AudioUnit48) -> Self {
-        assert!(node.inputs() == self.channels());
+        assert_eq!(node.inputs(), self.channels());
         assert!(node.outputs() > 0);
         assert!(duration >= 0.0);
         let latency = node.latency().unwrap_or_default();
