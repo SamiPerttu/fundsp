@@ -42,11 +42,13 @@ where
     }
 
     // Access enclosed node.
+    #[inline]
     pub fn node(&self) -> &X {
         &self.x
     }
 
     // Access enclosed node.
+    #[inline]
     pub fn node_mut(&mut self) -> &mut X {
         &mut self.x
     }

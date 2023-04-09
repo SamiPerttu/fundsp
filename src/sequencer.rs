@@ -106,7 +106,7 @@ impl Ord for Event48 {
     [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ fade_in64 ];
     [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ fade_in32 ];
 )]
-#[inline(always)]
+#[inline]
 fn fade_in48(
     sample_duration: f48,
     time: f48,
@@ -160,7 +160,7 @@ fn fade_in48(
     [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ fade_out64 ];
     [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ fade_out32 ];
 )]
-#[inline(always)]
+#[inline]
 fn fade_out48(
     sample_duration: f48,
     time: f48,

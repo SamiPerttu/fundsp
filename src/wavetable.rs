@@ -213,7 +213,6 @@ where
     type Outputs = N;
     type Setting = ();
 
-    #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
             self.sample_rate = sample_rate as f32;
@@ -221,7 +220,6 @@ where
         self.phase = self.initial_phase;
     }
 
-    #[inline]
     fn set_hash(&mut self, hash: u64) {
         self.initial_phase = super::hacker::rnd(hash as i64) as f32;
         self.phase = self.initial_phase;
@@ -299,7 +297,6 @@ where
     type Outputs = numeric_array::typenum::U1;
     type Setting = ();
 
-    #[inline]
     fn reset(&mut self, sample_rate: Option<f64>) {
         if let Some(sample_rate) = sample_rate {
             self.sample_rate = sample_rate as f32;

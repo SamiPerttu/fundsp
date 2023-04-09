@@ -366,20 +366,25 @@ where
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.0.reset(sample_rate);
     }
+    #[inline]
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {
         debug_assert!(input.len() == self.inputs());
         debug_assert!(output.len() == self.outputs());
         output.copy_from_slice(self.0.tick(Frame::from_slice(input)).as_slice());
     }
+    #[inline]
     fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]) {
         self.0.process(size, input, output);
     }
+    #[inline]
     fn inputs(&self) -> usize {
         self.0.inputs()
     }
+    #[inline]
     fn outputs(&self) -> usize {
         self.0.outputs()
     }
+    #[inline]
     fn get_id(&self) -> u64 {
         X::ID
     }

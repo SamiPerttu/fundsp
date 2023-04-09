@@ -360,6 +360,7 @@ pub fn spline<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
 /// Monotonic cubic interpolation via Steffen's method. The result never overshoots.
 /// It is first order continuous. Interpolates between `y1` (at `x` = 0) and `y2` (at `x` = 1)
 /// while using the previous (`y0`) and next (`y3`) values to influence slopes.
+#[inline]
 pub fn spline_mono<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
     let d0 = y1 - y0;
     let d1 = y2 - y1;
@@ -570,12 +571,12 @@ pub struct AttoHash {
 
 impl AttoHash {
     /// Create new hasher from seed.
-    #[inline(always)]
+    #[inline]
     pub fn new(seed: u64) -> AttoHash {
         AttoHash { state: seed }
     }
     /// Generator state.
-    #[inline(always)]
+    #[inline]
     pub fn state(&self) -> u64 {
         self.state
     }

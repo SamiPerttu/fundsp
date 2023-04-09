@@ -430,14 +430,17 @@ impl<N: Size<T>, T: Float> Constant<N, T> {
         Constant { output }
     }
     /// Set the value of the constant.
+    #[inline]
     pub fn set_value(&mut self, output: Frame<T, N>) {
         self.output = output;
     }
     /// Get the value of the constant.
+    #[inline]
     pub fn value(&self) -> Frame<T, N> {
         self.output.clone()
     }
     /// Set a scalar value on all channels.
+    #[inline]
     pub fn set_scalar(&mut self, output: T) {
         self.output = Frame::splat(output);
     }
@@ -888,21 +891,25 @@ where
     }
 
     /// Access the left node of the binary operation.
+    #[inline]
     pub fn left_mut(&mut self) -> &mut X {
         &mut self.x
     }
 
     /// Access the left node of the binary operation.
+    #[inline]
     pub fn left(&self) -> &X {
         &self.x
     }
 
     /// Access the right node of the binary operation.
+    #[inline]
     pub fn right_mut(&mut self) -> &mut Y {
         &mut self.y
     }
 
     /// Access the right node of the binary operation.
+    #[inline]
     pub fn right(&self) -> &Y {
         &self.y
     }
@@ -936,6 +943,7 @@ where
         self.x.reset(sample_rate);
         self.y.reset(sample_rate);
     }
+
     #[inline]
     fn tick(
         &mut self,
@@ -947,6 +955,7 @@ where
         let y = self.y.tick(input_y.into());
         B::binop(&x, &y)
     }
+
     fn process(
         &mut self,
         size: usize,
@@ -963,6 +972,7 @@ where
             B::assign(size, output[i], self.buffer.at(i));
         }
     }
+
     #[inline]
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.y.ping(probe, self.x.ping(probe, hash.hash(Self::ID)))
@@ -1174,6 +1184,7 @@ where
     fn reset(&mut self, sample_rate: Option<f64>) {
         self.x.reset(sample_rate);
     }
+
     #[inline]
     fn tick(
         &mut self,
@@ -1181,6 +1192,7 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.u.unop(&self.x.tick(input))
     }
+
     #[inline]
     fn process(
         &mut self,
@@ -1193,6 +1205,7 @@ where
             self.u.assign(size, output[i]);
         }
     }
+
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
@@ -1204,6 +1217,7 @@ where
         }
         signal_x
     }
+
     fn allocate(&mut self) {
         self.x.allocate();
     }
@@ -1318,21 +1332,25 @@ where
     }
 
     /// Access the left node of the pipe.
+    #[inline]
     pub fn left_mut(&mut self) -> &mut X {
         &mut self.x
     }
 
     /// Access the left node of the pipe.
+    #[inline]
     pub fn left(&self) -> &X {
         &self.x
     }
 
     /// Access the right node of the pipe.
+    #[inline]
     pub fn right_mut(&mut self) -> &mut Y {
         &mut self.y
     }
 
     /// Access the right node of the pipe.
+    #[inline]
     pub fn right(&self) -> &Y {
         &self.y
     }
@@ -1431,21 +1449,25 @@ where
     }
 
     /// Access the left node of the stack.
+    #[inline]
     pub fn left_mut(&mut self) -> &mut X {
         &mut self.x
     }
 
     /// Access the left node of the stack.
+    #[inline]
     pub fn left(&self) -> &X {
         &self.x
     }
 
     /// Access the right node of the stack.
+    #[inline]
     pub fn right_mut(&mut self) -> &mut Y {
         &mut self.y
     }
 
     /// Access the right node of the stack.
+    #[inline]
     pub fn right(&self) -> &Y {
         &self.y
     }
@@ -1567,21 +1589,25 @@ where
     }
 
     /// Access the left node of the branch.
+    #[inline]
     pub fn left_mut(&mut self) -> &mut X {
         &mut self.x
     }
 
     /// Access the left node of the branch.
+    #[inline]
     pub fn left(&self) -> &X {
         &self.x
     }
 
     /// Access the right node of the branch.
+    #[inline]
     pub fn right_mut(&mut self) -> &mut Y {
         &mut self.y
     }
 
     /// Access the right node of the branch.
+    #[inline]
     pub fn right(&self) -> &Y {
         &self.y
     }
@@ -1694,21 +1720,25 @@ where
     }
 
     /// Access the left node of the bus.
+    #[inline]
     pub fn left_mut(&mut self) -> &mut X {
         &mut self.x
     }
 
     /// Access the left node of the bus.
+    #[inline]
     pub fn left(&self) -> &X {
         &self.x
     }
 
     /// Access the right node of the bus.
+    #[inline]
     pub fn right_mut(&mut self) -> &mut Y {
         &mut self.y
     }
 
     /// Access the right node of the bus.
+    #[inline]
     pub fn right(&self) -> &Y {
         &self.y
     }
@@ -1869,7 +1899,6 @@ impl<X: AudioNode> AudioNode for Thru<X> {
         }
     }
 
-    #[inline]
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
@@ -1926,11 +1955,13 @@ where
     }
 
     /// Access a contained node.
+    #[inline]
     pub fn node_mut(&mut self, index: usize) -> &mut X {
         &mut self.x[index]
     }
 
     /// Access a contained node.
+    #[inline]
     pub fn node(&self, index: usize) -> &X {
         &self.x[index]
     }
@@ -2063,11 +2094,13 @@ where
     }
 
     /// Access a contained node.
+    #[inline]
     pub fn node_mut(&mut self, index: usize) -> &mut X {
         &mut self.x[index]
     }
 
     /// Access a contained node.
+    #[inline]
     pub fn node(&self, index: usize) -> &X {
         &self.x[index]
     }
@@ -2212,11 +2245,13 @@ where
     }
 
     /// Access a contained node.
+    #[inline]
     pub fn node_mut(&mut self, index: usize) -> &mut X {
         &mut self.x[index]
     }
 
     /// Access a contained node.
+    #[inline]
     pub fn node(&self, index: usize) -> &X {
         &self.x[index]
     }
@@ -2239,7 +2274,6 @@ where
     type Outputs = X::Outputs;
     type Setting = (usize, X::Setting);
 
-    #[inline]
     fn set(&mut self, setting: Self::Setting) {
         let (index, inner) = setting;
         self.x[index].set(inner);
@@ -2286,7 +2320,7 @@ where
             }
         }
     }
-    #[inline]
+
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         let mut hash = hash.hash(Self::ID);
         for x in self.x.iter_mut() {
@@ -2357,11 +2391,13 @@ where
     }
 
     /// Access a contained node.
+    #[inline]
     pub fn node_mut(&mut self, index: usize) -> &mut X {
         &mut self.x[index]
     }
 
     /// Access a contained node.
+    #[inline]
     pub fn node(&self, index: usize) -> &X {
         &self.x[index]
     }
@@ -2383,7 +2419,6 @@ where
     type Outputs = Prod<X::Outputs, N>;
     type Setting = (usize, X::Setting);
 
-    #[inline]
     fn set(&mut self, setting: Self::Setting) {
         let (index, inner) = setting;
         self.x[index].set(inner);
@@ -2487,11 +2522,13 @@ where
     }
 
     /// Access a contained node.
+    #[inline]
     pub fn node_mut(&mut self, index: usize) -> &mut X {
         &mut self.x[index]
     }
 
     /// Access a contained node.
+    #[inline]
     pub fn node(&self, index: usize) -> &X {
         &self.x[index]
     }
@@ -2514,7 +2551,6 @@ where
     type Outputs = X::Outputs;
     type Setting = (usize, X::Setting);
 
-    #[inline]
     fn set(&mut self, setting: Self::Setting) {
         let (index, inner) = setting;
         self.x[index].set(inner);

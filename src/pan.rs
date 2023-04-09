@@ -36,6 +36,7 @@ impl<T: Real, N: Size<T>> Panner<T, N> {
             right_weight,
         }
     }
+    #[inline]
     pub fn set_pan(&mut self, value: T) {
         let (left_weight, right_weight) = pan_weights(value);
         self.left_weight = left_weight;

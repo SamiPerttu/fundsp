@@ -309,6 +309,7 @@ impl<F: Real> SvfMode<F> for LowpassMode<F> {
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::lowpass(params.sample_rate, params.cutoff, params.q);
     }
+    #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
@@ -367,6 +368,7 @@ impl<F: Real> SvfMode<F> for HighpassMode<F> {
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::highpass(params.sample_rate, params.cutoff, params.q);
     }
+    #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
@@ -425,6 +427,7 @@ impl<F: Real> SvfMode<F> for BandpassMode<F> {
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::bandpass(params.sample_rate, params.cutoff, params.q);
     }
+    #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
@@ -483,6 +486,7 @@ impl<F: Real> SvfMode<F> for NotchMode<F> {
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::notch(params.sample_rate, params.cutoff, params.q);
     }
+    #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
@@ -541,6 +545,7 @@ impl<F: Real> SvfMode<F> for PeakMode<F> {
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::peak(params.sample_rate, params.cutoff, params.q);
     }
+    #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
@@ -600,6 +605,7 @@ impl<F: Real> SvfMode<F> for AllpassMode<F> {
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::allpass(params.sample_rate, params.cutoff, params.q);
     }
+    #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
@@ -660,6 +666,7 @@ impl<F: Real> SvfMode<F> for BellMode<F> {
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::bell(params.sample_rate, params.cutoff, params.q, params.gain);
     }
+    #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
@@ -724,6 +731,7 @@ impl<F: Real> SvfMode<F> for LowshelfMode<F> {
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::lowshelf(params.sample_rate, params.cutoff, params.q, params.gain);
     }
+    #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
@@ -791,6 +799,7 @@ impl<F: Real> SvfMode<F> for HighshelfMode<F> {
     fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
         *coeffs = SvfCoeffs::highshelf(params.sample_rate, params.cutoff, params.q, params.gain);
     }
+    #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
@@ -870,22 +879,27 @@ where
     }
 
     /// Sample rate in Hz.
+    #[inline]
     pub fn sample_rate(&self) -> F {
         self.params.sample_rate
     }
     /// Filter cutoff in Hz. Synonymous with `center`.
+    #[inline]
     pub fn cutoff(&self) -> F {
         self.params.cutoff
     }
     /// Filter center in Hz. Synonymous with `cutoff`.
+    #[inline]
     pub fn center(&self) -> F {
         self.params.cutoff
     }
     /// Filter Q.
+    #[inline]
     pub fn q(&self) -> F {
         self.params.q
     }
     /// Filter gain. Only equalization modes support gain; others ignore it.
+    #[inline]
     pub fn gain(&self) -> F {
         self.params.gain
     }
@@ -982,38 +996,46 @@ where
     }
 
     /// Sample rate in Hz.
+    #[inline]
     pub fn sample_rate(&self) -> F {
         self.params.sample_rate
     }
     /// Filter cutoff in Hz. Synonymous with `center`.
+    #[inline]
     pub fn cutoff(&self) -> F {
         self.params.cutoff
     }
     /// Filter center in Hz. Synonymous with `cutoff`.
+    #[inline]
     pub fn center(&self) -> F {
         self.params.cutoff
     }
     /// Filter Q.
+    #[inline]
     pub fn q(&self) -> F {
         self.params.q
     }
     /// Filter gain. Only equalization modes support gain; others ignore it.
+    #[inline]
     pub fn gain(&self) -> F {
         self.params.gain
     }
 
     /// Set filter cutoff in Hz. Synonymous with `set_center`.
+    #[inline]
     pub fn set_cutoff(&mut self, cutoff: F) {
         self.params.cutoff = cutoff;
         self.mode.update_frequency(&self.params, &mut self.coeffs);
     }
 
     /// Set filter center in Hz. Synonymous with `set_cutoff`.
+    #[inline]
     pub fn set_center(&mut self, center: F) {
         self.set_cutoff(center);
     }
 
     /// Set filter cutoff in Hz and Q. Synonymous with `set_center_q`.
+    #[inline]
     pub fn set_cutoff_q(&mut self, cutoff: F, q: F) {
         self.params.cutoff = cutoff;
         self.params.q = q;
@@ -1021,23 +1043,27 @@ where
     }
 
     /// Set filter center in Hz and Q. Synonymous with `set_cutoff_q`.
+    #[inline]
     pub fn set_center_q(&mut self, center: F, q: F) {
         self.set_cutoff_q(center, q);
     }
 
     /// Set filter Q.
+    #[inline]
     pub fn set_q(&mut self, q: F) {
         self.params.q = q;
         self.mode.update_q(&self.params, &mut self.coeffs);
     }
 
     /// Set filter gain. Only equalizing modes support gain. Other modes ignore it.
+    #[inline]
     pub fn set_gain(&mut self, gain: F) {
         self.params.gain = gain;
         self.mode.update_gain(&self.params, &mut self.coeffs);
     }
 
     /// Set filter cutoff in Hz, Q and gain. Synonymous with `set_center_q_gain`.
+    #[inline]
     pub fn set_cutoff_q_gain(&mut self, cutoff: F, q: F, gain: F) {
         self.params.cutoff = cutoff;
         self.params.q = q;
@@ -1046,6 +1072,7 @@ where
     }
 
     /// Set filter center in Hz, Q and gain. Synonymous with `set_cutoff_q_gain`.
+    #[inline]
     pub fn set_center_q_gain(&mut self, center: F, q: F, gain: F) {
         self.set_cutoff_q_gain(center, q, gain);
     }
