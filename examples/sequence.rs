@@ -65,7 +65,7 @@ fn main() {
 
     let mut sequencer = Sequencer64::new(sample_rate, 2);
 
-    //sequencer.add(0.0, 60.0, 0.0, 0.0, Box::new(stab() * 0.4));
+    //sequencer.add(0.0, 60.0, Fade::Smooth, 0.0, 0.0, Box::new(stab() * 0.4));
 
     let length = bassd_line.as_bytes().len();
     let duration = length as f64 / bpm_hz(bpm) / 4.0 * 2.0 + 1.0;
