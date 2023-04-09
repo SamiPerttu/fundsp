@@ -654,6 +654,7 @@ The following table summarizes the available settings.
 | `highpass_hz`     | (cutoff, Q) |
 | `highpole_hz`     | cutoff |
 | `highshelf_hz`    | (cutoff, Q, gain) |
+| `hold`            | variability in 0...1 |
 | `lowpass_hz`      | (cutoff, Q) |
 | `lowpole_hz`      | cutoff |
 | `lowshelf_hz`     | (cutoff, Q, gain) |
