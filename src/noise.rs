@@ -72,6 +72,7 @@ impl MlsState {
     }
 
     /// Sequence length. The sequence repeats after 2**n - 1 steps.
+    #[inline]
     pub fn length(self) -> u32 {
         (1 << self.n) - 1
     }
@@ -87,6 +88,7 @@ impl MlsState {
     }
 
     /// The current value in the sequence, either 0 or 1.
+    #[inline]
     pub fn value(self) -> u32 {
         (self.s >> (self.n - 1)) & 1
     }
@@ -132,7 +134,6 @@ impl<T: Float> AudioNode for Mls<T> {
         [value * T::new(2) - T::new(1)].into()
     }
 
-    #[inline]
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.reset(None);
@@ -176,11 +177,21 @@ impl<T: Float> AudioNode for Noise<T> {
         &mut self,
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let value = T::from_f32(self.rnd.f32() * 2.0 - 1.0);
+        let value = T::from_f32(self.rnd.f32_in(-1.0, 1.0));
         [value].into()
     }
 
-    #[inline]
+    fn process(
+        &mut self,
+        size: usize,
+        _input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        for o in output[0][..size].iter_mut() {
+            *o = T::from_f32(self.rnd.f32_in(-1.0, 1.0));
+        }
+    }
+
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.reset(None);
@@ -221,10 +232,12 @@ impl<T: Float> Hold<T> {
         node
     }
     /// Variability is the randomness in individual hold times in 0...1.
+    #[inline]
     pub fn variability(&self) -> T {
         self.variability
     }
     /// Set variability. Variability is the randomness in individual hold times in 0...1.
+    #[inline]
     pub fn set_variability(&mut self, variability: T) {
         self.variability = variability;
     }

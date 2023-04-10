@@ -70,6 +70,7 @@ where
     T: Num,
     B: Monoidal<T>,
 {
+    #[inline]
     fn get_index(&self, i: usize) -> usize {
         self.leaf_offset + i
     }
@@ -89,10 +90,12 @@ where
         buffer
     }
 
+    #[inline]
     pub fn length(&self) -> usize {
         self.length
     }
 
+    #[inline]
     pub fn total(&self) -> T {
         self.buffer[1]
     }
@@ -138,6 +141,7 @@ where
     N: Size<T>,
     S: ScalarOrPair<Sample = T>,
 {
+    #[inline]
     fn advance(&mut self) {
         self.index += 1;
         if self.index >= self.reducer.length() {

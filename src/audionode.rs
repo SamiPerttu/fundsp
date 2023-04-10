@@ -2582,29 +2582,18 @@ where
             self.x[0].process(size, input, output);
         } else {
             self.x[0].process(size, input, self.buffer_a.get_mut(X::Outputs::USIZE));
+            self.buffer_b.resize(X::Outputs::USIZE);
             for i in 1..N::USIZE - 1 {
                 if i & 1 > 0 {
-                    self.x[i].process(
-                        size,
-                        self.buffer_a.self_ref(),
-                        self.buffer_b.get_mut(X::Outputs::USIZE),
-                    );
+                    self.x[i].process(size, self.buffer_a.self_ref(), self.buffer_b.self_mut());
                 } else {
-                    self.x[i].process(
-                        size,
-                        self.buffer_b.get_ref(X::Outputs::USIZE),
-                        self.buffer_a.self_mut(),
-                    );
+                    self.x[i].process(size, self.buffer_b.self_ref(), self.buffer_a.self_mut());
                 }
             }
             if (N::USIZE - 1) & 1 > 0 {
                 self.x[N::USIZE - 1].process(size, self.buffer_a.self_ref(), output);
             } else {
-                self.x[N::USIZE - 1].process(
-                    size,
-                    self.buffer_b.get_ref(X::Outputs::USIZE),
-                    output,
-                );
+                self.x[N::USIZE - 1].process(size, self.buffer_b.self_ref(), output);
             }
         }
     }
