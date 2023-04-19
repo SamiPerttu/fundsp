@@ -36,6 +36,7 @@ impl<T: Float, F: Real, N: Size<T>> Rez<T, F, N> {
         node.set_cutoff_q(cutoff, q);
         node
     }
+    #[inline]
     pub fn set_cutoff_q(&mut self, cutoff: F, q: F) {
         self.cutoff = cutoff;
         self.f = F::new(2) * sin(F::from_f64(PI) * cutoff / self.sample_rate);

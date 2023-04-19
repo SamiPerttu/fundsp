@@ -68,7 +68,7 @@ where
     fft.process(&mut a);
 
     let z = 1.0 / sqrt(length as f32);
-    a.iter().map(|x| x.re * z).collect()
+    a.iter().map(|x| x.im * z).collect()
 }
 
 #[derive(Clone)]
@@ -125,10 +125,11 @@ impl Wavetable {
         let p = table.len() as f32 * phase;
         let i1 = p as usize;
         let w = p - i1 as f32;
-        let i0 = i1.wrapping_sub(1) & (table.len() - 1);
-        let i1 = i1 & (table.len() - 1);
-        let i2 = (i1 + 1) & (table.len() - 1);
-        let i3 = (i1 + 2) & (table.len() - 1);
+        let mask = table.len() - 1;
+        let i0 = i1.wrapping_sub(1) & mask;
+        let i1 = i1 & mask;
+        let i2 = (i1 + 1) & mask;
+        let i3 = (i1 + 2) & mask;
         optimal4x44(table[i0], table[i1], table[i2], table[i3], w)
     }
 

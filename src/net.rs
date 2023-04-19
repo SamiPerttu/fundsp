@@ -112,11 +112,13 @@ impl Vertex48 {
     }
 
     /// Number of input channels.
+    #[inline]
     pub fn inputs(&self) -> usize {
         self.tick_input.len()
     }
 
     /// Number of output channels.
+    #[inline]
     pub fn outputs(&self) -> usize {
         self.tick_output.len()
     }
@@ -303,21 +305,58 @@ impl Net48 {
     /// net.check();
     /// ```
     pub fn remove(&mut self, node: NodeId) -> Box<dyn AudioUnit48> {
+        self.remove_2(node, false)
+    }
+
+    /// Remove `node` from network. Returns the unit that was removed.
+    /// Connections from the unit are replaced with pass-through connections.
+    /// The unit must have an equal number of inputs and outputs.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut net = Net64::new(1, 1);
+    /// let id1 = net.chain(Box::new(add(1.0)));
+    /// let id2 = net.chain(Box::new(add(2.0)));
+    /// assert!(net.size() == 2);
+    /// assert!(net.filter_mono(1.0) == 4.0);
+    /// net.remove_link(id2);
+    /// assert!(net.size() == 1);
+    /// assert!(net.filter_mono(1.0) == 2.0);
+    /// net.check();
+    /// ```
+    pub fn remove_link(&mut self, node: NodeId) -> Box<dyn AudioUnit48> {
+        self.remove_2(node, true)
+    }
+
+    /// Remove `node` from network. If `link` is false then connections from the unit
+    /// are replaced with zeros; if `link` is true then connections are replaced
+    /// by matching inputs of the unit.
+    fn remove_2(&mut self, node: NodeId, link: bool) -> Box<dyn AudioUnit48> {
         let node_index = self.node_index[&node];
-        // Replace with zero all global ports that use an output of the node.
+        assert!(!link || self.vertex[node_index].inputs() == self.vertex[node_index].outputs());
+        // Replace all global ports that use an output of the node.
         for channel in 0..self.outputs() {
-            if let Port::Local(index, _port) = self.output_edge[channel].source {
+            if let Port::Local(index, port) = self.output_edge[channel].source {
                 if index == node_index {
-                    self.output_edge[channel].source = Port::Zero;
+                    self.output_edge[channel].source = if link {
+                        self.vertex[node_index].source[port].source
+                    } else {
+                        Port::Zero
+                    };
                 }
             }
         }
-        // Replace with zero all local ports that use an output of the node.
+        // Replace all local ports that use an output of the node.
         for vertex in 0..self.size() {
             for channel in 0..self.vertex[vertex].inputs() {
-                if let Port::Local(index, _port) = self.vertex[vertex].source[channel].source {
+                if let Port::Local(index, port) = self.vertex[vertex].source[channel].source {
                     if index == node_index {
-                        self.vertex[vertex].source[channel].source = Port::Zero;
+                        self.vertex[vertex].source[channel].source = if link {
+                            self.vertex[node_index].source[port].source
+                        } else {
+                            Port::Zero
+                        };
                     }
                 }
             }
