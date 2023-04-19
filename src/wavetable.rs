@@ -123,7 +123,7 @@ impl Wavetable {
     pub fn at(&self, i: usize, phase: f32) -> f32 {
         let table: &Vec<f32> = &self.table[i].1;
         let p = table.len() as f32 * phase;
-        let i1 = p as usize;
+        let i1 = unsafe { f32::to_int_unchecked::<usize>(p) };
         let w = p - i1 as f32;
         let mask = table.len() - 1;
         let i0 = i1.wrapping_sub(1) & mask;

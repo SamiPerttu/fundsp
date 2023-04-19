@@ -209,13 +209,13 @@ where
         for tap_i in 1..N::USIZE + 1 {
             let tap =
                 clamp(self.min_delay, self.max_delay, convert(input[tap_i])) * self.sample_rate;
-            let tap_floor = floor(tap);
-            let tap_i1 = self.i + (self.buffer.len() - tap_floor.to_f32() as usize);
+            let tap_floor = unsafe { f32::to_int_unchecked::<usize>(tap.to_f32()) };
+            let tap_i1 = self.i + (self.buffer.len() - tap_floor);
             let tap_i0 = (tap_i1 + 1) & mask;
             let tap_i2 = (tap_i1.wrapping_sub(1)) & mask;
             let tap_i3 = (tap_i1.wrapping_sub(2)) & mask;
             let tap_i1 = tap_i1 & mask;
-            let tap_d = tap - tap_floor;
+            let tap_d = tap - convert(tap_floor as f32);
             output += spline(
                 self.buffer[tap_i0],
                 self.buffer[tap_i1],
