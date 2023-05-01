@@ -22,7 +22,12 @@ use std::fmt::Write;
 pub trait AudioUnit48: Send + Sync + DynClone {
     /// Reset the input state of the unit to an initial state where it has not processed any data.
     /// In other words, reset time to zero.
-    fn reset(&mut self, sample_rate: Option<f64>);
+    fn reset(&mut self);
+
+    /// Set the sample rate of the unit.
+    /// The default sample rate is 44100 Hz.
+    /// The unit is allowed to reset itself here in response to sample rate changes.
+    fn set_sample_rate(&mut self, sample_rate: f64);
 
     /// Process one sample.
     /// The length of `input` and `output` must be equal to `inputs` and `outputs`, respectively.
@@ -52,7 +57,7 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     fn get_id(&self) -> u64;
 
     /// Set unit pseudorandom phase hash. Override this to use the hash.
-    /// This is called from `ping`. It should not be called by users.
+    /// This is called from `ping` (only). It should not be called by users.
     /// The default implementation does nothing.
     #[allow(unused_variables)]
     fn set_hash(&mut self, hash: u64) {}
@@ -363,8 +368,11 @@ where
     X::Inputs: Size<f48>,
     X::Outputs: Size<f48>,
 {
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.0.reset(sample_rate);
+    fn reset(&mut self) {
+        self.0.reset();
+    }
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.0.set_sample_rate(sample_rate);
     }
     #[inline]
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {
@@ -463,8 +471,11 @@ impl BigBlockAdapter48 {
     [ f32 ]   [ BigBlockAdapter32 ]   [ AudioUnit32 ];
 )]
 impl AudioUnit48 for BigBlockAdapter48 {
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.source.reset(sample_rate);
+    fn reset(&mut self) {
+        self.source.reset();
+    }
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.source.set_sample_rate(sample_rate);
     }
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {
         self.source.tick(input, output);
@@ -571,9 +582,12 @@ impl BlockRateAdapter48 {
     [ f32 ]   [ BlockRateAdapter32 ]   [ AudioUnit32 ];
 )]
 impl AudioUnit48 for BlockRateAdapter48 {
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.unit.reset(sample_rate);
+    fn reset(&mut self) {
+        self.unit.reset();
         self.index = MAX_BUFFER_SIZE;
+    }
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.unit.set_sample_rate(sample_rate);
     }
     fn tick(&mut self, _input: &[f48], output: &mut [f48]) {
         if self.index == MAX_BUFFER_SIZE {

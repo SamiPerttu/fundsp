@@ -130,9 +130,13 @@ where
     type Outputs = N;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
         self.value = Frame::default();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
     }
 
     #[inline]
@@ -226,10 +230,15 @@ where
     type Outputs = N;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
-        self.y.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
+        self.y.reset();
         self.value = Frame::default();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
+        self.y.set_sample_rate(sample_rate);
     }
 
     #[inline]

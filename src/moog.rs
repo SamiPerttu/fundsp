@@ -41,6 +41,9 @@ impl<T: Float, F: Real, N: Size<T>> Moog<T, F, N> {
         node.set_cutoff_q(cutoff, q);
         node
     }
+
+    /// Set cutoff frequency (in Hz) and Q.
+    /// This has no effect if the filter has cutoff and Q inputs.
     #[inline]
     pub fn set_cutoff_q(&mut self, cutoff: F, q: F) {
         self.cutoff = cutoff;
@@ -65,11 +68,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
         self.set_cutoff_q(cutoff, q);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = convert(sample_rate);
-            self.set_cutoff_q(self.cutoff, self.q);
-        }
+    fn reset(&mut self) {
         self.s0 = F::zero();
         self.s1 = F::zero();
         self.s2 = F::zero();
@@ -78,6 +77,11 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
         self.ps0 = F::zero();
         self.ps1 = F::zero();
         self.ps2 = F::zero();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
+        self.set_cutoff_q(self.cutoff, self.q);
     }
 
     #[inline]

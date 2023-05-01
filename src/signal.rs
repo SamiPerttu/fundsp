@@ -109,7 +109,7 @@ impl Signal {
 }
 
 /// Frame of input or output signals.
-pub type SignalFrame = TinyVec<[Signal; 32]>;
+pub type SignalFrame = TinyVec<[Signal; 64]>;
 
 /// Create a new signal frame with all channels marked unknown.
 pub fn new_signal_frame(size: usize) -> SignalFrame {

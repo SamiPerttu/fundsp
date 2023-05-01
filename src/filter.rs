@@ -113,14 +113,15 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
         self.set_coefs(BiquadCoefs::arbitrary(a1, a2, b0, b1, b2));
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.x1 = F::zero();
         self.x2 = F::zero();
         self.y1 = F::zero();
         self.y2 = F::zero();
-        if let Some(sr) = sample_rate {
-            self.sample_rate = sr;
-        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate;
     }
 
     #[inline]
@@ -175,7 +176,8 @@ impl<T: Float, F: Real, N: Size<T>> ButterLowpass<T, F, N> {
             sample_rate: F::from_f64(sample_rate),
             cutoff: F::zero(),
         };
-        node.biquad.reset(Some(sample_rate));
+        node.biquad.reset();
+        node.biquad.set_sample_rate(sample_rate);
         node.set_cutoff(cutoff);
         node
     }
@@ -197,12 +199,14 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
         self.set_cutoff(setting);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.biquad.reset(sample_rate);
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = convert(sample_rate);
-            self.set_cutoff(self.cutoff);
-        }
+    fn reset(&mut self) {
+        self.biquad.reset();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
+        self.biquad.set_sample_rate(sample_rate);
+        self.set_cutoff(self.cutoff);
     }
 
     #[inline]
@@ -257,7 +261,8 @@ impl<T: Float, F: Real, N: Size<T>> Resonator<T, F, N> {
             center,
             bandwidth,
         };
-        node.biquad.reset(Some(sample_rate));
+        node.biquad.reset();
+        node.biquad.set_sample_rate(sample_rate);
         node.set_center_bandwidth(center, bandwidth);
         node
     }
@@ -280,12 +285,13 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
         self.set_center_bandwidth(center, bandwidth);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.biquad.reset(sample_rate);
-        if let Some(sr) = sample_rate {
-            self.sample_rate = convert(sr);
-            self.set_center_bandwidth(self.center, self.bandwidth);
-        }
+    fn reset(&mut self) {
+        self.biquad.reset();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
+        self.set_center_bandwidth(self.center, self.bandwidth);
     }
 
     #[inline]
@@ -345,6 +351,9 @@ impl<T: Float, F: Real, N: Size<T>> Lowpole<T, F, N> {
         node.set_cutoff(cutoff);
         node
     }
+
+    /// Set the cutoff frequency (in Hz).
+    /// This has no effect if the filter has a cutoff frequency input.
     pub fn set_cutoff(&mut self, cutoff: F) {
         self.cutoff = cutoff;
         self.coeff = exp(F::from_f64(-TAU) * cutoff / self.sample_rate);
@@ -362,12 +371,13 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
         self.set_cutoff(setting);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = convert(sample_rate);
-            self.set_cutoff(self.cutoff);
-        }
+    fn reset(&mut self) {
         self.value = F::zero();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
+        self.set_cutoff(self.cutoff);
     }
 
     #[inline]
@@ -418,9 +428,12 @@ impl<T: Float, F: Real> DCBlock<T, F> {
             cutoff,
             ..Default::default()
         };
-        node.reset(Some(sample_rate));
+        node.reset();
+        node.set_sample_rate(sample_rate);
         node
     }
+
+    /// Set the cutoff frequency (in Hz).
     pub fn set_cutoff(&mut self, cutoff: F) {
         self.cutoff = cutoff;
         self.coeff = F::one() - F::from_f64(TAU) / self.sample_rate * cutoff;
@@ -438,13 +451,14 @@ impl<T: Float, F: Real> AudioNode for DCBlock<T, F> {
         self.set_cutoff(setting);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = convert(sample_rate);
-            self.set_cutoff(self.cutoff);
-        }
+    fn reset(&mut self) {
         self.x1 = F::zero();
         self.y1 = F::zero();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
+        self.set_cutoff(self.cutoff);
     }
 
     #[inline]
@@ -505,8 +519,7 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
     type Outputs = U1;
     type Setting = ();
 
-    #[inline]
-    fn reset(&mut self, _sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.b0 = F::zero();
         self.b1 = F::zero();
         self.b2 = F::zero();
@@ -514,6 +527,10 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
         self.b4 = F::zero();
         self.b5 = F::zero();
         self.b6 = F::zero();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
     }
 
     #[inline]
@@ -606,12 +623,13 @@ impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
         self.set_delay(setting);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = convert(sample_rate);
-        }
+    fn reset(&mut self) {
         self.x1 = F::zero();
         self.y1 = F::zero();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
     }
 
     #[inline]
@@ -686,13 +704,14 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Highpole<T, F, N> {
         self.set_cutoff(setting);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = convert(sample_rate);
-            self.set_cutoff(self.cutoff);
-        }
+    fn reset(&mut self) {
         self.x1 = F::zero();
         self.y1 = F::zero();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
+        self.set_cutoff(self.cutoff);
     }
 
     #[inline]

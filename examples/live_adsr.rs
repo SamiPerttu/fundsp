@@ -182,7 +182,7 @@ fn run_synth<T: SizedSample + FromSample<f64>>(
     std::thread::spawn(move || {
         let sample_rate = config.sample_rate.0 as f64;
         let mut sound = create_sound(pitch, volume, pitch_bend, control);
-        sound.reset(Some(sample_rate));
+        sound.set_sample_rate(sample_rate);
 
         let mut next_value = move || sound.get_stereo();
         let channels = config.channels as usize;

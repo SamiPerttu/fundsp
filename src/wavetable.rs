@@ -214,11 +214,12 @@ where
     type Outputs = N;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = sample_rate as f32;
-        }
+    fn reset(&mut self) {
         self.phase = self.initial_phase;
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate as f32;
     }
 
     fn set_hash(&mut self, hash: u64) {
@@ -298,11 +299,12 @@ where
     type Outputs = numeric_array::typenum::U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = sample_rate as f32;
-        }
+    fn reset(&mut self) {
         self.phase_ready = false;
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate as f32;
     }
 
     #[inline]

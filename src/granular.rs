@@ -64,7 +64,8 @@ impl<
     /// - `outputs`: number of outputs.
     /// - `voices`: number of parallel voices traced along a helix. For example, 16.
     /// - `beat_length`: length of 1 revolution along the helix in seconds. For example, 1 second.
-    /// - `beats_per_cycle`: how many revolutions until the helix returns to its point of origin. For example, 8.
+    /// - `beats_per_cycle`: how many revolutions until the helix returns to its point of origin. For example, 8 or 16.
+    ///    The higher this number is, the more rhythmic it will sound, due to correlations between successive revolutions.
     /// - `texture_seed`: seed of the texture which is sampled to get data for grains.
     /// - `inner_radius`: inner radius of the helix. The first voice is at the inner radius. For example, 0.1.
     /// - `outer_radius`: outer radius of the helix. The last voice is at the outer radius. For example, 0.2.
@@ -100,13 +101,13 @@ impl<
             inner_radius,
             outer_radius,
             generator,
-            sequencer: Sequencer48::new(DEFAULT_SR, outputs),
+            sequencer: Sequencer48::new(false, outputs),
             sample_rate: DEFAULT_SR as f48,
             time: 0.0,
             rnd_seed: texture_seed,
             rnd: Rnd::from_u64(texture_seed),
         };
-        granular.reset(None);
+        granular.reset();
         granular
     }
 
@@ -166,7 +167,7 @@ impl<
         self.voices[voice].next_time = t + grain_length - envelope_length;
         // Use a random phase for each individual grain.
         grain.ping(false, AttoHash::new(self.rnd.u64()));
-        self.sequencer.add_duration(
+        self.sequencer.push_duration(
             t,
             grain_length,
             Fade::Power,
@@ -196,17 +197,18 @@ impl<
         X: Fn(f48, f48, f48, f48, f48, f48) -> (f48, f48, Box<dyn AudioUnit48>) + Sync + Send + Clone,
     > AudioUnit48 for Granular48<X>
 {
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.sequencer.reset(sample_rate);
-        self.sequencer.erase_future();
-        if let Some(rate) = sample_rate {
-            self.sample_rate = rate as f48;
-        }
+    fn reset(&mut self) {
+        self.sequencer.reset();
         for i in 0..self.voices.len() {
             self.voices[i].next_time = 0.0;
         }
         self.time = 0.0;
         self.rnd = Rnd::from_u64(self.rnd_seed);
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate as f48;
+        self.sequencer.set_sample_rate(sample_rate);
     }
 
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {

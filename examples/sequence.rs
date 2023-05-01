@@ -63,7 +63,8 @@ fn main() {
     };
     */
 
-    let mut sequencer = Sequencer64::new(sample_rate, 2);
+    let mut sequencer = Sequencer64::new(true, 2);
+    sequencer.set_sample_rate(sample_rate);
 
     //sequencer.add(0.0, 60.0, Fade::Smooth, 0.0, 0.0, Box::new(stab() * 0.4));
 
@@ -74,7 +75,7 @@ fn main() {
         let t0 = i as f64 / bpm_hz(bpm) / 4.0;
         let t1 = t0 + 1.0;
         if bassd_line.as_bytes()[i % length] == b'x' {
-            sequencer.add(
+            sequencer.push(
                 t0 + 0.001 * rng.f64(),
                 t1,
                 Fade::Smooth,
@@ -84,7 +85,7 @@ fn main() {
             );
         }
         if snare_line.as_bytes()[i % length] == b'x' {
-            sequencer.add(
+            sequencer.push(
                 t0 + 0.001 * rng.f64(),
                 t1,
                 Fade::Smooth,
@@ -94,7 +95,7 @@ fn main() {
             );
         }
         if cymbl_line.as_bytes()[i % length] == b'x' {
-            sequencer.add(
+            sequencer.push(
                 t0 + 0.001 * rng.f64(),
                 t1,
                 Fade::Smooth,

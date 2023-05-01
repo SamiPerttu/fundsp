@@ -9,17 +9,17 @@ use numeric_array::typenum::*;
 use std::marker::PhantomData;
 
 /// Single sample delay.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Tick<N: Size<T>, T: Float> {
     buffer: Frame<T, N>,
     sample_rate: f64,
 }
 
 impl<N: Size<T>, T: Float> Tick<N, T> {
-    pub fn new(sample_rate: f64) -> Self {
+    pub fn new() -> Self {
         Tick {
             buffer: Frame::default(),
-            sample_rate,
+            sample_rate: DEFAULT_SR,
         }
     }
 }
@@ -31,12 +31,12 @@ impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
     type Outputs = N;
     type Setting = ();
 
-    #[inline]
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = sample_rate;
-        }
+    fn reset(&mut self) {
         self.buffer = Frame::default();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate;
     }
 
     #[inline]
@@ -72,16 +72,17 @@ pub struct Delay<T: Float> {
 }
 
 impl<T: Float> Delay<T> {
-    /// Create a new fixed delay. The `length` of the line,
+    /// Create a new fixed delay. The `length` of the delay line,
     /// which is specified in seconds, is rounded to the nearest sample.
-    pub fn new(length: f64, sample_rate: f64) -> Delay<T> {
+    /// The minimum delay is one sample.
+    pub fn new(length: f64) -> Delay<T> {
         let mut node = Delay {
             buffer: vec![],
             i: 0,
-            sample_rate,
+            sample_rate: 0.0,
             length,
         };
-        node.reset(Some(sample_rate));
+        node.set_sample_rate(DEFAULT_SR);
         node
     }
 }
@@ -93,17 +94,17 @@ impl<T: Float> AudioNode for Delay<T> {
     type Outputs = U1;
     type Setting = ();
 
-    #[inline]
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            let buffer_length = round(self.length * sample_rate);
-            self.sample_rate = sample_rate;
-            self.buffer
-                .resize(max(1, buffer_length as usize), T::zero());
-        }
+    fn reset(&mut self) {
         self.i = 0;
-        for x in self.buffer.iter_mut() {
-            *x = T::zero();
+        self.buffer.fill(T::zero());
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        if self.sample_rate != sample_rate {
+            self.sample_rate = sample_rate;
+            let buffer_length = max(1.0, round(self.length * sample_rate));
+            self.buffer.resize(buffer_length as usize, T::zero());
+            self.reset();
         }
     }
 
@@ -161,16 +162,18 @@ where
     <N as Add<U1>>::Output: Size<T>,
 {
     /// Create a tapped delay line. Minimum and maximum delays are specified in seconds.
-    pub fn new(sample_rate: f64, min_delay: T, max_delay: T) -> Self {
+    pub fn new(min_delay: T, max_delay: T) -> Self {
+        assert!(min_delay >= T::zero());
+        assert!(min_delay <= max_delay);
         let mut node = Tap {
             buffer: vec![],
             i: 0,
-            sample_rate: T::from_f64(sample_rate),
+            sample_rate: T::zero(),
             min_delay,
             max_delay,
             _marker: PhantomData::default(),
         };
-        node.reset(Some(sample_rate));
+        node.set_sample_rate(DEFAULT_SR);
         node
     }
 }
@@ -187,16 +190,20 @@ where
     type Outputs = U1;
     type Setting = ();
 
-    #[inline]
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            let buffer_length = ceil(self.max_delay * T::from_f64(sample_rate)) + T::new(2);
-            let buffer_length = (buffer_length.to_f64() as usize).next_power_of_two();
-            self.sample_rate = T::from_f64(sample_rate);
-            self.buffer.resize(buffer_length, T::zero());
-        }
+    fn reset(&mut self) {
         self.i = 0;
         self.buffer.fill(T::zero());
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        let sample_rate = T::from_f64(sample_rate);
+        if self.sample_rate != sample_rate {
+            let buffer_length = ceil(self.max_delay * sample_rate) + T::new(2);
+            let buffer_length = (buffer_length.to_f64() as usize).next_power_of_two();
+            self.sample_rate = sample_rate;
+            self.buffer.resize(buffer_length, T::zero());
+            self.reset();
+        }
     }
 
     #[inline]

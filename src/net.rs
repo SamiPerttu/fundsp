@@ -205,7 +205,7 @@ impl Clone for Net48 {
             order: self.order.clone(),
             node_index: self.node_index.clone(),
             sample_rate: self.sample_rate,
-            /// Frontend is never cloned.
+            // Frontend is never cloned.
             front: None,
             backend_inputs: self.backend_inputs,
             backend_outputs: self.backend_outputs,
@@ -253,7 +253,6 @@ impl Net48 {
     }
 
     /// Add a new unit to the network. Return its ID handle.
-    /// The unit is reset with the sample rate of the network.
     /// Unit inputs are initially set to zero.
     ///
     /// ### Example (Sine Oscillator)
@@ -266,7 +265,7 @@ impl Net48 {
     /// net.check();
     /// ```
     pub fn push(&mut self, mut unit: Box<dyn AudioUnit48>) -> NodeId {
-        unit.reset(Some(self.sample_rate));
+        unit.set_sample_rate(self.sample_rate);
         let index = self.vertex.len();
         let id = NodeId::new();
         let vertex = Vertex48::new(id, index, unit);
@@ -331,7 +330,7 @@ impl Net48 {
 
     /// Remove `node` from network. If `link` is false then connections from the unit
     /// are replaced with zeros; if `link` is true then connections are replaced
-    /// by matching inputs of the unit.
+    /// by matching inputs of the unit, and the number of inputs must be equal to the number of outputs.
     fn remove_2(&mut self, node: NodeId, link: bool) -> Box<dyn AudioUnit48> {
         let node_index = self.node_index[&node];
         assert!(!link || self.vertex[node_index].inputs() == self.vertex[node_index].outputs());
@@ -872,7 +871,7 @@ impl Net48 {
         }
     }
 
-    /// Create a realtime friendly backend for this network.
+    /// Create a real-time friendly backend for this network.
     /// This network is then the frontend and any changes made can be committed to the backend.
     /// The backend is initialized with the current state of the network.
     /// This can be called only once for a network.
@@ -900,6 +899,7 @@ impl Net48 {
             self.determine_order();
         }
         let mut net = self.clone();
+        std::mem::swap(&mut net.vertex, &mut self.vertex);
         net.allocate();
         self.revision += 1;
         Net48Backend::new(sender_b, receiver_a, net)
@@ -924,6 +924,7 @@ impl Net48 {
             self.determine_order();
         }
         let mut net = self.clone();
+        std::mem::swap(&mut net.vertex, &mut self.vertex);
         // Preallocate all necessary memory.
         net.allocate();
         if let Some((sender, receiver)) = &mut self.front {
@@ -963,12 +964,20 @@ impl AudioUnit48 for Net48 {
         self.output.channels()
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sr) = sample_rate {
-            self.sample_rate = sr;
-        }
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate;
         for vertex in &mut self.vertex {
-            vertex.unit.reset(sample_rate);
+            vertex.unit.set_sample_rate(sample_rate);
+        }
+        // Take the opportunity to unload some calculations.
+        if !self.is_ordered() {
+            self.determine_order();
+        }
+    }
+
+    fn reset(&mut self) {
+        for vertex in &mut self.vertex {
+            vertex.unit.reset();
         }
         // Take the opportunity to unload some calculations.
         if !self.is_ordered() {

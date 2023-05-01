@@ -189,17 +189,18 @@ where
     type Outputs = N;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
+        self.set_sample_rate(self.sample_rate);
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
         self.index = 0;
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = sample_rate;
-            let length = Self::buffer_length(sample_rate, self.lookahead);
-            if length != self.reducer.length {
-                self.reducer = Self::new_buffer(sample_rate, self.lookahead);
-                return;
-            }
+        self.sample_rate = sample_rate;
+        let length = Self::buffer_length(sample_rate, self.lookahead);
+        if length != self.reducer.length {
+            self.reducer = Self::new_buffer(sample_rate, self.lookahead);
         }
-        self.follower.reset(sample_rate);
+        self.follower.set_sample_rate(sample_rate);
         self.reducer.clear();
         self.buffer.clear();
     }
@@ -260,6 +261,7 @@ pub struct Declick<T: Float, F: Real> {
     t: F,
     duration: F,
     sample_duration: F,
+    sample_rate: f64,
 }
 
 impl<T: Float, F: Real> Declick<T, F> {
@@ -268,7 +270,7 @@ impl<T: Float, F: Real> Declick<T, F> {
             duration,
             ..Default::default()
         };
-        node.reset(Some(sample_rate));
+        node.set_sample_rate(sample_rate);
         node
     }
 }
@@ -280,11 +282,13 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
     type Outputs = U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_duration = F::from_f64(1.0 / sample_rate);
-        }
+    fn reset(&mut self) {
         self.t = F::zero();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate;
+        self.sample_duration = F::from_f64(1.0 / sample_rate);
     }
 
     #[inline]
@@ -328,7 +332,7 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
-        // We pretend that the declicker does not alter frequency response.
+        // We pretend that the declicker does not alter the frequency response.
         output[0] = input[0];
         output
     }
@@ -364,7 +368,7 @@ impl<T: Real> MeterState<T> {
     }
 
     /// Reset meter state.
-    pub fn reset(&mut self, _meter: Meter, _sample_rate: Option<f64>) {
+    pub fn reset(&mut self, _meter: Meter, _sample_rate: f64) {
         self.state = T::zero();
     }
 
@@ -418,10 +422,8 @@ impl<T: Real> AudioNode for MeterNode<T> {
     type Outputs = U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sr) = sample_rate {
-            self.sample_rate = sr;
-        }
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate;
         self.state.reset(self.meter, sample_rate);
     }
 
@@ -492,11 +494,15 @@ impl<T: Real + Atomic> AudioNode for Monitor<T> {
     type Outputs = U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sr) = sample_rate {
-            self.sample_rate = sr;
+    fn reset(&mut self) {
+        self.state.reset(self.meter, self.sample_rate);
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        if self.sample_rate != sample_rate {
+            self.sample_rate = sample_rate;
+            self.reset();
         }
-        self.state.reset(self.meter, sample_rate);
     }
 
     #[inline]

@@ -26,7 +26,7 @@ fn test_filter() {
         let samples = round(xerp(1.0, 500_000.0, squared(rnd.f64())));
         let sample_rate = xerp(10.0, 500_000.0, rnd.f64());
         let mut x = follow(samples / sample_rate);
-        x.reset(Some(sample_rate));
+        x.set_sample_rate(sample_rate);
         x.filter_mono(0.0);
         let goal = lerp(-100.0, 100.0, rnd.f64());
         for _ in 0..samples as usize {
@@ -46,7 +46,7 @@ fn test_filter() {
         let sample_rate = xerp(10.0, 100_000.0, rnd.f64());
         let goal = lerp(-100.0, 100.0, rnd.f64());
         let mut x = follow((attack_samples / sample_rate, release_samples / sample_rate));
-        x.reset(Some(sample_rate));
+        x.set_sample_rate(sample_rate);
         x.filter_mono(0.0);
         for _ in 0..(if goal > 0.0 {
             attack_samples
@@ -93,9 +93,10 @@ where
     filter.allocate();
 
     let length = 0x10000;
-    let sample_rate = 44_100.0;
+    let sample_rate = DEFAULT_SR;
 
-    filter.reset(Some(sample_rate));
+    filter.reset();
+    filter.set_sample_rate(sample_rate);
 
     let mut input = 1.0;
     let mut buffer = Vec::with_capacity(length);

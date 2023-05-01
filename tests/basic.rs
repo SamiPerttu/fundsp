@@ -22,7 +22,7 @@ fn check_wave(mut node: impl AudioUnit64) {
 
     assert!(wave.channels() == 2);
     assert!(wave.length() == 44100);
-    node.reset(None);
+    node.reset();
     for i in 0..44100 {
         let (tick_x, tick_y) = node.get_stereo();
         let process_x = wave.at(0, i);
@@ -42,7 +42,7 @@ fn check_wave_big(node: Box<dyn AudioUnit64>) {
     let mut big = BigBlockAdapter64::new(node);
     big.allocate();
     big.process(44100, &[], wave.channels_mut());
-    big.reset(None);
+    big.reset();
     for i in 0..44100 {
         let (tick_x, tick_y) = big.get_stereo();
         let process_x = wave.at(0, i);
@@ -61,7 +61,7 @@ fn check_wave_filter(input: &Wave64, mut node: impl AudioUnit64) {
     let wave = input.filter(1.1, &mut node);
     assert!(wave.channels() == 2);
     assert!(wave.length() == 44100 + 4410);
-    node.reset(None);
+    node.reset();
     for i in 0..44100 {
         let (tick_x, tick_y) = node.filter_stereo(input.at(0, i), input.at(1, i));
         let process_x = wave.at(0, i);
@@ -198,8 +198,8 @@ fn test_basic() {
         envelope(|t| exp(-t * 10.0)) | lfo(|t| sin(t * 10.0)),
     ));
 
-    let mut sequencer = Sequencer64::new(44100.0, 2);
-    sequencer.add(
+    let mut sequencer = Sequencer64::new(true, 2);
+    sequencer.push(
         0.1,
         0.2,
         Fade::Smooth,
@@ -207,7 +207,7 @@ fn test_basic() {
         0.02,
         Box::new(noise() | sine_hz(220.0)),
     );
-    sequencer.add(
+    sequencer.push(
         0.3,
         0.4,
         Fade::Smooth,
@@ -215,8 +215,8 @@ fn test_basic() {
         0.08,
         Box::new(sine_hz(110.0) | noise()),
     );
-    sequencer.add(0.25, 0.5, Fade::Power, 0.0, 0.01, Box::new(mls() | noise()));
-    sequencer.add(0.6, 0.7, Fade::Power, 0.01, 0.0, Box::new(noise() | mls()));
+    sequencer.push(0.25, 0.5, Fade::Power, 0.0, 0.01, Box::new(mls() | noise()));
+    sequencer.push(0.6, 0.7, Fade::Power, 0.01, 0.0, Box::new(noise() | mls()));
     check_wave(sequencer);
 
     let mut net = Net64::new(0, 2);
@@ -261,6 +261,7 @@ fn test_basic() {
     let mut d = constant((2.0, 3.0));
     assert!(d.inputs() == 0 && d.outputs() == 2);
     assert!(d.get_stereo() == (2.0, 3.0));
+    assert!(d.get_mono() == 2.5);
 
     // Random stuff.
     let c = constant((2.0, 3.0)) * dc((2.0, 3.0));

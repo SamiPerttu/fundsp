@@ -85,7 +85,7 @@ where
 
     c = c >> (multipass() & 0.2 * reverb_stereo(20.0, 3.0)) >> (dcblock() | dcblock());
 
-    c.reset(Some(sample_rate));
+    c.set_sample_rate(sample_rate);
 
     let mut c = BlockRateAdapter64::new(Box::new(c));
 

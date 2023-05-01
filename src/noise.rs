@@ -120,7 +120,7 @@ impl<T: Float> AudioNode for Mls<T> {
     type Outputs = typenum::U1;
     type Setting = ();
 
-    fn reset(&mut self, _sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.mls = MlsState::new_with_seed(self.mls.n, (self.hash >> 32) as u32);
     }
 
@@ -136,7 +136,7 @@ impl<T: Float> AudioNode for Mls<T> {
 
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
-        self.reset(None);
+        self.reset();
     }
 
     fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -168,7 +168,7 @@ impl<T: Float> AudioNode for Noise<T> {
     type Outputs = typenum::U1;
     type Setting = ();
 
-    fn reset(&mut self, _sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.rnd = Rnd::from_u64(self.hash);
     }
 
@@ -194,7 +194,7 @@ impl<T: Float> AudioNode for Noise<T> {
 
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
-        self.reset(None);
+        self.reset();
     }
 
     fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -228,7 +228,8 @@ impl<T: Float> Hold<T> {
             variability,
             ..Self::default()
         };
-        node.reset(Some(DEFAULT_SR));
+        node.reset();
+        node.set_sample_rate(DEFAULT_SR);
         node
     }
     /// Variability is the randomness in individual hold times in 0...1.
@@ -254,13 +255,14 @@ impl<T: Float> AudioNode for Hold<T> {
         self.set_variability(setting);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.rnd = Rnd::from_u64(self.hash);
         self.t = 0.0;
         self.next_t = 0.0;
-        if let Some(sr) = sample_rate {
-            self.sample_duration = 1.0 / sr;
-        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = 1.0 / sample_rate;
     }
 
     #[inline]
@@ -281,10 +283,9 @@ impl<T: Float> AudioNode for Hold<T> {
         [self.hold].into()
     }
 
-    #[inline]
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
-        self.reset(None);
+        self.reset();
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {

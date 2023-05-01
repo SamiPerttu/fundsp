@@ -56,11 +56,14 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Rez<T, F, N> {
         self.set_cutoff_q(cutoff, q);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = convert(sample_rate);
-            self.set_cutoff_q(self.cutoff, self.q);
-        }
+    fn reset(&mut self) {
+        self.buf0 = F::zero();
+        self.buf1 = F::zero();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
+        self.set_cutoff_q(self.cutoff, self.q);
     }
 
     #[inline]

@@ -151,8 +151,7 @@ in nested sections that are easy to configure and modify.
 Some low-level components ignore the sample rate by design, such as the single sample delay `tick`.
 
 The default sample rate is 44.1 kHz.
-In both systems, a component `A` can be reinitialized
-with a new sample rate: `A.reset(Some(sample_rate))`.
+In both systems, the sample rate can be set for component `A` via `A.set_sample_rate(sample_rate)`.
 
 
 ## Audio Processing Environment
@@ -737,7 +736,7 @@ to examine frequency responses interactively:
 ```rust
 C:\rust>evcxr
 Welcome to evcxr. For help, type :help
->> :dep fundsp = "0.12.0"
+>> :dep fundsp = "0.13.0"
 >> use fundsp::hacker::*;
 >> print!("{}", bell_hz(1000.0, 1.0, db_amp(50.0)).display())
  60 dB ------------------------------------------------  60 dB
@@ -828,6 +827,7 @@ The type parameters in the table refer to the hacker preludes.
 | `feedback(x)`          |   `x`   |   `x`   | Enclose (single sample) feedback circuit `x` (with equal number of inputs and outputs). |
 | `feedback2(x, y)`      | `x`, `y`| `x`, `y`| Enclose (single sample) feedback circuit `x` (with equal number of inputs and outputs) with extra feedback loop processing `y`. The feedforward path does not include `y`. |
 | `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))`. |
+| `fir3(gain)`           |    1    |    1    | Symmetric 3-point FIR calculated from desired `gain` at the Nyquist frequency. |
 | `flanger(fb, min_d, max_d, f)`| 1|    1    | Flanger effect with feedback amount `fb`, minimum delay `min_d` seconds, maximum delay `max_d` seconds and delay function `f`, e.g., `\|t\| lerp11(0.01, 0.02, sin_hz(0.1, t))`. |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
 | `follow((a, r))`       |    1    |    1    | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |

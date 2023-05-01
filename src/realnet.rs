@@ -92,9 +92,14 @@ impl AudioUnit48 for Net48Backend {
         self.net.outputs()
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
+        self.net.reset();
         self.handle_messages();
-        self.net.reset(sample_rate);
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.net.set_sample_rate(sample_rate);
+        self.handle_messages();
     }
 
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {

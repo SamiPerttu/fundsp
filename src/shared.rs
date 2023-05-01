@@ -266,12 +266,13 @@ impl<T: Atomic> AudioNode for Timer<T> {
     type Outputs = U0;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.time = 0.0;
-        if let Some(sr) = sample_rate {
-            self.sample_duration = 1.0 / sr;
-        }
         self.shared.set_value(T::zero());
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = 1.0 / sample_rate;
     }
 
     #[inline]

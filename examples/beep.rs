@@ -104,7 +104,7 @@ where
         >> limiter_stereo((1.0, 5.0));
     //let mut c = c * 0.1;
 
-    c.reset(Some(sample_rate));
+    c.set_sample_rate(sample_rate);
     c.allocate();
 
     let mut next_value = move || assert_no_alloc(|| c.get_stereo());

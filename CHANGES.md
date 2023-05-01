@@ -7,6 +7,11 @@
 - `swap_stereo` is now generic `reverse`, which reverses channel order.
 - Resonant two-pole filter by Paul Kellett as `bandrez` and `lowrez`.
 - Sample-and-hold opcodes `hold` and `hold_hz`.
+- Fixed inbuilt waveform phases.
+- Reduced number of all-pass stages in `phaser` to 10.
+- Sequencer `add` and `add_duration` are now `push` and `push_duration`.
+- Reseting a node and setting its sample rate are now two distinct operations.
+- Sequencer can now have a real-time safe backend.
 
 ### Version 0.13
 

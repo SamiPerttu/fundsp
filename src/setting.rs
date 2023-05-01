@@ -53,15 +53,18 @@ impl<X: AudioNode> AudioNode for Listen<X> {
     type Outputs = X::Outputs;
     type Setting = X::Setting;
 
-    #[inline]
     fn set(&mut self, setting: Self::Setting) {
         self.x.set(setting);
     }
 
-    #[inline]
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
+        self.x.reset();
         self.receive_settings();
-        self.x.reset(sample_rate);
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
+        self.receive_settings();
     }
 
     #[inline]
@@ -73,7 +76,6 @@ impl<X: AudioNode> AudioNode for Listen<X> {
         self.x.tick(input)
     }
 
-    #[inline]
     fn process(
         &mut self,
         size: usize,
@@ -84,12 +86,10 @@ impl<X: AudioNode> AudioNode for Listen<X> {
         self.x.process(size, input, output);
     }
 
-    #[inline]
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.x.ping(probe, hash.hash(Self::ID))
     }
 
-    #[inline]
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.receive_settings();
         self.x.route(input, frequency)

@@ -25,7 +25,8 @@ impl<T: Real> Sine<T> {
     /// Create sine oscillator.
     pub fn new(sample_rate: f64) -> Self {
         let mut sine = Sine::default();
-        sine.reset(Some(sample_rate));
+        sine.reset();
+        sine.set_sample_rate(sample_rate);
         sine
     }
     /// Create sine oscillator with optional initial phase in 0...1.
@@ -36,7 +37,8 @@ impl<T: Real> Sine<T> {
             hash: 0,
             initial_phase,
         };
-        sine.reset(Some(sample_rate));
+        sine.reset();
+        sine.set_sample_rate(sample_rate);
         sine
     }
 }
@@ -48,14 +50,15 @@ impl<T: Real> AudioNode for Sine<T> {
     type Outputs = typenum::U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.phase = match self.initial_phase {
             Some(phase) => phase,
             None => T::from_f64(rnd(self.hash as i64)),
         };
-        if let Some(sr) = sample_rate {
-            self.sample_duration = T::from_f64(1.0 / sr);
-        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = convert(1.0 / sample_rate);
     }
 
     #[inline]
@@ -86,7 +89,7 @@ impl<T: Real> AudioNode for Sine<T> {
 
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
-        self.reset(None);
+        self.reset();
     }
 
     fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -131,7 +134,8 @@ impl<T: Real, N: Size<T>> Dsf<T, N> {
             hash: 0,
             _marker: PhantomData::default(),
         };
-        node.reset(Some(sample_rate));
+        node.reset();
+        node.set_sample_rate(sample_rate);
         node.set_roughness(roughness);
         node
     }
@@ -160,11 +164,12 @@ impl<T: Real, N: Size<T>> AudioNode for Dsf<T, N> {
         self.set_roughness(setting);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.phase = T::from_f64(rnd(self.hash as i64));
-        if let Some(sr) = sample_rate {
-            self.sample_duration = T::from_f64(1.0 / sr);
-        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = convert(1.0 / sample_rate);
     }
 
     #[inline]
@@ -187,7 +192,7 @@ impl<T: Real, N: Size<T>> AudioNode for Dsf<T, N> {
 
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
-        self.reset(None);
+        self.reset();
     }
 
     fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -223,7 +228,7 @@ impl<T: Float> Pluck<T> {
         high_frequency_damping: T,
     ) -> Self {
         Self {
-            damping: fir3(T::one() - high_frequency_damping),
+            damping: super::prelude::fir3(T::one() - high_frequency_damping),
             tuning: Allpole::new(sample_rate, T::one()),
             line: Vec::new(),
             gain: T::from_f64(pow(gain_per_second.to_f64(), 1.0 / frequency.to_f64())),
@@ -260,11 +265,13 @@ impl<T: Float> AudioNode for Pluck<T> {
     type Outputs = typenum::U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sr) = sample_rate {
-            self.sample_rate = sr;
-        }
-        self.damping.reset(sample_rate);
+    fn reset(&mut self) {
+        self.damping.reset();
+        self.initialized = false;
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.damping.set_sample_rate(sample_rate);
         self.initialized = false;
     }
 
@@ -321,7 +328,8 @@ impl<T: Float> Rossler<T> {
     /// Create new Rossler oscillator.
     pub fn new() -> Self {
         let mut rossler = Self::default();
-        rossler.reset(Some(DEFAULT_SR));
+        rossler.reset();
+        rossler.set_sample_rate(DEFAULT_SR);
         rossler
     }
 }
@@ -333,13 +341,14 @@ impl<T: Float> AudioNode for Rossler<T> {
     type Outputs = typenum::U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sr) = sample_rate {
-            self.sr = T::from_f64(sr);
-        }
+    fn reset(&mut self) {
         self.x = lerp(T::zero(), T::one(), convert(rnd(self.hash as i64)));
         self.y = T::one();
         self.z = T::one();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sr = convert(sample_rate);
     }
 
     #[inline]
@@ -359,7 +368,7 @@ impl<T: Float> AudioNode for Rossler<T> {
 
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
-        self.reset(None);
+        self.reset();
     }
 
     fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -385,7 +394,8 @@ impl<T: Float> Lorenz<T> {
     /// Create new Lorenz oscillator.
     pub fn new() -> Self {
         let mut lorenz = Self::default();
-        lorenz.reset(Some(DEFAULT_SR));
+        lorenz.reset();
+        lorenz.set_sample_rate(DEFAULT_SR);
         lorenz
     }
 }
@@ -397,13 +407,14 @@ impl<T: Float> AudioNode for Lorenz<T> {
     type Outputs = typenum::U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        if let Some(sr) = sample_rate {
-            self.sr = T::from_f64(sr);
-        }
+    fn reset(&mut self) {
         self.x = lerp(T::zero(), T::one(), convert(rnd(self.hash as i64)));
         self.y = T::one();
         self.z = T::one();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sr = convert(sample_rate);
     }
 
     #[inline]
@@ -423,7 +434,7 @@ impl<T: Float> AudioNode for Lorenz<T> {
 
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
-        self.reset(None);
+        self.reset();
     }
 
     fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {

@@ -20,6 +20,7 @@ pub use super::oscillator::*;
 pub use super::oversample::*;
 pub use super::pan::*;
 pub use super::realnet::*;
+pub use super::realseq::*;
 pub use super::resample::*;
 pub use super::rez::*;
 pub use super::sequencer::*;
@@ -899,6 +900,16 @@ pub fn fir<X: ConstantFrame>(weights: X) -> An<Fir<X::Sample, X::Size>> {
     An(Fir::new(weights))
 }
 
+/// Create a 3-point symmetric FIR from desired `gain` (`gain` >= 0) at the Nyquist frequency.
+/// Results in a monotonic low-pass filter when `gain` < 1.
+/// - Input 0: signal.
+/// - Output 0: filtered signal.
+pub fn fir3<T: Float>(gain: T) -> Fir<T, U3> {
+    let alpha = (gain + T::new(1)) / T::new(2);
+    let beta = (T::new(1) - alpha) / T::new(2);
+    Fir::new((beta, alpha, beta))
+}
+
 /// Single sample delay.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
@@ -909,7 +920,7 @@ pub fn fir<X: ConstantFrame>(weights: X) -> An<Fir<X::Sample, X::Size>> {
 /// tick::<f64>() & pass();
 /// ```
 pub fn tick<T: Float>() -> An<Tick<U1, T>> {
-    An(Tick::new(convert(DEFAULT_SR)))
+    An(Tick::new())
 }
 
 /// Multichannel single sample delay.
@@ -922,7 +933,7 @@ pub fn tick<T: Float>() -> An<Tick<U1, T>> {
 /// multitick::<U2, f32>();
 /// ```
 pub fn multitick<N: Size<T>, T: Float>() -> An<Tick<N, T>> {
-    An(Tick::new(convert(DEFAULT_SR)))
+    An(Tick::new())
 }
 
 /// Fixed delay of `t` seconds.
@@ -937,7 +948,7 @@ pub fn multitick<N: Size<T>, T: Float>() -> An<Tick<N, T>> {
 /// delay::<f32>(1.0);
 /// ```
 pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
-    An(Delay::new(t, DEFAULT_SR))
+    An(Delay::new(t))
 }
 
 /// Tapped delay line with cubic interpolation.
@@ -953,7 +964,7 @@ pub fn delay<T: Float>(t: f64) -> An<Delay<T>> {
 /// pass::<f32>() & (pass() | lfo(|t| lerp11(0.01, 0.1, spline_noise(0, t)))) >> tap(0.01, 0.1);
 /// ```
 pub fn tap<T: Float>(min_delay: T, max_delay: T) -> An<Tap<U1, T>> {
-    An(Tap::new(DEFAULT_SR, min_delay, max_delay))
+    An(Tap::new(min_delay, max_delay))
 }
 
 /// Tapped delay line with cubic interpolation.
@@ -975,7 +986,7 @@ where
     N: Size<T> + Add<U1>,
     <N as Add<U1>>::Output: Size<T>,
 {
-    An(Tap::new(DEFAULT_SR, min_delay, max_delay))
+    An(Tap::new(min_delay, max_delay))
 }
 
 /// 2x oversample enclosed `node`.
@@ -2254,7 +2265,7 @@ pub fn bandrez<T: Float, F: Real>() -> An<Rez<T, F, U3>> {
 /// Resonant two-pole bandpass filter with fixed center frequency and Q.
 /// - Input 0: audio
 /// - Output 0: filtered audio
-pub fn bandrez_hz<T: Float, F: Real>(center: F, q: F) -> An<Rez<T, F, U3>> {
+pub fn bandrez_hz<T: Float, F: Real>(center: F, q: F) -> An<Rez<T, F, U1>> {
     An(Rez::new(F::one(), center, q))
 }
 
@@ -2311,8 +2322,11 @@ impl<T: Float> AudioNode for PulseWave<T> {
     type Outputs = U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.pulse.reset(sample_rate);
+    fn reset(&mut self) {
+        self.pulse.reset();
+    }
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.pulse.set_sample_rate(sample_rate);
     }
     fn tick(
         &mut self,
@@ -2562,7 +2576,7 @@ pub fn phaser<T: Real, X: Fn(T) -> T + Clone>(
     pass()
         & feedback(
             (pass() | lfo(move |t| lerp(T::new(1), T::new(10), phase_f(t))))
-                >> pipe::<U20, T, _, _>(|_i| {
+                >> pipe::<U10, T, _, _>(|_i| {
                     (pass() | add(T::from_f64(0.05))) >> !allpole::<T, T>()
                 })
                 >> (mul(feedback_amount) | sink()),

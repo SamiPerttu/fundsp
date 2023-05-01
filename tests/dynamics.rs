@@ -30,7 +30,7 @@ fn test_dynamics() {
         let samples = round(xerp(2.0, 200_000.0, rnd.f64())) as usize;
         let sample_rate = 48000.0;
         let mut x = limiter((samples as f64 / sample_rate, samples as f64 / sample_rate));
-        x.reset(Some(sample_rate));
+        x.set_sample_rate(sample_rate);
         for _ in 0..samples {
             x.filter_mono(0.0);
         }

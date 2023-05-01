@@ -47,19 +47,19 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone> AudioNode for Syste
     type Outputs = X::Outputs;
     type Setting = X::Setting;
 
-    #[inline]
     fn set(&mut self, setting: Self::Setting) {
         self.x.set(setting);
     }
 
-    #[inline]
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
         self.time = T::zero();
         self.delta_time = T::zero();
-        if let Some(sr) = sample_rate {
-            self.sample_rate = T::from_f64(sr);
-        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
+        self.sample_rate = convert(sample_rate);
     }
 
     #[inline]

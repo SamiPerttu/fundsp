@@ -194,8 +194,12 @@ impl<X: AudioNode> core::ops::DerefMut for An<X> {
 // - otherwise the AudioUnit implementation would be picked.
 impl<X: AudioNode> An<X> {
     #[inline]
-    pub fn reset(&mut self, sample_rate: Option<f64>) {
-        self.0.reset(sample_rate);
+    pub fn reset(&mut self) {
+        self.0.reset();
+    }
+    #[inline]
+    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.0.set_sample_rate(sample_rate);
     }
     #[inline]
     pub fn tick(&mut self, input: &Frame<X::Sample, X::Inputs>) -> Frame<X::Sample, X::Outputs> {

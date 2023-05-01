@@ -918,13 +918,14 @@ where
     type Outputs = U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.ic1eq = F::zero();
         self.ic2eq = F::zero();
-        if let Some(sample_rate) = sample_rate {
-            self.params.sample_rate = convert(sample_rate);
-            self.mode.update_frequency(&self.params, &mut self.coeffs);
-        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.params.sample_rate = convert(sample_rate);
+        self.mode.update_frequency(&self.params, &mut self.coeffs);
     }
 
     #[inline]
@@ -1094,13 +1095,14 @@ where
         self.mode.set(setting, &mut self.params, &mut self.coeffs);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.ic1eq = F::zero();
         self.ic2eq = F::zero();
-        if let Some(sample_rate) = sample_rate {
-            self.params.sample_rate = convert(sample_rate);
-            self.mode.update_frequency(&self.params, &mut self.coeffs);
-        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.params.sample_rate = convert(sample_rate);
+        self.mode.update_frequency(&self.params, &mut self.coeffs);
     }
 
     #[inline]
@@ -1164,9 +1166,14 @@ impl<T: Float, F: Real> AudioNode for Morph<T, F> {
     type Outputs = U1;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.filter.reset(sample_rate);
+    fn reset(&mut self) {
+        self.filter.reset();
     }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.filter.set_sample_rate(sample_rate);
+    }
+
     #[inline]
     fn tick(
         &mut self,
@@ -1176,6 +1183,7 @@ impl<T: Float, F: Real> AudioNode for Morph<T, F> {
         let filter_out = self.filter.tick(Frame::from_slice(&input[0..3]));
         [(filter_out[0] + input[3] * input[0]) * T::from_f32(0.5)].into()
     }
+
     fn process(
         &mut self,
         size: usize,
@@ -1190,6 +1198,7 @@ impl<T: Float, F: Real> AudioNode for Morph<T, F> {
             self.morph = input[3][size - 1];
         }
     }
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = self.filter.route(input, frequency);
         output[0] = output[0].filter(0.0, |r| {
@@ -1197,6 +1206,7 @@ impl<T: Float, F: Real> AudioNode for Morph<T, F> {
         });
         output
     }
+
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.filter.ping(probe, hash).hash(Self::ID)
     }

@@ -20,6 +20,7 @@ pub use super::oscillator::*;
 pub use super::oversample::*;
 pub use super::pan::*;
 pub use super::realnet::*;
+pub use super::realseq::*;
 pub use super::resample::*;
 pub use super::rez::*;
 pub use super::sequencer::*;
@@ -859,6 +860,14 @@ pub fn fir<X: ConstantFrame<Sample = f32>>(weights: X) -> An<Fir<f32, X::Size>> 
     An(Fir::new(weights))
 }
 
+/// Create a 3-point symmetric FIR from desired `gain` (`gain` >= 0) at the Nyquist frequency.
+/// Results in a monotonic low-pass filter when `gain` < 1.
+/// - Input 0: signal.
+/// - Output 0: filtered signal.
+pub fn fir3(gain: f32) -> Fir<f32, U3> {
+    super::prelude::fir3(gain)
+}
+
 /// Single sample delay.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
@@ -869,7 +878,7 @@ pub fn fir<X: ConstantFrame<Sample = f32>>(weights: X) -> An<Fir<f32, X::Size>> 
 /// tick() & pass();
 /// ```
 pub fn tick() -> An<Tick<U1, f32>> {
-    An(Tick::new(DEFAULT_SR))
+    An(Tick::new())
 }
 
 /// Multichannel single sample delay.
@@ -882,7 +891,7 @@ pub fn tick() -> An<Tick<U1, f32>> {
 /// multitick::<U2>();
 /// ```
 pub fn multitick<N: Size<f32>>() -> An<Tick<N, f32>> {
-    An(Tick::new(convert(DEFAULT_SR)))
+    An(Tick::new())
 }
 
 /// Fixed delay of `t` seconds.
@@ -897,7 +906,7 @@ pub fn multitick<N: Size<f32>>() -> An<Tick<N, f32>> {
 /// delay(1.0);
 /// ```
 pub fn delay(t: f32) -> An<Delay<f32>> {
-    An(Delay::new(t as f64, DEFAULT_SR))
+    An(Delay::new(t as f64))
 }
 
 /// Tapped delay line with cubic interpolation.
@@ -913,7 +922,7 @@ pub fn delay(t: f32) -> An<Delay<f32>> {
 /// pass() & (pass() | lfo(|t| lerp11(0.01, 0.1, spline_noise(0, t)))) >> tap(0.01, 0.1);
 /// ```
 pub fn tap(min_delay: f32, max_delay: f32) -> An<Tap<U1, f32>> {
-    An(Tap::new(DEFAULT_SR, min_delay, max_delay))
+    An(Tap::new(min_delay, max_delay))
 }
 
 /// Tapped delay line with cubic interpolation.
@@ -934,7 +943,7 @@ where
     N: Size<f32> + Add<U1>,
     <N as Add<U1>>::Output: Size<f32>,
 {
-    An(Tap::new(DEFAULT_SR, min_delay, max_delay))
+    An(Tap::new(min_delay, max_delay))
 }
 
 /// 2x oversample enclosed `node`.
@@ -1898,7 +1907,7 @@ pub fn bandrez() -> An<Rez<f32, f32, U3>> {
 /// Resonant two-pole bandpass filter with fixed center frequency and Q.
 /// - Input 0: audio
 /// - Output 0: filtered audio
-pub fn bandrez_hz(center: f32, q: f32) -> An<Rez<f32, f32, U3>> {
+pub fn bandrez_hz(center: f32, q: f32) -> An<Rez<f32, f32, U1>> {
     An(Rez::new(1.0, center, q))
 }
 

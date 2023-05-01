@@ -48,7 +48,8 @@ impl<T: Float, F: Real> Follow<T, F> {
             response_time,
             ..Follow::default()
         };
-        node.reset(Some(sample_rate));
+        node.reset();
+        node.set_sample_rate(sample_rate);
         node
     }
 
@@ -90,15 +91,16 @@ impl<T: Float, F: Real> AudioNode for Follow<T, F> {
         self.set_response_time(setting);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.v3 = F::zero();
         self.v2 = F::zero();
         self.v1 = F::zero();
         self.coeff_now = F::one();
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = F::from_f64(sample_rate);
-            self.set_response_time(self.response_time);
-        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
+        self.set_response_time(self.response_time);
     }
 
     #[inline]
@@ -155,7 +157,8 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollow<T, F, S> {
             time,
             ..AFollow::default()
         };
-        node.reset(Some(sample_rate));
+        node.reset();
+        node.set_sample_rate(sample_rate);
         node
     }
 
@@ -208,17 +211,18 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F,
         self.set_time(setting);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.v3 = F::zero();
         self.v2 = F::zero();
         self.v1 = F::zero();
         self.acoeff_now = F::one();
         self.rcoeff_now = F::one();
-        if let Some(sample_rate) = sample_rate {
-            self.sample_rate = F::from_f64(sample_rate);
-            // Recalculate coefficients.
-            self.set_time(self.time.clone());
-        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = convert(sample_rate);
+        // Recalculate coefficients.
+        self.set_time(self.time.clone());
     }
 
     #[inline]

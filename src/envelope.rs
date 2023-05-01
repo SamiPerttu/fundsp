@@ -72,7 +72,8 @@ where
             sample_duration: F::zero(),
             hash: 0,
         };
-        node.reset(Some(sample_rate));
+        node.set_sample_rate(sample_rate);
+        node.reset();
         node
     }
 
@@ -115,7 +116,7 @@ where
     type Outputs = R::Size;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.t = F::zero();
         self.t_0 = F::zero();
         self.t_1 = F::zero();
@@ -123,9 +124,10 @@ where
         let value_0: Frame<_, _> = (self.envelope)(self.t_0).convert();
         self.value_0 = Frame::generate(|i| convert(value_0[i]));
         self.value_1 = self.value_0.clone();
-        if let Some(sr) = sample_rate {
-            self.sample_duration = convert(1.0 / sr)
-        };
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = convert(1.0 / sample_rate);
     }
 
     #[inline]
@@ -248,7 +250,8 @@ where
             hash: 0,
             _marker: PhantomData::default(),
         };
-        node.reset(Some(sample_rate));
+        node.set_sample_rate(sample_rate);
+        node.reset();
         node
     }
 
@@ -298,14 +301,15 @@ where
     type Outputs = R::Size;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.t = F::zero();
         self.t_0 = F::zero();
         self.t_1 = F::zero();
         self.t_hash = self.hash;
-        if let Some(sr) = sample_rate {
-            self.sample_duration = convert(1.0 / sr)
-        };
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = convert(1.0 / sample_rate);
     }
 
     #[inline]

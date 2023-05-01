@@ -46,17 +46,32 @@ pub trait AudioNode: Clone {
 
     /// Reset the input state of the component to an initial state where it has
     /// not processed any samples. In other words, reset time to zero.
-    /// The sample rate can be set optionally. The default sample rate is 44.1 kHz.
     /// The default implementation does nothing.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut node = saw_hz(440.0);
+    /// let sample1 = node.get_mono();
+    /// node.reset();
+    /// let sample2 = node.get_mono();
+    /// assert_eq!(sample1, sample2);
+    /// ```
+    #[allow(unused_variables)]
+    fn reset(&mut self) {}
+
+    /// Set the sample rate of the unit.
+    /// The default sample rate is 44100 Hz.
+    /// The unit is allowed to reset its state here in response to sample rate changes.
     ///
     /// ### Example (Changing The Sample Rate)
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut component = saw_hz(440.0);
-    /// component.reset(Some(48_000.0));
+    /// let mut node = saw_hz(440.0);
+    /// node.set_sample_rate(48_000.0);
     /// ```
     #[allow(unused_variables)]
-    fn reset(&mut self, sample_rate: Option<f64>) {}
+    fn set_sample_rate(&mut self, sample_rate: f64) {}
 
     /// Apply setting.
     /// The default implementation does nothing.
@@ -939,9 +954,14 @@ where
         }
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
-        self.y.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
+        self.y.reset();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
+        self.y.set_sample_rate(sample_rate);
     }
 
     #[inline]
@@ -1181,8 +1201,12 @@ where
         self.x.set(setting);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
     }
 
     #[inline]
@@ -1378,9 +1402,14 @@ where
         }
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
-        self.y.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
+        self.y.reset();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
+        self.y.set_sample_rate(sample_rate);
     }
 
     #[inline]
@@ -1498,10 +1527,16 @@ where
         }
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
-        self.y.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
+        self.y.reset();
     }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
+        self.y.set_sample_rate(sample_rate);
+    }
+
     #[inline]
     fn tick(
         &mut self,
@@ -1636,10 +1671,16 @@ where
         }
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
-        self.y.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
+        self.y.reset();
     }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
+        self.y.set_sample_rate(sample_rate);
+    }
+
     #[inline]
     fn tick(
         &mut self,
@@ -1767,9 +1808,14 @@ where
         }
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
-        self.y.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
+        self.y.reset();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
+        self.y.set_sample_rate(sample_rate);
     }
 
     #[inline]
@@ -1848,14 +1894,16 @@ impl<X: AudioNode> AudioNode for Thru<X> {
     type Outputs = X::Inputs;
     type Setting = X::Setting;
 
-    #[inline]
     fn set(&mut self, setting: Self::Setting) {
         self.x.set(setting);
     }
 
-    #[inline]
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
     }
 
     #[inline]
@@ -1988,9 +2036,16 @@ where
         self.x[index].set(inner);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.iter_mut().for_each(|node| node.reset(sample_rate));
+    fn reset(&mut self) {
+        self.x.iter_mut().for_each(|node| node.reset());
     }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x
+            .iter_mut()
+            .for_each(|node| node.set_sample_rate(sample_rate));
+    }
+
     #[inline]
     fn tick(
         &mut self,
@@ -2123,15 +2178,21 @@ where
     type Outputs = Prod<X::Outputs, N>;
     type Setting = (usize, X::Setting);
 
-    #[inline]
     fn set(&mut self, setting: Self::Setting) {
         let (index, inner) = setting;
         self.x[index].set(inner);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.iter_mut().for_each(|node| node.reset(sample_rate));
+    fn reset(&mut self) {
+        self.x.iter_mut().for_each(|node| node.reset());
     }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x
+            .iter_mut()
+            .for_each(|node| node.set_sample_rate(sample_rate));
+    }
+
     #[inline]
     fn tick(
         &mut self,
@@ -2279,9 +2340,16 @@ where
         self.x[index].set(inner);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.iter_mut().for_each(|node| node.reset(sample_rate));
+    fn reset(&mut self) {
+        self.x.iter_mut().for_each(|node| node.reset());
     }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x
+            .iter_mut()
+            .for_each(|node| node.set_sample_rate(sample_rate));
+    }
+
     #[inline]
     fn tick(
         &mut self,
@@ -2424,9 +2492,16 @@ where
         self.x[index].set(inner);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.iter_mut().for_each(|node| node.reset(sample_rate));
+    fn reset(&mut self) {
+        self.x.iter_mut().for_each(|node| node.reset());
     }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x
+            .iter_mut()
+            .for_each(|node| node.set_sample_rate(sample_rate));
+    }
+
     #[inline]
     fn tick(
         &mut self,
@@ -2556,8 +2631,14 @@ where
         self.x[index].set(inner);
     }
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.iter_mut().for_each(|node| node.reset(sample_rate));
+    fn reset(&mut self) {
+        self.x.iter_mut().for_each(|node| node.reset());
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x
+            .iter_mut()
+            .for_each(|node| node.set_sample_rate(sample_rate));
     }
 
     #[inline]

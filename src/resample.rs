@@ -30,7 +30,7 @@ where
     /// Create new resampler. Resamples enclosed generator node output(s)
     /// at speed obtained from the input, where 1 is the original speed.
     pub fn new(sample_rate: f64, mut node: X) -> Self {
-        node.reset(Some(sample_rate));
+        node.set_sample_rate(sample_rate);
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         Self {
@@ -68,11 +68,15 @@ where
     type Outputs = X::Outputs;
     type Setting = ();
 
-    fn reset(&mut self, sample_rate: Option<f64>) {
-        self.x.reset(sample_rate);
+    fn reset(&mut self) {
+        self.x.reset();
         // We start input at the second sample to get proper slope information.
         self.consumer = 1.0;
         self.producer = 0;
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.x.set_sample_rate(sample_rate);
     }
 
     #[inline]

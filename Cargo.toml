@@ -30,7 +30,7 @@ files = ["dep:symphonia"]
 
 [dev-dependencies]
 cpal = "0.15.2"
-anyhow = "1.0.70"
+anyhow = "1.0.71"
 plotters = "0.3.4"
 criterion = "0.4.0"
 midi-msg = "0.4.0"

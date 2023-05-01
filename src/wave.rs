@@ -445,7 +445,7 @@ impl Wave48 {
     }
 
     /// Render wave with length `duration` seconds from generator `node`.
-    /// Resets `node` and sets its sample rate.
+    /// Sets the sample rate of `node`.
     /// Does not discard pre-delay.
     ///
     /// ### Example: Render 10 Seconds Of Stereo Brown Noise
@@ -458,7 +458,7 @@ impl Wave48 {
         assert!(node.inputs() == 0);
         assert!(node.outputs() > 0);
         assert!(duration >= 0.0);
-        node.reset(Some(sample_rate));
+        node.set_sample_rate(sample_rate);
         let length = (duration * sample_rate).round() as usize;
         let mut wave = Self::with_capacity(node.outputs(), sample_rate, length);
         wave.len = length;
@@ -513,7 +513,7 @@ impl Wave48 {
     }
 
     /// Filter this wave with `node` and return the resulting wave.
-    /// Resets `node` and sets its sample rate. Does not discard pre-delay.
+    /// Sets the sample rate of `node`. Does not discard pre-delay.
     /// The `node` must have as many inputs as there are channels in this wave.
     /// All zeros input is used for the rest of the wave if
     /// the duration is greater than the duration of this wave.
@@ -530,7 +530,7 @@ impl Wave48 {
         assert_eq!(node.inputs(), self.channels());
         assert!(node.outputs() > 0);
         assert!(duration >= 0.0);
-        node.reset(Some(self.sample_rate()));
+        node.set_sample_rate(self.sample_rate());
         let total_length = round(duration * self.sample_rate()) as usize;
         let input_length = min(total_length, self.length());
         let mut wave = Self::with_capacity(node.outputs(), self.sample_rate(), total_length);
@@ -588,7 +588,7 @@ impl Wave48 {
 
     /// Filter this wave with `node` and return the resulting wave.
     /// Any pre-delay, as measured by signal latency, is discarded.
-    /// Resets `node` and sets its sample rate.
+    /// Sets the sample rate of `node`.
     /// The `node` must have as many inputs as there are channels in this wave.
     /// All zeros input is used for the rest of the wave if
     /// the `duration` is greater than the duration of this wave.
@@ -733,7 +733,7 @@ impl<T: Float> AudioNode for Wave48Player<T> {
     type Outputs = typenum::U1;
     type Setting = ();
 
-    fn reset(&mut self, _sample_rate: Option<f64>) {
+    fn reset(&mut self) {
         self.index = self.start_point;
     }
 

@@ -2,7 +2,7 @@
 
 This is a list of feature ideas for the future.
 
-- More real-time safety. Real-time operation with networks is already supported. What is the best approach to making `Sequencer` and `Granular` real-time safe.
+- What is the best approach to making `Granular` real-time safe.
 - `AudioUnit` versions of `feedback`, `oversample` and `resample` that accept an inner `AudioUnit`.
 - Compressor without lookahead.
 - Adaptive normalizer without lookahead, adaptive normalized shaping modes.
