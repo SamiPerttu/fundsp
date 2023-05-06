@@ -108,17 +108,17 @@ impl Signal {
     }
 }
 
-/// Frame of input or output signals.
+/// Frame of input or output signals. Up to 64 channels can be analyzed on stack.
 pub type SignalFrame = TinyVec<[Signal; 64]>;
 
 /// Create a new signal frame with all channels marked unknown.
-pub fn new_signal_frame(size: usize) -> SignalFrame {
-    let mut frame = TinyVec::with_capacity(size);
-    frame.resize(size, Signal::Unknown);
+pub fn new_signal_frame(channels: usize) -> SignalFrame {
+    let mut frame = TinyVec::with_capacity(channels);
+    frame.resize(channels, Signal::Unknown);
     frame
 }
 
-/// Create a new signal frame by copying from `source` `n` items starting from index `i`.
+/// Create a new signal frame by copying from `source` `n` channels starting from index `i`.
 pub fn copy_signal_frame(source: &SignalFrame, i: usize, n: usize) -> SignalFrame {
     let mut frame = new_signal_frame(n);
     frame[0..n].copy_from_slice(&source[i..i + n]);

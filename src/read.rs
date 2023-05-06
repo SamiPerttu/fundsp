@@ -3,12 +3,13 @@
 use super::wave::*;
 use duplicate::duplicate_item;
 use std::fs::File;
+use std::io::Cursor;
 use std::path::Path;
 use symphonia::core::audio::{AudioBuffer, Signal};
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::errors::{Error, Result};
 use symphonia::core::formats::FormatOptions;
-use symphonia::core::io::MediaSourceStream;
+use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
@@ -27,6 +28,21 @@ impl Wave48 {
         Wave48::load_track(path, None)
     }
 
+    /// Load first track of audio from the given slice.
+    /// Supported formats are anything that Symphonia can read.
+    pub fn load_slice(slice: &'static [u8]) -> WaveResult<Wave48> {
+        Wave48::load_slice_track(slice, None)
+    }
+
+    /// Load audio from the given slice. Track can be optionally selected.
+    /// If not selected, the first track with a known codec will be loaded.
+    /// Supported formats are anything that Symphonia can read.
+    pub fn load_slice_track(slice: &'static [u8], track: Option<usize>) -> WaveResult<Wave48> {
+        let hint = Hint::new();
+        let source: Box<dyn MediaSource> = Box::new(Cursor::new(slice));
+        Wave48::decode(source, track, hint)
+    }
+
     /// Load audio file from the given path. Track can be optionally selected.
     /// If not selected, the first track with a known codec will be loaded.
     /// Supported formats are anything that Symphonia can read.
@@ -40,11 +56,20 @@ impl Wave48 {
             }
         }
 
-        let source = match File::open(path) {
+        let source: Box<dyn MediaSource> = match File::open(path) {
             Ok(file) => Box::new(file),
             Err(error) => return Err(Error::IoError(error)),
         };
 
+        Wave48::decode(source, track, hint)
+    }
+
+    /// Decode track from the given source.
+    fn decode(
+        source: Box<dyn MediaSource>,
+        track: Option<usize>,
+        hint: Hint,
+    ) -> WaveResult<Wave48> {
         let stream = MediaSourceStream::new(source, Default::default());
 
         let format_opts = FormatOptions {
