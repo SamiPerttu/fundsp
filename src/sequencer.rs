@@ -1,4 +1,4 @@
-//! Sequencer unit.
+//! The sequencer unit mixes together outputs of audio units with sample accurate timing.
 
 use super::audiounit::*;
 use super::buffer::*;
@@ -11,6 +11,8 @@ use std::cmp::Eq;
 use std::cmp::Ord;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
+use std::collections::HashMap;
+use std::sync::atomic::AtomicU64;
 use thingbuf::mpsc::blocking::{channel, Receiver, Sender};
 
 /// Fade curves.
@@ -22,6 +24,21 @@ pub enum Fade {
     /// Smooth polynomial fade.
     #[default]
     Smooth,
+}
+
+/// Globally unique ID for a sequencer event.
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+pub struct EventId(u64);
+
+/// This atomic supplies globally unique IDs.
+static GLOBAL_EVENT_ID: AtomicU64 = AtomicU64::new(0);
+
+impl EventId {
+    /// Create a new, globally unique node ID.
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        EventId(GLOBAL_EVENT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+    }
 }
 
 #[duplicate_item(
@@ -37,6 +54,7 @@ pub struct Event48 {
     pub fade_ease: Fade,
     pub fade_in: f48,
     pub fade_out: f48,
+    pub id: EventId,
 }
 
 #[duplicate_item(
@@ -60,6 +78,7 @@ impl Event48 {
             fade_ease,
             fade_in,
             fade_out,
+            id: EventId::new(),
         }
     }
 }
@@ -102,6 +121,17 @@ impl Ord for Event48 {
             Ordering::Greater
         }
     }
+}
+
+#[duplicate_item(
+    f48       Edit48       AudioUnit48;
+    [ f64 ]   [ Edit64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Edit32 ]   [ AudioUnit32 ];
+)]
+#[derive(Clone)]
+pub struct Edit48 {
+    pub end_time: f48,
+    pub fade_out: f48,
 }
 
 #[duplicate_item(
@@ -211,18 +241,26 @@ fn fade_out48(
     }
 }
 
+/// Sequencer unit.
+/// The sequencer mixes together outputs of audio units with sample accurate timing.
 #[duplicate_item(
-    f48       Event48       AudioUnit48       Sequencer48       Sequencer48Message;
-    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Sequencer64Message ];
-    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Sequencer32Message ];
+    f48       Event48       AudioUnit48       Sequencer48       Message48        Edit48;
+    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Message64 ]    [ Edit64 ];
+    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Message32 ]    [ Edit32 ];
 )]
 pub struct Sequencer48 {
-    // Unsorted.
+    /// Current events, unsorted.
     active: Vec<Event48>,
-    // Sorted by start time.
+    /// IDs of current events.
+    active_map: HashMap<EventId, usize>,
+    /// Events that start before the active threshold are active.
+    active_threshold: f48,
+    /// Future events sorted by start time.
     ready: BinaryHeap<Event48>,
-    // Unsorted.
+    /// Past events, unsorted.
     past: Vec<Event48>,
+    /// Map of edits to be made to events in the ready queue.
+    edit_map: HashMap<EventId, Edit48>,
     outputs: usize,
     time: f48,
     sample_rate: f48,
@@ -230,21 +268,24 @@ pub struct Sequencer48 {
     buffer: Buffer<f48>,
     tick_buffer: Vec<f48>,
     /// Optional frontend.
-    front: Option<(Sender<Sequencer48Message>, Receiver<Option<Event48>>)>,
-    retain_past_events: bool,
+    front: Option<(Sender<Message48>, Receiver<Option<Event48>>)>,
+    replay_events: bool,
 }
 
 #[duplicate_item(
-    f48       Event48       AudioUnit48       Sequencer48       Sequencer48Message;
-    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Sequencer64Message ];
-    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Sequencer32Message ];
+    f48       Event48       AudioUnit48       Sequencer48       Message48;
+    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Message64 ];
+    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Message32 ];
 )]
 impl Clone for Sequencer48 {
     fn clone(&self) -> Self {
         Self {
             active: self.active.clone(),
+            active_map: self.active_map.clone(),
+            active_threshold: self.active_threshold,
             ready: self.ready.clone(),
             past: self.past.clone(),
+            edit_map: self.edit_map.clone(),
             outputs: self.outputs,
             time: self.time,
             sample_rate: self.sample_rate,
@@ -253,28 +294,31 @@ impl Clone for Sequencer48 {
             tick_buffer: self.tick_buffer.clone(),
             // Frontend is never cloned.
             front: None,
-            retain_past_events: self.retain_past_events,
+            replay_events: self.replay_events,
         }
     }
 }
 
 #[allow(clippy::unnecessary_cast)]
 #[duplicate_item(
-    f48       Event48       AudioUnit48       Sequencer48       Sequencer48Backend       Sequencer48Message;
-    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Sequencer64Backend ]   [ Sequencer64Message ];
-    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Sequencer32Backend ]   [ Sequencer32Message ];
+    f48       Event48       AudioUnit48       Sequencer48       Sequencer48Backend       Message48       Edit48;
+    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Sequencer64Backend ]   [ Message64 ]   [ Edit64 ];
+    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Sequencer32Backend ]   [ Message32 ]   [ Edit32 ];
 )]
 impl Sequencer48 {
     /// Create a new sequencer. The sequencer has zero inputs.
     /// The number of outputs is decided by the user.
-    /// If `retain_past_events` is true, then past events will be retained
+    /// If `replay_events` is true, then past events will be retained
     /// and played back after a reset.
     /// If false, then all events will be cleared on reset.
-    pub fn new(retain_past_events: bool, outputs: usize) -> Self {
+    pub fn new(replay_events: bool, outputs: usize) -> Self {
         Self {
             active: Vec::with_capacity(16384),
+            active_map: HashMap::with_capacity(16384),
+            active_threshold: -f48::INFINITY,
             ready: BinaryHeap::with_capacity(16384),
             past: Vec::with_capacity(16384),
+            edit_map: HashMap::with_capacity(16384),
             outputs,
             time: 0.0,
             sample_rate: DEFAULT_SR as f48,
@@ -282,7 +326,7 @@ impl Sequencer48 {
             buffer: Buffer::with_size(outputs),
             tick_buffer: vec![0.0; outputs],
             front: None,
-            retain_past_events,
+            replay_events,
         }
     }
 
@@ -293,6 +337,7 @@ impl Sequencer48 {
 
     /// Add an event. All times are specified in seconds.
     /// Fade in and fade out may overlap but may not exceed the duration of the event.
+    /// Returns the ID of the event.
     pub fn push(
         &mut self,
         start_time: f48,
@@ -301,7 +346,7 @@ impl Sequencer48 {
         fade_in_time: f48,
         fade_out_time: f48,
         mut unit: Box<dyn AudioUnit48>,
-    ) {
+    ) -> EventId {
         assert!(unit.inputs() == 0 && unit.outputs() == self.outputs);
         let duration = end_time - start_time;
         assert!(fade_in_time <= duration && fade_out_time <= duration);
@@ -316,20 +361,26 @@ impl Sequencer48 {
             fade_in_time,
             fade_out_time,
         );
+        let id = event.id;
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.try_recv().is_ok() {}
             // Send the new event over.
-            if sender.try_send(Sequencer48Message::Push(event)).is_ok() {}
+            if sender.try_send(Message48::Push(event)).is_ok() {}
+        } else if event.start_time < self.active_threshold {
+            self.active_map.insert(id, self.active.len());
+            self.active.push(event);
         } else {
             self.ready.push(event);
         }
+        id
     }
 
     /// Add an event. All times are specified in seconds.
     /// Start and end times are relative to current time.
     /// A start time of zero will start the event as soon as possible.
     /// Fade in and fade out may overlap but may not exceed the duration of the event.
+    /// Returns the ID of the event.
     pub fn push_relative(
         &mut self,
         start_time: f48,
@@ -338,7 +389,7 @@ impl Sequencer48 {
         fade_in_time: f48,
         fade_out_time: f48,
         mut unit: Box<dyn AudioUnit48>,
-    ) {
+    ) -> EventId {
         assert!(unit.inputs() == 0 && unit.outputs() == self.outputs);
         let duration = end_time - start_time;
         assert!(fade_in_time <= duration && fade_out_time <= duration);
@@ -353,22 +404,28 @@ impl Sequencer48 {
             fade_in_time,
             fade_out_time,
         );
+        let id = event.id;
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.try_recv().is_ok() {}
             // Send the new event over.
-            sender
-                .send(Sequencer48Message::PushRelative(event))
-                .unwrap();
+            sender.send(Message48::PushRelative(event)).unwrap();
         } else {
             event.start_time += self.time;
             event.end_time += self.time;
-            self.ready.push(event);
+            if event.start_time < self.active_threshold {
+                self.active_map.insert(id, self.active.len());
+                self.active.push(event);
+            } else {
+                self.ready.push(event);
+            }
         }
+        id
     }
 
     /// Add an event using start time and duration.
     /// Fade in and fade out may overlap but may not exceed the duration of the event.
+    /// Returns the ID of the event.
     pub fn push_duration(
         &mut self,
         start_time: f48,
@@ -377,7 +434,7 @@ impl Sequencer48 {
         fade_in_time: f48,
         fade_out_time: f48,
         unit: Box<dyn AudioUnit48>,
-    ) {
+    ) -> EventId {
         self.push(
             start_time,
             start_time + duration,
@@ -388,13 +445,93 @@ impl Sequencer48 {
         )
     }
 
+    /// Make a change to an existing event. Only the end time and fade out time
+    /// of the event may be changed.
+    pub fn edit(&mut self, id: EventId, end_time: f48, fade_out_time: f48) {
+        if let Some((sender, receiver)) = &mut self.front {
+            // Deallocate all past events.
+            while receiver.try_recv().is_ok() {}
+            // Send the new edit over.
+            sender
+                .send(Message48::Edit(
+                    id,
+                    Edit48 {
+                        end_time,
+                        fade_out: fade_out_time,
+                    },
+                ))
+                .unwrap();
+        } else if self.active_map.contains_key(&id) {
+            // The edit applies to an active event.
+            let i = self.active_map[&id];
+            self.active[i].end_time = end_time;
+            self.active[i].fade_out = fade_out_time;
+        } else if end_time < self.active_threshold {
+            // The edit is already in the past.
+        } else {
+            // The edit is in the future.
+            self.edit_map.insert(
+                id,
+                Edit48 {
+                    end_time,
+                    fade_out: fade_out_time,
+                },
+            );
+        }
+    }
+
+    /// Make a change to an existing event. Only the end time and fade out time
+    /// of the event may be changed. The end time is relative to current time.
+    /// The event starts fading out immediately if end time is equal to fade out time.
+    pub fn edit_relative(&mut self, id: EventId, end_time: f48, fade_out_time: f48) {
+        if let Some((sender, receiver)) = &mut self.front {
+            // Deallocate all past events.
+            while receiver.try_recv().is_ok() {}
+            // Send the new edit over.
+            sender
+                .send(Message48::EditRelative(
+                    id,
+                    Edit48 {
+                        end_time,
+                        fade_out: fade_out_time,
+                    },
+                ))
+                .unwrap();
+        } else if self.active_map.contains_key(&id) {
+            // The edit applies to an active event.
+            let i = self.active_map[&id];
+            self.active[i].end_time = self.time + end_time;
+            self.active[i].fade_out = fade_out_time;
+        } else if self.time + end_time < self.active_threshold {
+            // The edit is already in the past.
+        } else {
+            // The edit is in the future.
+            self.edit_map.insert(
+                id,
+                Edit48 {
+                    end_time: self.time + end_time,
+                    fade_out: fade_out_time,
+                },
+            );
+        }
+    }
+
     /// Move units that start before the end time to the ready heap.
     fn ready_to_active(&mut self, next_end_time: f48) {
+        self.active_threshold = next_end_time - self.sample_duration * 0.5;
         while let Some(ready) = self.ready.peek() {
             // Test whether start time rounded to a sample comes before the end time,
             // which always falls on a sample.
-            if ready.start_time < next_end_time - self.sample_duration * 0.5 {
-                if let Some(ready) = self.ready.pop() {
+            if ready.start_time < self.active_threshold {
+                if let Some(mut ready) = self.ready.pop() {
+                    self.active_map.insert(ready.id, self.active.len());
+                    // Check for edits to the event.
+                    if self.edit_map.contains_key(&ready.id) {
+                        let edit = &self.edit_map[&ready.id];
+                        ready.fade_out = edit.fade_out;
+                        ready.end_time = edit.end_time;
+                        self.edit_map.remove(&ready.id);
+                    }
                     self.active.push(ready);
                 }
             } else {
@@ -405,10 +542,10 @@ impl Sequencer48 {
 
     /// Create a real-time friendly backend for this sequencer.
     /// This sequencer is then the frontend and any changes made are reflected in the backend.
+    /// The backend renders audio while the frontend manages memory and
+    /// communicates changes made to the backend.
     /// The backend is initialized with the current state of the sequencer.
     /// This can be called only once for a sequencer.
-    /// Note that the frontend may not be placed inside `Net32` or `Net64` that has a backend.
-    /// The backend may be placed inside `Net32` or `Net64` but may not be subsequently modified.
     pub fn backend(&mut self) -> Sequencer48Backend {
         assert!(!self.has_backend());
         // Create huge channel buffers to make sure we don't run out of space easily.
@@ -426,8 +563,8 @@ impl Sequencer48 {
     }
 
     /// Returns whether we retain past events and replay them after a reset.
-    pub fn retain_past_events(&self) -> bool {
-        self.retain_past_events
+    pub fn replay_events(&self) -> bool {
+        self.replay_events
     }
 
     /// Get past events. This is an internal method.
@@ -442,7 +579,11 @@ impl Sequencer48 {
 
     /// Get active events. This is an internal method.
     pub fn get_active_event(&mut self) -> Option<Event48> {
-        self.active.pop()
+        if let Some(event) = self.active.pop() {
+            self.active_map.remove(&event.id);
+            return Some(event);
+        }
+        None
     }
 }
 
@@ -454,7 +595,7 @@ impl Sequencer48 {
 )]
 impl AudioUnit48 for Sequencer48 {
     fn reset(&mut self) {
-        if self.retain_past_events {
+        if self.replay_events {
             while let Some(ready) = self.ready.pop() {
                 self.active.push(ready);
             }
@@ -467,12 +608,16 @@ impl AudioUnit48 for Sequencer48 {
             while let Some(active) = self.active.pop() {
                 self.ready.push(active);
             }
+            self.active_map.clear();
         } else {
             while let Some(_ready) = self.ready.pop() {}
             while let Some(_past) = self.past.pop() {}
             while let Some(_active) = self.active.pop() {}
+            self.edit_map.clear();
+            self.active_map.clear();
         }
         self.time = 0.0;
+        self.active_threshold = -f48::INFINITY;
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
@@ -494,12 +639,14 @@ impl AudioUnit48 for Sequencer48 {
             while let Some(active) = self.active.pop() {
                 self.ready.push(active);
             }
+            self.active_map.clear();
+            self.active_threshold = -f48::INFINITY;
         }
     }
 
     #[inline]
     fn tick(&mut self, input: &[f48], output: &mut [f48]) {
-        if !self.retain_past_events {
+        if !self.replay_events {
             while let Some(_past) = self.past.pop() {}
         }
         for channel in 0..self.outputs {
@@ -510,6 +657,11 @@ impl AudioUnit48 for Sequencer48 {
         let mut i = 0;
         while i < self.active.len() {
             if self.active[i].end_time <= self.time + 0.5 * self.sample_duration {
+                self.active_map.remove(&self.active[i].id);
+                if i + 1 < self.active.len() {
+                    self.active_map
+                        .insert(self.active[self.active.len() - 1].id, i);
+                }
                 self.past.push(self.active.swap_remove(i));
             } else {
                 self.active[i].unit.tick(input, &mut self.tick_buffer);
@@ -565,7 +717,7 @@ impl AudioUnit48 for Sequencer48 {
     }
 
     fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]) {
-        if !self.retain_past_events {
+        if !self.replay_events {
             while let Some(_past) = self.past.pop() {}
         }
         for channel in 0..self.outputs {
@@ -578,7 +730,12 @@ impl AudioUnit48 for Sequencer48 {
         let buffer_output = self.buffer.get_mut(self.outputs);
         let mut i = 0;
         while i < self.active.len() {
-            if self.active[i].end_time <= self.time {
+            if self.active[i].end_time <= self.time + 0.5 * self.sample_duration {
+                self.active_map.remove(&self.active[i].id);
+                if i + 1 < self.active.len() {
+                    self.active_map
+                        .insert(self.active[self.active.len() - 1].id, i);
+                }
                 self.past.push(self.active.swap_remove(i));
             } else {
                 let start_index = if self.active[i].start_time <= self.time {

@@ -1,4 +1,4 @@
-//! Network of AudioUnits connected together.
+//! Network of audio units connected together.
 
 use super::audionode::*;
 use super::audiounit::*;
@@ -899,6 +899,8 @@ impl Net48 {
             self.determine_order();
         }
         let mut net = self.clone();
+        // Send over the original nodes to the backend.
+        // This is necessary if the nodes contain any backends, which cannot be cloned effectively.
         std::mem::swap(&mut net.vertex, &mut self.vertex);
         net.allocate();
         self.revision += 1;
@@ -924,6 +926,8 @@ impl Net48 {
             self.determine_order();
         }
         let mut net = self.clone();
+        // Send over the original nodes to the backend.
+        // This is necessary if the nodes contain any backends, which cannot be cloned effectively.
         std::mem::swap(&mut net.vertex, &mut self.vertex);
         // Preallocate all necessary memory.
         net.allocate();
