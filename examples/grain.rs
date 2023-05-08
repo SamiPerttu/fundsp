@@ -181,6 +181,7 @@ where
 
     c.set_sample_rate(sample_rate);
 
+    // Use block processing for maximum efficiency.
     let mut c = BlockRateAdapter64::new(Box::new(c));
 
     let mut next_value = move || c.get_stereo();

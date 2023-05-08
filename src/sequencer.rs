@@ -169,8 +169,8 @@ fn fade_in48(
             Fade::Power => {
                 for channel in 0..output.len() {
                     let mut fade = fade_phase;
-                    for i in 0..fade_end_i {
-                        output[channel][i] *= sine_ease(fade);
+                    for x in output[channel][..fade_end_i].iter_mut() {
+                        *x *= sine_ease(fade);
                         fade += fade_d;
                     }
                 }
@@ -178,8 +178,8 @@ fn fade_in48(
             Fade::Smooth => {
                 for channel in 0..output.len() {
                     let mut fade = fade_phase;
-                    for i in 0..fade_end_i {
-                        output[channel][i] *= smooth5(fade);
+                    for x in output[channel][..fade_end_i].iter_mut() {
+                        *x *= smooth5(fade);
                         fade += fade_d;
                     }
                 }
@@ -222,8 +222,8 @@ fn fade_out48(
             Fade::Power => {
                 for channel in 0..output.len() {
                     let mut fade = fade_phase;
-                    for i in fade_i..end_index {
-                        output[channel][i] *= sine_ease(1.0 - fade);
+                    for x in output[channel][fade_i..end_index].iter_mut() {
+                        *x *= sine_ease(1.0 - fade);
                         fade += fade_d;
                     }
                 }
@@ -231,8 +231,8 @@ fn fade_out48(
             Fade::Smooth => {
                 for channel in 0..output.len() {
                     let mut fade = fade_phase;
-                    for i in fade_i..end_index {
-                        output[channel][i] *= smooth5(1.0 - fade);
+                    for x in output[channel][fade_i..end_index].iter_mut() {
+                        *x *= smooth5(1.0 - fade);
                         fade += fade_d;
                     }
                 }
@@ -362,18 +362,23 @@ impl Sequencer48 {
             fade_out_time,
         );
         let id = event.id;
+        self.push_event(event);
+        id
+    }
+
+    /// Add event. This is an internal method.
+    pub fn push_event(&mut self, event: Event48) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.try_recv().is_ok() {}
             // Send the new event over.
             if sender.try_send(Message48::Push(event)).is_ok() {}
         } else if event.start_time < self.active_threshold {
-            self.active_map.insert(id, self.active.len());
+            self.active_map.insert(event.id, self.active.len());
             self.active.push(event);
         } else {
             self.ready.push(event);
         }
-        id
     }
 
     /// Add an event. All times are specified in seconds.
@@ -396,7 +401,7 @@ impl Sequencer48 {
         // Make sure the sample rate of the unit matches ours.
         unit.set_sample_rate(self.sample_rate as f64);
         unit.allocate();
-        let mut event = Event48::new(
+        let event = Event48::new(
             unit,
             start_time,
             end_time,
@@ -405,6 +410,12 @@ impl Sequencer48 {
             fade_out_time,
         );
         let id = event.id;
+        self.push_relative_event(event);
+        id
+    }
+
+    /// Add relative event. This is an internal method.
+    pub fn push_relative_event(&mut self, mut event: Event48) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.try_recv().is_ok() {}
@@ -414,13 +425,12 @@ impl Sequencer48 {
             event.start_time += self.time;
             event.end_time += self.time;
             if event.start_time < self.active_threshold {
-                self.active_map.insert(id, self.active.len());
+                self.active_map.insert(event.id, self.active.len());
                 self.active.push(event);
             } else {
                 self.ready.push(event);
             }
         }
-        id
     }
 
     /// Add an event using start time and duration.
@@ -446,7 +456,10 @@ impl Sequencer48 {
     }
 
     /// Make a change to an existing event. Only the end time and fade out time
-    /// of the event may be changed.
+    /// of the event may be changed. The new end time can only be used to shorten events.
+    /// Edits are intended to be used with events where we do not know ahead of time
+    /// how long they need to play. The original end time can be set to infinity,
+    /// for example.
     pub fn edit(&mut self, id: EventId, end_time: f48, fade_out_time: f48) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
@@ -481,8 +494,12 @@ impl Sequencer48 {
     }
 
     /// Make a change to an existing event. Only the end time and fade out time
-    /// of the event may be changed. The end time is relative to current time.
+    /// of the event may be changed. The new end time can only be used to shorten events.
+    /// The end time is relative to current time.
     /// The event starts fading out immediately if end time is equal to fade out time.
+    /// Edits are intended to be used with events where we do not know ahead of time
+    /// how long they need to play. The original end time can be set to infinity,
+    /// for example.
     pub fn edit_relative(&mut self, id: EventId, end_time: f48, fade_out_time: f48) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
@@ -516,7 +533,7 @@ impl Sequencer48 {
         }
     }
 
-    /// Move units that start before the end time to the ready heap.
+    /// Move units that start before the end time to the active set.
     fn ready_to_active(&mut self, next_end_time: f48) {
         self.active_threshold = next_end_time - self.sample_duration * 0.5;
         while let Some(ready) = self.ready.peek() {

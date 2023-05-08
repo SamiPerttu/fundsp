@@ -93,24 +93,10 @@ impl Sequencer48Backend {
         while let Ok(message) = self.receiver.try_recv() {
             match message {
                 Message48::Push(event) => {
-                    self.sequencer.push(
-                        event.start_time,
-                        event.end_time,
-                        event.fade_ease,
-                        event.fade_in,
-                        event.fade_out,
-                        event.unit,
-                    );
+                    self.sequencer.push_event(event);
                 }
                 Message48::PushRelative(event) => {
-                    self.sequencer.push_relative(
-                        event.start_time,
-                        event.end_time,
-                        event.fade_ease,
-                        event.fade_in,
-                        event.fade_out,
-                        event.unit,
-                    );
+                    self.sequencer.push_relative_event(event);
                 }
                 Message48::Edit(id, edit) => {
                     self.sequencer.edit(id, edit.end_time, edit.fade_out);
