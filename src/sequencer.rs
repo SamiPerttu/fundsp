@@ -34,7 +34,7 @@ pub struct EventId(u64);
 static GLOBAL_EVENT_ID: AtomicU64 = AtomicU64::new(0);
 
 impl EventId {
-    /// Create a new, globally unique node ID.
+    /// Create a new, globally unique event ID.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         EventId(GLOBAL_EVENT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed))

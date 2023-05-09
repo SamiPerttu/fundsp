@@ -8,14 +8,40 @@ use eframe::egui;
 use egui::*;
 use fundsp::hacker::*;
 
-#[allow(dead_code)]
-struct State {
-    id: Vec<Option<EventId>>,
-    sequencer: Sequencer64,
-    net: Net64,
+#[derive(Debug, PartialEq)]
+enum Waveform {
+    Sine,
+    Saw,
+    Square,
+    Triangle,
+    Organ,
 }
 
-static KEYS: [Key; 24] = [
+#[derive(Debug, PartialEq)]
+enum Filter {
+    None,
+    Moog,
+    Butterworth,
+    Bandpass,
+}
+
+#[allow(dead_code)]
+struct State {
+    /// Status of keys.
+    id: Vec<Option<EventId>>,
+    /// Sequencer frontend.
+    sequencer: Sequencer64,
+    /// Network frontend.
+    net: Net64,
+    /// Selected waveform.
+    waveform: Waveform,
+    /// Selected filter.
+    filter: Filter,
+    /// Reverb amount.
+    reverb: Shared<f64>,
+}
+
+static KEYS: [Key; 25] = [
     Key::Z,
     Key::S,
     Key::X,
@@ -40,6 +66,7 @@ static KEYS: [Key; 24] = [
     Key::Y,
     Key::Num7,
     Key::U,
+    Key::I,
 ];
 
 fn main() {
@@ -68,10 +95,15 @@ where
     let mut sequencer = Sequencer64::new(false, 1);
     let sequencer_backend = sequencer.backend();
 
+    let reverb = shared(0.2);
+
     let mut net = Net64::wrap(Box::new(sequencer_backend));
     net = net >> pan(0.0);
     net = net >> (chorus(0, 0.0, 0.01, 0.2) | chorus(1, 0.0, 0.01, 0.2));
-    net = net >> (multipass() & 0.2 * reverb_stereo(20.0, 2.0));
+    // Smooth the reverb amount to prevent discontinuities.
+    net = net
+        >> ((1.0 - var(&reverb) >> follow(0.01) >> split()) * multipass()
+            & (var(&reverb) >> follow(0.01) >> split()) * reverb_stereo(20.0, 2.0));
 
     net.set_sample_rate(sample_rate);
 
@@ -98,6 +130,9 @@ where
         id: Vec::new(),
         sequencer,
         net,
+        waveform: Waveform::Saw,
+        filter: Filter::None,
+        reverb,
     };
     state.id.resize(KEYS.len(), None);
 
@@ -134,6 +169,35 @@ impl eframe::App for State {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Virtual Keyboard Example");
+            ui.separator();
+            ui.end_row();
+
+            ui.label("Waveform");
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.waveform, Waveform::Sine, "Sine");
+                ui.selectable_value(&mut self.waveform, Waveform::Saw, "Saw");
+                ui.selectable_value(&mut self.waveform, Waveform::Square, "Square");
+                ui.selectable_value(&mut self.waveform, Waveform::Triangle, "Triangle");
+                ui.selectable_value(&mut self.waveform, Waveform::Organ, "Organ");
+            });
+            ui.separator();
+            ui.end_row();
+
+            ui.label("Filter");
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.filter, Filter::None, "None");
+                ui.selectable_value(&mut self.filter, Filter::Moog, "Moog");
+                ui.selectable_value(&mut self.filter, Filter::Butterworth, "Butterworth");
+                ui.selectable_value(&mut self.filter, Filter::Bandpass, "Bandpass");
+            });
+            ui.separator();
+            ui.end_row();
+
+            ui.label("Reverb Amount");
+            let mut reverb = self.reverb.value() * 100.0;
+            ui.add(egui::Slider::new(&mut reverb, 0.0..=100.0).suffix("%"));
+            self.reverb.set_value(reverb * 0.01);
+            ui.end_row();
 
             #[allow(clippy::needless_range_loop)]
             for i in 0..KEYS.len() {
@@ -145,6 +209,28 @@ impl eframe::App for State {
                     }
                 }
                 if ctx.input(|c| c.key_down(KEYS[i])) && self.id[i].is_none() {
+                    let pitch = midi_hz(40.0 + i as f64);
+                    let waveform = match self.waveform {
+                        Waveform::Sine => Net64::wrap(Box::new(sine_hz(pitch) * 0.1)),
+                        Waveform::Saw => Net64::wrap(Box::new(saw_hz(pitch) * 0.5)),
+                        Waveform::Square => Net64::wrap(Box::new(square_hz(pitch) * 0.5)),
+                        Waveform::Triangle => Net64::wrap(Box::new(triangle_hz(pitch) * 0.5)),
+                        Waveform::Organ => Net64::wrap(Box::new(organ_hz(pitch) * 0.5)),
+                    };
+                    let filter = match self.filter {
+                        Filter::None => Net64::wrap(Box::new(pass())),
+                        Filter::Moog => Net64::wrap(Box::new(
+                            (pass() | lfo(move |t| (max(200.0, 10000.0 * exp(-t)), 0.6))) >> moog(),
+                        )),
+                        Filter::Butterworth => Net64::wrap(Box::new(
+                            (pass() | lfo(move |t| max(200.0, 10000.0 * exp(-t * 5.0))))
+                                >> butterpass(),
+                        )),
+                        Filter::Bandpass => Net64::wrap(Box::new(
+                            (pass() | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 2.0)))
+                                >> bandpass(),
+                        )),
+                    };
                     // Insert new note. We set the end time to infinity initially.
                     self.id[i] = Some(self.sequencer.push_relative(
                         0.0,
@@ -152,7 +238,7 @@ impl eframe::App for State {
                         Fade::Smooth,
                         0.02,
                         0.2,
-                        Box::new(saw_hz(midi_hz(40.0 + i as f64))),
+                        Box::new(waveform >> filter),
                     ));
                 }
             }
