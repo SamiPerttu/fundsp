@@ -423,7 +423,7 @@ where
 /// (noise() | dc(1000.0)) >> butterpass();
 /// ```
 pub fn butterpass() -> An<ButterLowpass<f32, f32, U2>> {
-    An(ButterLowpass::new(DEFAULT_SR, 440.0))
+    An(ButterLowpass::new(440.0))
 }
 
 /// Butterworth lowpass filter (2nd order) with fixed cutoff frequency `f` Hz.
@@ -444,7 +444,7 @@ pub fn butterpass_hz(f: f32) -> An<ButterLowpass<f32, f32, U1>> {
 /// (noise() | dc(10.0)) >> lowpole();
 /// ```
 pub fn lowpole() -> An<Lowpole<f32, f32, U2>> {
-    An(Lowpole::new(DEFAULT_SR, 440.0))
+    An(Lowpole::new(440.0))
 }
 
 /// One-pole lowpass filter (1st order) with fixed cutoff frequency `f` Hz.
@@ -465,14 +465,14 @@ pub fn lowpole_hz(f: f32) -> An<Lowpole<f32, f32, U1>> {
 /// - Input 1: delay in samples
 /// - Output 0: filtered audio
 pub fn allpole() -> An<Allpole<f32, f32, U2>> {
-    An(Allpole::new(DEFAULT_SR, 1.0))
+    An(Allpole::new(1.0))
 }
 
 /// Allpass filter (1st order) with `delay` (`delay` > 0) in samples at DC.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 pub fn allpole_delay(delay: f32) -> An<Allpole<f32, f32, U1>> {
-    An(Allpole::new(DEFAULT_SR, delay))
+    An(Allpole::new(delay))
 }
 
 /// One-pole, one-zero highpass filter (1st order).
@@ -480,14 +480,14 @@ pub fn allpole_delay(delay: f32) -> An<Allpole<f32, f32, U1>> {
 /// - Input 1: cutoff frequency (Hz)
 /// - Output 0: filtered audio
 pub fn highpole() -> An<Highpole<f32, f32, U2>> {
-    An(Highpole::new(DEFAULT_SR, 440.0))
+    An(Highpole::new(440.0))
 }
 
 /// One-pole, one-zero highpass filter (1st order) with fixed cutoff frequency f.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 pub fn highpole_hz(f: f32) -> An<Highpole<f32, f32, U1>> {
-    An(Highpole::new(DEFAULT_SR, f))
+    An(Highpole::new(f))
 }
 
 /// Constant-gain bandpass resonator.
@@ -502,7 +502,7 @@ pub fn highpole_hz(f: f32) -> An<Highpole<f32, f32, U1>> {
 /// (noise() | dc((440.0, 5.0))) >> resonator();
 /// ```
 pub fn resonator() -> An<Resonator<f32, f32, U3>> {
-    An(Resonator::new(DEFAULT_SR, 440.0, 110.0))
+    An(Resonator::new(440.0, 110.0))
 }
 
 /// Constant-gain bandpass resonator with fixed `center` frequency (Hz) and `bandwidth` (Hz).
@@ -1052,7 +1052,7 @@ where
 }
 
 /// Keeps a signal zero centered.
-/// Filter cutoff `c` Hz is usually somewhere below the audible range.
+/// Filter `cutoff` (in Hz) is usually somewhere below the audible range.
 /// The default blocker cutoff is 10 Hz.
 /// - Input 0: input signal
 /// - Output 0: filtered signal
@@ -1062,8 +1062,8 @@ where
 /// use fundsp::hacker32::*;
 /// dcblock_hz(8.0);
 /// ```
-pub fn dcblock_hz(c: f32) -> An<DCBlock<f32, f32>> {
-    An(DCBlock::new(DEFAULT_SR, c))
+pub fn dcblock_hz(cutoff: f32) -> An<DCBlock<f32, f32>> {
+    An(DCBlock::new(cutoff))
 }
 
 /// Keeps a signal zero centered. The cutoff of the filter is 10 Hz.
@@ -1194,7 +1194,7 @@ pub fn limiter_stereo<S: ScalarOrPair<Sample = f32>>(time: S) -> An<Limiter<f32,
 /// - Input 0: input signal
 /// - Output 0: filtered signal
 pub fn pinkpass() -> An<Pinkpass<f32, f32>> {
-    An(Pinkpass::new(DEFAULT_SR))
+    An(Pinkpass::new())
 }
 
 /// Pink noise.
@@ -1533,7 +1533,6 @@ pub fn dsf_square_r(roughness: f32) -> An<Dsf<f32, U1>> {
 /// - Output 0: oscillator output
 pub fn pluck(frequency: f32, gain_per_second: f32, high_frequency_damping: f32) -> An<Pluck<f32>> {
     An(Pluck::new(
-        DEFAULT_SR,
         frequency,
         gain_per_second,
         high_frequency_damping,

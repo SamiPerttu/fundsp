@@ -14,8 +14,6 @@ This is a list of feature ideas for the future.
 - More sound generators in the `gen` module.
 - Improve or replace the drum sounds in the library.
 - Real-time safe sound server that uses `cpal`. It could have a static set of read/write channels for rendering audio, including hardware channels.
-- More comments, documentation, and doctests.
-- More unit tests.
 - Conversion of graphs into a graphical form. Format associative operator chains appropriately.
 - Interpreter for simple FunDSP expressions.
 - Expand `README.md` into a book.

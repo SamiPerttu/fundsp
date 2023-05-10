@@ -55,7 +55,7 @@ fn check_wave_big(node: Box<dyn AudioUnit64>) {
 
 /// Check that the stereo filter given is rendered identically
 /// via `process` (block processing) and `tick` (single sample processing).
-/// Also check that the generator is reset properly.
+/// Also check that the filter is reset properly.
 fn check_wave_filter(input: &Wave64, mut node: impl AudioUnit64) {
     node.allocate();
     let wave = input.filter(1.1, &mut node);
@@ -252,6 +252,11 @@ fn test_basic() {
     check_wave_filter(
         &input,
         (pass() | dc((2000.0, 5.0, 0.8))) >> morph() | morph_hz(440.0, 1.0, 0.0),
+    );
+    check_wave_filter(&input, lowrez_hz(440.0, 0.5) | bandrez_hz(440.0, 0.5));
+    check_wave_filter(
+        &input,
+        resonator_hz(440.0, 110.0) | resonator_hz(880.0, 110.0),
     );
 
     // Constants.

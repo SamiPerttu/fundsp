@@ -169,15 +169,15 @@ pub struct ButterLowpass<T: Float, F: Real, N: Size<T>> {
 }
 
 impl<T: Float, F: Real, N: Size<T>> ButterLowpass<T, F, N> {
-    pub fn new(sample_rate: f64, cutoff: F) -> Self {
+    /// Create new Butterworth lowpass filter with initial `cutoff` frequency in Hz.
+    pub fn new(cutoff: F) -> Self {
         let mut node = ButterLowpass {
             _marker: std::marker::PhantomData::default(),
             biquad: Biquad::new(),
-            sample_rate: F::from_f64(sample_rate),
+            sample_rate: F::from_f64(DEFAULT_SR),
             cutoff: F::zero(),
         };
         node.biquad.reset();
-        node.biquad.set_sample_rate(sample_rate);
         node.set_cutoff(cutoff);
         node
     }
@@ -253,16 +253,16 @@ pub struct Resonator<T: Float, F: Real, N: Size<T>> {
 }
 
 impl<T: Float, F: Real, N: Size<T>> Resonator<T, F, N> {
-    pub fn new(sample_rate: f64, center: F, bandwidth: F) -> Self {
+    /// Create new resonator bandpass. Initial `center` frequency and `bandwidth` are specified in Hz.
+    pub fn new(center: F, bandwidth: F) -> Self {
         let mut node = Resonator {
             _marker: std::marker::PhantomData::default(),
             biquad: Biquad::new(),
-            sample_rate: F::from_f64(sample_rate),
+            sample_rate: F::from_f64(DEFAULT_SR),
             center,
             bandwidth,
         };
         node.biquad.reset();
-        node.biquad.set_sample_rate(sample_rate);
         node.set_center_bandwidth(center, bandwidth);
         node
     }
@@ -340,13 +340,14 @@ pub struct Lowpole<T: Float, F: Real, N: Size<T>> {
 }
 
 impl<T: Float, F: Real, N: Size<T>> Lowpole<T, F, N> {
-    pub fn new(sample_rate: f64, cutoff: F) -> Self {
+    /// Create new lowpass filter. Cutoff frequency is specified in Hz.
+    pub fn new(cutoff: F) -> Self {
         let mut node = Lowpole {
             _marker: std::marker::PhantomData::default(),
             value: F::zero(),
             coeff: F::zero(),
             cutoff,
-            sample_rate: convert(sample_rate),
+            sample_rate: convert(DEFAULT_SR),
         };
         node.set_cutoff(cutoff);
         node
@@ -423,13 +424,14 @@ pub struct DCBlock<T: Float, F: Real> {
 }
 
 impl<T: Float, F: Real> DCBlock<T, F> {
-    pub fn new(sample_rate: f64, cutoff: F) -> Self {
+    /// Create new DC blocking filter with `cutoff` frequency specified in Hz.
+    pub fn new(cutoff: F) -> Self {
         let mut node = DCBlock::<T, F> {
             cutoff,
             ..Default::default()
         };
         node.reset();
-        node.set_sample_rate(sample_rate);
+        node.set_sample_rate(DEFAULT_SR);
         node
     }
 
@@ -504,9 +506,9 @@ pub struct Pinkpass<T: Float, F: Float> {
 
 impl<T: Float, F: Float> Pinkpass<T, F> {
     /// Create pinking filter.
-    pub fn new(sample_rate: f64) -> Self {
+    pub fn new() -> Self {
         Pinkpass::<T, F> {
-            sample_rate: convert(sample_rate),
+            sample_rate: convert(DEFAULT_SR),
             ..Pinkpass::default()
         }
     }
@@ -592,14 +594,15 @@ pub struct Allpole<T: Float, F: Float, N: Size<T>> {
 }
 
 impl<T: Float, F: Float, N: Size<T>> Allpole<T, F, N> {
-    pub fn new(sample_rate: f64, delay: F) -> Self {
+    /// Create new allpass filter. Initial `delay` is specified in samples.
+    pub fn new(delay: F) -> Self {
         assert!(delay > F::zero());
         let mut node = Allpole {
             _marker: std::marker::PhantomData::default(),
             eta: F::zero(),
             x1: F::zero(),
             y1: F::zero(),
-            sample_rate: convert(sample_rate),
+            sample_rate: convert(DEFAULT_SR),
         };
         node.set_delay(delay);
         node
@@ -675,14 +678,15 @@ pub struct Highpole<T: Float, F: Real, N: Size<T>> {
 }
 
 impl<T: Float, F: Real, N: Size<T>> Highpole<T, F, N> {
-    pub fn new(sample_rate: f64, cutoff: F) -> Self {
+    /// Create new highpass filter. Initial `cutoff` frequency is specified in Hz.
+    pub fn new(cutoff: F) -> Self {
         let mut node = Highpole {
             _marker: std::marker::PhantomData::default(),
             x1: F::zero(),
             y1: F::zero(),
             coeff: F::zero(),
             cutoff,
-            sample_rate: convert(sample_rate),
+            sample_rate: convert(DEFAULT_SR),
         };
         node.set_cutoff(cutoff);
         node

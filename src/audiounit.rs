@@ -27,6 +27,7 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     /// Set the sample rate of the unit.
     /// The default sample rate is 44100 Hz.
     /// The unit is allowed to reset itself here in response to sample rate changes.
+    /// If the sample rate stays unchanged, then the goal is to maintain current state.
     fn set_sample_rate(&mut self, sample_rate: f64);
 
     /// Process one sample.
@@ -67,6 +68,8 @@ pub trait AudioUnit48: Send + Sync + DynClone {
     /// Leaf nodes should not need to override this.
     /// If `probe` is true, then this is a probe for computing the network hash
     /// and `set_hash` should not be called yet.
+    /// To set a custom hash for a graph, call this method with `ping`
+    /// set to false and `hash` initialized with the custom hash.
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         if !probe {
             self.set_hash(hash.state());
@@ -123,7 +126,7 @@ pub trait AudioUnit48: Send + Sync + DynClone {
 
     /// Causal latency in (fractional) samples.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
-    /// The latency can depend on the sample rate and is allowed to change after `reset`.
+    /// The latency may depend on the sample rate.
     ///
     /// ### Example
     /// ```

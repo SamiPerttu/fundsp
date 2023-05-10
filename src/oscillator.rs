@@ -221,21 +221,16 @@ pub struct Pluck<T: Float> {
 
 impl<T: Float> Pluck<T> {
     // Create new Karplus-Strong oscillator. High frequency damping is in 0...1.
-    pub fn new(
-        sample_rate: f64,
-        frequency: T,
-        gain_per_second: T,
-        high_frequency_damping: T,
-    ) -> Self {
+    pub fn new(frequency: T, gain_per_second: T, high_frequency_damping: T) -> Self {
         Self {
             damping: super::prelude::fir3(T::one() - high_frequency_damping),
-            tuning: Allpole::new(sample_rate, T::one()),
+            tuning: Allpole::new(T::one()),
             line: Vec::new(),
             gain: T::from_f64(pow(gain_per_second.to_f64(), 1.0 / frequency.to_f64())),
             pos: 0,
             hash: 0,
             frequency,
-            sample_rate,
+            sample_rate: DEFAULT_SR,
             initialized: false,
         }
     }
@@ -247,11 +242,13 @@ impl<T: Float> Pluck<T> {
         let total_delay = self.sample_rate / self.frequency.to_f64() - 1.0;
         let loop_delay = floor(total_delay - epsilon);
         let allpass_delay = total_delay - loop_delay;
-        self.tuning = Allpole::new(self.sample_rate, T::from_f64(allpass_delay));
+        self.tuning.reset();
+        self.tuning.set_sample_rate(self.sample_rate);
+        self.tuning.set_delay(T::from_f64(allpass_delay));
         self.line.resize(loop_delay as usize, T::zero());
         let mut rnd = Rnd::from_u64(self.hash);
         for i in 0..self.line.len() {
-            self.line[i] = T::from_f32(rnd.f32() * 2.0 - 1.0);
+            self.line[i] = T::from_f32(rnd.f32_in(-1.0, 1.0));
         }
         self.pos = 0;
         self.initialized = true;
@@ -271,8 +268,11 @@ impl<T: Float> AudioNode for Pluck<T> {
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
-        self.damping.set_sample_rate(sample_rate);
-        self.initialized = false;
+        if self.sample_rate != sample_rate {
+            self.sample_rate = sample_rate;
+            self.damping.set_sample_rate(sample_rate);
+            self.initialized = false;
+        }
     }
 
     #[inline]
