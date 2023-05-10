@@ -342,9 +342,11 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
 pub enum Meter {
     /// Latest value.
     Sample,
-    /// Peak meter with per-sample smoothing in 0...1.
+    /// Peak meter with smoothing timescale in seconds.
+    /// Smoothing timescale is the time it takes for level estimation to move halfway to a new level.
     Peak(f64),
-    /// RMS meter with per-sample smoothing in 0...1.
+    /// RMS meter with smoothing timescale in seconds.
+    /// Smoothing timescale is the time it takes for level estimation to move halfway to a new level.
     Rms(f64),
 }
 
@@ -357,34 +359,56 @@ impl Meter {
 
 #[derive(Clone)]
 pub struct MeterState<T: Real> {
+    /// Per-sample smoothing calculated from smoothing timescale.
+    smoothing: T,
+    /// Current meter level.
     state: T,
 }
 
 impl<T: Real> MeterState<T> {
     /// Create a new MeterState for the given metering mode.
-    pub fn new(_meter: Meter, _sample_rate: f64) -> Self {
-        Self { state: T::zero() }
+    pub fn new(meter: Meter) -> Self {
+        let mut state = Self {
+            smoothing: T::zero(),
+            state: T::zero(),
+        };
+        state.set_sample_rate(meter, DEFAULT_SR);
+        state
     }
 
     /// Reset meter state.
-    pub fn reset(&mut self, _meter: Meter, _sample_rate: f64) {
+    pub fn reset(&mut self, _meter: Meter) {
         self.state = T::zero();
     }
 
+    /// Set meter sample rate.
+    pub fn set_sample_rate(&mut self, meter: Meter, sample_rate: f64) {
+        let timescale = match meter {
+            Meter::Sample => {
+                return;
+            }
+            Meter::Peak(timescale) => timescale,
+            Meter::Rms(timescale) => timescale,
+        };
+        self.smoothing = T::from_f64(pow(0.5, 1.0 / (timescale * sample_rate)));
+    }
+
     /// Process an input sample.
+    #[inline]
     pub fn tick(&mut self, meter: Meter, value: T) {
         match meter {
             Meter::Sample => self.state = value,
-            Meter::Peak(smoothing) => self.state = max(self.state * convert(smoothing), abs(value)),
-            Meter::Rms(smoothing) => {
+            Meter::Peak(_) => self.state = max(self.state * self.smoothing, abs(value)),
+            Meter::Rms(_) => {
                 self.state =
-                    self.state * convert(smoothing) + value * value * convert(1.0 - smoothing)
+                    self.state * self.smoothing + squared(value) * (T::one() - self.smoothing)
             }
         }
     }
 
-    /// Current meter value.
-    pub fn value(&self, meter: Meter) -> T {
+    /// Current meter level.
+    #[inline]
+    pub fn level(&self, meter: Meter) -> T {
         match meter {
             Meter::Sample => self.state,
             Meter::Peak(_) => self.state,
@@ -400,16 +424,14 @@ impl<T: Real> MeterState<T> {
 pub struct MeterNode<T: Real> {
     meter: Meter,
     state: MeterState<T>,
-    sample_rate: f64,
 }
 
 impl<T: Real> MeterNode<T> {
     /// Create a new metering node.
-    pub fn new(sample_rate: f64, meter: Meter) -> Self {
+    pub fn new(meter: Meter) -> Self {
         Self {
             meter,
-            state: MeterState::new(meter, sample_rate),
-            sample_rate,
+            state: MeterState::new(meter),
         }
     }
 }
@@ -421,9 +443,12 @@ impl<T: Real> AudioNode for MeterNode<T> {
     type Outputs = U1;
     type Setting = ();
 
+    fn reset(&mut self) {
+        self.state.reset(self.meter);
+    }
+
     fn set_sample_rate(&mut self, sample_rate: f64) {
-        self.sample_rate = sample_rate;
-        self.state.reset(self.meter, sample_rate);
+        self.state.set_sample_rate(self.meter, sample_rate);
     }
 
     #[inline]
@@ -432,7 +457,7 @@ impl<T: Real> AudioNode for MeterNode<T> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.state.tick(self.meter, input[0]);
-        [convert(self.state.value(self.meter))].into()
+        [convert(self.state.level(self.meter))].into()
     }
 
     fn process(
@@ -443,7 +468,7 @@ impl<T: Real> AudioNode for MeterNode<T> {
     ) {
         for i in 0..size {
             self.state.tick(self.meter, input[0][i]);
-            output[0][i] = convert(self.state.value(self.meter));
+            output[0][i] = convert(self.state.level(self.meter));
         }
     }
 
@@ -459,7 +484,6 @@ impl<T: Real> AudioNode for MeterNode<T> {
 pub struct Monitor<T: Real + Atomic> {
     meter: Meter,
     state: MeterState<T>,
-    sample_rate: f64,
     shared: Arc<T::Storage>,
 }
 
@@ -468,7 +492,6 @@ impl<T: Real + Atomic> Clone for Monitor<T> {
         Self {
             meter: self.meter,
             state: self.state.clone(),
-            sample_rate: self.sample_rate,
             shared: Arc::clone(&self.shared),
         }
     }
@@ -476,11 +499,10 @@ impl<T: Real + Atomic> Clone for Monitor<T> {
 
 impl<T: Real + Atomic> Monitor<T> {
     /// Create a new monitor node.
-    pub fn new(sample_rate: f64, shared: &Shared<T>, meter: Meter) -> Self {
+    pub fn new(shared: &Shared<T>, meter: Meter) -> Self {
         Self {
             meter,
-            state: MeterState::new(meter, sample_rate),
-            sample_rate,
+            state: MeterState::new(meter),
             shared: Arc::clone(shared.get_shared()),
         }
     }
@@ -494,14 +516,11 @@ impl<T: Real + Atomic> AudioNode for Monitor<T> {
     type Setting = ();
 
     fn reset(&mut self) {
-        self.state.reset(self.meter, self.sample_rate);
+        self.state.reset(self.meter);
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
-        if self.sample_rate != sample_rate {
-            self.sample_rate = sample_rate;
-            self.reset();
-        }
+        self.state.set_sample_rate(self.meter, sample_rate);
     }
 
     #[inline]
@@ -510,7 +529,7 @@ impl<T: Real + Atomic> AudioNode for Monitor<T> {
         input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
         self.state.tick(self.meter, input[0]);
-        T::store(&self.shared, self.state.value(self.meter));
+        T::store(&self.shared, self.state.level(self.meter));
         *input
     }
 
@@ -531,7 +550,7 @@ impl<T: Real + Atomic> AudioNode for Monitor<T> {
             }
         }
         // For efficiency, store the value only once per block.
-        T::store(&self.shared, self.state.value(self.meter));
+        T::store(&self.shared, self.state.level(self.meter));
         output[0][..size].clone_from_slice(&input[0][..size]);
     }
 

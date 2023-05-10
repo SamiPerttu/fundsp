@@ -8,7 +8,6 @@ This is a list of feature ideas for the future.
 - Adaptive normalizer without lookahead, adaptive normalized shaping modes.
 - Exponential follower (`follow` is linear).
 - More physical models. Karplus-Strong exists already; figure out if it could be improved somehow.
-- A graphical example that uses all the real-time features.
 - Dynamic bypass wrapper that bypasses a node when input and output levels drop low enough.
 - Improve basic effects implemented in graph notation such as `reverb` (e.g., early reflections), `chorus`, `flanger` and `phaser`.
 - Some kind of parameter system that works with both `AudioNode` and `AudioUnit` systems. At its simplest, it could be a key-value system with a fixed set of keys.

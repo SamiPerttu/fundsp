@@ -277,10 +277,10 @@ pub fn multipass<N: Size<T>, T: Float>() -> An<MultiPass<N, T>> {
 /// ```
 /// use fundsp::prelude::*;
 /// let rms = shared::<f32>(0.0);
-/// monitor(&rms, Meter::Rms(0.99));
+/// monitor(&rms, Meter::Rms(0.1));
 /// ```
 pub fn monitor<T: Real + Atomic>(shared: &Shared<T>, meter: Meter) -> An<Monitor<T>> {
-    An(Monitor::new(DEFAULT_SR, shared, meter))
+    An(Monitor::new(shared, meter))
 }
 
 /// Meter node.
@@ -291,10 +291,10 @@ pub fn monitor<T: Real + Atomic>(shared: &Shared<T>, meter: Meter) -> An<Monitor
 /// ### Example
 /// ```
 /// use fundsp::prelude::*;
-/// meter::<f32>(Meter::Rms(0.99));
+/// meter::<f32>(Meter::Rms(0.1));
 /// ```
 pub fn meter<T: Real>(meter: Meter) -> An<MeterNode<T>> {
-    An(MeterNode::new(DEFAULT_SR, meter))
+    An(MeterNode::new(meter))
 }
 
 /// Mono sink. Input is discarded.
@@ -2646,10 +2646,11 @@ pub fn timer<T: Float + Atomic>(shared: &Shared<T>) -> An<Timer<T>> {
 }
 
 /// Snoop node for sharing audio data with a frontend thread.
+/// The latest samples buffer has room for at least `capacity` samples.
 /// Returns (frontend, backend).
 /// - Input 0: signal to snoop.
 /// - Output 0: signal passed through.
-pub fn snoop<T: Float>() -> (Snoop<T>, An<SnoopBackend<T>>) {
-    let (snoop, backend) = Snoop::new();
+pub fn snoop<T: Float>(capacity: usize) -> (Snoop<T>, An<SnoopBackend<T>>) {
+    let (snoop, backend) = Snoop::new(capacity);
     (snoop, An(backend))
 }

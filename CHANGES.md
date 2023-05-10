@@ -2,7 +2,10 @@
 
 ### Version 0.15 (Next Version)
 
-- Snoop node for sending audio data to a frontend thread.
+- Snoop node for sharing audio data with a frontend thread.
+- Meter smoothing parameters are now timescales specified in seconds.
+- `Shape::SoftCrush` was tweaked.
+- New adaptive distortion mode `Shape::AdaptiveTanh`.
 
 ### Version 0.14
 

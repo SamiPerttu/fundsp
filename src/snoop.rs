@@ -44,17 +44,20 @@ impl<T: Float> SnoopBuffer<T> {
 pub struct Snoop<T: Float> {
     receiver: Receiver<SnoopBuffer<T>>,
     index: usize,
+    total: u64,
     latest: Vec<T>,
 }
 
 impl<T: Float> Snoop<T> {
     /// Create a new snoop node. Returns a (frontend, backend) pair.
-    pub fn new() -> (Snoop<T>, SnoopBackend<T>) {
+    pub fn new(capacity: usize) -> (Snoop<T>, SnoopBackend<T>) {
+        let capacity = capacity.next_power_of_two();
         let (sender, receiver) = channel(1024);
         let snoop = Snoop {
             receiver,
-            latest: vec![T::zero(); 32768],
             index: 0,
+            total: 0,
+            latest: vec![T::zero(); capacity],
         };
         let snoop_backend = SnoopBackend {
             index: 0,
@@ -69,9 +72,14 @@ impl<T: Float> Snoop<T> {
         self.latest[(self.index + self.latest.len() - index - 1) & (self.latest.len() - 1)]
     }
 
-    /// Size of the latest sample buffer.
-    pub fn size(&self) -> usize {
+    /// Capacity of the latest sample buffer.
+    pub fn capacity(&self) -> usize {
         self.latest.len()
+    }
+
+    /// Total number of samples received so far.
+    pub fn total(&self) -> u64 {
+        self.total
     }
 
     /// Get the next buffer of data, if available.
@@ -81,6 +89,7 @@ impl<T: Float> Snoop<T> {
             for i in 0..buffer.size() {
                 self.latest[self.index] = buffer.at(i);
                 self.index = (self.index + 1) & (self.latest.len() - 1);
+                self.total += 1;
             }
             Some(buffer)
         } else {

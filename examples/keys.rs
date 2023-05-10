@@ -37,6 +37,8 @@ struct State {
     waveform: Waveform,
     /// Selected filter.
     filter: Filter,
+    /// Chorus amount.
+    chorus: Shared<f64>,
     /// Reverb amount.
     reverb: Shared<f64>,
     /// Left channel data for the oscilloscope.
@@ -99,17 +101,22 @@ where
     let mut sequencer = Sequencer64::new(false, 1);
     let sequencer_backend = sequencer.backend();
 
-    let (snoop0, snoop_backend0) = snoop();
-    let (snoop1, snoop_backend1) = snoop();
+    let (snoop0, snoop_backend0) = snoop(32768);
+    let (snoop1, snoop_backend1) = snoop(32768);
 
-    let reverb = shared(0.2);
+    let reverb_amount = shared(0.2);
+    let chorus_amount = shared(1.0);
 
     let mut net = Net64::wrap(Box::new(sequencer_backend));
     net = net >> pan(0.0);
-    // Smooth the reverb amount to prevent discontinuities.
+    // Smooth chorus and reverb amounts to prevent discontinuities.
     net = net
-        >> ((1.0 - var(&reverb) >> follow(0.01) >> split()) * multipass()
-            & (var(&reverb) >> follow(0.01) >> split()) * reverb_stereo(20.0, 2.0))
+        >> ((1.0 - var(&chorus_amount) >> follow(0.01) >> split()) * multipass()
+            & (var(&chorus_amount) >> follow(0.01) >> split())
+                * (chorus(0, 0.0, 0.02, 0.3) | chorus(1, 0.0, 0.02, 0.3)));
+    net = net
+        >> ((1.0 - var(&reverb_amount) >> follow(0.01) >> split()) * multipass()
+            & (var(&reverb_amount) >> follow(0.01) >> split()) * reverb_stereo(20.0, 2.0))
         >> (snoop_backend0 | snoop_backend1);
 
     net.set_sample_rate(sample_rate);
@@ -132,7 +139,7 @@ where
     stream.play()?;
 
     let options = eframe::NativeOptions {
-        min_window_size: Some(vec2(256.0, 280.0)),
+        min_window_size: Some(vec2(256.0, 320.0)),
         ..eframe::NativeOptions::default()
     };
 
@@ -142,7 +149,8 @@ where
         net,
         waveform: Waveform::Saw,
         filter: Filter::None,
-        reverb,
+        chorus: chorus_amount,
+        reverb: reverb_amount,
         snoop0,
         snoop1,
     };
@@ -202,6 +210,13 @@ impl eframe::App for State {
                 ui.selectable_value(&mut self.filter, Filter::Butterworth, "Butterworth");
                 ui.selectable_value(&mut self.filter, Filter::Bandpass, "Bandpass");
             });
+            ui.separator();
+            ui.end_row();
+
+            ui.label("Chorus Amount");
+            let mut chorus = self.chorus.value() * 100.0;
+            ui.add(egui::Slider::new(&mut chorus, 0.0..=100.0).suffix("%"));
+            self.chorus.set_value(chorus * 0.01);
             ui.separator();
             ui.end_row();
 

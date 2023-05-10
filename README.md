@@ -990,6 +990,9 @@ These are arguments to the `shape` opcode.
 - `Shape::Softsign(hardness)`: Apply `softsign` distortion with configurable hardness. Argument to `softsign` is multiplied by the hardness value.
 - `Shape::Crush(levels)`: Apply a staircase function with configurable number of levels per unit.
 - `Shape::SoftCrush(levels)`: Apply a smooth staircase function with configurable number of levels per unit.
+- `Shape::AdaptiveTanh(timescale, hardness)`: Apply adaptive normalizing distortion with smoothing `timescale` in seconds.
+Smoothing timescale is the time it takes for level estimation to move halfway to a new value.
+Argument to `tanh` is multiplied by the hardness value and divided by the RMS level of the signal.
 
 #### Metering Modes
 
@@ -997,8 +1000,10 @@ The `monitor(&shared, mode)` opcode is a pass-through node that presents
 some aspect of data passed through in a shared variable. Metering modes are:
 
 - `Meter::Sample`: Stores the latest value passed through.
-- `Meter::Peak(smoothing)`: Peak amplitude meter with `smoothing` as per-sample smoothing factor in 0...1.
-- `Meter::Rms(smoothing)`: Root mean square meter with `smoothing` as per-sample smoothing factor in 0...1.
+- `Meter::Peak(timescale)`: Peak amplitude meter with smoothing `timescale` in seconds.
+- `Meter::Rms(timescale)`: Root mean square meter with smoothing `timescale` in seconds.
+
+Smoothing timescale is the time it takes for level estimation to move halfway to a new value.
 
 The same modes are used in the `meter` opcode.
 

@@ -41,7 +41,6 @@ fn test_dynamics() {
             assert!(y <= 1.0);
         }
         let value = x.filter_mono(edge);
-        //println!("limiter samples {}, value {}", samples, value);
         // The limiter leaves some headroom.
         // Check that the response is limited and has sufficient range.
         assert!(value >= 0.90 && value <= 1.00);
@@ -59,8 +58,8 @@ fn test_dynamics() {
         assert!(x == s1.value());
     }
     let s1 = shared(0.0);
-    let mut m1 = monitor(&s1, Meter::Peak(0.99));
-    let mut m2 = meter(Meter::Peak(0.99));
+    let mut m1 = monitor(&s1, Meter::Peak(0.1));
+    let mut m2 = meter(Meter::Peak(0.1));
     for _ in 0..10000 {
         let x = rnd.f64();
         let x1 = m1.filter_mono(x);

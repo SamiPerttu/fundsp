@@ -82,21 +82,32 @@ pub enum Shape<T: Real> {
     Crush(T),
     /// Apply a smooth staircase function with configurable number of levels per unit.
     SoftCrush(T),
+    /// Adaptive normalizing `tanh` distortion with smoothing timescale and hardness as parameters.
+    /// Smoothing timescale is specified in seconds.
+    /// It is the time it takes for level estimation to move halfway to a new level.
+    /// The argument to `tanh` is divided by the RMS level of the signal and multiplied by hardness.
+    /// Minimum estimated signal level for adaptive distortion is approximately -60 dB.
+    AdaptiveTanh(T, T),
 }
 
 /// Waveshaper with various shaping modes.
 #[derive(Clone)]
 pub struct Shaper<T: Real> {
     shape: Shape<T>,
-    _marker: PhantomData<T>,
+    /// Per-sample smoothing factor.
+    smoothing: T,
+    state: T,
 }
 
 impl<T: Real> Shaper<T> {
     pub fn new(shape: Shape<T>) -> Self {
-        Self {
+        let mut shaper = Self {
             shape,
-            _marker: PhantomData::default(),
-        }
+            smoothing: T::zero(),
+            state: T::zero(),
+        };
+        shaper.set_sample_rate(DEFAULT_SR);
+        shaper
     }
 }
 
@@ -107,6 +118,17 @@ impl<T: Real> AudioNode for Shaper<T> {
     type Outputs = U1;
     type Setting = ();
 
+    fn reset(&mut self) {
+        self.state = T::zero();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        if let Shape::AdaptiveTanh(timescale, _) = self.shape {
+            self.smoothing = T::from_f64(pow(0.5, 1.0 / (timescale.to_f64() * sample_rate)));
+        }
+    }
+
+    #[inline]
     fn tick(
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
@@ -121,7 +143,12 @@ impl<T: Real> AudioNode for Shaper<T> {
             Shape::SoftCrush(levels) => {
                 let x = input * levels;
                 let y = floor(x);
-                [(y + smooth9(x - y)) / levels].into()
+                [(y + smooth9(smooth9(x - y))) / levels].into()
+            }
+            Shape::AdaptiveTanh(_timescale, hardness) => {
+                self.state = self.smoothing * self.state
+                    + (T::one() - self.smoothing) * (T::from_f32(1.0e-6) + squared(input));
+                [tanh(input * hardness / sqrt(self.state))].into()
             }
         }
     }
@@ -136,35 +163,42 @@ impl<T: Real> AudioNode for Shaper<T> {
         let output = &mut *output[0];
         match self.shape {
             Shape::Clip => {
-                for i in 0..size {
-                    output[i] = clamp11(input[i]);
+                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
+                    *x = clamp11(*y);
                 }
             }
             Shape::ClipTo(min, max) => {
-                for i in 0..size {
-                    output[i] = clamp(min, max, input[i]);
+                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
+                    *x = clamp(min, max, *y);
                 }
             }
             Shape::Tanh(hardness) => {
-                for i in 0..size {
-                    output[i] = tanh(input[i] * hardness);
+                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
+                    *x = tanh(*y * hardness);
                 }
             }
             Shape::Softsign(hardness) => {
-                for i in 0..size {
-                    output[i] = softsign(input[i] * hardness);
+                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
+                    *x = softsign(*y * hardness);
                 }
             }
             Shape::Crush(levels) => {
-                for i in 0..size {
-                    output[i] = round(input[i] * levels) / levels;
+                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
+                    *x = round(*y * levels) / levels;
                 }
             }
             Shape::SoftCrush(levels) => {
-                for i in 0..size {
-                    let x = input[i] * levels;
-                    let y = floor(x);
-                    output[i] = (y + smooth9(x - y)) / levels;
+                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
+                    let a = *y * levels;
+                    let b = floor(a);
+                    *x = (b + smooth9(smooth9(a - b))) / levels;
+                }
+            }
+            Shape::AdaptiveTanh(_timescale, hardness) => {
+                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
+                    self.state = self.smoothing * self.state
+                        + (T::one() - self.smoothing) * (T::from_f32(1.0e-6) + squared(*y));
+                    *x = tanh(*y * hardness / sqrt(self.state));
                 }
             }
         }
