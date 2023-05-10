@@ -55,6 +55,7 @@ fn main() {
     remove_string(&mut arg, "feedback::");
     remove_string(&mut arg, "filter::");
     remove_string(&mut arg, "fir::");
+    remove_string(&mut arg, "follow::");
     remove_string(&mut arg, "math::");
     remove_string(&mut arg, "moog::");
     remove_string(&mut arg, "net::");
@@ -63,10 +64,17 @@ fn main() {
     remove_string(&mut arg, "oversample::");
     remove_string(&mut arg, "pan::");
     remove_string(&mut arg, "prelude::");
+    remove_string(&mut arg, "realnet::");
+    remove_string(&mut arg, "realseq::");
+    remove_string(&mut arg, "resample::");
+    remove_string(&mut arg, "rez::");
     remove_string(&mut arg, "sequencer::");
+    remove_string(&mut arg, "setting::");
     remove_string(&mut arg, "shape::");
     remove_string(&mut arg, "signal::");
+    remove_string(&mut arg, "snoop::");
     remove_string(&mut arg, "svf::");
+    remove_string(&mut arg, "system::");
     remove_string(&mut arg, "wave::");
     remove_string(&mut arg, "wavetable::");
     remove_string(&mut arg, "typenum::uint::");

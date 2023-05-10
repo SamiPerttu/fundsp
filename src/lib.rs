@@ -273,6 +273,7 @@ pub mod setting;
 pub mod shape;
 pub mod shared;
 pub mod signal;
+pub mod snoop;
 pub mod sound;
 pub mod svf;
 pub mod system;

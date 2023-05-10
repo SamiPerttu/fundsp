@@ -935,7 +935,7 @@ impl Net48 {
             // Deallocate all previous versions.
             while receiver.try_recv().is_ok() {}
             // Send the new version over.
-            sender.send(net).unwrap();
+            if sender.try_send(net).is_ok() {}
         }
         self.revision += 1;
     }

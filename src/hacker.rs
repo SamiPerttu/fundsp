@@ -28,6 +28,7 @@ pub use super::setting::*;
 pub use super::shape::*;
 pub use super::shared::*;
 pub use super::signal::*;
+pub use super::snoop::*;
 pub use super::svf::*;
 pub use super::system::*;
 pub use super::wave::*;
@@ -2092,7 +2093,6 @@ pub fn shared(value: f64) -> Shared<f64> {
 }
 
 /// Outputs the value of the shared variable.
-///
 /// - Output 0: value
 ///
 /// ### Example: Add Chorus With Wetness Control
@@ -2107,7 +2107,6 @@ pub fn var(shared: &Shared<f64>) -> An<Var<f64>> {
 
 /// Shared variable mapped through a function.
 /// Outputs the value of the function, which may be scalar or tuple.
-///
 /// - Outputs: value
 ///
 /// ### Example: Control Pitch In MIDI Semitones With Smoothing
@@ -2137,4 +2136,13 @@ where
 /// ```
 pub fn timer(shared: &Shared<f64>) -> An<Timer<f64>> {
     An(Timer::new(DEFAULT_SR, shared))
+}
+
+/// Snoop node for sharing audio data with a frontend thread.
+/// Returns (frontend, backend).
+/// - Input 0: signal to snoop.
+/// - Output 0: signal passed through.
+pub fn snoop() -> (Snoop<f64>, An<SnoopBackend<f64>>) {
+    let (snoop, backend) = Snoop::new();
+    (snoop, An(backend))
 }

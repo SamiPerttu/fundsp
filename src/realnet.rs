@@ -73,7 +73,7 @@ impl Net48Backend {
             self.net.migrate(&mut net);
             std::mem::swap(&mut net, &mut self.net);
             // Send the previous network back for deallocation.
-            self.sender.send(net).unwrap();
+            if self.sender.try_send(net).is_ok() {}
         }
     }
 }

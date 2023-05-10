@@ -1,6 +1,10 @@
 ## Changes
 
-### Version 0.14 (Next Version)
+### Version 0.15 (Next Version)
+
+- Snoop node for sending audio data to a frontend thread.
+
+### Version 0.14
 
 - New math functions `sqr_hz` and `tri_hz` for non-bandlimited square and triangle waves.
 - Lorenz and Rössler chaotic system oscillators as opcodes `lorenz` and `rossler`.

@@ -217,7 +217,6 @@ where
             self.buffer.push(input.clone());
             if self.buffer.len() == self.reducer.length() {
                 // When the buffer is full, start following from its total peak.
-                // TODO: follow the log value instead.
                 self.follower.set_value(self.reducer.total());
             }
             self.advance();
@@ -322,8 +321,8 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
             } else {
                 size
             };
-            for i in 0..end_index {
-                output[0][i] *= convert(smooth5(phase));
+            for x in output[0][0..end_index].iter_mut() {
+                *x *= convert(smooth5(phase));
                 phase += phase_d;
             }
             self.t = end_time;

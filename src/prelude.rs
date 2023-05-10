@@ -28,6 +28,7 @@ pub use super::setting::*;
 pub use super::shape::*;
 pub use super::shared::*;
 pub use super::signal::*;
+pub use super::snoop::*;
 pub use super::svf::*;
 pub use super::system::*;
 pub use super::wave::*;
@@ -2642,4 +2643,13 @@ where
 /// ```
 pub fn timer<T: Float + Atomic>(shared: &Shared<T>) -> An<Timer<T>> {
     An(Timer::new(DEFAULT_SR, shared))
+}
+
+/// Snoop node for sharing audio data with a frontend thread.
+/// Returns (frontend, backend).
+/// - Input 0: signal to snoop.
+/// - Output 0: signal passed through.
+pub fn snoop<T: Float>() -> (Snoop<T>, An<SnoopBackend<T>>) {
+    let (snoop, backend) = Snoop::new();
+    (snoop, An(backend))
 }

@@ -39,6 +39,10 @@ struct State {
     filter: Filter,
     /// Reverb amount.
     reverb: Shared<f64>,
+    /// Left channel data for the oscilloscope.
+    snoop0: Snoop<f64>,
+    /// Right channel data for the oscilloscope.
+    snoop1: Snoop<f64>,
 }
 
 static KEYS: [Key; 25] = [
@@ -95,15 +99,18 @@ where
     let mut sequencer = Sequencer64::new(false, 1);
     let sequencer_backend = sequencer.backend();
 
+    let (snoop0, snoop_backend0) = snoop();
+    let (snoop1, snoop_backend1) = snoop();
+
     let reverb = shared(0.2);
 
     let mut net = Net64::wrap(Box::new(sequencer_backend));
     net = net >> pan(0.0);
-    net = net >> (chorus(0, 0.0, 0.01, 0.2) | chorus(1, 0.0, 0.01, 0.2));
     // Smooth the reverb amount to prevent discontinuities.
     net = net
         >> ((1.0 - var(&reverb) >> follow(0.01) >> split()) * multipass()
-            & (var(&reverb) >> follow(0.01) >> split()) * reverb_stereo(20.0, 2.0));
+            & (var(&reverb) >> follow(0.01) >> split()) * reverb_stereo(20.0, 2.0))
+        >> (snoop_backend0 | snoop_backend1);
 
     net.set_sample_rate(sample_rate);
 
@@ -124,7 +131,10 @@ where
     )?;
     stream.play()?;
 
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        min_window_size: Some(vec2(256.0, 280.0)),
+        ..eframe::NativeOptions::default()
+    };
 
     let mut state: State = State {
         id: Vec::new(),
@@ -133,6 +143,8 @@ where
         waveform: Waveform::Saw,
         filter: Filter::None,
         reverb,
+        snoop0,
+        snoop1,
     };
     state.id.resize(KEYS.len(), None);
 
@@ -197,7 +209,45 @@ impl eframe::App for State {
             let mut reverb = self.reverb.value() * 100.0;
             ui.add(egui::Slider::new(&mut reverb, 0.0..=100.0).suffix("%"));
             self.reverb.set_value(reverb * 0.01);
+            ui.separator();
             ui.end_row();
+
+            egui::containers::Frame::canvas(ui.style()).show(ui, |ui| {
+                ui.ctx().request_repaint();
+
+                self.snoop0.update();
+                self.snoop1.update();
+
+                let points = 512;
+                let color0 = Color32::from_rgb(180, 200, 220);
+                let color1 = Color32::from_rgb(200, 200, 200);
+                let thickness: f32 = 1.0;
+
+                let desired_size = ui.available_width() * vec2(1.0, 0.3);
+                let (_id, rect) = ui.allocate_space(desired_size);
+
+                let to_screen = emath::RectTransform::from_to(
+                    Rect::from_x_y_ranges(0.0..=points as f32, -1.0..=1.0),
+                    rect,
+                );
+
+                let points0: Vec<Pos2> = (0..points)
+                    .map(|i| {
+                        let y = self.snoop0.at(i);
+                        to_screen * pos2((points - i) as f32, softsign(y * 10.0) as f32)
+                    })
+                    .collect();
+                let line0 = epaint::Shape::line(points0, Stroke::new(thickness, color0));
+                let points1: Vec<Pos2> = (0..points)
+                    .map(|i| {
+                        let y = self.snoop1.at(i);
+                        to_screen * pos2((points - i) as f32, softsign(y * 10.0) as f32)
+                    })
+                    .collect();
+                let line1 = epaint::Shape::line(points1, Stroke::new(thickness, color1));
+                ui.painter().add(line0);
+                ui.painter().add(line1);
+            });
 
             #[allow(clippy::needless_range_loop)]
             for i in 0..KEYS.len() {

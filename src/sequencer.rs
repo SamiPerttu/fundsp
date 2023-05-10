@@ -420,7 +420,7 @@ impl Sequencer48 {
             // Deallocate all past events.
             while receiver.try_recv().is_ok() {}
             // Send the new event over.
-            sender.send(Message48::PushRelative(event)).unwrap();
+            if sender.try_send(Message48::PushRelative(event)).is_ok() {}
         } else {
             event.start_time += self.time;
             event.end_time += self.time;
@@ -465,15 +465,16 @@ impl Sequencer48 {
             // Deallocate all past events.
             while receiver.try_recv().is_ok() {}
             // Send the new edit over.
-            sender
-                .send(Message48::Edit(
+            if sender
+                .try_send(Message48::Edit(
                     id,
                     Edit48 {
                         end_time,
                         fade_out: fade_out_time,
                     },
                 ))
-                .unwrap();
+                .is_ok()
+            {}
         } else if self.active_map.contains_key(&id) {
             // The edit applies to an active event.
             let i = self.active_map[&id];
@@ -505,15 +506,16 @@ impl Sequencer48 {
             // Deallocate all past events.
             while receiver.try_recv().is_ok() {}
             // Send the new edit over.
-            sender
-                .send(Message48::EditRelative(
+            if sender
+                .try_send(Message48::EditRelative(
                     id,
                     Edit48 {
                         end_time,
                         fade_out: fade_out_time,
                     },
                 ))
-                .unwrap();
+                .is_ok()
+            {}
         } else if self.active_map.contains_key(&id) {
             // The edit applies to an active event.
             let i = self.active_map[&id];
