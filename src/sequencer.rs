@@ -331,6 +331,7 @@ impl Sequencer48 {
     }
 
     /// Current time in seconds.
+    /// This method is not applicable to frontends, which do not process audio.
     pub fn time(&self) -> f48 {
         self.time
     }
@@ -367,7 +368,7 @@ impl Sequencer48 {
     }
 
     /// Add event. This is an internal method.
-    pub fn push_event(&mut self, event: Event48) {
+    pub(crate) fn push_event(&mut self, event: Event48) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.try_recv().is_ok() {}
@@ -415,7 +416,7 @@ impl Sequencer48 {
     }
 
     /// Add relative event. This is an internal method.
-    pub fn push_relative_event(&mut self, mut event: Event48) {
+    pub(crate) fn push_relative_event(&mut self, mut event: Event48) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.try_recv().is_ok() {}
@@ -587,17 +588,17 @@ impl Sequencer48 {
     }
 
     /// Get past events. This is an internal method.
-    pub fn get_past_event(&mut self) -> Option<Event48> {
+    pub(crate) fn get_past_event(&mut self) -> Option<Event48> {
         self.past.pop()
     }
 
     /// Get ready events. This is an internal method.
-    pub fn get_ready_event(&mut self) -> Option<Event48> {
+    pub(crate) fn get_ready_event(&mut self) -> Option<Event48> {
         self.ready.pop()
     }
 
     /// Get active events. This is an internal method.
-    pub fn get_active_event(&mut self) -> Option<Event48> {
+    pub(crate) fn get_active_event(&mut self) -> Option<Event48> {
         if let Some(event) = self.active.pop() {
             self.active_map.remove(&event.id);
             return Some(event);

@@ -857,7 +857,7 @@ impl Net48 {
     }
 
     /// Migrate existing units to the new network. This is an internal function.
-    pub fn migrate(&mut self, new: &mut Net48) {
+    pub(crate) fn migrate(&mut self, new: &mut Net48) {
         for (id, &index) in self.node_index.iter() {
             if let Some(&new_index) = new.node_index.get(id) {
                 // We may use the existing unit if no changes have been made since our last update.

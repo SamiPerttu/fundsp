@@ -166,42 +166,51 @@ pub trait Float: Num + Neg<Output = Self> {
 }
 
 impl Float for f32 {
+    #[inline]
     fn from_float<T: Float>(x: T) -> Self {
         x.to_f32()
     }
 
+    #[inline]
     fn to_f64(self) -> f64 {
         self as f64
     }
 
+    #[inline]
     fn to_f32(self) -> f32 {
         self
     }
 
+    #[inline]
     fn to_i64(self) -> i64 {
         self as i64
     }
 }
 
 impl Float for f64 {
+    #[inline]
     fn from_float<T: Float>(x: T) -> Self {
         x.to_f64()
     }
 
+    #[inline]
     fn to_f64(self) -> f64 {
         self
     }
 
+    #[inline]
     fn to_f32(self) -> f32 {
         self as f32
     }
 
+    #[inline]
     fn to_i64(self) -> i64 {
         self as i64
     }
 }
 
 /// Generic floating point conversion function.
+#[inline]
 pub fn convert<T: Float, U: Float>(x: T) -> U {
     U::from_float(x)
 }

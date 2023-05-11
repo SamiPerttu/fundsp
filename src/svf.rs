@@ -1122,6 +1122,8 @@ where
         .into()
     }
 
+    // Note. Implementing an optimized process() here seems to make no difference in performance.
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = new_signal_frame(self.outputs());
         output[0] = input[0].filter(0.0, |r| r * self.mode.response(&self.params, frequency));

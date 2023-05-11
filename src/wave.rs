@@ -11,6 +11,7 @@ use numeric_array::*;
 use rsor::Slice;
 use std::fs::File;
 use std::io::prelude::*;
+use std::io::BufWriter;
 use std::marker::PhantomData;
 use std::path::Path;
 use std::sync::Arc;
@@ -621,8 +622,9 @@ impl Wave48 {
     /// Individual samples are clipped to the range -1...1.
     pub fn write_wav16<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         assert!(self.channels() > 0);
+        let mut writer = BufWriter::new(writer);
         write_wav_header(
-            writer,
+            &mut writer,
             2 * self.channels() * self.length(),
             1,
             self.channels(),
@@ -631,7 +633,7 @@ impl Wave48 {
         for i in 0..self.length() {
             for channel in 0..self.channels() {
                 let sample = round(clamp11(self.at(channel, i)) * 32767.49);
-                write16(writer, sample.to_i64() as u16)?;
+                write16(&mut writer, sample.to_i64() as u16)?;
             }
         }
         std::io::Result::Ok(())
@@ -642,8 +644,9 @@ impl Wave48 {
     /// applications may expect the range to be -1...1.
     pub fn write_wav32<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         assert!(self.channels() > 0);
+        let mut writer = BufWriter::new(writer);
         write_wav_header(
-            writer,
+            &mut writer,
             4 * self.channels() * self.length(),
             3,
             self.channels(),

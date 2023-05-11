@@ -227,6 +227,7 @@ impl eframe::App for State {
             ui.separator();
             ui.end_row();
 
+            // Draw oscilloscope.
             egui::containers::Frame::canvas(ui.style()).show(ui, |ui| {
                 ui.ctx().request_repaint();
 

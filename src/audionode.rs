@@ -109,9 +109,13 @@ pub trait AudioNode: Clone {
         debug_assert!(output.iter().all(|x| x.len() >= size));
         for i in 0..size {
             let result = self.tick(&Frame::generate(|j| input[j][i]));
-            for (j, &x) in result.iter().enumerate() {
-                output[j][i] = x;
+            for (x, y) in output.iter_mut().zip(result.iter()) {
+                (*x)[i] = *y;
             }
+            // There seems to be no difference in performance between the preceding loop and this version.
+            //for (j, &x) in result.iter().enumerate() {
+            //    output[j][i] = x;
+            //}
         }
     }
 

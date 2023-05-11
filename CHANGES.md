@@ -6,6 +6,7 @@
 - Meter smoothing parameters are now timescales specified in seconds.
 - `Shape::SoftCrush` was tweaked.
 - New adaptive distortion mode `Shape::AdaptiveTanh`.
+- Oversampling now employs a minimum phase halfband filter.
 
 ### Version 0.14
 
