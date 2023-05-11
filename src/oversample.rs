@@ -6,12 +6,12 @@ use super::signal::*;
 use super::*;
 use numeric_array::typenum::*;
 
-// Coefficients from https://fiiir.com/, a Kaiser windowed filter with
+// Coefficients from https://fiiir.com/, a linear phase Kaiser windowed filter with
 // normalized frequency cutoff 0.22, transition band 0.06 and 80 dB stopband attenuation.
 // Gain is -1.5 dB at 0.21 (18522 Hz @ 88.2 kHz) and -79 dB at 0.25.
-const HALFBAND_LEN: usize = 85;
+const _HALFBAND_LINEAR_LEN: usize = 85;
 #[allow(clippy::excessive_precision)]
-const HALFBAND: [f32; HALFBAND_LEN] = [
+const _HALFBAND_LINEAR: [f32; _HALFBAND_LINEAR_LEN] = [
     0.000020220200441046,
     0.000004861974285292,
     -0.000061492255405391,
@@ -99,13 +99,13 @@ const HALFBAND: [f32; HALFBAND_LEN] = [
     0.000020220200441046,
 ];
 
-// Minimum phase version of the linear filter. Generated with scipy at:
+// Minimum phase version of the linear phase filter. Generated with scipy at:
 // https://www.tutorialspoint.com/execute_scipy_online.php
 // from scipy.signal import minimum_phase
 // min_phase = minimum_phase(linear_phase, method='homomorphic')
-const _MINIMUM_PHASE_LEN: usize = 43;
+const HALFBAND_MIN_LEN: usize = 43;
 #[allow(clippy::excessive_precision)]
-const _MINIMUM_PHASE: [f32; _MINIMUM_PHASE_LEN] = [
+const HALFBAND_MIN: [f32; HALFBAND_MIN_LEN] = [
     4.73552339e-02,
     1.81988040e-01,
     3.49148434e-01,
@@ -151,29 +151,32 @@ const _MINIMUM_PHASE: [f32; _MINIMUM_PHASE_LEN] = [
     -9.41945265e-04,
 ];
 
+#[inline]
 fn tick_even<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
-    let j = j + 0x80 - HALFBAND_LEN;
+    let j = j + 0x80 - HALFBAND_MIN_LEN;
     let mut output = T::zero();
-    for i in 0..HALFBAND_LEN / 2 + 1 {
-        output += v[(j + i * 2) & 0x7f] * T::from_f32(HALFBAND[i * 2]);
+    for i in 0..HALFBAND_MIN_LEN / 2 + 1 {
+        output += v[(j + i * 2) & 0x7f] * T::from_f32(HALFBAND_MIN[i * 2]);
     }
     output * T::new(2)
 }
 
+#[inline]
 fn tick_odd<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
-    let j = j + 0x80 - HALFBAND_LEN;
+    let j = j + 0x80 - HALFBAND_MIN_LEN;
     let mut output = T::zero();
-    for i in 0..HALFBAND_LEN / 2 {
-        output += v[(j + i * 2 + 1) & 0x7f] * T::from_f32(HALFBAND[i * 2 + 1]);
+    for i in 0..HALFBAND_MIN_LEN / 2 {
+        output += v[(j + i * 2 + 1) & 0x7f] * T::from_f32(HALFBAND_MIN[i * 2 + 1]);
     }
     output * T::new(2)
 }
 
+#[inline]
 fn tick<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
-    let j = j + 0x80 - HALFBAND_LEN;
+    let j = j + 0x80 - HALFBAND_MIN_LEN;
     let mut output = T::zero();
-    for i in 0..HALFBAND_LEN {
-        output += v[(j + i) & 0x7f] * T::from_f32(HALFBAND[i]);
+    for i in 0..HALFBAND_MIN_LEN {
+        output += v[(j + i) & 0x7f] * T::from_f32(HALFBAND_MIN[i]);
     }
     output
 }
