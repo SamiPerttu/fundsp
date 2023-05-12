@@ -8,9 +8,9 @@ use duplicate::duplicate_item;
 use thingbuf::mpsc::blocking::{channel, Receiver, Sender};
 
 #[duplicate_item(
-    f48       Sequencer48       Message48       Sequencer48Backend       Event48       AudioUnit48       Edit48;
-    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ Sequencer64Backend ]   [ Event64 ]   [ AudioUnit64 ]   [ Edit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ Sequencer32Backend ]   [ Event32 ]   [ AudioUnit32 ]   [ Edit32 ];
+    f48       Sequencer48       Message48       SequencerBackend48       Event48       AudioUnit48       Edit48;
+    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Edit64 ];
+    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Edit32 ];
 )]
 #[derive(Default)]
 pub enum Message48 {
@@ -28,9 +28,9 @@ pub enum Message48 {
 }
 
 #[duplicate_item(
-    f48       Sequencer48       Message48       Sequencer48Backend       Event48       AudioUnit48;
-    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ Sequencer64Backend ]   [ Event64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ Sequencer32Backend ]   [ Event32 ]   [ AudioUnit32 ];
+    f48       Sequencer48       Message48       SequencerBackend48       Event48       AudioUnit48;
+    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ];
 )]
 impl Clone for Message48 {
     fn clone(&self) -> Self {
@@ -39,11 +39,11 @@ impl Clone for Message48 {
 }
 
 #[duplicate_item(
-    f48       Sequencer48       Message48       Sequencer48Backend       Event48       AudioUnit48;
-    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ Sequencer64Backend ]   [ Event64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ Sequencer32Backend ]   [ Event32 ]   [ AudioUnit32 ];
+    f48       Sequencer48       Message48       SequencerBackend48       Event48       AudioUnit48;
+    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ];
 )]
-pub struct Sequencer48Backend {
+pub struct SequencerBackend48 {
     /// For sending events for deallocation back to the frontend.
     pub sender: Sender<Option<Event48>>,
     /// For receiving new events from the frontend.
@@ -52,16 +52,16 @@ pub struct Sequencer48Backend {
 }
 
 #[duplicate_item(
-    f48       Sequencer48       Message48       Sequencer48Backend       Event48       AudioUnit48;
-    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ Sequencer64Backend ]   [ Event64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ Sequencer32Backend ]   [ Event32 ]   [ AudioUnit32 ];
+    f48       Sequencer48       Message48       SequencerBackend48       Event48       AudioUnit48;
+    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ];
 )]
-impl Clone for Sequencer48Backend {
+impl Clone for SequencerBackend48 {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
         let (sender_1, _receiver_1) = channel(1);
         let (_sender_2, receiver_2) = channel(1);
-        Sequencer48Backend {
+        SequencerBackend48 {
             sender: sender_1,
             receiver: receiver_2,
             sequencer: self.sequencer.clone(),
@@ -70,11 +70,11 @@ impl Clone for Sequencer48Backend {
 }
 
 #[duplicate_item(
-    f48       Sequencer48       Message48       Sequencer48Backend       Event48       AudioUnit48;
-    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ Sequencer64Backend ]   [ Event64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ Sequencer32Backend ]   [ Event32 ]   [ AudioUnit32 ];
+    f48       Sequencer48       Message48       SequencerBackend48       Event48       AudioUnit48;
+    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ];
 )]
-impl Sequencer48Backend {
+impl SequencerBackend48 {
     /// Create new backend.
     pub fn new(
         sender: Sender<Option<Event48>>,
@@ -119,11 +119,11 @@ impl Sequencer48Backend {
 }
 
 #[duplicate_item(
-    f48       Sequencer48       Sequencer48Backend       Event48       AudioUnit48;
-    [ f64 ]   [ Sequencer64 ]   [ Sequencer64Backend ]   [ Event64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Sequencer32Backend ]   [ Event32 ]   [ AudioUnit32 ];
+    f48       Sequencer48       SequencerBackend48       Event48       AudioUnit48;
+    [ f64 ]   [ Sequencer64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Sequencer32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ];
 )]
-impl AudioUnit48 for Sequencer48Backend {
+impl AudioUnit48 for SequencerBackend48 {
     fn inputs(&self) -> usize {
         0
     }

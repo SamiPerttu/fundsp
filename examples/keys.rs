@@ -47,7 +47,7 @@ struct State {
     snoop1: Snoop<f64>,
 }
 
-static KEYS: [Key; 25] = [
+static KEYS: [Key; 29] = [
     Key::Z,
     Key::S,
     Key::X,
@@ -73,6 +73,10 @@ static KEYS: [Key; 25] = [
     Key::Num7,
     Key::U,
     Key::I,
+    Key::Num9,
+    Key::O,
+    Key::Num0,
+    Key::P,
 ];
 
 fn main() {

@@ -1,4 +1,4 @@
-//! The sequencer unit mixes together outputs of audio units with sample accurate timing.
+//! The sequencer unit mixes together scheduled audio units with sample accurate timing.
 
 use super::audiounit::*;
 use super::buffer::*;
@@ -301,9 +301,9 @@ impl Clone for Sequencer48 {
 
 #[allow(clippy::unnecessary_cast)]
 #[duplicate_item(
-    f48       Event48       AudioUnit48       Sequencer48       Sequencer48Backend       Message48       Edit48;
-    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ Sequencer64Backend ]   [ Message64 ]   [ Edit64 ];
-    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ Sequencer32Backend ]   [ Message32 ]   [ Edit32 ];
+    f48       Event48       AudioUnit48       Sequencer48       SequencerBackend48       Message48       Edit48;
+    [ f64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Sequencer64 ]   [ SequencerBackend64 ]   [ Message64 ]   [ Edit64 ];
+    [ f32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Sequencer32 ]   [ SequencerBackend32 ]   [ Message32 ]   [ Edit32 ];
 )]
 impl Sequencer48 {
     /// Create a new sequencer. The sequencer has zero inputs.
@@ -566,7 +566,7 @@ impl Sequencer48 {
     /// communicates changes made to the backend.
     /// The backend is initialized with the current state of the sequencer.
     /// This can be called only once for a sequencer.
-    pub fn backend(&mut self) -> Sequencer48Backend {
+    pub fn backend(&mut self) -> SequencerBackend48 {
         assert!(!self.has_backend());
         // Create huge channel buffers to make sure we don't run out of space easily.
         let (sender_a, receiver_a) = channel(16384);
@@ -574,7 +574,7 @@ impl Sequencer48 {
         let mut sequencer = self.clone();
         sequencer.allocate();
         self.front = Some((sender_a, receiver_b));
-        Sequencer48Backend::new(sender_b, receiver_a, sequencer)
+        SequencerBackend48::new(sender_b, receiver_a, sequencer)
     }
 
     /// Returns whether this sequencer has a backend.

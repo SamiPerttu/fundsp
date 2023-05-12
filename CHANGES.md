@@ -7,6 +7,8 @@
 - `Shape::SoftCrush` was tweaked.
 - New adaptive distortion mode `Shape::AdaptiveTanh`.
 - Oversampling now employs a minimum phase halfband filter.
+- `Net64Backend` and `Net32Backend` are now called `NetBackend64` and `NetBackend32`.
+- `Sequencer64Backend` and `Sequencer32Backend` are now called `SequencerBackend64` and `SequencerBackend32`.
 
 ### Version 0.14
 

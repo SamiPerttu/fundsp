@@ -8,11 +8,11 @@ use duplicate::duplicate_item;
 use thingbuf::mpsc::blocking::{channel, Receiver, Sender};
 
 #[duplicate_item(
-    f48       Net48       Net48Backend       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Net64Backend ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Net32Backend ]   [ Vertex32 ]   [ AudioUnit32 ];
+    f48       Net48       NetBackend48       Vertex48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ NetBackend64 ]   [ Vertex64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ NetBackend32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
-pub struct Net48Backend {
+pub struct NetBackend48 {
     /// For sending versions for deallocation back to the frontend.
     sender: Sender<Net48>,
     /// For receiving new versions from the frontend.
@@ -21,15 +21,15 @@ pub struct Net48Backend {
 }
 
 #[duplicate_item(
-    f48       Net48       Net48Backend       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Net64Backend ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Net32Backend ]   [ Vertex32 ]   [ AudioUnit32 ];
+    f48       Net48       NetBackend48       Vertex48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ NetBackend64 ]   [ Vertex64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ NetBackend32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
-impl Clone for Net48Backend {
+impl Clone for NetBackend48 {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
         let (sender, receiver) = channel(1);
-        Net48Backend {
+        NetBackend48 {
             sender,
             receiver,
             net: self.net.clone(),
@@ -38,11 +38,11 @@ impl Clone for Net48Backend {
 }
 
 #[duplicate_item(
-    f48       Net48       Net48Backend       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Net64Backend ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Net32Backend ]   [ Vertex32 ]   [ AudioUnit32 ];
+    f48       Net48       NetBackend48       Vertex48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ NetBackend64 ]   [ Vertex64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ NetBackend32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
-impl Net48Backend {
+impl NetBackend48 {
     /// Create new backend.
     pub fn new(sender: Sender<Net48>, receiver: Receiver<Net48>, net: Net48) -> Self {
         Self {
@@ -79,11 +79,11 @@ impl Net48Backend {
 }
 
 #[duplicate_item(
-    f48       Net48       Net48Backend       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Net64Backend ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Net32Backend ]   [ Vertex32 ]   [ AudioUnit32 ];
+    f48       Net48       NetBackend48       Vertex48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ NetBackend64 ]   [ Vertex64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ NetBackend32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
-impl AudioUnit48 for Net48Backend {
+impl AudioUnit48 for NetBackend48 {
     fn inputs(&self) -> usize {
         self.net.inputs()
     }

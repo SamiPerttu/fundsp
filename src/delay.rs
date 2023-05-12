@@ -222,7 +222,7 @@ where
             let tap_i2 = (tap_i1.wrapping_sub(1)) & mask;
             let tap_i3 = (tap_i1.wrapping_sub(2)) & mask;
             let tap_i1 = tap_i1 & mask;
-            let tap_d = tap - convert(tap_floor as f32);
+            let tap_d = tap - T::new(tap_floor as i64);
             output += spline(
                 self.buffer[tap_i0],
                 self.buffer[tap_i1],

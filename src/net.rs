@@ -215,9 +215,9 @@ impl Clone for Net48 {
 }
 
 #[duplicate_item(
-    f48       Net48       Net48Backend       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Net64Backend ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Net32Backend ]   [ Vertex32 ]   [ AudioUnit32 ];
+    f48       Net48       NetBackend48       Vertex48       AudioUnit48;
+    [ f64 ]   [ Net64 ]   [ NetBackend64 ]   [ Vertex64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Net32 ]   [ NetBackend32 ]   [ Vertex32 ]   [ AudioUnit32 ];
 )]
 impl Net48 {
     /// Create a new network with the given number of inputs and outputs.
@@ -887,7 +887,7 @@ impl Net48 {
     /// net.commit();
     /// assert!(backend.get_mono() == 2.0);
     /// ```
-    pub fn backend(&mut self) -> Net48Backend {
+    pub fn backend(&mut self) -> NetBackend48 {
         assert!(!self.has_backend());
         // Create huge channel buffers to make sure we don't run out of space easily.
         let (sender_a, receiver_a) = channel(1024);
@@ -904,7 +904,7 @@ impl Net48 {
         std::mem::swap(&mut net.vertex, &mut self.vertex);
         net.allocate();
         self.revision += 1;
-        Net48Backend::new(sender_b, receiver_a, net)
+        NetBackend48::new(sender_b, receiver_a, net)
     }
 
     /// Returns whether this network has a backend.
@@ -1206,6 +1206,7 @@ impl Net48 {
                 }
             }
         }
+        net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
         net1
     }
@@ -1261,6 +1262,7 @@ impl Net48 {
                 }
             }
         }
+        net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
         net1
     }
