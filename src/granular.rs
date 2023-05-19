@@ -157,7 +157,7 @@ impl<
         assert!(envelope_length >= 0.0);
         assert!(envelope_length < grain_length);
         if t == 0.0 {
-            assert!(voice == 0);
+            assert_eq!(voice, 0);
             // Offset voice start times based on the first grain.
             for i in 1..self.voices.len() {
                 self.voices[i].next_time =

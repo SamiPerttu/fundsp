@@ -557,13 +557,14 @@ pub fn midi_hz<T: Real>(x: T) -> T {
     T::new(440) * exp2((x - T::new(69)) / T::new(12))
 }
 
-/// Convert BPM to Hz.
+/// Convert BPM (beats per minute) to Hz.
 #[inline]
 pub fn bpm_hz<T: Real>(bpm: T) -> T {
     bpm / T::new(60)
 }
 
 /// Pico sized hasher.
+/// It is used in computing deterministic pseudorandom phase hashes.
 #[derive(Default, Clone)]
 pub struct AttoHash {
     state: u64,

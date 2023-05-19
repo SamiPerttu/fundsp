@@ -22,7 +22,7 @@ duplicate = "1.0.0"
 dyn-clone = "1.0.11"
 symphonia = { version = "0.5.2", optional = true, features = ["all"] }
 thingbuf = "0.1.4"
-funutd = "0.11.0"
+funutd = "0.12.0"
 
 [features]
 default = ["files"]

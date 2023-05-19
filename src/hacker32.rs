@@ -2,6 +2,7 @@
 
 pub use super::audionode::*;
 pub use super::audiounit::*;
+pub use super::buffer::*;
 pub use super::combinator::*;
 pub use super::delay::*;
 pub use super::dynamics::*;
@@ -1531,6 +1532,12 @@ pub fn dsf_square_r(roughness: f32) -> An<Dsf<f32, U1>> {
 /// Allocates: pluck buffer.
 /// - Input 0: string excitation
 /// - Output 0: oscillator output
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker32::*;
+/// let node = zero() >> pluck(440.0, 0.5, 1.0);
+/// ```
 pub fn pluck(frequency: f32, gain_per_second: f32, high_frequency_damping: f32) -> An<Pluck<f32>> {
     An(Pluck::new(
         frequency,

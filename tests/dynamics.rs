@@ -55,7 +55,7 @@ fn test_dynamics() {
         let x1 = m1.filter_mono(x);
         let x2 = m2.filter_mono(x);
         assert!(x > 0.0 && x == x1 && x == x2);
-        assert!(x == s1.value());
+        assert_eq!(x, s1.value());
     }
     let s1 = shared(0.0);
     let mut m1 = monitor(&s1, Meter::Peak(0.1));
@@ -65,6 +65,6 @@ fn test_dynamics() {
         let x1 = m1.filter_mono(x);
         let x2 = m2.filter_mono(x);
         assert!(x > 0.0 && x == x1 && x2 >= 0.0);
-        assert!(x2 == s1.value());
+        assert_eq!(x2, s1.value());
     }
 }

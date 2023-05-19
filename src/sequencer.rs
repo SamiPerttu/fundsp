@@ -279,6 +279,9 @@ pub struct Sequencer48 {
 )]
 impl Clone for Sequencer48 {
     fn clone(&self) -> Self {
+        if self.has_backend() {
+            panic!("Frontends cannot be cloned.");
+        }
         Self {
             active: self.active.clone(),
             active_map: self.active_map.clone(),
@@ -292,7 +295,6 @@ impl Clone for Sequencer48 {
             sample_duration: self.sample_duration,
             buffer: self.buffer.clone(),
             tick_buffer: self.tick_buffer.clone(),
-            // Frontend is never cloned.
             front: None,
             replay_events: self.replay_events,
         }
@@ -323,7 +325,7 @@ impl Sequencer48 {
             time: 0.0,
             sample_rate: DEFAULT_SR as f48,
             sample_duration: 1.0 / DEFAULT_SR as f48,
-            buffer: Buffer::with_size(outputs),
+            buffer: Buffer::with_channels(outputs),
             tick_buffer: vec![0.0; outputs],
             front: None,
             replay_events,
@@ -348,7 +350,8 @@ impl Sequencer48 {
         fade_out_time: f48,
         mut unit: Box<dyn AudioUnit48>,
     ) -> EventId {
-        assert!(unit.inputs() == 0 && unit.outputs() == self.outputs);
+        assert_eq!(unit.inputs(), 0);
+        assert_eq!(unit.outputs(), self.outputs);
         let duration = end_time - start_time;
         assert!(fade_in_time <= duration && fade_out_time <= duration);
         // Make sure the sample rate of the unit matches ours.

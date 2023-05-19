@@ -97,8 +97,8 @@ impl Vertex48 {
         let mut vertex = Self {
             unit,
             source: vec![],
-            input: Buffer::with_size(inputs),
-            output: Buffer::with_size(outputs),
+            input: Buffer::with_channels(inputs),
+            output: Buffer::with_channels(outputs),
             tick_input: vec![0.0; inputs],
             tick_output: vec![0.0; outputs],
             id,
@@ -233,8 +233,8 @@ impl Net48 {
     /// ```
     pub fn new(inputs: usize, outputs: usize) -> Self {
         let mut net = Self {
-            input: Buffer::with_size(inputs),
-            output: Buffer::with_size(outputs),
+            input: Buffer::with_channels(inputs),
+            output: Buffer::with_channels(outputs),
             output_edge: vec![],
             vertex: vec![],
             order: None,
@@ -414,8 +414,8 @@ impl Net48 {
         mut unit: Box<dyn AudioUnit48>,
     ) -> Box<dyn AudioUnit48> {
         let node_index = self.node_index[&node];
-        assert!(unit.inputs() == self.vertex[node_index].inputs());
-        assert!(unit.outputs() == self.vertex[node_index].outputs());
+        assert_eq!(unit.inputs(), self.vertex[node_index].inputs());
+        assert_eq!(unit.outputs(), self.vertex[node_index].outputs());
         std::mem::swap(&mut self.vertex[node_index].unit, &mut unit);
         self.vertex[node_index].changed = self.revision;
         unit
@@ -532,7 +532,7 @@ impl Net48 {
     /// ```
     pub fn pipe_input(&mut self, target: NodeId) {
         let target_index = self.node_index[&target];
-        assert!(self.vertex[target_index].inputs() == self.inputs());
+        assert_eq!(self.vertex[target_index].inputs(), self.inputs());
         for i in 0..self.inputs() {
             self.vertex[target_index].source[i] =
                 edge(Port::Global(i), Port::Local(target_index, i));
@@ -625,7 +625,10 @@ impl Net48 {
     pub fn pipe(&mut self, source: NodeId, target: NodeId) {
         let source_index = self.node_index[&source];
         let target_index = self.node_index[&target];
-        assert!(self.vertex[source_index].outputs() == self.vertex[target_index].inputs());
+        assert_eq!(
+            self.vertex[source_index].outputs(),
+            self.vertex[target_index].inputs()
+        );
         for channel in 0..self.vertex[target_index].inputs() {
             self.vertex[target_index].source[channel] = edge(
                 Port::Local(source_index, channel),
@@ -801,12 +804,12 @@ impl Net48 {
 
     /// Check internal consistency of the network. Panic if something is wrong.
     pub fn check(&self) {
-        assert!(self.input.channels() == self.inputs());
-        assert!(self.output.channels() == self.outputs());
-        assert!(self.output_edge.len() == self.outputs());
-        assert!(self.node_index.len() == self.size());
+        assert_eq!(self.input.channels(), self.inputs());
+        assert_eq!(self.output.channels(), self.outputs());
+        assert_eq!(self.output_edge.len(), self.outputs());
+        assert_eq!(self.node_index.len(), self.size());
         for channel in 0..self.outputs() {
-            assert!(self.output_edge[channel].target == Port::Global(channel));
+            assert_eq!(self.output_edge[channel].target, Port::Global(channel));
             match self.output_edge[channel].source {
                 Port::Local(node, port) => {
                     assert!(node < self.size());
@@ -819,14 +822,29 @@ impl Net48 {
             }
         }
         for index in 0..self.size() {
-            assert!(self.node_index[&self.vertex[index].id] == index);
-            assert!(self.vertex[index].source.len() == self.vertex[index].inputs());
-            assert!(self.vertex[index].input.channels() == self.vertex[index].inputs());
-            assert!(self.vertex[index].output.channels() == self.vertex[index].outputs());
-            assert!(self.vertex[index].tick_input.len() == self.vertex[index].inputs());
-            assert!(self.vertex[index].tick_output.len() == self.vertex[index].outputs());
+            assert_eq!(self.node_index[&self.vertex[index].id], index);
+            assert_eq!(self.vertex[index].source.len(), self.vertex[index].inputs());
+            assert_eq!(
+                self.vertex[index].input.channels(),
+                self.vertex[index].inputs()
+            );
+            assert_eq!(
+                self.vertex[index].output.channels(),
+                self.vertex[index].outputs()
+            );
+            assert_eq!(
+                self.vertex[index].tick_input.len(),
+                self.vertex[index].inputs()
+            );
+            assert_eq!(
+                self.vertex[index].tick_output.len(),
+                self.vertex[index].outputs()
+            );
             for channel in 0..self.vertex[index].inputs() {
-                assert!(self.vertex[index].source[channel].target == Port::Local(index, channel));
+                assert_eq!(
+                    self.vertex[index].source[channel].target,
+                    Port::Local(index, channel)
+                );
                 match self.vertex[index].source[channel].source {
                     Port::Local(node, port) => {
                         assert!(node < self.size());
@@ -912,7 +930,7 @@ impl Net48 {
         self.front.is_some()
     }
 
-    /// Commit changes made to this network to the backend.
+    /// Commit changes made to this frontend to the backend.
     /// This may be called only if the network has a backend.
     pub fn commit(&mut self) {
         assert!(self.has_backend());

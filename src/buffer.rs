@@ -33,7 +33,7 @@ impl<T: Float> Buffer<T> {
         }
     }
     /// Create a buffer with the specified number of `channels`.
-    pub fn with_size(channels: usize) -> Self {
+    pub fn with_channels(channels: usize) -> Self {
         let mut buffer = Buffer::<T> {
             buffer: Vec::new(),
             slice: Slice::new(),

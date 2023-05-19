@@ -568,7 +568,7 @@ pub struct BlockRateAdapter48 {
 impl BlockRateAdapter48 {
     /// Create new block rate adapter for the unit.
     pub fn new(unit: Box<dyn AudioUnit48>) -> Self {
-        assert!(unit.inputs() == 0);
+        assert_eq!(unit.inputs(), 0);
         let channels = unit.outputs();
         Self {
             unit,

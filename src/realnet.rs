@@ -61,7 +61,7 @@ impl NetBackend48 {
                 Ok(net) => {
                     if let Some(net) = latest_net {
                         // This is not the latest network, send it back immediately for deallocation.
-                        self.sender.send(net).unwrap();
+                        if self.sender.try_send(net).is_ok() {}
                     }
                     latest_net = Some(net)
                 }

@@ -209,6 +209,8 @@ impl Wave48 {
 
     /// Add a channel to the wave from a slice of samples.
     /// The length of the wave and the number of samples must match.
+    /// If there are no channels yet, then the length of the wave
+    /// will become the length of the slice.
     pub fn push_channel(&mut self, samples: &[f48]) {
         assert!(self.channels() == 0 || self.len() == samples.len());
         if self.channels() == 0 {
@@ -456,7 +458,7 @@ impl Wave48 {
     /// assert!(wave.sample_rate() == 44100.0 && wave.channels() == 2 && wave.duration() == 10.0);
     /// ```
     pub fn render(sample_rate: f64, duration: f64, node: &mut dyn AudioUnit48) -> Self {
-        assert!(node.inputs() == 0);
+        assert_eq!(node.inputs(), 0);
         assert!(node.outputs() > 0);
         assert!(duration >= 0.0);
         node.set_sample_rate(sample_rate);
@@ -489,7 +491,7 @@ impl Wave48 {
     /// assert!(wave.amplitude() <= 1.0 && wave.duration() == 10.0 && wave.sample_rate() == 44100.0);
     /// ```
     pub fn render_latency(sample_rate: f64, duration: f64, node: &mut dyn AudioUnit48) -> Self {
-        assert!(node.inputs() == 0);
+        assert_eq!(node.inputs(), 0);
         assert!(node.outputs() > 0);
         assert!(duration >= 0.0);
         let latency = node.latency().unwrap_or_default();

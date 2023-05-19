@@ -46,7 +46,6 @@ pub trait AudioNode: Clone {
 
     /// Reset the input state of the component to an initial state where it has
     /// not processed any samples. In other words, reset time to zero.
-    /// The default implementation does nothing.
     ///
     /// ### Example
     /// ```
@@ -58,7 +57,9 @@ pub trait AudioNode: Clone {
     /// assert_eq!(sample1, sample2);
     /// ```
     #[allow(unused_variables)]
-    fn reset(&mut self) {}
+    fn reset(&mut self) {
+        // The default implementation does nothing.
+    }
 
     /// Set the sample rate of the unit.
     /// The default sample rate is 44100 Hz.
@@ -72,12 +73,22 @@ pub trait AudioNode: Clone {
     /// node.set_sample_rate(48_000.0);
     /// ```
     #[allow(unused_variables)]
-    fn set_sample_rate(&mut self, sample_rate: f64) {}
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        // The default implementation does nothing.
+    }
 
     /// Apply setting.
-    /// The default implementation does nothing.
+    ///
+    /// ### Example (Change Constant Value)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let mut node = dc(440.0) >> saw();
+    /// node.set(left(Frame::from([220.0])));
+    /// ```
     #[allow(unused_variables)]
-    fn set(&mut self, setting: Self::Setting) {}
+    fn set(&mut self, setting: Self::Setting) {
+        // The default implementation does nothing.
+    }
 
     /// Process one sample.
     ///
@@ -95,13 +106,22 @@ pub trait AudioNode: Clone {
     /// The number of input and output buffers must match the number of inputs and outputs, respectively.
     /// All input and output buffers must be at least as large as `size`.
     /// If `size` is zero then this is a no-op, which is permitted.
-    /// The default implementation is a fallback that calls into `tick`.
+    ///
+    /// ### Example
+    /// ```
+    /// use fundsp::hacker32::*;
+    /// let mut node = pluck(440.0, 0.5, 1.0);
+    /// let mut input_buffer = Buffer::with_channels(node.inputs());
+    /// let mut output_buffer = Buffer::with_channels(node.outputs());
+    /// node.process(MAX_BUFFER_SIZE, input_buffer.self_ref(), output_buffer.self_mut());
+    /// ```
     fn process(
         &mut self,
         size: usize,
         input: &[&[Self::Sample]],
         output: &mut [&mut [Self::Sample]],
     ) {
+        // The default implementation is a fallback that calls into `tick`.
         debug_assert!(size <= MAX_BUFFER_SIZE);
         debug_assert!(input.len() == self.inputs());
         debug_assert!(output.len() == self.outputs());
@@ -119,11 +139,13 @@ pub trait AudioNode: Clone {
         }
     }
 
-    /// Set node pseudorandom phase hash. Override this to use the hash.
+    /// Set node pseudorandom phase hash.
     /// This is called from `ping` (only). It should not be called by users.
-    /// The default implementation does nothing.
     #[allow(unused_variables)]
-    fn set_hash(&mut self, hash: u64) {}
+    fn set_hash(&mut self, hash: u64) {
+        // Override this to use the hash.
+        // The default implementation does nothing.
+    }
 
     /// Ping contained `AudioNode`s to obtain a deterministic pseudorandom hash.
     /// The local hash includes children, too.
@@ -141,15 +163,16 @@ pub trait AudioNode: Clone {
 
     /// Route constants, latencies and frequency responses at `frequency` Hz
     /// from inputs to outputs. Return output signal.
-    /// Default implementation marks all outputs unknown.
     #[allow(unused_variables)]
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        // Default implementation marks all outputs unknown.
         new_signal_frame(self.outputs())
     }
 
     /// Preallocate all needed memory, including buffers for block processing.
-    /// The default implementation does nothing.
-    fn allocate(&mut self) {}
+    fn allocate(&mut self) {
+        // The default implementation does nothing.
+    }
 
     // End of interface. There is no need to override the following.
 

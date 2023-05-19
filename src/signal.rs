@@ -177,7 +177,7 @@ impl Routing {
                 }
             }
             Routing::Reverse => {
-                assert!(input.len() == outputs);
+                assert_eq!(input.len(), outputs);
                 for i in 0..outputs {
                     output[i] = input[input.len() - 1 - i];
                 }

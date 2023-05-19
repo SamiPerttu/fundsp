@@ -301,7 +301,8 @@ impl eframe::App for State {
                                 >> bandpass(),
                         )),
                     };
-                    // Insert new note. We set the end time to infinity initially.
+                    // Insert new note. We set the end time to infinity initially,
+                    // which means it plays indefinitely until the key is released.
                     self.id[i] = Some(self.sequencer.push_relative(
                         0.0,
                         f64::INFINITY,
