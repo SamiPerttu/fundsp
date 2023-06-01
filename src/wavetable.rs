@@ -386,7 +386,7 @@ lazy_static! {
 }
 
 lazy_static! {
-    // Organ wavetable. Emphasizes octave partials.
+    /// Organ wavetable. Emphasizes octave partials.
     pub static ref ORGAN_TABLE: Wavetable = Wavetable::new(
         20.0, 20_000.0, 4.0,
         // Set phase to enable interpolation with saw, triangle and soft saw wavetables.
@@ -400,13 +400,39 @@ lazy_static! {
 }
 
 lazy_static! {
-    // Soft saw wavetable. Falls off like a triangle wave, contains all partials.
+    /// Soft saw wavetable. Falls off like a triangle wave, contains all partials.
     pub static ref SOFT_SAW_TABLE: Wavetable = Wavetable::new(
         20.0, 20_000.0, 4.0,
         // Set phase to enable interpolation with saw, triangle and organ wavetables.
         &|i| if (i & 3) == 3 { 0.5 } else if (i & 1) == 1 { 0.0 } else { 0.5 },
         &|_, i| {
             1.0 / (i * i) as f64
+        }
+    );
+}
+
+lazy_static! {
+    /// Hammond wavetable. Emphasizes first three partials.
+    /// Inspired by Hammond tonewheel setting 888000000.
+    pub static ref HAMMOND_TABLE: Wavetable = Wavetable::new(
+        20.0, 20_000.0, 4.0,
+        &|_| 0.0,
+        &|_, i| {
+            let z = i.trailing_zeros();
+            let j = i >> z;
+            let f = 1.0 / ((z + 1) * (z + 1)) as f64;
+            match i {
+                1 => return 1.0,
+                2 => return 1.0,
+                3 => return 1.0,
+                _ => (),
+            }
+            match j {
+                1 => f,
+                3 => f,
+                9 => 0.2 * f,
+                _ => 0.0,
+            }
         }
     );
 }

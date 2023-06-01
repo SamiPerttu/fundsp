@@ -9,6 +9,9 @@
 - Oversampling now employs a minimum phase halfband filter.
 - `Net64Backend` and `Net32Backend` are now called `NetBackend64` and `NetBackend32`.
 - `Sequencer64Backend` and `Sequencer32Backend` are now called `SequencerBackend64` and `SequencerBackend32`.
+- `Slot32/64` is a real-time updatable audio unit slot with crossfading between units.
+- "Hammond" wavetable, which emphasizes the first three partials.
+- Reverb time calculation was tweaked to take into account room size.
 
 ### Version 0.14
 

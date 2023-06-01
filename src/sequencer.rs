@@ -26,6 +26,17 @@ pub enum Fade {
     Smooth,
 }
 
+impl Fade {
+    /// Evaluate fade curve at `x` (0.0 <= `x` <= 1.0).
+    #[inline]
+    pub fn at<T: Float>(&self, x: T) -> T {
+        match self {
+            Fade::Power => sine_ease(x),
+            Fade::Smooth => smooth5(x),
+        }
+    }
+}
+
 /// Globally unique ID for a sequencer event.
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct EventId(u64);

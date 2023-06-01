@@ -29,6 +29,7 @@ pub use super::setting::*;
 pub use super::shape::*;
 pub use super::shared::*;
 pub use super::signal::*;
+pub use super::slot::*;
 pub use super::snoop::*;
 pub use super::svf::*;
 pub use super::system::*;
@@ -1546,7 +1547,7 @@ pub fn pluck(frequency: f64, gain_per_second: f64, high_frequency_damping: f64) 
     ))
 }
 
-/// Saw wave oscillator.
+/// Saw wavetable oscillator.
 /// Allocates: global saw wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: saw wave
@@ -1554,7 +1555,7 @@ pub fn saw() -> An<WaveSynth<'static, f64, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
 }
 
-/// Square wave oscillator.
+/// Square wavetable oscillator.
 /// Allocates: global square wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: square wave
@@ -1562,7 +1563,7 @@ pub fn square() -> An<WaveSynth<'static, f64, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
 }
 
-/// Triangle wave oscillator.
+/// Triangle wavetable oscillator.
 /// Allocates: global triangle wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: triangle wave
@@ -1570,7 +1571,7 @@ pub fn triangle() -> An<WaveSynth<'static, f64, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
 }
 
-/// Organ oscillator.
+/// Organ wavetable oscillator. Emphasizes octave partials.
 /// Allocates: global organ wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: organ wave
@@ -1578,7 +1579,7 @@ pub fn organ() -> An<WaveSynth<'static, f64, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &ORGAN_TABLE))
 }
 
-/// Soft saw oscillator.
+/// Soft saw wavetable oscillator.
 /// Contains all partials, falls off like a triangle wave.
 /// Allocates: global soft saw wavetable.
 /// - Input 0: frequency in Hz
@@ -1587,40 +1588,55 @@ pub fn soft_saw() -> An<WaveSynth<'static, f64, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SOFT_SAW_TABLE))
 }
 
-/// Fixed saw wave oscillator at `f` Hz.
+/// Hammond wavetable oscillator. Emphasizes first three partials.
+/// Allocates: global Hammond wavetable.
+/// - Input 0: frequency in Hz
+/// - Output 0: Hammond wave
+pub fn hammond() -> An<WaveSynth<'static, f64, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &HAMMOND_TABLE))
+}
+
+/// Fixed saw wavetable oscillator at `f` Hz.
 /// Allocates: global saw wavetable.
 /// - Output 0: saw wave
 pub fn saw_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     super::prelude::saw_hz(f)
 }
 
-/// Fixed square wave oscillator at `f` Hz.
+/// Fixed square wavetable oscillator at `f` Hz.
 /// Allocates: global square wavetable.
 /// - Output 0: square wave
 pub fn square_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     super::prelude::square_hz(f)
 }
 
-/// Fixed triangle wave oscillator at `f` Hz.
+/// Fixed triangle wavetable oscillator at `f` Hz.
 /// Allocates: global triangle wavetable.
 /// - Output 0: triangle wave
 pub fn triangle_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     super::prelude::triangle_hz(f)
 }
 
-/// Fixed organ oscillator at `f` Hz.
+/// Fixed organ wavetable oscillator at `f` Hz. Emphasizes octave partials.
 /// Allocates: global organ wavetable.
 /// - Output 0: organ wave
 pub fn organ_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     constant(f) >> organ()
 }
 
-/// Fixed soft saw oscillator at `f` Hz.
+/// Fixed soft saw wavetable oscillator at `f` Hz.
 /// Contains all partials, falls off like a triangle wave.
 /// Allocates: global soft saw wavetable.
 /// - Output 0: soft saw wave
 pub fn soft_saw_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     constant(f) >> soft_saw()
+}
+
+/// Fixed Hammond wavetable oscillator at `f` Hz. Emphasizes first three partials.
+/// Allocates: global Hammond wavetable.
+/// - Output 0: Hammond wave
+pub fn hammond_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
+    constant(f) >> hammond()
 }
 
 /// Lowpass filter.

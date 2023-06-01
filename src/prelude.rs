@@ -29,6 +29,7 @@ pub use super::setting::*;
 pub use super::shape::*;
 pub use super::shared::*;
 pub use super::signal::*;
+pub use super::slot::*;
 pub use super::snoop::*;
 pub use super::svf::*;
 pub use super::system::*;
@@ -1597,7 +1598,7 @@ pub fn reverb_stereo<T>(
     time: f64,
 ) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>>
 where
-    T: Float,
+    T: Real,
 {
     // TODO: This is the simplest possible structure, there's probably a lot of scope for improvement.
 
@@ -1610,7 +1611,7 @@ where
         0.082923, 0.070121, 0.079315, 0.055039, 0.081859,
     ];
 
-    let a = T::from_f64(pow(db_amp(-60.0), 0.03 / time));
+    let a = T::from_f64(pow(db_amp(-60.0), 0.03 * room_size / 10.0 / time));
 
     // Delay lines.
     let line = stack::<U32, T, _, _>(|i| {
@@ -1623,6 +1624,12 @@ where
 
     // Multiplex stereo into 32 channels, reverberate, then average them back.
     multisplit::<U2, U16, T>() >> reverb >> multijoin::<U2, U16, T>()
+
+    // This version pans the channels linearly (the above version pans them hard left or right).
+    //multisplit::<U2, U16, T>()
+    //    >> reverb
+    //    >> sumf::<U32, _, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(x))))
+    //        * dc((T::from_f64(1.0 / 16.0), T::from_f64(1.0 / 16.0)))
 }
 
 /// Saw-like discrete summation formula oscillator.
@@ -1680,7 +1687,7 @@ pub fn pluck<T: Float>(
     ))
 }
 
-/// Saw wave oscillator.
+/// Saw wavetable oscillator.
 /// Allocates: global saw wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: saw wave
@@ -1688,7 +1695,7 @@ pub fn saw<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SAW_TABLE))
 }
 
-/// Square wave oscillator.
+/// Square wavetable oscillator.
 /// Allocates: global square wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: square wave
@@ -1696,7 +1703,7 @@ pub fn square<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SQUARE_TABLE))
 }
 
-/// Triangle wave oscillator.
+/// Triangle wavetable oscillator.
 /// Allocates: global triangle wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: triangle wave
@@ -1704,7 +1711,7 @@ pub fn triangle<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &TRIANGLE_TABLE))
 }
 
-/// Organ oscillator.
+/// Organ wavetable oscillator. Emphasizes octave partials.
 /// Allocates: global organ wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: organ wave
@@ -1712,7 +1719,7 @@ pub fn organ<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &ORGAN_TABLE))
 }
 
-/// Soft saw oscillator.
+/// Soft saw wavetable oscillator.
 /// Contains all partials, falls off like a triangle wave.
 /// Allocates: global soft saw wavetable.
 /// - Input 0: frequency in Hz
@@ -1721,40 +1728,55 @@ pub fn soft_saw<T: Float>() -> An<WaveSynth<'static, T, U1>> {
     An(WaveSynth::new(DEFAULT_SR, &SOFT_SAW_TABLE))
 }
 
-/// Fixed saw wave oscillator at `f` Hz.
+/// Hammond wavetable oscillator. Emphasizes first three partials.
+/// Allocates: global Hammond wavetable.
+/// - Input 0: frequency in Hz
+/// - Output 0: Hammond wave
+pub fn hammond<T: Float>() -> An<WaveSynth<'static, T, U1>> {
+    An(WaveSynth::new(DEFAULT_SR, &HAMMOND_TABLE))
+}
+
+/// Fixed saw wavetable oscillator at `f` Hz.
 /// Allocates: global saw wavetable.
 /// - Output 0: saw wave
 pub fn saw_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
     constant(f) >> saw()
 }
 
-/// Fixed square wave oscillator at `f` Hz.
+/// Fixed square wavetable oscillator at `f` Hz.
 /// Allocates: global square wavetable.
 /// - Output 0: square wave
 pub fn square_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
     constant(f) >> square()
 }
 
-/// Fixed triangle wave oscillator at `f` Hz.
+/// Fixed triangle wavetable oscillator at `f` Hz.
 /// Allocates: global triangle wavetable.
 /// - Output 0: triangle wave
 pub fn triangle_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
     constant(f) >> triangle()
 }
 
-/// Fixed organ oscillator at `f` Hz.
+/// Fixed organ wavetable oscillator at `f` Hz. Emphasizes octave partials.
 /// Allocates: global organ wavetable.
 /// - Output 0: organ wave
 pub fn organ_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
     constant(f) >> organ()
 }
 
-/// Fixed soft saw oscillator at `f` Hz.
+/// Fixed soft saw wavetable oscillator at `f` Hz.
 /// Contains all partials, falls off like a triangle wave.
 /// Allocates: global soft saw wavetable.
 /// - Output 0: soft saw wave
 pub fn soft_saw_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
     constant(f) >> soft_saw()
+}
+
+/// Fixed Hammond wavetable oscillator at `f` Hz. Emphasizes first three partials.
+/// Allocates: global Hammond wavetable.
+/// - Output 0: Hammond wave
+pub fn hammond_hz<T: Float>(f: T) -> An<Pipe<T, Constant<U1, T>, WaveSynth<'static, T, U1>>> {
+    constant(f) >> hammond()
 }
 
 /// Lowpass filter.

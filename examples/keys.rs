@@ -15,6 +15,9 @@ enum Waveform {
     Square,
     Triangle,
     Organ,
+    Hammond,
+    Pulse,
+    Pluck,
 }
 
 #[derive(Debug, PartialEq)]
@@ -23,6 +26,7 @@ enum Filter {
     Moog,
     Butterworth,
     Bandpass,
+    Peak,
 }
 
 #[allow(dead_code)]
@@ -38,9 +42,15 @@ struct State {
     /// Selected filter.
     filter: Filter,
     /// Chorus amount.
-    chorus: Shared<f64>,
+    chorus_amount: Shared<f64>,
     /// Reverb amount.
-    reverb: Shared<f64>,
+    reverb_amount: Shared<f64>,
+    /// Reverb room size.
+    room_size: f64,
+    /// Reverb time in seconds.
+    reverb_time: f64,
+    /// Reverb frontend.
+    reverb: Slot64,
     /// Left channel data for the oscilloscope.
     snoop0: Snoop<f64>,
     /// Right channel data for the oscilloscope.
@@ -108,10 +118,13 @@ where
     let (snoop0, snoop_backend0) = snoop(32768);
     let (snoop1, snoop_backend1) = snoop(32768);
 
+    let room_size = 10.0;
     let reverb_amount = shared(0.2);
+    let reverb_time = 2.0;
     let chorus_amount = shared(1.0);
 
     let mut net = Net64::wrap(Box::new(sequencer_backend));
+    let (reverb, reverb_backend) = Slot64::new(Box::new(reverb_stereo(room_size, reverb_time)));
     net = net >> pan(0.0);
     // Smooth chorus and reverb amounts to prevent discontinuities.
     net = net
@@ -119,8 +132,9 @@ where
             & (var(&chorus_amount) >> follow(0.01) >> split())
                 * (chorus(0, 0.0, 0.02, 0.3) | chorus(1, 0.0, 0.02, 0.3)));
     net = net
-        >> ((1.0 - var(&reverb_amount) >> follow(0.01) >> split()) * multipass()
-            & (var(&reverb_amount) >> follow(0.01) >> split()) * reverb_stereo(20.0, 2.0))
+        >> ((1.0 - var(&reverb_amount) >> follow(0.01) >> split::<U2>()) * multipass()
+            & (var(&reverb_amount) >> follow(0.01) >> split::<U2>())
+                * Net64::wrap(Box::new(reverb_backend)))
         >> (snoop_backend0 | snoop_backend1);
 
     net.set_sample_rate(sample_rate);
@@ -143,7 +157,7 @@ where
     stream.play()?;
 
     let options = eframe::NativeOptions {
-        min_window_size: Some(vec2(256.0, 320.0)),
+        min_window_size: Some(vec2(420.0, 400.0)),
         ..eframe::NativeOptions::default()
     };
 
@@ -153,8 +167,11 @@ where
         net,
         waveform: Waveform::Saw,
         filter: Filter::None,
-        chorus: chorus_amount,
-        reverb: reverb_amount,
+        chorus_amount,
+        reverb_amount,
+        room_size,
+        reverb,
+        reverb_time,
         snoop0,
         snoop1,
     };
@@ -191,6 +208,7 @@ where
 
 impl eframe::App for State {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.set_visuals(egui::Visuals::dark());
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Virtual Keyboard Example");
             ui.separator();
@@ -203,6 +221,9 @@ impl eframe::App for State {
                 ui.selectable_value(&mut self.waveform, Waveform::Square, "Square");
                 ui.selectable_value(&mut self.waveform, Waveform::Triangle, "Triangle");
                 ui.selectable_value(&mut self.waveform, Waveform::Organ, "Organ");
+                ui.selectable_value(&mut self.waveform, Waveform::Hammond, "Hammond");
+                ui.selectable_value(&mut self.waveform, Waveform::Pulse, "Pulse");
+                ui.selectable_value(&mut self.waveform, Waveform::Pluck, "Pluck");
             });
             ui.separator();
             ui.end_row();
@@ -213,21 +234,37 @@ impl eframe::App for State {
                 ui.selectable_value(&mut self.filter, Filter::Moog, "Moog");
                 ui.selectable_value(&mut self.filter, Filter::Butterworth, "Butterworth");
                 ui.selectable_value(&mut self.filter, Filter::Bandpass, "Bandpass");
+                ui.selectable_value(&mut self.filter, Filter::Peak, "Peak");
             });
             ui.separator();
             ui.end_row();
 
             ui.label("Chorus Amount");
-            let mut chorus = self.chorus.value() * 100.0;
+            let mut chorus = self.chorus_amount.value() * 100.0;
             ui.add(egui::Slider::new(&mut chorus, 0.0..=100.0).suffix("%"));
-            self.chorus.set_value(chorus * 0.01);
+            self.chorus_amount.set_value(chorus * 0.01);
             ui.separator();
             ui.end_row();
 
             ui.label("Reverb Amount");
-            let mut reverb = self.reverb.value() * 100.0;
+            let mut reverb = self.reverb_amount.value() * 100.0;
             ui.add(egui::Slider::new(&mut reverb, 0.0..=100.0).suffix("%"));
-            self.reverb.set_value(reverb * 0.01);
+            self.reverb_amount.set_value(reverb * 0.01);
+            let mut reverb_time = self.reverb_time;
+            let mut room_size = self.room_size;
+            ui.label("Reverb Time");
+            ui.add(egui::Slider::new(&mut reverb_time, 1.0..=5.0).suffix("s"));
+            ui.label("Reverb Room Size");
+            ui.add(egui::Slider::new(&mut room_size, 3.0..=30.0).suffix("m"));
+            if self.room_size != room_size || self.reverb_time != reverb_time {
+                self.reverb.set(
+                    Fade::Smooth,
+                    0.5,
+                    Box::new(reverb_stereo(room_size, reverb_time)),
+                );
+                self.room_size = room_size;
+                self.reverb_time = reverb_time;
+            }
             ui.separator();
             ui.end_row();
 
@@ -243,7 +280,7 @@ impl eframe::App for State {
                 let color1 = Color32::from_rgb(200, 200, 200);
                 let thickness: f32 = 1.0;
 
-                let desired_size = ui.available_width() * vec2(1.0, 0.3);
+                let desired_size = ui.available_width() * vec2(1.0, 0.2);
                 let (_id, rect) = ui.allocate_space(desired_size);
 
                 let to_screen = emath::RectTransform::from_to(
@@ -286,6 +323,14 @@ impl eframe::App for State {
                         Waveform::Square => Net64::wrap(Box::new(square_hz(pitch) * 0.5)),
                         Waveform::Triangle => Net64::wrap(Box::new(triangle_hz(pitch) * 0.5)),
                         Waveform::Organ => Net64::wrap(Box::new(organ_hz(pitch) * 0.5)),
+                        Waveform::Hammond => Net64::wrap(Box::new(hammond_hz(pitch) * 0.5)),
+                        Waveform::Pulse => Net64::wrap(Box::new(
+                            lfo(move |t| (pitch, lerp11(0.01, 0.99, sin_hz(0.1, t))))
+                                >> pulse() * 0.5,
+                        )),
+                        Waveform::Pluck => {
+                            Net64::wrap(Box::new(zero() >> pluck(pitch, 0.5, 0.5) * 0.5))
+                        }
                     };
                     let filter = match self.filter {
                         Filter::None => Net64::wrap(Box::new(pass())),
@@ -299,6 +344,10 @@ impl eframe::App for State {
                         Filter::Bandpass => Net64::wrap(Box::new(
                             (pass() | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 2.0)))
                                 >> bandpass(),
+                        )),
+                        Filter::Peak => Net64::wrap(Box::new(
+                            (pass() | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 2.0)))
+                                >> peak(),
                         )),
                     };
                     // Insert new note. We set the end time to infinity initially,
