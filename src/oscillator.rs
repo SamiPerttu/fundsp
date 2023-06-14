@@ -247,8 +247,14 @@ impl<T: Float> Pluck<T> {
         self.tuning.set_delay(T::from_f64(allpass_delay));
         self.line.resize(loop_delay as usize, T::zero());
         let mut rnd = Rnd::from_u64(self.hash);
+        let mut mean = 0.0;
         for i in 0..self.line.len() {
             self.line[i] = T::from_f32(rnd.f32_in(-1.0, 1.0));
+            mean += self.line[i].to_f64();
+        }
+        mean /= self.line.len() as f64;
+        for x in self.line.iter_mut() {
+            *x -= T::from_f64(mean);
         }
         self.pos = 0;
         self.initialized = true;

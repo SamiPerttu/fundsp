@@ -7,6 +7,7 @@ use cpal::{FromSample, SizedSample};
 use eframe::egui;
 use egui::*;
 use fundsp::hacker::*;
+use funutd::Rnd;
 
 #[derive(Debug, PartialEq)]
 enum Waveform {
@@ -18,6 +19,7 @@ enum Waveform {
     Hammond,
     Pulse,
     Pluck,
+    Noise,
 }
 
 #[derive(Debug, PartialEq)]
@@ -31,6 +33,8 @@ enum Filter {
 
 #[allow(dead_code)]
 struct State {
+    /// Random number generator.
+    rnd: Rnd,
     /// Status of keys.
     id: Vec<Option<EventId>>,
     /// Sequencer frontend.
@@ -157,11 +161,12 @@ where
     stream.play()?;
 
     let options = eframe::NativeOptions {
-        min_window_size: Some(vec2(420.0, 400.0)),
+        min_window_size: Some(vec2(360.0, 420.0)),
         ..eframe::NativeOptions::default()
     };
 
     let mut state: State = State {
+        rnd: Rnd::from_time(),
         id: Vec::new(),
         sequencer,
         net,
@@ -221,9 +226,12 @@ impl eframe::App for State {
                 ui.selectable_value(&mut self.waveform, Waveform::Square, "Square");
                 ui.selectable_value(&mut self.waveform, Waveform::Triangle, "Triangle");
                 ui.selectable_value(&mut self.waveform, Waveform::Organ, "Organ");
+            });
+            ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.waveform, Waveform::Hammond, "Hammond");
                 ui.selectable_value(&mut self.waveform, Waveform::Pulse, "Pulse");
                 ui.selectable_value(&mut self.waveform, Waveform::Pluck, "Pluck");
+                ui.selectable_value(&mut self.waveform, Waveform::Noise, "Noise");
             });
             ui.separator();
             ui.end_row();
@@ -280,7 +288,7 @@ impl eframe::App for State {
                 let color1 = Color32::from_rgb(200, 200, 200);
                 let thickness: f32 = 1.0;
 
-                let desired_size = ui.available_width() * vec2(1.0, 0.2);
+                let desired_size = ui.available_width() * vec2(1.0, 0.25);
                 let (_id, rect) = ui.allocate_space(desired_size);
 
                 let to_screen = emath::RectTransform::from_to(
@@ -331,6 +339,15 @@ impl eframe::App for State {
                         Waveform::Pluck => {
                             Net64::wrap(Box::new(zero() >> pluck(pitch, 0.5, 0.5) * 0.5))
                         }
+                        Waveform::Noise => Net64::wrap(Box::new(
+                            (noise()
+                                | lfo(move |t| {
+                                    (pitch, funutd::math::lerp(100.0, 10.0, clamp01(t * 5.0)))
+                                }))
+                                >> !resonator()
+                                >> resonator()
+                                >> shape(fundsp::shape::Shape::AdaptiveTanh(0.01, 0.1)),
+                        )),
                     };
                     let filter = match self.filter {
                         Filter::None => Net64::wrap(Box::new(pass())),
@@ -350,6 +367,9 @@ impl eframe::App for State {
                                 >> peak(),
                         )),
                     };
+                    let mut note = Box::new(waveform >> filter);
+                    // Give the note its own random seed.
+                    note.ping(false, AttoHash::new(self.rnd.u64()));
                     // Insert new note. We set the end time to infinity initially,
                     // which means it plays indefinitely until the key is released.
                     self.id[i] = Some(self.sequencer.push_relative(
@@ -358,7 +378,7 @@ impl eframe::App for State {
                         Fade::Smooth,
                         0.02,
                         0.2,
-                        Box::new(waveform >> filter),
+                        note,
                     ));
                 }
             }
