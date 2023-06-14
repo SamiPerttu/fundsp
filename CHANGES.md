@@ -1,6 +1,6 @@
 ## Changes
 
-### Version 0.15 (Next Version)
+### Version 0.15
 
 - Snoop node for sharing audio data with a frontend thread.
 - Meter smoothing parameters are now timescales specified in seconds.
