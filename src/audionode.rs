@@ -10,9 +10,9 @@ use numeric_array::typenum::*;
 use std::marker::PhantomData;
 
 /// Type-level integer.
-pub trait Size<T>: numeric_array::ArrayLength<T> {}
+pub trait Size<T>: numeric_array::ArrayLength<T> + Sync + Send + Clone {}
 
-impl<T, A: numeric_array::ArrayLength<T>> Size<T> for A {}
+impl<T, A: numeric_array::ArrayLength<T> + Sync + Send + Clone> Size<T> for A {}
 
 /// Frames are used to transport audio data between `AudioNode` instances.
 pub type Frame<T, Size> = numeric_array::NumericArray<T, Size>;
@@ -31,7 +31,7 @@ Order of type arguments in nodes:
 /// Generic audio processor.
 /// `AudioNode` has a static number of inputs (`AudioNode::Inputs`) and outputs (`AudioNode::Outputs`).
 /// `AudioNode` processes samples of type `AudioNode::Sample`, chosen statically.
-pub trait AudioNode: Clone {
+pub trait AudioNode: Clone + Sync + Send {
     /// Unique ID for hashing.
     const ID: u64;
     /// Sample type for input and output.
@@ -784,7 +784,7 @@ where
 }
 
 /// Provides binary operator implementations to the `Binop` node.
-pub trait FrameBinop<N: Size<T>, T: Float>: Clone {
+pub trait FrameBinop<N: Size<T>, T: Float>: Clone + Sync + Send {
     /// Do binary op (x op y) channelwise.
     fn binop(x: &Frame<T, N>, y: &Frame<T, N>) -> Frame<T, N>;
     /// Do binary op (x op y) on signals.
@@ -1048,7 +1048,7 @@ where
 }
 
 /// Provides unary operator implementations to the `Unop` node.
-pub trait FrameUnop<N: Size<T>, T: Float>: Clone {
+pub trait FrameUnop<N: Size<T>, T: Float>: Clone + Sync + Send {
     /// Do unary op channelwise.
     fn unop(&self, x: &Frame<T, N>) -> Frame<T, N>;
     /// Do unary op on signal.
@@ -1305,7 +1305,7 @@ where
 impl<T, M, I, O> AudioNode for Map<T, M, I, O>
 where
     T: Float,
-    M: Fn(&Frame<T, I>) -> O + Clone,
+    M: Fn(&Frame<T, I>) -> O + Clone + Sync + Send,
     I: Size<T>,
     O: ConstantFrame<Sample = T>,
     O::Size: Size<T>,

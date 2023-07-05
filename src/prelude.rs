@@ -236,7 +236,7 @@ pub fn multizero<N: Size<T>, T: Float>() -> An<Constant<N, T>> {
 /// Update enclosed node `x` with approximately `dt` seconds between updates.
 /// The update function is `f(t, dt, x)` where `t` is current time,
 /// `dt` is time from previous update, and `x` is the enclosed node.
-pub fn update<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone>(
+pub fn update<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone + Send + Sync>(
     x: An<X>,
     dt: T,
     f: F,
@@ -594,7 +594,7 @@ pub fn envelope<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R + Clone,
+    E: Fn(F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -620,7 +620,7 @@ pub fn lfo<T, F, E, R>(f: E) -> An<Envelope<T, F, E, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R + Clone,
+    E: Fn(F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -646,7 +646,7 @@ pub fn envelope2<T, F, E, R>(
 where
     T: Float,
     F: Float,
-    E: Fn(F, F) -> R + Clone,
+    E: Fn(F, F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -676,7 +676,7 @@ pub fn lfo2<T, F, E, R>(
 where
     T: Float,
     F: Float,
-    E: Fn(F, F) -> R + Clone,
+    E: Fn(F, F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -700,7 +700,7 @@ pub fn envelope3<T, F, E, R>(
 where
     T: Float,
     F: Float,
-    E: Fn(F, F, F) -> R + Clone,
+    E: Fn(F, F, F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -733,7 +733,7 @@ pub fn lfo3<T, F, E, R>(
 where
     T: Float,
     F: Float,
-    E: Fn(F, F, F) -> R + Clone,
+    E: Fn(F, F, F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -755,7 +755,7 @@ pub fn envelope_in<T, F, E, I, R>(f: E) -> An<EnvelopeIn<T, F, E, I, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F, &Frame<T, I>) -> R + Clone,
+    E: Fn(F, &Frame<T, I>) -> R + Clone + Send + Sync,
     I: Size<T>,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
@@ -774,7 +774,7 @@ pub fn lfo_in<T, F, E, I, R>(f: E) -> An<EnvelopeIn<T, F, E, I, R>>
 where
     T: Float,
     F: Float,
-    E: Fn(F, &Frame<T, I>) -> R + Clone,
+    E: Fn(F, &Frame<T, I>) -> R + Clone + Send + Sync,
     I: Size<T>,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
@@ -1085,7 +1085,7 @@ where
 pub fn map<T, M, I, O>(f: M) -> An<Map<T, M, I, O>>
 where
     T: Float,
-    M: Fn(&Frame<T, I>) -> O + Clone,
+    M: Fn(&Frame<T, I>) -> O + Clone + Send + Sync,
     I: Size<T>,
     O: ConstantFrame<Sample = T>,
     O::Size: Size<T>,
@@ -1138,7 +1138,7 @@ pub fn declick_s<T: Float, F: Real>(t: F) -> An<Declick<T, F>> {
 /// Shape signal with a waveshaper function.
 /// - Input 0: input signal
 /// - Output 0: shaped signal
-pub fn shape_fn<T: Float, S: Fn(T) -> T + Clone>(f: S) -> An<ShaperFn<T, S>> {
+pub fn shape_fn<T: Float, S: Fn(T) -> T + Clone + Send + Sync>(f: S) -> An<ShaperFn<T, S>> {
     An(ShaperFn::new(f))
 }
 
@@ -2566,7 +2566,7 @@ pub fn chorus<T: Real>(
 /// use fundsp::prelude::*;
 /// saw_hz(110.0) >> flanger::<f32, _>(0.5, 0.005, 0.010, |t| lerp11(0.005, 0.010, sin_hz(0.1, t)));
 /// ```
-pub fn flanger<T: Real, X: Fn(T) -> T + Clone>(
+pub fn flanger<T: Real, X: Fn(T) -> T + Clone + Send + Sync>(
     feedback_amount: T,
     minimum_delay: T,
     maximum_delay: T,
@@ -2590,7 +2590,7 @@ pub fn flanger<T: Real, X: Fn(T) -> T + Clone>(
 /// use fundsp::prelude::*;
 /// saw_hz(110.0) >> phaser::<f64, _>(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5);
 /// ```
-pub fn phaser<T: Real, X: Fn(T) -> T + Clone>(
+pub fn phaser<T: Real, X: Fn(T) -> T + Clone + Send + Sync>(
     feedback_amount: T,
     phase_f: X,
 ) -> An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
@@ -2644,7 +2644,7 @@ pub fn var<T: Atomic>(shared: &Shared<T>) -> An<Var<T>> {
 pub fn var_fn<T, F, R>(shared: &Shared<T>, f: F) -> An<VarFn<T, F, R>>
 where
     T: Atomic + Float,
-    F: Clone + Fn(T) -> R,
+    F: Clone + Fn(T) -> R + Send + Sync,
     R: ConstantFrame<Sample = T>,
     R::Size: Size<T>,
 {

@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 /// A variable floating point number to use as a control.
 pub trait Atomic: Float {
-    type Storage;
+    type Storage: Send + Sync;
 
     fn storage(t: Self) -> Self::Storage;
     fn store(stored: &Self::Storage, t: Self);
@@ -207,7 +207,7 @@ where
 impl<T, F, R> AudioNode for VarFn<T, F, R>
 where
     T: Atomic,
-    F: Clone + Fn(T) -> R,
+    F: Clone + Fn(T) -> R + Send + Sync,
     R: ConstantFrame<Sample = T>,
     R::Size: Size<T>,
 {

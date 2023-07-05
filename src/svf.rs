@@ -222,7 +222,7 @@ impl<F: Real> SvfCoeffs<F> {
 /// for efficient operation and can update filter coefficients.
 /// The mode uses an optional set of inputs for continuously varying parameters.
 /// The definition of each input is mode dependent.
-pub trait SvfMode<F: Real>: Clone + Default {
+pub trait SvfMode<F: Real>: Clone + Default + Sync + Send {
     /// Number of inputs, which includes the audio input. Equal to the number of continuous parameters plus one.
     type Inputs: Size<F>;
     /// Format of settings for this mode.

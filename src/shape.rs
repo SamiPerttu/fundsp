@@ -30,7 +30,7 @@ where
 impl<T, S> AudioNode for ShaperFn<T, S>
 where
     T: Float,
-    S: Fn(T) -> T + Clone,
+    S: Fn(T) -> T + Clone + Sync + Send,
 {
     const ID: u64 = 37;
     type Sample = T;

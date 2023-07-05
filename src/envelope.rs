@@ -15,7 +15,7 @@ pub struct Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R + Clone,
+    E: Fn(F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -50,7 +50,7 @@ impl<T, F, E, R> Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R + Clone,
+    E: Fn(F) -> R + Clone + Sync + Send,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -105,7 +105,7 @@ impl<T, F, E, R> AudioNode for Envelope<T, F, E, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F) -> R + Clone,
+    E: Fn(F) -> R + Clone + Sync + Send,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
     R::Size: Size<T>,
@@ -189,7 +189,7 @@ pub struct EnvelopeIn<T, F, E, I, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F, &Frame<T, I>) -> R + Clone,
+    E: Fn(F, &Frame<T, I>) -> R + Clone + Send + Sync,
     I: Size<T>,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
@@ -226,7 +226,7 @@ impl<T, F, E, I, R> EnvelopeIn<T, F, E, I, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F, &Frame<T, I>) -> R + Clone,
+    E: Fn(F, &Frame<T, I>) -> R + Clone + Send + Sync,
     I: Size<T>,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,
@@ -289,7 +289,7 @@ impl<T, F, E, I, R> AudioNode for EnvelopeIn<T, F, E, I, R>
 where
     T: Float,
     F: Float,
-    E: Fn(F, &Frame<T, I>) -> R + Clone,
+    E: Fn(F, &Frame<T, I>) -> R + Clone + Send + Sync,
     I: Size<T>,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F>,

@@ -11,7 +11,7 @@ use duplicate::duplicate_item;
 use numeric_array::typenum::*;
 
 /// Trait for multi-channel constants.
-pub trait ConstantFrame: Clone {
+pub trait ConstantFrame: Clone + Sync + Send {
     type Sample: Float;
     type Size: Size<Self::Sample>;
     fn convert(self) -> Frame<Self::Sample, Self::Size>;
