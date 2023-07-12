@@ -1257,6 +1257,7 @@ pub fn brown<T: Float, F: Real>(
 /// Mix output of enclosed circuit `x` back to its input.
 /// The output is diffused with a Hadamard matrix for feedback.
 /// Feedback circuit `x` must have an equal number of inputs and outputs.
+/// The number of inputs and outputs must be a power of two.
 /// - Inputs: input signal.
 /// - Outputs: `x` output signal.
 ///

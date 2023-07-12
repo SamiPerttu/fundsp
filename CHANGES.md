@@ -1,5 +1,10 @@
 ## Changes
 
+### Version 0.16 (Next Version)
+
+- `AudioNode` now requires `Send` and `Sync`.
+- Feedback units `Feedback64` and `Feedback32`.
+
 ### Version 0.15
 
 - Snoop node for sharing audio data with a frontend thread.

@@ -32,6 +32,7 @@ impl<T: Float> Buffer<T> {
             slice: Slice::new(),
         }
     }
+
     /// Create a buffer with the specified number of `channels`.
     pub fn with_channels(channels: usize) -> Self {
         let mut buffer = Buffer::<T> {
@@ -104,5 +105,17 @@ impl<T: Float> Buffer<T> {
     #[inline]
     pub fn self_mut(&mut self) -> &mut [&mut [T]] {
         self.slice.from_muts(&mut self.buffer)
+    }
+
+    /// Get reference to the vector of vectors.
+    #[inline]
+    pub fn vec(&self) -> &Vec<Vec<T>> {
+        &self.buffer
+    }
+
+    /// Get mutable reference to the vector of vectors.
+    #[inline]
+    pub fn vec_mut(&mut self) -> &mut Vec<Vec<T>> {
+        &mut self.buffer
     }
 }

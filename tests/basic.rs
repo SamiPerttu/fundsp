@@ -198,6 +198,18 @@ fn test_basic() {
         envelope(|t| exp(-t * 10.0)) | lfo(|t| sin(t * 10.0)),
     ));
 
+    let feedback1 = noise()
+        >> Net64::wrap(Box::new(Feedback64::new(
+            0.01,
+            Box::new(0.5 * lowpass_hz(1000.0, 1.0)),
+        )));
+    let feedback2 = noise()
+        >> Net64::wrap(Box::new(Feedback64::new(
+            0.001,
+            Box::new(0.5 * highpass_hz(1000.0, 1.0)),
+        )));
+    check_wave(feedback1 | feedback2);
+
     let mut sequencer = Sequencer64::new(true, 2);
     sequencer.push(
         0.1,
