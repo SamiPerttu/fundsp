@@ -98,10 +98,15 @@ pub fn cos<T: Real>(x: T) -> T {
 pub fn tan<T: Real>(x: T) -> T {
     x.tan()
 }
-/// Hyperbolic tangent function. Squashes `x` to -1...1.
+/// Hyperbolic tangent function. Squashes `x` to (-1, 1).
 #[inline]
 pub fn tanh<T: Real>(x: T) -> T {
     x.tanh()
+}
+/// Inverse tangent function. Squashes `x` to (-π/2, π/2).
+#[inline]
+pub fn atan<T: Real>(x: T) -> T {
+    x.atan()
 }
 
 /// sqrt(2)
