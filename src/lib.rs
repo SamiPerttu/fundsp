@@ -227,6 +227,7 @@ pub trait Real: Num + Float {
     fn cos(self) -> Self;
     fn tan(self) -> Self;
     fn tanh(self) -> Self;
+    fn atan(self) -> Self;
 }
 
 macro_rules! impl_real {
@@ -242,6 +243,7 @@ macro_rules! impl_real {
         #[inline] fn cos(self) -> Self { self.cos() }
         #[inline] fn tan(self) -> Self { <$t>::tan(self) }
         #[inline] fn tanh(self) -> Self { <$t>::tanh(self) }
+        #[inline] fn atan(self) -> Self { <$t>::atan(self) }
     }) *
     }
 }

@@ -989,6 +989,7 @@ These are arguments to the `shape` opcode.
 - `Shape::Clip`: Clip signal to -1...1.
 - `Shape::ClipTo(minimum, maximum)`: Clip signal between the two arguments.
 - `Shape::Tanh(hardness)`: Apply `tanh` distortion with configurable hardness. Argument to `tanh` is multiplied by the hardness value.
+- `Shape::Atan(hardness)`: Apply `atan` distortion with configurable hardness. Argument to `atan` is multiplied by the hardness value.
 - `Shape::Softsign(hardness)`: Apply `softsign` distortion with configurable hardness. Argument to `softsign` is multiplied by the hardness value.
 - `Shape::Crush(levels)`: Apply a staircase function with configurable number of levels per unit.
 - `Shape::SoftCrush(levels)`: Apply a smooth staircase function with configurable number of levels per unit.
