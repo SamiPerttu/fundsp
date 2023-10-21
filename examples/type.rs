@@ -42,7 +42,9 @@ fn parse_uint(text: &mut String) {
 }
 
 fn main() {
-    let mut arg: String = std::env::args().nth(1).unwrap_or("You must provide a type.".to_string());
+    let mut arg: String = std::env::args()
+        .nth(1)
+        .unwrap_or("You must provide a type.".to_string());
 
     remove_string(&mut arg, "fundsp::");
     remove_string(&mut arg, "audionode::");
