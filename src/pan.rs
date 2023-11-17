@@ -31,7 +31,7 @@ impl<T: Real, N: Size<T>> Panner<T, N> {
     pub fn new(value: T) -> Self {
         let (left_weight, right_weight) = pan_weights(value);
         Self {
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
             left_weight,
             right_weight,
         }

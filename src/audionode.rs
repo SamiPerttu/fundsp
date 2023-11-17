@@ -547,7 +547,7 @@ where
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -601,7 +601,7 @@ where
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -655,7 +655,7 @@ where
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -723,7 +723,7 @@ where
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -1124,7 +1124,7 @@ impl<N: Size<T>, T: Float> FrameAddScalar<N, T> {
     pub fn new(scalar: T) -> Self {
         Self {
             scalar,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -1159,7 +1159,7 @@ impl<N: Size<T>, T: Float> FrameMulScalar<N, T> {
     pub fn new(scalar: T) -> Self {
         Self {
             scalar,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -1297,7 +1297,7 @@ where
         Self {
             f,
             routing,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -2023,7 +2023,7 @@ where
 {
     pub fn new(x: Frame<X, N>) -> Self {
         let mut node = MultiBus {
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
             x,
             buffer: Buffer::new(),
         };

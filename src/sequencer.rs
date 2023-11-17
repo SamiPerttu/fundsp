@@ -113,7 +113,7 @@ impl Eq for Event64 {}
 )]
 impl PartialOrd for Event48 {
     fn partial_cmp(&self, other: &Event48) -> Option<Ordering> {
-        other.start_time.partial_cmp(&self.start_time)
+        Some(self.cmp(other))
     }
 }
 
@@ -124,11 +124,7 @@ impl PartialOrd for Event48 {
 )]
 impl Ord for Event48 {
     fn cmp(&self, other: &Self) -> Ordering {
-        if other.start_time > self.start_time {
-            Ordering::Less
-        } else {
-            Ordering::Greater
-        }
+        other.start_time.total_cmp(&self.start_time)
     }
 }
 

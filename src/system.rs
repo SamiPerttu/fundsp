@@ -32,7 +32,7 @@ impl<T: Float, X: AudioNode, F: FnMut(T, T, &mut X) + Clone + Send + Sync> Syste
             delta_time: T::zero(),
             update_interval: dt,
             sample_rate: T::from_f64(DEFAULT_SR),
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         };
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);

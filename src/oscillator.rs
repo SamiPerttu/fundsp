@@ -132,7 +132,7 @@ impl<T: Real, N: Size<T>> Dsf<T, N> {
             harmonic_spacing,
             sample_duration: T::zero(),
             hash: 0,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         };
         node.reset();
         node.set_sample_rate(sample_rate);

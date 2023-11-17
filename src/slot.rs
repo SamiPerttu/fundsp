@@ -179,6 +179,7 @@ impl SlotBackend48 {
         }
     }
     /// We have faded to the next unit, now start fading to the latest unit, if any.
+    #[allow(clippy::needless_if)]
     fn next_phase(&mut self) {
         let mut next = self.next.take().unwrap();
         std::mem::swap(&mut self.current, &mut next);
@@ -196,6 +197,7 @@ impl SlotBackend48 {
     [ f32 ]   [ Slot32 ]   [ SlotMessage32 ]   [ SlotBackend32 ]   [ AudioUnit32 ];
 )]
 impl AudioUnit48 for SlotBackend48 {
+    #[allow(clippy::needless_if)]
     fn reset(&mut self) {
         // Adopt the latest configuration and reset the unit.
         if let Some(mut latest) = self.latest.take() {

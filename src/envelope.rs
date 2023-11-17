@@ -248,7 +248,7 @@ where
             interval,
             sample_duration: F::zero(),
             hash: 0,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         };
         node.set_sample_rate(sample_rate);
         node.reset();

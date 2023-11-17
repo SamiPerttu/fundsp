@@ -31,7 +31,7 @@ impl<T: Float, F: Real, N: Size<T>> Rez<T, F, N> {
             q,
             sample_rate: convert(DEFAULT_SR),
             bandpass,
-            _marker: std::marker::PhantomData::default(),
+            _marker: std::marker::PhantomData,
         };
         node.set_cutoff_q(cutoff, q);
         node

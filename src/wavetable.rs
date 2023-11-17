@@ -198,7 +198,7 @@ where
             initial_phase: 0.0,
             table_hint: 0,
             sample_rate: sample_rate as f32,
-            _marker: std::marker::PhantomData::default(),
+            _marker: std::marker::PhantomData,
         }
     }
 }
@@ -284,7 +284,7 @@ where
             phase_ready: false,
             table_hint: 0,
             sample_rate: sample_rate as f32,
-            _marker: std::marker::PhantomData::default(),
+            _marker: std::marker::PhantomData,
         }
     }
 }

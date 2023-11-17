@@ -22,7 +22,7 @@ where
     pub fn new(f: S) -> Self {
         Self {
             f,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -77,7 +77,7 @@ pub enum Shape<T: Real> {
     Tanh(T),
     /// Apply `atan` distortion with configurable hardness.
     /// Argument to `atan` is multiplied by the hardness value.
-    ATan(T),
+    Atan(T),
     /// Apply `softsign` distortion with configurable hardness.
     /// Argument to `softsign` is multiplied by the hardness value.
     Softsign(T),
@@ -141,7 +141,7 @@ impl<T: Real> AudioNode for Shaper<T> {
             Shape::Clip => [clamp11(input)].into(),
             Shape::ClipTo(min, max) => [clamp(min, max, input)].into(),
             Shape::Tanh(hardness) => [tanh(input * hardness)].into(),
-            Shape::ATan(hardness) => [atan(input * hardness)].into(),
+            Shape::Atan(hardness) => [atan(input * hardness)].into(),
             Shape::Softsign(hardness) => [softsign(input * hardness)].into(),
             Shape::Crush(levels) => [round(input * levels) / levels].into(),
             Shape::SoftCrush(levels) => {
@@ -181,7 +181,7 @@ impl<T: Real> AudioNode for Shaper<T> {
                     *x = tanh(*y * hardness);
                 }
             }
-            Shape::ATan(hardness) => {
+            Shape::Atan(hardness) => {
                 for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
                     *x = atan(*y * hardness);
                 }

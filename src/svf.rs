@@ -874,7 +874,7 @@ where
             coeffs,
             ic1eq: F::zero(),
             ic2eq: F::zero(),
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 
@@ -992,7 +992,7 @@ where
             coeffs,
             ic1eq: F::zero(),
             ic2eq: F::zero(),
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 

@@ -124,6 +124,7 @@ impl<T: Float> AudioNode for SnoopBackend<T> {
     }
 
     #[inline]
+    #[allow(clippy::needless_if)]
     fn tick(
         &mut self,
         input: &Frame<Self::Sample, Self::Inputs>,
@@ -137,6 +138,7 @@ impl<T: Float> AudioNode for SnoopBackend<T> {
         *input
     }
 
+    #[allow(clippy::needless_if)]
     fn process(
         &mut self,
         size: usize,

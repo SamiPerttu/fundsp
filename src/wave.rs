@@ -721,7 +721,7 @@ impl<T: Float> Wave48Player<T> {
             start_point,
             end_point,
             loop_point,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }

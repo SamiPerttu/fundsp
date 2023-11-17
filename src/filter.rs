@@ -172,7 +172,7 @@ impl<T: Float, F: Real, N: Size<T>> ButterLowpass<T, F, N> {
     /// Create new Butterworth lowpass filter with initial `cutoff` frequency in Hz.
     pub fn new(cutoff: F) -> Self {
         let mut node = ButterLowpass {
-            _marker: std::marker::PhantomData::default(),
+            _marker: std::marker::PhantomData,
             biquad: Biquad::new(),
             sample_rate: F::from_f64(DEFAULT_SR),
             cutoff: F::zero(),
@@ -256,7 +256,7 @@ impl<T: Float, F: Real, N: Size<T>> Resonator<T, F, N> {
     /// Create new resonator bandpass. Initial `center` frequency and `bandwidth` are specified in Hz.
     pub fn new(center: F, bandwidth: F) -> Self {
         let mut node = Resonator {
-            _marker: std::marker::PhantomData::default(),
+            _marker: std::marker::PhantomData,
             biquad: Biquad::new(),
             sample_rate: F::from_f64(DEFAULT_SR),
             center,
@@ -343,7 +343,7 @@ impl<T: Float, F: Real, N: Size<T>> Lowpole<T, F, N> {
     /// Create new lowpass filter. Cutoff frequency is specified in Hz.
     pub fn new(cutoff: F) -> Self {
         let mut node = Lowpole {
-            _marker: std::marker::PhantomData::default(),
+            _marker: std::marker::PhantomData,
             value: F::zero(),
             coeff: F::zero(),
             cutoff,
@@ -598,7 +598,7 @@ impl<T: Float, F: Float, N: Size<T>> Allpole<T, F, N> {
     pub fn new(delay: F) -> Self {
         assert!(delay > F::zero());
         let mut node = Allpole {
-            _marker: std::marker::PhantomData::default(),
+            _marker: std::marker::PhantomData,
             eta: F::zero(),
             x1: F::zero(),
             y1: F::zero(),
@@ -681,7 +681,7 @@ impl<T: Float, F: Real, N: Size<T>> Highpole<T, F, N> {
     /// Create new highpass filter. Initial `cutoff` frequency is specified in Hz.
     pub fn new(cutoff: F) -> Self {
         let mut node = Highpole {
-            _marker: std::marker::PhantomData::default(),
+            _marker: std::marker::PhantomData,
             x1: F::zero(),
             y1: F::zero(),
             coeff: F::zero(),

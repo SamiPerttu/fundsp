@@ -171,7 +171,7 @@ where
             sample_rate: T::zero(),
             min_delay,
             max_delay,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         };
         node.set_sample_rate(DEFAULT_SR);
         node
