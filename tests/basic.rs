@@ -1,3 +1,5 @@
+//! Basic component tests.
+
 #![allow(
     dead_code,
     clippy::precedence,

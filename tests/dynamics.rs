@@ -1,3 +1,5 @@
+//! Dynamics components tests.
+
 #![allow(clippy::manual_range_contains)]
 #![allow(dead_code)]
 

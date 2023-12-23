@@ -1,3 +1,5 @@
+//! Frequency response system tests.
+
 #![allow(
     dead_code,
     clippy::precedence,
@@ -114,7 +116,6 @@ where
     }
 
     let fft = Radix4::new(length, FftDirection::Forward);
-    // Note. Output from process() appears normalized, contrary to documentation.
     fft.process(&mut buffer);
 
     let mut f = 10.0;

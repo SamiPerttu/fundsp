@@ -48,6 +48,7 @@ pub struct SequencerBackend48 {
     pub sender: Sender<Option<Event48>>,
     /// For receiving new events from the frontend.
     receiver: Receiver<Message48>,
+    /// The backend sequencer.
     sequencer: Sequencer48,
 }
 

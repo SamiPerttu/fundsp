@@ -105,7 +105,7 @@ Some nodes may also use the heap for audio buffers and the like.
 
 The `allocate` method preallocates all needed memory. It should be called last before
 sending something into a real-time context. This is done automatically in
-the `Net32` and `Net64` frontend.
+the `Net` and `Sequencer` frontends.
 
 The purpose of the `AudioUnit` system is to grant more flexibility in dynamic situations:
 decisions about input and output arities and contents can be deferred to runtime.
@@ -561,7 +561,7 @@ Due to nonlinearity, we do not attempt to calculate frequency responses for thes
 
 ### More On Multithreading And Real-Time Control
 
-Besides `Net32` and `Net64` frontends, there are two ways to introduce real-time
+Besides `Net` and `Sequencer` frontends, there are two ways to introduce real-time
 control to graph expressions: shared atomic variables and setting listeners.
 
 #### Atomic Variables
@@ -736,7 +736,7 @@ to examine frequency responses interactively:
 ```rust
 C:\rust>evcxr
 Welcome to evcxr. For help, type :help
->> :dep fundsp = "0.13.0"
+>> :dep fundsp
 >> use fundsp::hacker::*;
 >> print!("{}", bell_hz(1000.0, 1.0, db_amp(50.0)).display())
  60 dB ------------------------------------------------  60 dB
@@ -961,9 +961,9 @@ The values in between are linearly interpolated.
 `branch`, `bus`, `pipe`, `sum` and `stack` are opcodes that combine multiple nodes,
 according to their first generic argument.
 They accept a generator function that is issued `i64` integers starting from 0.
-The nodes are stack allocated.
+The nodes are stack allocated, and each node is assigned its own pseudorandom phase.
 
-For example, to create 20 pseudorandom noise bands in 1 kHz...2 kHz:
+For example, to create 20 noise bands in 1 kHz...2 kHz:
 
 ```rust
 use fundsp::hacker::*;

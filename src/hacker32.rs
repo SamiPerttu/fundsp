@@ -23,6 +23,7 @@ pub use super::pan::*;
 pub use super::realnet::*;
 pub use super::realseq::*;
 pub use super::resample::*;
+pub use super::resynth::*;
 pub use super::rez::*;
 pub use super::sequencer::*;
 pub use super::setting::*;

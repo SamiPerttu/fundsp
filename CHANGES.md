@@ -4,6 +4,7 @@
 
 - `AudioNode` now requires `Send` and `Sync`.
 - Feedback units `Feedback64` and `Feedback32`.
+- `Shape::Atan` was contributed by Serdnad.
 
 ### Version 0.15
 

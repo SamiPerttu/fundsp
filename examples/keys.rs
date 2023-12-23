@@ -160,14 +160,16 @@ where
     )?;
     stream.play()?;
 
+    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 420.0));
+
     let options = eframe::NativeOptions {
-        min_window_size: Some(vec2(360.0, 420.0)),
+        viewport,
         ..eframe::NativeOptions::default()
     };
 
-    let mut state: State = State {
+    let state: State = State {
         rnd: Rnd::from_time(),
-        id: Vec::new(),
+        id: vec![None; KEYS.len()],
         sequencer,
         net,
         waveform: Waveform::Saw,
@@ -180,7 +182,6 @@ where
         snoop0,
         snoop1,
     };
-    state.id.resize(KEYS.len(), None);
 
     eframe::run_native(
         "Virtual Keyboard Example",

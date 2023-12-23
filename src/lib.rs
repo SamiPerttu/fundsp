@@ -3,6 +3,9 @@
 //!
 //! See `README.md` in crate root folder for an overview.
 //! For a list of changes, see `CHANGES.md` in the same folder.
+//!
+//! The central abstractions are located in the `audionode` and `audiounit` modules.
+//! The `combinator` module defines the graph operators.
 
 #![allow(
     clippy::precedence,
@@ -276,6 +279,7 @@ pub mod prelude;
 pub mod realnet;
 pub mod realseq;
 pub mod resample;
+pub mod resynth;
 pub mod rez;
 pub mod sequencer;
 pub mod setting;

@@ -266,14 +266,21 @@ pub struct Sequencer48 {
     past: Vec<Event48>,
     /// Map of edits to be made to events in the ready queue.
     edit_map: HashMap<EventId, Edit48>,
+    /// Number of output channels.
     outputs: usize,
+    /// Current time. Does not apply to frontends.
     time: f48,
+    /// Current sample rate.
     sample_rate: f48,
+    /// Current sample duration.
     sample_duration: f48,
+    /// Intermediate output buffer.
     buffer: Buffer<f48>,
+    /// Intermediate output frame.
     tick_buffer: Vec<f48>,
     /// Optional frontend.
     front: Option<(Sender<Message48>, Receiver<Option<Event48>>)>,
+    /// Whether we replay existing events after a call to `reset`.
     replay_events: bool,
 }
 
@@ -749,9 +756,7 @@ impl AudioUnit48 for Sequencer48 {
             while let Some(_past) = self.past.pop() {}
         }
         for channel in 0..self.outputs {
-            for i in 0..size {
-                output[channel][i] = 0.0;
-            }
+            output[channel][..size].fill(0.0);
         }
         let end_time = self.time + self.sample_duration * size as f48;
         self.ready_to_active(end_time);

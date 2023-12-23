@@ -70,6 +70,7 @@ impl<T: Float> Buffer<T> {
     }
 
     /// Get reference to a slice of slices with the given number of `channels`.
+    /// The buffer is resized if necessary.
     #[inline]
     pub fn get_ref(&mut self, channels: usize) -> &[&[T]] {
         self.resize(channels);
@@ -77,6 +78,7 @@ impl<T: Float> Buffer<T> {
     }
 
     /// Get reference to a mutable slice of slices with the given number of `channels`.
+    /// The buffer is resized if necessary.
     #[inline]
     pub fn get_mut(&mut self, channels: usize) -> &mut [&mut [T]] {
         self.resize(channels);

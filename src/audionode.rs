@@ -141,6 +141,7 @@ pub trait AudioNode: Clone + Sync + Send {
 
     /// Set node pseudorandom phase hash.
     /// This is called from `ping` (only). It should not be called by users.
+    /// The node is allowed to reset itself here.
     #[allow(unused_variables)]
     fn set_hash(&mut self, hash: u64) {
         // Override this to use the hash.
@@ -152,8 +153,16 @@ pub trait AudioNode: Clone + Sync + Send {
     /// Leaf nodes should not need to override this.
     /// If `probe` is true, then this is a probe for computing the network hash
     /// and `set_hash` should not be called yet.
-    /// To set a custom hash for a graph, call this method with `ping`
+    /// To set a custom hash for a graph, call this method with `probe`
     /// set to false and `hash` initialized with the custom hash.
+    /// The node is allowed to reset itself here.
+    ///
+    /// ### Example (Setting a Custom Hash)
+    /// ```
+    /// use fundsp::hacker32::*;
+    /// let mut node = square_hz(440.0);
+    /// node.ping(false, AttoHash::new(1));
+    /// ```
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         if !probe {
             self.set_hash(hash.state());
@@ -163,6 +172,7 @@ pub trait AudioNode: Clone + Sync + Send {
 
     /// Route constants, latencies and frequency responses at `frequency` Hz
     /// from inputs to outputs. Return output signal.
+    /// If there are no frequency responses in `input`, then `frequency` is ignored.
     #[allow(unused_variables)]
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         // Default implementation marks all outputs unknown.
