@@ -5,6 +5,7 @@
 - `AudioNode` now requires `Send` and `Sync`.
 - Feedback units `Feedback64` and `Feedback32`.
 - `Shape::Atan` was contributed by Serdnad.
+- New opcode `resynth` for frequency domain resynthesis.
 
 ### Version 0.15
 

@@ -129,8 +129,8 @@ pub fn copy_signal_frame(source: &SignalFrame, i: usize, n: usize) -> SignalFram
 /// functionality.
 #[derive(Clone)]
 pub enum Routing {
-    /// Conservative routing: every input influences every output nonlinearly.
-    Arbitrary,
+    /// Conservative routing: every input influences every output nonlinearly with extra latency.
+    Arbitrary(f64),
     /// Split or multisplit semantics.
     Split,
     /// Join or multijoin semantics.
@@ -147,10 +147,10 @@ impl Routing {
             return output;
         }
         match self {
-            Routing::Arbitrary => {
-                let mut combo = input[0].distort(0.0);
+            Routing::Arbitrary(latency) => {
+                let mut combo = input[0].distort(*latency);
                 for i in 1..input.len() {
-                    combo = combo.combine_nonlinear(input[i], 0.0);
+                    combo = combo.combine_nonlinear(input[i], *latency);
                 }
                 output.fill(combo);
             }

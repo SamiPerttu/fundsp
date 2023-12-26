@@ -158,7 +158,7 @@ where
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Arbitrary.propagate(input, self.outputs())
+        Routing::Arbitrary(0.0).propagate(input, self.outputs())
     }
 
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
@@ -264,7 +264,7 @@ where
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Arbitrary.propagate(input, self.outputs())
+        Routing::Arbitrary(0.0).propagate(input, self.outputs())
     }
 
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
@@ -437,7 +437,7 @@ impl AudioUnit48 for Feedback48 {
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Arbitrary.propagate(input, self.outputs())
+        Routing::Arbitrary(0.0).propagate(input, self.outputs())
     }
 
     fn get_id(&self) -> u64 {

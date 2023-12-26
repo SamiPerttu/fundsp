@@ -1051,7 +1051,7 @@ where
     O: ConstantFrame<Sample = f64>,
     O::Size: Size<f64>,
 {
-    An(Map::new(f, Routing::Arbitrary))
+    An(Map::new(f, Routing::Arbitrary(0.0)))
 }
 
 /// Keeps a signal zero centered.
@@ -2170,4 +2170,35 @@ pub fn timer(shared: &Shared<f64>) -> An<Timer<f64>> {
 pub fn snoop(capacity: usize) -> (Snoop<f64>, An<SnoopBackend<f64>>) {
     let (snoop, backend) = Snoop::new(capacity);
     (snoop, An(backend))
+}
+
+/// Frequency domain resynthesizer. The number of inputs is `I` and the number of outputs is `O`.
+/// The window length (in samples) must be a power of two and at least four.
+/// Processes windows of input samples transformed into the frequency domain.
+/// The processing function is issued arguments (time, window).
+/// It processes frequency domain inputs into frequency domain outputs.
+/// The latency in samples is equal to window length.
+/// If any output is a copy of an input, then the input will be reconstructed exactly
+/// once all windows are overlapping, which takes `window_length` samples.
+/// -Input(s): input signals.
+/// -Output(s): processed signals.
+///
+/// ### Example: FFT Lowpass Filter
+/// ```
+/// use fundsp::hacker::*;
+/// let cutoff = 1000.0;
+/// let resynth = resynth::<U1, U1, _>(1024, |_time, fft|
+///     for i in 0 .. fft.bins() {
+///         if fft.frequency(i) <= cutoff {
+///             fft.set(0, i, fft.at(0, i));
+///         }
+///     });
+/// ```
+pub fn resynth<I, O, F>(window_length: usize, processing: F) -> An<Resynth<I, O, f64, F>>
+where
+    I: Size<f64>,
+    O: Size<f64>,
+    F: FnMut(f32, &mut FftWindow) + Clone + Send + Sync,
+{
+    An(Resynth::new(window_length, processing))
 }

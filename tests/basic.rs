@@ -547,3 +547,28 @@ fn test_basic() {
     assert_eq!(inouts(!zero()), (0, 0)); //  A null unit. Stacking it with a graph modifies its sound subtly, as the hash is altered.
     assert_eq!(inouts(!-!!!--!!!-!!--!zero()), (0, 0)); // Hot-rodded null unit with a custom hash. Uses more electricity.
 }
+
+#[test]
+/// Test a pass-through resynthesizer.
+fn test_resynth() {
+    let window = 8;
+    let mut synth: An<Resynth<U1, U1, _, _>> = resynth(window, |_time, fft| {
+        for i in 0..fft.bins() {
+            fft.set(0, i, fft.at(0, i));
+        }
+    });
+
+    let duration = 16.0 / DEFAULT_SR;
+
+    let input = Wave64::render(DEFAULT_SR, duration, &mut noise());
+    let output = input.filter_latency(duration, &mut synth);
+
+    for i in window..input.length() {
+        //println!("input {}, output {}", input.at(0, i), output.at(0, i));
+        let tolerance = 1.0e-6;
+        assert!(
+            input.at(0, i) - tolerance <= output.at(0, i)
+                && input.at(0, i) + tolerance >= output.at(0, i)
+        );
+    }
+}
