@@ -559,6 +559,51 @@ Due to nonlinearity, we do not attempt to calculate frequency responses for thes
 
 ---
 
+### Frequency Domain Resynthesis
+
+Filtering and other effects can be done in the frequency domain as well
+with the `resynth` opcode.
+
+The resynthesizer
+[Fourier transforms](https://en.wikipedia.org/wiki/Discrete-time_Fourier_transform)
+input windows to the frequency domain with an overlap of four.
+A processing function then translates these inputs to frequency domain
+outputs. The output windows are inverse transformed and overlap-added.
+
+The resynthesizer can reconstruct inputs exactly, so an effect can
+be made to vary smoothly between an input and a processed version.
+
+For example, to implement a highly selective
+[FFT](https://en.wikipedia.org/wiki/Fast_Fourier_transform) 
+bandpass filter:
+
+```rust
+use fundsp::hacker32::*;
+
+// The window length, which must be a power of two and at least four,
+// determines the frequency resolution. Latency is equal to the window length.
+let window_length = 1024;
+
+// Passband in Hz.
+let pass_min = 1000.0;
+let pass_max = 2000.0;
+
+// The number of input and output channels is user configurable.
+// Here both are 1 (`U1`).
+let synth = resynth::<U1, U1, _>(window_length, |_time, fft|
+    for i in 0..fft.bins() {
+        if fft.frequency(i) >= pass_min && fft.frequency(i) <= pass_max {
+            fft.set(0, i, fft.at(0, i));
+        }
+    });
+```
+
+The processing function receives time in seconds as an argument,
+to support time varying effects.
+
+For more information on the technique, see
+[Fourier analysis and reconstruction of audio signals](http://msp.ucsd.edu/techniques/v0.11/book-html/node172.html).
+
 ### More On Multithreading And Real-Time Control
 
 Besides `Net` and `Sequencer` frontends, there are two ways to introduce real-time
@@ -706,7 +751,7 @@ let decibel_gain_at_1k = equalizer.response_db(0, 1000.0).unwrap();
 The default sample rate is 44.1 kHz. Set sample rate to 48 kHz:
 
 ```rust
-equalizer.reset(Some(48_000.0));
+equalizer.set_sample_rate(48_000.0);
 ```
 
 For real-time control, the equalizer can be equipped with
@@ -774,7 +819,7 @@ These free functions are available in the environment.
 
 The type parameters in the table refer to the hacker preludes.
 
-`M`, `N`, `U` are type-level integers. They are `U0`, `U1`, `U2`...
+`I`, `M`, `N`, `O`, `U` are type-level integers. They are `U0`, `U1`, `U2`...
 
 ---
 

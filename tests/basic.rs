@@ -563,6 +563,7 @@ fn test_resynth() {
     let input = Wave64::render(DEFAULT_SR, duration, &mut noise());
     let output = input.filter_latency(duration, &mut synth);
 
+    // The pass-through resynthesizer should reconstruct inputs exactly after `window` samples.
     for i in window..input.length() {
         //println!("input {}, output {}", input.at(0, i), output.at(0, i));
         let tolerance = 1.0e-6;

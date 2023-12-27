@@ -77,13 +77,19 @@ impl FftWindow {
         self.input_fft[channel][i]
     }
 
+    /// Return output value for bin `i` of `channel`.
+    #[inline]
+    pub fn at_output(&self, channel: usize, i: usize) -> Complex32 {
+        self.output_fft[channel][i]
+    }
+
     /// Set output value for bin `i` of `channel`.
     #[inline]
     pub fn set(&mut self, channel: usize, i: usize, value: Complex32) {
         self.output_fft[channel][i] = value;
     }
 
-    /// Return frequency associated with bin `i`.
+    /// Return frequency (in Hz) associated with bin `i`.
     #[inline]
     pub fn frequency(&self, i: usize) -> f32 {
         self.sample_rate / self.length() as f32 * i as f32
@@ -200,6 +206,8 @@ where
     scratch: Vec<Complex32>,
     /// Number of processed samples.
     samples: u64,
+    /// Normalizing term for FFT and overlap-add.
+    z: f32,
 }
 
 impl<I, O, T, F> Resynth<I, O, T, F>
@@ -217,7 +225,7 @@ where
         let forward = planner.plan_fft_forward(window_length);
         let inverse = planner.plan_fft_inverse(window_length);
 
-        let mut window_function = Vec::new();
+        let mut window_function = Vec::with_capacity(window_length);
 
         for i in 0..window_length {
             let hann = 0.5
@@ -253,6 +261,7 @@ where
             inverse,
             scratch,
             samples: 0,
+            z: 2.0 / (3.0 * window_length as f32),
         }
     }
 }
@@ -290,12 +299,10 @@ where
     ) -> Frame<Self::Sample, Self::Outputs> {
         let mut output = Frame::default();
 
-        let z = 2.0 / (3.0 * self.window_length as f32);
-
         for i in 0..WINDOWS {
             let window_value = self.window_function[self.window[i].index()];
             self.window[i].write(input, window_value);
-            output += self.window[i].read(window_value * z);
+            output += self.window[i].read(window_value * self.z);
             self.window[i].advance();
         }
 

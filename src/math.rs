@@ -3,6 +3,9 @@
 use super::*;
 use funutd::Rnd;
 
+pub use num_complex::Complex32;
+pub use num_complex::Complex64;
+
 /// The absolute function.
 #[inline]
 pub fn abs<T: Num>(x: T) -> T {

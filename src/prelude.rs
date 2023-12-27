@@ -2693,7 +2693,7 @@ pub fn snoop<T: Float>(capacity: usize) -> (Snoop<T>, An<SnoopBackend<T>>) {
 /// use fundsp::prelude::*;
 /// let cutoff = 1000.0;
 /// let resynth = resynth::<U1, U1, f32, _>(1024, |_time, fft|
-///     for i in 0 .. fft.bins() {
+///     for i in 0..fft.bins() {
 ///         if fft.frequency(i) <= cutoff {
 ///             fft.set(0, i, fft.at(0, i));
 ///         }
