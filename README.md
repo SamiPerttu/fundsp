@@ -590,7 +590,7 @@ let pass_max = 2000.0;
 
 // The number of input and output channels is user configurable.
 // Here both are 1 (`U1`).
-let synth = resynth::<U1, U1, _>(window_length, |_time, fft|
+let synth = resynth::<U1, U1, _>(window_length, |fft|
     for i in 0..fft.bins() {
         if fft.frequency(i) >= pass_min && fft.frequency(i) <= pass_max {
             fft.set(0, i, fft.at(0, i));
@@ -598,8 +598,8 @@ let synth = resynth::<U1, U1, _>(window_length, |_time, fft|
     });
 ```
 
-The processing function receives time in seconds as an argument,
-to support time varying effects.
+The processing function can obtain window time from the supplied FFT window
+object, to support time varying effects.
 
 For more information on the technique, see
 [Fourier analysis and reconstruction of audio signals](http://msp.ucsd.edu/techniques/v0.11/book-html/node172.html).
@@ -948,7 +948,7 @@ The type parameters in the table refer to the hacker preludes.
 | `resample(node)`       | 1 (speed) | `node` | Resample generator `node` using cubic interpolation at speed obtained from the input, where 1 is the original speed. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
-| `resynth::<I, O, _>(w, f)` | `I` |   `O`   | Frequency domain resynthesis with window length `w` and processing function `f` |
+| `resynth::<I, O, _>(w, f)` | `I` |   `O`   | Frequency domain resynthesis with window length `w` and processing function `f`. |
 | `reverb_stereo(r, t)`  |    2    |    2    | Stereo reverb with room size `r` meters (10 is average) and reverberation time `t` seconds. |
 | `reverse::<N>()`       |   `N`   |   `N`   | Reverse channel order, e.g., swap left and right channels. |
 | `rossler()`            | 1 (frequency) | 1 | [Rössler dynamical system](https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor) oscillator. |
@@ -1215,7 +1215,6 @@ Many functions in the prelude itself are defined as graph expressions.
 | Function                                 | Inputs  | Outputs | Definition                                     |
 | ---------------------------------------- |:-------:|:-------:| ---------------------------------------------- |
 | `brown()`                                |    -    |    1    | `white() >> lowpole_hz(10.0) * constant(13.7)` |
-| `detector_hz(f)`                         |    1    |    1    | `(pass() \| constant(f)) >> detector()`        |
 | `mls()`                                  |    -    |    1    | `mls_bits(29)`                                 |
 | `pink()`                                 |    -    |    1    | `white() >> pinkpass()`                        |
 | `saw_hz(f)`                              |    -    |    1    | `constant(f) >> saw()`                         |

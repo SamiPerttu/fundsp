@@ -51,6 +51,12 @@ impl FftWindow {
         self.output.len()
     }
 
+    /// Sample rate in Hz.
+    #[inline]
+    pub fn sample_rate(&self) -> f64 {
+        self.sample_rate as f64
+    }
+
     /// Processing latency of the resynthesizer in seconds.
     /// Equal to one window length.
     #[inline]
@@ -60,7 +66,7 @@ impl FftWindow {
 
     /// Time in seconds at the center (peak) of the window.
     /// For time varying effects.
-    /// The window is Hann shaped.
+    /// The window is Hann squared shaped.
     /// Latency is subtracted from stream time.
     /// Add `latency()` to this if you need stream time.
     #[inline]
@@ -102,7 +108,9 @@ impl FftWindow {
         self.length
     }
 
-    /// Number of FFT bins. Equals the length of each frequency domain vector.
+    /// Number of FFT bins.
+    /// Equals the length of each frequency domain vector.
+    /// The lowest bin is zero and the highest bin (at the Nyquist frequency) is `bins() - 1`.
     #[inline]
     pub fn bins(&self) -> usize {
         (self.length() >> 1) + 1
@@ -154,7 +162,7 @@ impl FftWindow {
     }
 
     /// Set the sample rate.
-    pub fn set_sample_rate(&mut self, sample_rate: f32) {
+    pub(crate) fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
     }
 
@@ -233,7 +241,7 @@ where
     window_length: usize,
     /// Hann window function.
     window_function: Vec<f32>,
-    /// Processing function is a function of (time, window).
+    /// Processing function.
     processing: F,
     /// Sample rate.
     sample_rate: f64,
