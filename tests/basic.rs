@@ -552,7 +552,7 @@ fn test_basic() {
 /// Test a pass-through resynthesizer.
 fn test_resynth() {
     let window = 8;
-    let mut synth: An<Resynth<U1, U1, _, _>> = resynth(window, |_time, fft| {
+    let mut synth: An<Resynth<U1, U1, _, _>> = resynth(window, |fft| {
         for i in 0..fft.bins() {
             fft.set(0, i, fft.at(0, i));
         }

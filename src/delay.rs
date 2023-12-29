@@ -60,7 +60,7 @@ impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
 }
 
 /// Fixed delay.
-/// Allocates: the delay line.
+/// - Allocates: the delay line.
 /// - Input 0: input
 /// - Output 0: delayed input
 #[derive(Clone)]
@@ -136,7 +136,7 @@ impl<T: Float> AudioNode for Delay<T> {
 
 /// Variable delay line using cubic interpolation.
 /// The number of taps is `N`.
-/// Allocates: the delay line.
+/// - Allocates: the delay line.
 /// - Input 0: input
 /// - Inputs 1...N: delay amount in seconds.
 /// - Output 0: delayed input

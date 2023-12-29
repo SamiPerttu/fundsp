@@ -15,6 +15,8 @@ use std::sync::Arc;
 /// Number of overlapping FFT windows.
 const WINDOWS: usize = 4;
 
+/// A single FFT window. Contains input and output
+/// values in the frequency domain.
 #[derive(Clone)]
 pub struct FftWindow {
     /// Window length. Must be a power of two and at least four.
@@ -49,13 +51,48 @@ impl FftWindow {
         self.output.len()
     }
 
+    /// Processing latency of the resynthesizer in seconds.
+    /// Equal to one window length.
+    #[inline]
+    pub fn latency(&self) -> f64 {
+        self.length as f64 / self.sample_rate as f64
+    }
+
+    /// Time in seconds at the center (peak) of the window.
+    /// For time varying effects.
+    /// The window is Hann shaped.
+    /// Latency is subtracted from stream time.
+    /// Add `latency()` to this if you need stream time.
+    #[inline]
+    pub fn time(&self) -> f64 {
+        (self.samples - (self.length as u64 >> 1)) as f64 / self.sample_rate as f64
+    }
+
+    /// Time in seconds at sample `i` of the window.
+    /// For time varying effects.
+    /// There are `length()` samples in total.
+    /// Latency is subtracted from stream time.
+    /// Add `latency()` to this if you need stream time.
+    #[inline]
+    pub fn time_at(&self, i: usize) -> f64 {
+        (self.samples - self.length as u64 + i as u64) as f64 / self.sample_rate as f64
+    }
+
     /// Get forward vectors for forward FFT.
-    pub fn forward_vectors(&mut self, channel: usize) -> (&mut Vec<f32>, &mut Vec<Complex32>) {
+    #[inline]
+    pub(crate) fn forward_vectors(
+        &mut self,
+        channel: usize,
+    ) -> (&mut Vec<f32>, &mut Vec<Complex32>) {
         (&mut self.input[channel], &mut self.input_fft[channel])
     }
 
     /// Get inverse vectors for inverse FFT.
-    pub fn inverse_vectors(&mut self, channel: usize) -> (&mut Vec<Complex32>, &mut Vec<f32>) {
+    #[inline]
+    pub(crate) fn inverse_vectors(
+        &mut self,
+        channel: usize,
+    ) -> (&mut Vec<Complex32>, &mut Vec<f32>) {
         (&mut self.output_fft[channel], &mut self.output[channel])
     }
 
@@ -69,6 +106,12 @@ impl FftWindow {
     #[inline]
     pub fn bins(&self) -> usize {
         (self.length() >> 1) + 1
+    }
+
+    /// Return frequency (in Hz) associated with bin `i`.
+    #[inline]
+    pub fn frequency(&self, i: usize) -> f32 {
+        self.sample_rate / self.length() as f32 * i as f32
     }
 
     /// Get input value at bin `i` of `channel`.
@@ -87,12 +130,6 @@ impl FftWindow {
     #[inline]
     pub fn set(&mut self, channel: usize, i: usize, value: Complex32) {
         self.output_fft[channel][i] = value;
-    }
-
-    /// Return frequency (in Hz) associated with bin `i`.
-    #[inline]
-    pub fn frequency(&self, i: usize) -> f32 {
-        self.sample_rate / self.length() as f32 * i as f32
     }
 
     /// Create new window.
@@ -123,7 +160,7 @@ impl FftWindow {
 
     /// Write input for current index.
     #[inline]
-    pub fn write<T: Float, N: Size<T>>(&mut self, input: &Frame<T, N>, window_value: f32) {
+    pub(crate) fn write<T: Float, N: Size<T>>(&mut self, input: &Frame<T, N>, window_value: f32) {
         for (channel, item) in input.iter().enumerate() {
             self.input[channel][self.index] = item.to_f32() * window_value;
         }
@@ -131,11 +168,11 @@ impl FftWindow {
 
     /// Read output for current index.
     #[inline]
-    pub fn read<T: Float, N: Size<T>>(&self, window_value: f32) -> Frame<T, N> {
+    pub(crate) fn read<T: Float, N: Size<T>>(&self, window_value: f32) -> Frame<T, N> {
         Frame::generate(|channel| convert(self.output[channel][self.index] * window_value))
     }
 
-    /// Set outputs to all zeros.
+    /// Set FFT outputs to all zeros.
     pub fn clear_output(&mut self) {
         for i in 0..self.outputs() {
             self.output_fft[i].fill(Complex32::default());
@@ -144,12 +181,13 @@ impl FftWindow {
 
     /// Current read and write index.
     #[inline]
-    pub fn index(&self) -> usize {
+    pub(crate) fn index(&self) -> usize {
         self.index
     }
 
     /// Reset the window to an empty state.
-    pub fn reset(&mut self, start_index: usize) {
+    pub(crate) fn reset(&mut self, start_index: usize) {
+        self.samples = 0;
         self.index = start_index;
         for channel in 0..self.inputs() {
             self.input[channel].fill(0.0);
@@ -161,31 +199,32 @@ impl FftWindow {
 
     /// Advance index to the next sample.
     #[inline]
-    pub fn advance(&mut self) {
+    pub(crate) fn advance(&mut self) {
         self.samples += 1;
         self.index = (self.index + 1) & (self.length - 1);
     }
 
     /// Return whether we should do FFT processing right now.
     #[inline]
-    pub fn is_fft_time(&self) -> bool {
+    pub(crate) fn is_fft_time(&self) -> bool {
         self.index == 0 && self.samples >= self.length as u64
     }
 }
 
 /// Frequency domain resynthesizer. Processes windows of input samples with an overlap of four.
-/// Each window is Fourier transformed and then processed into output spectra by the processing function.
-/// The output windows are then inverse transformed into the outputs.
+/// Each window is Fourier transformed and then processed into output spectra
+/// by the user supplied processing function.
+/// The output windows are finally inverse transformed into the outputs.
 /// The latency is equal to the window length.
 /// If any output is a copy of an input, then the input will be reconstructed exactly once
-/// the windows are all overlapping, which takes one window length.
+/// the windows are all overlapping, which happens one window length beyond latency.
 #[derive(Clone)]
 pub struct Resynth<I, O, T, F>
 where
     I: Size<T>,
     O: Size<T>,
     T: Float,
-    F: FnMut(f32, &mut FftWindow) + Clone + Send + Sync,
+    F: FnMut(&mut FftWindow) + Clone + Send + Sync,
 {
     _marker: std::marker::PhantomData<(T, I, O)>,
     /// FFT windows.
@@ -215,9 +254,21 @@ where
     I: Size<T>,
     O: Size<T>,
     T: Float,
-    F: FnMut(f32, &mut FftWindow) + Clone + Send + Sync,
+    F: FnMut(&mut FftWindow) + Clone + Send + Sync,
 {
-    /// Create new resynthesizer.
+    /// Number of FFT bins. Equals the length of each frequency domain vector in FFT windows.
+    #[inline]
+    pub fn bins(&self) -> usize {
+        (self.window_length >> 1) + 1
+    }
+
+    /// Window length in samples.
+    #[inline]
+    pub fn window_length(&self) -> usize {
+        self.window_length
+    }
+
+    /// Create new resynthesizer. Window length must be a power of two and at least four.
     pub fn new(window_length: usize, processing: F) -> Self {
         assert!(window_length >= 4 && window_length.is_power_of_two());
 
@@ -271,7 +322,7 @@ where
     I: Size<T>,
     O: Size<T>,
     T: Float,
-    F: FnMut(f32, &mut FftWindow) + Clone + Send + Sync,
+    F: FnMut(&mut FftWindow) + Clone + Send + Sync,
 {
     const ID: u64 = 80;
     type Sample = T;
@@ -319,10 +370,7 @@ where
                     }
 
                     self.window[i].clear_output();
-                    (self.processing)(
-                        (self.samples as f64 / self.sample_rate) as f32,
-                        &mut self.window[i],
-                    );
+                    (self.processing)(&mut self.window[i]);
 
                     for channel in 0..O::USIZE {
                         let (output_fft, output) = self.window[i].inverse_vectors(channel);

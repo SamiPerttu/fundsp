@@ -3,6 +3,19 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fundsp::hacker32::*;
 
+fn resynth_bench(_dummy: usize) -> Wave32 {
+    Wave32::render(
+        44100.0,
+        1.0,
+        &mut (noise()
+            >> resynth::<U1, U1, _>(1024, |fft| {
+                for i in 0..fft.bins() {
+                    fft.set(0, i, fft.at(0, i));
+                }
+            })),
+    )
+}
+
 fn pass_bench(_dummy: usize) -> Wave32 {
     Wave32::render(
         44100.0,
@@ -66,6 +79,7 @@ fn phaser_bench(_dummy: usize) -> Wave32 {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
+    c.bench_function("resynth", |b| b.iter(|| resynth_bench(black_box(0))));
     c.bench_function("pass", |b| b.iter(|| pass_bench(black_box(0))));
     c.bench_function("wavetable", |b| b.iter(|| wavetable_bench(black_box(0))));
     c.bench_function("envelope", |b| b.iter(|| envelope_bench(black_box(0))));

@@ -725,7 +725,7 @@ impl Net48 {
         }
 
         // Start from network inputs.
-        for (_, edge) in all_edges.iter().enumerate() {
+        for edge in all_edges.iter() {
             if let (Port::Global(_) | Port::Zero, Port::Local(vertex, _)) =
                 (edge.source, edge.target)
             {
@@ -741,7 +741,7 @@ impl Net48 {
         }
         while vertices_left > 0 {
             let mut progress = false;
-            for (_i, edge) in all_edges.iter().enumerate() {
+            for edge in all_edges.iter() {
                 if let (Port::Local(source, _), Port::Local(target, _)) = (edge.source, edge.target)
                 {
                     if !vertex_left[source] && vertex_left[target] {

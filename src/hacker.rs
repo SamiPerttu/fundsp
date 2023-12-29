@@ -900,7 +900,7 @@ pub fn multitick<N: Size<f64>>() -> An<Tick<N, f64>> {
 
 /// Fixed delay of `t` seconds.
 /// Delay time is rounded to the nearest sample.
-/// Allocates: the delay line.
+/// - Allocates: the delay line.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
 ///
@@ -915,7 +915,7 @@ pub fn delay(t: f64) -> An<Delay<f64>> {
 
 /// Tapped delay line with cubic interpolation.
 /// Minimum and maximum delay times are in seconds.
-/// Allocates: the delay line.
+/// - Allocates: the delay line.
 /// - Input 0: signal.
 /// - Input 1: delay time in seconds.
 /// - Output 0: delayed signal.
@@ -932,7 +932,7 @@ pub fn tap(min_delay: f64, max_delay: f64) -> An<Tap<U1, f64>> {
 /// Tapped delay line with cubic interpolation.
 /// The number of taps is `N`.
 /// Minimum and maximum delay times are in seconds.
-/// Allocates: the delay line.
+/// - Allocates: the delay line.
 /// - Input 0: signal.
 /// - Inputs 1...N: delay time in seconds.
 /// - Output 0: delayed signal.
@@ -1175,7 +1175,7 @@ pub fn follow<S: ScalarOrPair<Sample = f64>>(t: S) -> An<AFollow<f64, f64, S>> {
 
 /// Look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
-/// Allocates: look-ahead buffers.
+/// - Allocates: look-ahead buffers.
 /// - Input 0: signal
 /// - Output 0: signal limited to -1...1
 pub fn limiter<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64, U1, S>> {
@@ -1184,7 +1184,7 @@ pub fn limiter<S: ScalarOrPair<Sample = f64>>(time: S) -> An<Limiter<f64, U1, S>
 
 /// Stereo look-ahead limiter with `(attack, release)` times in seconds.
 /// Look-ahead is equal to the attack time.
-/// Allocates: look-ahead buffers.
+/// - Allocates: look-ahead buffers.
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: left signal limited to -1...1
@@ -1532,7 +1532,7 @@ pub fn dsf_square_r(roughness: f64) -> An<Dsf<f64, U1>> {
 
 /// Karplus-Strong plucked string oscillator with `frequency` in Hz.
 /// High frequency damping is in 0...1.
-/// Allocates: pluck buffer.
+/// - Allocates: pluck buffer.
 /// - Input 0: string excitation
 /// - Output 0: oscillator output
 ///
@@ -1550,7 +1550,7 @@ pub fn pluck(frequency: f64, gain_per_second: f64, high_frequency_damping: f64) 
 }
 
 /// Saw wavetable oscillator.
-/// Allocates: global saw wavetable.
+/// - Allocates: global saw wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: saw wave
 pub fn saw() -> An<WaveSynth<'static, f64, U1>> {
@@ -1558,7 +1558,7 @@ pub fn saw() -> An<WaveSynth<'static, f64, U1>> {
 }
 
 /// Square wavetable oscillator.
-/// Allocates: global square wavetable.
+/// - Allocates: global square wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: square wave
 pub fn square() -> An<WaveSynth<'static, f64, U1>> {
@@ -1566,7 +1566,7 @@ pub fn square() -> An<WaveSynth<'static, f64, U1>> {
 }
 
 /// Triangle wavetable oscillator.
-/// Allocates: global triangle wavetable.
+/// - Allocates: global triangle wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: triangle wave
 pub fn triangle() -> An<WaveSynth<'static, f64, U1>> {
@@ -1574,7 +1574,7 @@ pub fn triangle() -> An<WaveSynth<'static, f64, U1>> {
 }
 
 /// Organ wavetable oscillator. Emphasizes octave partials.
-/// Allocates: global organ wavetable.
+/// - Allocates: global organ wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: organ wave
 pub fn organ() -> An<WaveSynth<'static, f64, U1>> {
@@ -1583,7 +1583,7 @@ pub fn organ() -> An<WaveSynth<'static, f64, U1>> {
 
 /// Soft saw wavetable oscillator.
 /// Contains all partials, falls off like a triangle wave.
-/// Allocates: global soft saw wavetable.
+/// - Allocates: global soft saw wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: soft saw wave
 pub fn soft_saw() -> An<WaveSynth<'static, f64, U1>> {
@@ -1591,7 +1591,7 @@ pub fn soft_saw() -> An<WaveSynth<'static, f64, U1>> {
 }
 
 /// Hammond wavetable oscillator. Emphasizes first three partials.
-/// Allocates: global Hammond wavetable.
+/// - Allocates: global Hammond wavetable.
 /// - Input 0: frequency in Hz
 /// - Output 0: Hammond wave
 pub fn hammond() -> An<WaveSynth<'static, f64, U1>> {
@@ -1599,28 +1599,28 @@ pub fn hammond() -> An<WaveSynth<'static, f64, U1>> {
 }
 
 /// Fixed saw wavetable oscillator at `f` Hz.
-/// Allocates: global saw wavetable.
+/// - Allocates: global saw wavetable.
 /// - Output 0: saw wave
 pub fn saw_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     super::prelude::saw_hz(f)
 }
 
 /// Fixed square wavetable oscillator at `f` Hz.
-/// Allocates: global square wavetable.
+/// - Allocates: global square wavetable.
 /// - Output 0: square wave
 pub fn square_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     super::prelude::square_hz(f)
 }
 
 /// Fixed triangle wavetable oscillator at `f` Hz.
-/// Allocates: global triangle wavetable.
+/// - Allocates: global triangle wavetable.
 /// - Output 0: triangle wave
 pub fn triangle_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     super::prelude::triangle_hz(f)
 }
 
 /// Fixed organ wavetable oscillator at `f` Hz. Emphasizes octave partials.
-/// Allocates: global organ wavetable.
+/// - Allocates: global organ wavetable.
 /// - Output 0: organ wave
 pub fn organ_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     constant(f) >> organ()
@@ -1628,14 +1628,14 @@ pub fn organ_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f6
 
 /// Fixed soft saw wavetable oscillator at `f` Hz.
 /// Contains all partials, falls off like a triangle wave.
-/// Allocates: global soft saw wavetable.
+/// - Allocates: global soft saw wavetable.
 /// - Output 0: soft saw wave
 pub fn soft_saw_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     constant(f) >> soft_saw()
 }
 
 /// Fixed Hammond wavetable oscillator at `f` Hz. Emphasizes first three partials.
-/// Allocates: global Hammond wavetable.
+/// - Allocates: global Hammond wavetable.
 /// - Output 0: Hammond wave
 pub fn hammond_hz(f: f64) -> An<Pipe<f64, Constant<U1, f64>, WaveSynth<'static, f64, U1>>> {
     constant(f) >> hammond()
@@ -2172,22 +2172,24 @@ pub fn snoop(capacity: usize) -> (Snoop<f64>, An<SnoopBackend<f64>>) {
     (snoop, An(backend))
 }
 
-/// Frequency domain resynthesizer. The number of inputs is `I` and the number of outputs is `O`.
+/// Frequency domain resynthesizer.
+/// The number of inputs is `I` and the number of outputs is `O`.
 /// The window length (in samples) must be a power of two and at least four.
-/// Processes windows of input samples transformed into the frequency domain.
-/// The processing function is issued arguments (time, window).
-/// It processes frequency domain inputs into frequency domain outputs.
+/// The resynthesizer processes windows of input samples transformed into the frequency domain.
+/// The user supplied processing function processes frequency domain inputs into frequency domain outputs.
+/// The outputs are inverse transformed and overlap-added.
 /// The latency in samples is equal to window length.
 /// If any output is a copy of an input, then the input will be reconstructed exactly
-/// once all windows are overlapping, which takes `window_length` samples.
-/// -Input(s): input signals.
-/// -Output(s): processed signals.
+/// once all windows are overlapping, which takes `window_length` extra samples.
+/// - Allocates: all needed buffers when created.
+/// - Input(s): `I` input signals.
+/// - Output(s): `O` processed signals.
 ///
-/// ### Example: FFT Lowpass Filter
+/// ### Example: FFT Brickwall Lowpass Filter
 /// ```
 /// use fundsp::hacker::*;
 /// let cutoff = 1000.0;
-/// let resynth = resynth::<U1, U1, _>(1024, |_time, fft|
+/// let synth = resynth::<U1, U1, _>(1024, |fft|
 ///     for i in 0..fft.bins() {
 ///         if fft.frequency(i) <= cutoff {
 ///             fft.set(0, i, fft.at(0, i));
@@ -2198,7 +2200,7 @@ pub fn resynth<I, O, F>(window_length: usize, processing: F) -> An<Resynth<I, O,
 where
     I: Size<f64>,
     O: Size<f64>,
-    F: FnMut(f32, &mut FftWindow) + Clone + Send + Sync,
+    F: FnMut(&mut FftWindow) + Clone + Send + Sync,
 {
     An(Resynth::new(window_length, processing))
 }

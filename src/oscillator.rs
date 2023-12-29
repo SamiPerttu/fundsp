@@ -203,7 +203,7 @@ impl<T: Real, N: Size<T>> AudioNode for Dsf<T, N> {
 }
 
 /// Karplus-Strong oscillator.
-/// Allocates: pluck buffer.
+/// - Allocates: pluck buffer.
 /// - Input 0: extra string excitation.
 /// - Output 0: plucked string.
 #[derive(Clone)]
