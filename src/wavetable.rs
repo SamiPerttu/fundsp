@@ -5,6 +5,7 @@ use super::math::*;
 use super::signal::*;
 use super::*;
 use num_complex::Complex32;
+use realfft::*;
 use rustfft::algorithm::Radix4;
 use rustfft::Fft;
 use rustfft::FftDirection;
@@ -78,6 +79,11 @@ pub struct Wavetable {
 }
 
 impl Wavetable {
+    /// Create new wavetable. `min_pitch` and `max_pitch` are the minimum
+    /// and maximum base frequencies in Hz (for example, 20.0 and 20_000.0).
+    /// `tables_per_octave` is the number of wavetables per octave
+    /// (for example, 4.0). `phase(i)` is the phase of the `i`th partial.
+    /// `amplitude(p, i)` is the amplitude of the `i`th partial with base frequency `p`.
     pub fn new<P, A>(
         min_pitch: f64,
         max_pitch: f64,
@@ -116,6 +122,33 @@ impl Wavetable {
         //    total_size * 4
         //);
         Wavetable { table }
+    }
+
+    /// Create new wavetable from a single cycle wave. `min_pitch` and `max_pitch` are the minimum
+    /// and maximum base frequencies in Hz (for example, 20.0 and 20_000.0).
+    /// `tables_per_octave` is the number of wavetables per octave
+    /// (for example, 4.0).
+    pub fn from_wave(min_pitch: f64, max_pitch: f64, tables_per_octave: f64, wave: &[f32]) -> Self {
+        let mut planner = RealFftPlanner::<f32>::new();
+        let r2c = planner.plan_fft_forward(wave.len());
+        let mut spectrum = r2c.make_output_vec();
+        let mut tmp_wave = Vec::from(wave);
+        r2c.process(&mut tmp_wave, &mut spectrum).unwrap();
+        let phase = |i: u32| {
+            if (i as usize) < spectrum.len() {
+                spectrum[i as usize].arg() as f64
+            } else {
+                0.0
+            }
+        };
+        let amplitude = |_p: f64, i: u32| {
+            if (i as usize) < spectrum.len() {
+                spectrum[i as usize].norm() as f64
+            } else {
+                0.0
+            }
+        };
+        Wavetable::new(min_pitch, max_pitch, tables_per_octave, &phase, &amplitude)
     }
 
     /// Read wave at the given phase (in 0...1).
