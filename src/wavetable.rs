@@ -127,7 +127,8 @@ impl Wavetable {
     /// Create new wavetable from a single cycle wave. `min_pitch` and `max_pitch` are the minimum
     /// and maximum base frequencies in Hz (for example, 20.0 and 20_000.0).
     /// `tables_per_octave` is the number of wavetables per octave
-    /// (for example, 4.0).
+    /// (for example, 4.0). The overall scale of numbers in `wave` is ignored;
+    /// the wavetable is normalized to -1...1.
     pub fn from_wave(min_pitch: f64, max_pitch: f64, tables_per_octave: f64, wave: &[f32]) -> Self {
         let mut planner = RealFftPlanner::<f32>::new();
         let r2c = planner.plan_fft_forward(wave.len());
@@ -136,7 +137,7 @@ impl Wavetable {
         r2c.process(&mut tmp_wave, &mut spectrum).unwrap();
         let phase = |i: u32| {
             if (i as usize) < spectrum.len() {
-                spectrum[i as usize].arg() as f64
+                spectrum[i as usize].arg() as f64 / TAU
             } else {
                 0.0
             }
