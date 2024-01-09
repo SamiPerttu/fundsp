@@ -57,12 +57,7 @@ fn reverb_bench(_dummy: usize) -> Wave32 {
     Wave32::render(
         44100.0,
         1.0,
-        &mut (noise()
-            >> split()
-            >> fdn::<U32, _>(stack::<U32, _, _>(|i| {
-                delay(0.005 + 0.002 * i as f32) >> fir((0.22, 0.44, 0.22))
-            }))
-            >> join()),
+        &mut ((noise() | noise()) >> reverb_stereo(10.0, 1.0)),
     )
 }
 

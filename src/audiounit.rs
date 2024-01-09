@@ -11,6 +11,7 @@ use dyn_clone::DynClone;
 use num_complex::Complex64;
 use rsor::Slice;
 use std::fmt::Write;
+use std::marker::PhantomData;
 
 /// An audio processor with an object safe interface.
 /// Once constructed, it has a fixed number of inputs and outputs.
@@ -640,6 +641,86 @@ impl AudioUnit48 for BlockRateAdapter48 {
     }
     fn allocate(&mut self) {
         self.buffer.resize(self.channels);
+        self.unit.allocate();
+    }
+}
+
+/// Converts an AudioUnit into an AudioNode.
+#[duplicate_item(
+    f48       Node48       AudioUnit48;
+    [ f64 ]   [ Node64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Node32 ]   [ AudioUnit32 ];
+)]
+#[derive(Clone)]
+pub struct Node48<I: Size<f48>, O: Size<f48>> {
+    _marker: PhantomData<(I, O)>,
+    unit: Box<dyn AudioUnit48>,
+}
+
+#[duplicate_item(
+    f48       Node48       AudioUnit48;
+    [ f64 ]   [ Node64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Node32 ]   [ AudioUnit32 ];
+)]
+impl<I: Size<f48>, O: Size<f48>> Node48<I, O> {
+    pub fn new(unit: Box<dyn AudioUnit48>) -> Self {
+        assert!(I::USIZE == unit.inputs());
+        assert!(O::USIZE == unit.outputs());
+        Self {
+            _marker: PhantomData,
+            unit,
+        }
+    }
+}
+
+#[duplicate_item(
+    f48       Node48       AudioUnit48;
+    [ f64 ]   [ Node64 ]   [ AudioUnit64 ];
+    [ f32 ]   [ Node32 ]   [ AudioUnit32 ];
+)]
+impl<I: Size<f48>, O: Size<f48>> AudioNode for Node48<I, O> {
+    const ID: u64 = 82;
+    type Sample = f48;
+    type Inputs = I;
+    type Outputs = O;
+    type Setting = ();
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.unit.set_sample_rate(sample_rate);
+    }
+
+    fn reset(&mut self) {
+        self.unit.reset();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let mut output = Frame::default();
+        self.unit.tick(input, &mut output);
+        output
+    }
+
+    fn process(
+        &mut self,
+        size: usize,
+        input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        self.unit.process(size, input, output);
+    }
+
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
+        self.unit.ping(probe, hash)
+    }
+
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        self.unit.route(input, frequency)
+    }
+
+    fn allocate(&mut self) {
         self.unit.allocate();
     }
 }

@@ -45,6 +45,8 @@ struct State {
     waveform: Waveform,
     /// Selected filter.
     filter: Filter,
+    /// Vibrato amount in 0...1.
+    vibrato_amount: f64,
     /// Chorus amount.
     chorus_amount: Shared<f64>,
     /// Reverb amount.
@@ -128,7 +130,7 @@ where
     let chorus_amount = shared(1.0);
 
     let mut net = Net64::wrap(Box::new(sequencer_backend));
-    let (reverb, reverb_backend) = Slot64::new(Box::new(reverb_stereo(room_size, reverb_time)));
+    let (reverb, reverb_backend) = Slot64::new(Box::new(reverb2_stereo(room_size, reverb_time)));
     net = net >> pan(0.0);
     // Smooth chorus and reverb amounts to prevent discontinuities.
     net = net
@@ -160,7 +162,7 @@ where
     )?;
     stream.play()?;
 
-    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 420.0));
+    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 480.0));
 
     let options = eframe::NativeOptions {
         viewport,
@@ -174,6 +176,7 @@ where
         net,
         waveform: Waveform::Saw,
         filter: Filter::None,
+        vibrato_amount: 0.7,
         chorus_amount,
         reverb_amount,
         room_size,
@@ -237,6 +240,13 @@ impl eframe::App for State {
             ui.separator();
             ui.end_row();
 
+            ui.label("Vibrato Amount");
+            let mut vibrato = self.vibrato_amount * 100.0;
+            ui.add(egui::Slider::new(&mut vibrato, 0.0..=100.0).suffix("%"));
+            self.vibrato_amount = vibrato * 0.01;
+            ui.separator();
+            ui.end_row();
+
             ui.label("Filter");
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.filter, Filter::None, "None");
@@ -262,14 +272,14 @@ impl eframe::App for State {
             let mut reverb_time = self.reverb_time;
             let mut room_size = self.room_size;
             ui.label("Reverb Time");
-            ui.add(egui::Slider::new(&mut reverb_time, 1.0..=5.0).suffix("s"));
+            ui.add(egui::Slider::new(&mut reverb_time, 1.0..=10.0).suffix("s"));
             ui.label("Reverb Room Size");
-            ui.add(egui::Slider::new(&mut room_size, 3.0..=30.0).suffix("m"));
+            ui.add(egui::Slider::new(&mut room_size, 3.0..=100.0).suffix("m"));
             if self.room_size != room_size || self.reverb_time != reverb_time {
                 self.reverb.set(
                     Fade::Smooth,
                     0.5,
-                    Box::new(reverb_stereo(room_size, reverb_time)),
+                    Box::new(reverb2_stereo(room_size, reverb_time)),
                 );
                 self.room_size = room_size;
                 self.reverb_time = reverb_time;
@@ -325,26 +335,29 @@ impl eframe::App for State {
                     }
                 }
                 if ctx.input(|c| c.key_down(KEYS[i])) && self.id[i].is_none() {
-                    let pitch = midi_hz(40.0 + i as f64);
+                    let pitch_hz = midi_hz(40.0 + i as f64);
+                    let v = self.vibrato_amount * 0.003;
+                    let pitch = lfo(move |t| {
+                        pitch_hz * xerp11(1.0 / (1.0 + v), 1.0 + v, sin_hz(6.0, t) + sin_hz(6.1, t))
+                    });
                     let waveform = match self.waveform {
-                        Waveform::Sine => Net64::wrap(Box::new(sine_hz(pitch) * 0.1)),
-                        Waveform::Saw => Net64::wrap(Box::new(saw_hz(pitch) * 0.5)),
-                        Waveform::Square => Net64::wrap(Box::new(square_hz(pitch) * 0.5)),
-                        Waveform::Triangle => Net64::wrap(Box::new(triangle_hz(pitch) * 0.5)),
-                        Waveform::Organ => Net64::wrap(Box::new(organ_hz(pitch) * 0.5)),
-                        Waveform::Hammond => Net64::wrap(Box::new(hammond_hz(pitch) * 0.5)),
+                        Waveform::Sine => Net64::wrap(Box::new(pitch * 2.0 >> sine() * 0.1)),
+                        Waveform::Saw => Net64::wrap(Box::new(pitch >> saw() * 0.5)),
+                        Waveform::Square => Net64::wrap(Box::new(pitch >> square() * 0.5)),
+                        Waveform::Triangle => Net64::wrap(Box::new(pitch >> triangle() * 0.5)),
+                        Waveform::Organ => Net64::wrap(Box::new(pitch >> organ() * 0.5)),
+                        Waveform::Hammond => Net64::wrap(Box::new(pitch >> hammond() * 0.5)),
                         Waveform::Pulse => Net64::wrap(Box::new(
-                            lfo(move |t| (pitch, lerp11(0.01, 0.99, sin_hz(0.1, t))))
+                            (pitch | lfo(move |t| lerp11(0.01, 0.99, sin_hz(0.1, t))))
                                 >> pulse() * 0.5,
                         )),
                         Waveform::Pluck => {
-                            Net64::wrap(Box::new(zero() >> pluck(pitch, 0.5, 0.5) * 0.5))
+                            Net64::wrap(Box::new(zero() >> pluck(pitch_hz, 0.5, 0.5) * 0.5))
                         }
                         Waveform::Noise => Net64::wrap(Box::new(
                             (noise()
-                                | lfo(move |t| {
-                                    (pitch, funutd::math::lerp(100.0, 10.0, clamp01(t * 5.0)))
-                                }))
+                                | pitch * 4.0
+                                | lfo(move |t| funutd::math::lerp(100.0, 20.0, clamp01(t * 5.0))))
                                 >> !resonator()
                                 >> resonator()
                                 >> shape(fundsp::shape::Shape::AdaptiveTanh(0.01, 0.1)),

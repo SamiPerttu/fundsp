@@ -1498,6 +1498,33 @@ pub fn reverb_stereo(
     super::prelude::reverb_stereo::<f32>(room_size, time)
 }
 
+/// Stereo reverb (8-channel and 16-channel FDNs in series).
+/// `room_size` is in meters. An average room size is 10 meters.
+/// `time` is approximate reverberation time to -60 dB in seconds.
+/// - Input 0: left signal
+/// - Input 1: right signal
+/// - Output 0: reverberated left signal
+/// - Output 1: reverberated right signal
+pub fn reverb2_stereo(
+    room_size: f64,
+    time: f64,
+) -> An<impl AudioNode<Sample = f32, Inputs = U2, Outputs = U2>> {
+    super::prelude::reverb2_stereo::<f32>(room_size, time)
+}
+
+/// Create a stereo reverb unit, given delay times (in seconds) for the 24 delay lines
+/// and reverberation `time` (in seconds).
+/// - Input 0: left signal
+/// - Input 1: right signal
+/// - Output 0: reverberated left signal
+/// - Output 1: reverberated right signal
+pub fn reverb2_stereo_delays(
+    delays: &[f64],
+    time: f64,
+) -> An<impl AudioNode<Sample = f32, Inputs = U2, Outputs = U2>> {
+    super::prelude::reverb2_stereo_delays::<f32>(delays, time)
+}
+
 /// Saw-like discrete summation formula oscillator.
 /// - Input 0: frequency in Hz
 /// - Input 1: roughness in 0...1 is the attenuation of successive partials.
@@ -2205,4 +2232,26 @@ where
     F: FnMut(&mut FftWindow) + Clone + Send + Sync,
 {
     An(Resynth::new(window_length, processing))
+}
+
+/// `N`-channel impulse. The first sample on each channel is one and the rest are zero.
+/// - Output(s): impulse.
+pub fn impulse<N: Size<f32>>() -> An<Impulse<N, f32>> {
+    An(Impulse::new())
+}
+
+/// Convert an `AudioUnit` into an `AudioNode`.
+/// The number of input channels (`I`) and output channels (`O`) must be specified
+/// and must match the provided `AudioUnit`.
+/// - Input(s): `I` inputs of `unit`.
+/// - Output(s): `O` outputs of `unit`.
+///
+/// ### Example: Type Erase An AudioNode
+/// ```
+/// use fundsp::hacker32::*;
+/// let node = noise() >> pinkpass();
+/// let erased: An<Node32<U0, U1>> = node32(Box::new(node));
+/// ```
+pub fn node32<I: Size<f32>, O: Size<f32>>(unit: Box<dyn AudioUnit32>) -> An<Node32<I, O>> {
+    An(Node32::new(unit))
 }

@@ -144,15 +144,16 @@ impl Wave48 {
         }
     }
 
-    /// Create an all-zeros wave with the given `duration` in seconds and number of `channels`.
+    /// Create an all-zeros wave with the given `duration` in seconds
+    /// (rounded to the nearest sample) and number of `channels`.
     ///
     /// ### Example
     /// ```
     /// use fundsp::hacker32::*;
-    /// let wave = Wave32::silence(1, 44100.0, 1.0);
+    /// let wave = Wave32::zero(1, 44100.0, 1.0);
     /// assert!(wave.duration() == 1.0 && wave.amplitude() == 0.0);
     /// ```
-    pub fn silence(channels: usize, sample_rate: f64, duration: f64) -> Self {
+    pub fn zero(channels: usize, sample_rate: f64, duration: f64) -> Self {
         let length = round(duration * sample_rate) as usize;
         assert!(channels > 0 || length == 0);
         let mut vec = Vec::with_capacity(channels);
@@ -503,7 +504,7 @@ impl Wave48 {
         let duration = duration_samples as f64 / sample_rate;
         if latency_samples > 0 {
             let latency_wave = Self::render(sample_rate, duration + latency_duration, node);
-            let mut wave = Self::silence(node.outputs(), sample_rate, duration);
+            let mut wave = Self::zero(node.outputs(), sample_rate, duration);
             for channel in 0..wave.channels() {
                 for i in 0..duration_samples {
                     wave.set(channel, i, latency_wave.at(channel, i + latency_samples));
@@ -608,7 +609,7 @@ impl Wave48 {
         let duration = duration_samples as f64 / self.sample_rate();
         if latency_samples > 0 {
             let latency_wave = self.filter(duration + latency_duration, node);
-            let mut wave = Self::silence(node.outputs(), self.sample_rate(), duration);
+            let mut wave = Self::zero(node.outputs(), self.sample_rate(), duration);
             for channel in 0..wave.channels() {
                 for i in 0..duration_samples {
                     wave.set(channel, i, latency_wave.at(channel, i + latency_samples));

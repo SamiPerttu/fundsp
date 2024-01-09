@@ -561,8 +561,9 @@ Due to nonlinearity, we do not attempt to calculate frequency responses for thes
 
 ### Frequency Domain Resynthesis
 
-Filtering and other effects can be done in the frequency domain as well
-with the `resynth` opcode.
+Filtering and other effects can be done in the
+[frequency domain](https://en.wikipedia.org/wiki/Frequency_domain)
+as well with the `resynth` opcode.
 
 The resynthesizer
 [Fourier transforms](https://en.wikipedia.org/wiki/Discrete-time_Fourier_transform)
@@ -631,6 +632,13 @@ Later we can set the amplitude from anywhere:
 
 ```rust
 amp.set_value(0.5);
+```
+
+A useful pattern is piping a shared variable through a `follow` filter
+to smooth parameter changes, here with a 0.1 second response time:
+
+```rust
+let amp_controlled = noise() * (var(&amp) >> follow(0.1));
 ```
 
 The `timer` opcode maintains stream time in a shared variable.
@@ -888,6 +896,7 @@ The type parameters in the table refer to the hacker preludes.
 | `highshelf_q(q, gain)` | 2 (audio, frequency) | 1 | High shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `hold(v)`              | 2 (signal, frequency) | 1 | Sample-and-hold component with hold time variability `v` in 0...1. |
 | `hold_hz(f, v)`        |    1    |    1    | Sample-and-hold component at `f` Hz with hold time variability `v` in 0...1. |
+| `impulse::<U>()`       |    -    |   `U`   | `U`-channel impulse; on each channel the first sample is one, the rest are zeros.
 | `join::<U>()`          |   `U`   |    1    | Average together `U` channels. Inverse of `split`. |
 | `lfo(f)`               |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
 | `lfo2(f)`              |  1 (x)  |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `envelope2`. |
@@ -925,6 +934,8 @@ The type parameters in the table refer to the hacker preludes.
 | `multitap::<N>(min_delay, max_delay)` | `N + 1` (audio, delay...) | 1 | Tapped delay line with cubic interpolation. Number of taps is `N`. |
 | `multitick::<U>()`     |   `U`   |   `U`   | Multichannel single sample delay. |
 | `multizero::<U>()`     |    -    |   `U`   | Multichannel zero signal. |
+| `node32::<I, O>(unit)` |   `I`   |   `O`   | Convert an `AudioUnit32` into an `AudioNode` with `I` inputs and `O` outputs. |
+| `node64::<I, O>(unit)` |   `I`   |   `O`   | Convert an `AudioUnit64` into an `AudioNode` with `I` inputs and `O` outputs. |
 | `noise()`              |    -    |    1    | [White noise](https://en.wikipedia.org/wiki/White_noise) source. Synonymous with `white`. |
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
 | `notch_hz(f, q)`       |    1    |    1    | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
@@ -940,7 +951,7 @@ The type parameters in the table refer to the hacker preludes.
 | `peak_q(q)`            | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q`. |
 | `phaser(fb, f)`        |    1    |    1    | Phaser effect with feedback amount `fb` and modulation function `f`, e.g., `\|t\| sin_hz(0.1, t) * 0.5 + 0.5`. |
 | `pink()`               |    -    |    1    | [Pink noise](https://en.wikipedia.org/wiki/Pink_noise) source. |
-| `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave). |
+| `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave lowpass). |
 | `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from fractional generator `f`. |
 | `pluck(f, gain, damping)` | 1 (excitation) | 1 | [Karplus-Strong](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis) plucked string oscillator with frequency `f` Hz, `gain` per second (`gain` <= 1) and high frequency `damping` in 0...1. |
@@ -949,7 +960,8 @@ The type parameters in the table refer to the hacker preludes.
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `resynth::<I, O, _>(w, f)` | `I` |   `O`   | Frequency domain resynthesis with window length `w` and processing function `f`. |
-| `reverb_stereo(r, t)`  |    2    |    2    | Stereo reverb with room size `r` meters (10 is average) and reverberation time `t` seconds. |
+| `reverb_stereo(r, t)`  |    2    |    2    | Stereo reverb (32-channel [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)) with room size `r` meters (10 is average) and reverberation time `t` seconds. |
+| `reverb2_stereo(r, t)` |    2    |    2    | Another stereo reverb (8-channel and 16-channel [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)s in series) with room size `r` meters (10 is average) and reverberation time `t` seconds. |
 | `reverse::<N>()`       |   `N`   |   `N`   | Reverse channel order, e.g., swap left and right channels. |
 | `rossler()`            | 1 (frequency) | 1 | [Rössler dynamical system](https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor) oscillator. |
 | `saw()`                | 1 (frequency) | 1 | Bandlimited saw wave oscillator. |

@@ -231,13 +231,13 @@ pub fn delerp11<T: Num>(a: T, b: T, x: T) -> T {
     (x - a) / (b - a) * T::new(2) - T::new(1)
 }
 
-/// Exponential interpolation. `a`, `b` > 0.
+/// Exponential interpolation in `a`...`b` with `t` in 0...1. `a`, `b` > 0.
 #[inline]
 pub fn xerp<U: Lerp<T> + Real, T>(a: U, b: U, t: T) -> U {
     exp(lerp(log(a), log(b), t))
 }
 
-/// Exponential interpolation with `t` in -1...1. `a`, `b` > 0.
+/// Exponential interpolation in `a`...`b` with `t` in 0...1. `a`, `b` > 0.
 #[inline]
 pub fn xerp11<U: Lerp<T> + Real, T: Num>(a: U, b: U, t: T) -> U {
     exp(lerp(
@@ -303,7 +303,7 @@ pub fn amp_db<T: Real>(gain: T) -> T {
 }
 
 /// A-weighted response function.
-/// Returns equal loudness amplitude response at `f` Hz.
+/// Returns equal loudness amplitude response of the human ear at `f` Hz.
 /// Normalized to 1.0 at 1 kHz.
 ///
 /// ### Example
@@ -325,7 +325,7 @@ pub fn a_weight<T: Real>(f: T) -> T {
 /// M-weighted response function normalized to 1 kHz.
 /// M-weighting is an unofficial name for
 /// the frequency response curve of the ITU-R 468 noise weighting standard.
-/// Returns equal loudness amplitude response at `f` Hz.
+/// Returns equal loudness amplitude response of the human ear at `f` Hz.
 /// Normalized to 1.0 at 1 kHz.
 ///
 /// ### Example

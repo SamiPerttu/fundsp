@@ -1582,7 +1582,7 @@ where
     An(MultiJoin::<M, N, T>::new())
 }
 
-/// Stereo reverb.
+/// Stereo reverb (32-channel FDN).
 /// `room_size` is in meters. An average room size is 10 meters.
 /// `time` is approximate reverberation time to -60 dB in seconds.
 /// - Input 0: left signal
@@ -1625,13 +1625,94 @@ where
     let reverb = fdn::<U32, T, _>(line);
 
     // Multiplex stereo into 32 channels, reverberate, then average them back.
-    multisplit::<U2, U16, T>() >> reverb >> multijoin::<U2, U16, T>()
+    //multisplit::<U2, U16, T>() >> reverb >> multijoin::<U2, U16, T>()
 
-    // This version pans the channels linearly (the above version pans them hard left or right).
-    //multisplit::<U2, U16, T>()
-    //    >> reverb
-    //    >> sumf::<U32, _, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(x))))
-    //        * dc((T::from_f64(1.0 / 16.0), T::from_f64(1.0 / 16.0)))
+    // This version pans the channels with an S shape (the above version pans them hard left or right).
+    multisplit::<U2, U16, T>()
+        >> reverb
+        >> sumf::<U32, _, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(smooth3(x)))))
+            * dc((T::from_f64(1.0 / 16.0), T::from_f64(1.0 / 16.0)))
+}
+
+/// Stereo reverb (8-channel and 16-channel FDNs in series).
+/// `room_size` is in meters. An average room size is 10 meters.
+/// `time` is approximate reverberation time to -60 dB in seconds.
+/// - Input 0: left signal
+/// - Input 1: right signal
+/// - Output 0: reverberated left signal
+/// - Output 1: reverberated right signal
+pub fn reverb2_stereo<T: Real>(
+    room_size: f64,
+    time: f64,
+) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
+    // Optimized delay times from `optimize.rs` example. Fitness = 773.69745.
+    let mut delays = [
+        0.068582244,
+        0.02007867,
+        0.026451133,
+        0.028128913,
+        0.023684707,
+        0.02030506,
+        0.06849203,
+        0.02046375,
+        0.06855943,
+        0.02119047,
+        0.02082747,
+        0.022844134,
+        0.026518257,
+        0.027085062,
+        0.028968025,
+        0.02377437,
+        0.020056667,
+        0.020010974,
+        0.023298478,
+        0.020509405,
+        0.022709418,
+        0.022346418,
+        0.030714132,
+        0.024976023,
+    ];
+    for delay in delays.iter_mut() {
+        *delay *= room_size / 10.0;
+    }
+    reverb2_stereo_delays::<T>(&delays, time)
+}
+
+/// Create a stereo reverb unit, given delay times (in seconds) for the 24 delay lines
+/// and reverberation `time` (in seconds).
+/// - Input 0: left signal
+/// - Input 1: right signal
+/// - Output 0: reverberated left signal
+/// - Output 1: reverberated right signal
+pub fn reverb2_stereo_delays<T>(
+    delays: &[f64],
+    time: f64,
+) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>>
+where
+    T: Real,
+{
+    assert!(delays.len() == 24);
+    let room_size = delays.iter().sum::<f64>() / 24.0 / 0.03 * 10.0;
+    let a = T::from_f64(pow(db_amp(-60.0), 0.03 * room_size / 10.0 / time));
+
+    let line1 = stack::<U8, T, _, _>(|i| {
+        delay::<T>(delays[i as usize]) >> fir((a / T::new(4), a / T::new(2), a / T::new(4)))
+    });
+
+    let line2 = stack::<U16, T, _, _>(|i| {
+        delay::<T>(delays[8 + i as usize]) >> fir((a / T::new(4), a / T::new(2), a / T::new(4)))
+    });
+
+    let fdn1 = fdn(line1);
+    let fdn2 = fdn(line2);
+
+    multisplit::<U2, U4, T>()
+        >> fdn1
+        >> multijoin::<U2, U4, T>()
+        >> multisplit::<U2, U8, T>()
+        >> fdn2
+        >> sumf::<U16, _, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(smooth3(x)))))
+            * dc((T::from_f64(1.0 / 8.0), T::from_f64(1.0 / 8.0)))
 }
 
 /// Saw-like discrete summation formula oscillator.
@@ -2709,4 +2790,10 @@ where
     F: FnMut(&mut FftWindow) + Clone + Send + Sync,
 {
     An(Resynth::new(window_length, processing))
+}
+
+/// `N`-channel impulse. The first sample on each channel is one and the rest are zero.
+/// - Output(s): impulse.
+pub fn impulse<N: Size<T>, T: Float>() -> An<Impulse<N, T>> {
+    An(Impulse::new())
 }

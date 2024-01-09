@@ -1,4 +1,4 @@
-//! Sound generators.
+//! Sound generators using the Dna system.
 
 use funutd::dna::*;
 

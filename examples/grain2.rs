@@ -38,13 +38,13 @@ where
     let mut dna = Dna::new(10);
     let mut c = gen_granular(1, &scale, 2.0, 30, &mut dna);
 
-    for parameter in dna.parameters().iter() {
+    for parameter in dna.parameter_vector().iter() {
         println!("{}: {}", parameter.name(), parameter.value());
     }
 
     let mut dna2 = Dna::new(7);
     let mut fx = gen_effect(&mut dna2);
-    for parameter in dna2.parameters().iter() {
+    for parameter in dna2.parameter_vector().iter() {
         println!("{}: {}", parameter.name(), parameter.value());
     }
 

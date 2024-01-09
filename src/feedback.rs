@@ -44,32 +44,7 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameHadamard<N, T> {
             }
             h *= 2;
         }
-        // Normalization for up to 256 channels.
-        if N::USIZE >= 256 {
-            return output * Frame::splat(T::from_f64(1.0 / 16.0));
-        }
-        if N::USIZE >= 128 {
-            return output * Frame::splat(T::from_f64(1.0 / (SQRT_2 * 8.0)));
-        }
-        if N::USIZE >= 64 {
-            return output * Frame::splat(T::from_f64(1.0 / 8.0));
-        }
-        if N::USIZE >= 32 {
-            return output * Frame::splat(T::from_f64(1.0 / (SQRT_2 * 4.0)));
-        }
-        if N::USIZE >= 16 {
-            return output * Frame::splat(T::from_f64(1.0 / 4.0));
-        }
-        if N::USIZE >= 8 {
-            return output * Frame::splat(T::from_f64(1.0 / (SQRT_2 * 2.0)));
-        }
-        if N::USIZE >= 4 {
-            return output * Frame::splat(T::from_f64(1.0 / 2.0));
-        }
-        if N::USIZE >= 2 {
-            return output * Frame::splat(T::from_f64(1.0 / SQRT_2));
-        }
-        output
+        output * Frame::splat(T::from_f64(1.0 / sqrt(N::I32 as f64)))
     }
     // Not implemented.
     // TODO: Hadamard is a special op because of interchannel dependencies.
@@ -315,7 +290,7 @@ pub struct Feedback48 {
 )]
 impl Feedback48 {
     /// Create new feedback unit with integrated feedback `delay` in seconds.
-    /// The delay amount is rounded up to the nearest sample.
+    /// The delay amount is rounded to the nearest sample.
     /// The minimum delay is one sample, which may also be accomplished by setting `delay` to zero.
     /// The feedback unit mixes back delayed output of contained unit `x` to its input.
     pub fn new(delay: f48, x: Box<dyn AudioUnit48>) -> Self {
@@ -364,7 +339,7 @@ impl AudioUnit48 for Feedback48 {
         if self.sample_rate != sample_rate as f48 {
             self.sample_rate = sample_rate as f48;
             self.x.set_sample_rate(sample_rate);
-            self.samples = ceil(self.delay * sample_rate as f48).max(1.0) as usize;
+            self.samples = round(self.delay * sample_rate as f48).max(1.0) as usize;
             let feedback_samples = self.samples.next_power_of_two();
             self.mask = feedback_samples - 1;
             for feedback in self.feedback.iter_mut() {

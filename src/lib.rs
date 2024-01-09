@@ -280,6 +280,7 @@ pub mod realnet;
 pub mod realseq;
 pub mod resample;
 pub mod resynth;
+pub mod reverb;
 pub mod rez;
 pub mod sequencer;
 pub mod setting;

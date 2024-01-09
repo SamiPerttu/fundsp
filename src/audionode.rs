@@ -2784,3 +2784,59 @@ impl<N: Size<T>, T: Float> AudioNode for Reverse<N, T> {
         Routing::Reverse.propagate(input, N::USIZE)
     }
 }
+
+/// `N`-channel impulse. First sample on each channel is one, the rest are zero.
+#[derive(Default, Clone)]
+pub struct Impulse<N, T> {
+    _marker: PhantomData<N>,
+    value: T,
+}
+
+impl<N: Size<T>, T: Float> Impulse<N, T> {
+    pub fn new() -> Self {
+        Self {
+            _marker: PhantomData,
+            value: T::one(),
+        }
+    }
+}
+
+impl<N: Size<T>, T: Float> AudioNode for Impulse<N, T> {
+    const ID: u64 = 81;
+    type Sample = T;
+    type Inputs = U0;
+    type Outputs = N;
+    type Setting = ();
+
+    fn reset(&mut self) {
+        self.value = T::one();
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        _input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let output = Frame::splat(self.value);
+        self.value = T::zero();
+        output
+    }
+    fn process(
+        &mut self,
+        size: usize,
+        _input: &[&[Self::Sample]],
+        output: &mut [&mut [Self::Sample]],
+    ) {
+        if size == 0 {
+            return;
+        }
+        for i in 0..N::USIZE {
+            output[i][0] = self.value;
+            output[i][1..size].fill(T::zero());
+        }
+        self.value = T::zero();
+    }
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Generator(0.0).propagate(input, N::USIZE)
+    }
+}

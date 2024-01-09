@@ -257,6 +257,7 @@ fn test_basic() {
     check_wave(net);
 
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
+    check_wave(impulse::<U2>());
 
     // Wave filtering, tick vs. process rendering, node reseting.
     let input = Wave64::render(44100.0, 1.0, &mut (noise() | noise()));

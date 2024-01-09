@@ -173,7 +173,7 @@ where
     let mut dna = Dna::new(36);
     let mut c = Net64::wrap(gen_granular(2, &scale, 2.4, 30, &mut dna));
 
-    for parameter in dna.parameters().iter() {
+    for parameter in dna.parameter_vector().iter() {
         println!("{}: {}", parameter.name(), parameter.value());
     }
 

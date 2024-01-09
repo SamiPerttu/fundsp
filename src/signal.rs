@@ -129,7 +129,7 @@ pub fn copy_signal_frame(source: &SignalFrame, i: usize, n: usize) -> SignalFram
 /// functionality.
 #[derive(Clone)]
 pub enum Routing {
-    /// Conservative routing: every input influences every output nonlinearly with extra latency.
+    /// Conservative routing: every input influences every output nonlinearly with extra latency in samples.
     Arbitrary(f64),
     /// Split or multisplit semantics.
     Split,
@@ -137,6 +137,8 @@ pub enum Routing {
     Join,
     /// Reverse channel order semantics. Equal number of inputs and outputs.
     Reverse,
+    /// Generator with latency in samples.
+    Generator(f64),
 }
 
 impl Routing {
@@ -180,6 +182,11 @@ impl Routing {
                 assert_eq!(input.len(), outputs);
                 for i in 0..outputs {
                     output[i] = input[input.len() - 1 - i];
+                }
+            }
+            Routing::Generator(latency) => {
+                for i in 0..outputs {
+                    output[i] = Signal::Latency(*latency);
                 }
             }
         }

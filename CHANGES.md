@@ -1,5 +1,13 @@
 ## Changes
 
+### Version 0.17 (Next Version)
+
+- `Wave32/64`: `silence` is now `zero`.
+- New opcode `impulse`.
+- Optimization of reverb delay times in the example `optimize`.
+- New opcodes `node64` and `node32` for converting an `AudioUnit` into an `AudioNode`.
+- New reverb opcode `reverb2_stereo`.
+
 ### Version 0.16
 
 - `AudioNode` now requires `Send` and `Sync`.
