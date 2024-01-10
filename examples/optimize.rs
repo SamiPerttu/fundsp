@@ -66,16 +66,23 @@ fn main() {
         }
         if improved {
             let mut delays = Vec::new();
+            let mut samples1 = Vec::new();
+            let mut samples2 = Vec::new();
             for i in 0..dna.parameters() {
                 let delay = dna.parameter(i).value_f32().unwrap();
-                println!(
-                    "{}: {} ({})",
-                    dna.parameter(i).name(),
-                    delay,
-                    round(delay * 44100.0) as i32
-                );
+                let samples = round(delay * 44100.0) as i32;
+                if i < 8 {
+                    samples1.push(samples);
+                } else {
+                    samples2.push(samples);
+                }
+                println!("{}: {} ({})", dna.parameter(i).name(), delay, samples,);
                 delays.push(delay);
             }
+            samples1.sort();
+            samples2.sort();
+            println!("{:?}", samples1);
+            println!("{:?}", samples2);
             println!("{:?}", delays);
         }
     }

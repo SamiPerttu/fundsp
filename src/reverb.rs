@@ -11,7 +11,7 @@ pub fn generate_reverb(
     let mut times = Vec::new();
     for i in 0..24 {
         let name = format!("Delay {}", i);
-        times.push(dna.f32_in(&name, 0.020, 0.070) as f64);
+        times.push(dna.f32_in(&name, 0.020, 0.050) as f64);
     }
     reverb2_stereo_delays(&times, 3.0)
 }
@@ -30,8 +30,18 @@ pub fn reverb_fitness(reverb: An<impl AudioNode<Sample = f32, Inputs = U2, Outpu
     let c2r = planner.plan_fft_inverse(response.length());
     let mut spectrum = r2c.make_output_vec();
 
-    for channel in 0..=1 {
-        let mut data = response.channel(channel).clone();
+    // Deal with left, right and center signals.
+    for channel in 0..=2 {
+        let mut data = match channel {
+            0 | 1 => response.channel(channel).clone(),
+            _ => {
+                let mut stereo = response.channel(0).clone();
+                for i in 0..stereo.len() {
+                    stereo[i] += response.at(1, i);
+                }
+                stereo
+            }
+        };
         r2c.process(&mut data, &mut spectrum).unwrap();
         for x in spectrum.iter_mut() {
             *x = Complex32::new(x.norm_sqr(), 0.0);
@@ -44,12 +54,18 @@ pub fn reverb_fitness(reverb: An<impl AudioNode<Sample = f32, Inputs = U2, Outpu
         // Minimize autocorrelation.
         // Weight the frequencies by the noise response curve of the human ear.
         let auto_weight = 1.0;
-        for i in 1..4410 * 4 {
-            fitness -= m_weight(44100.0 / i as f32) * abs(data[i] * z) * auto_weight;
+        // Measure frequencies down to 5 Hz.
+        for i in 1..4410 * 2 {
+            let weight = 1.0 / abs(i as f32);
+            fitness -= m_weight(44100.0 / i as f32) * weight * abs(data[i] * z) * auto_weight;
+        }
+
+        if channel == 2 {
+            continue;
         }
 
         // Maximize echo density.
-        let echo_weight = 1_000_000.0;
+        let echo_weight = 1.0;
         for i in 1..response.length() {
             // It is necessary to weight the initial buildup heavily to make it smooth.
             let weight = 1.0 / squared(i as f32);

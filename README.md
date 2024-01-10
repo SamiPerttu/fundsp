@@ -87,8 +87,6 @@ filters with stereo ones, the graph notation remaining the same.
 
 There are two parallel component systems: the static `AudioNode` and the dynamic `AudioUnit`.
 
-Both systems operate on audio signals synchronously as an infinite stream.
-
 ---
 
 | Trait         | Sample Type              | Dispatch             | Allocation Strategy | Connectivity |
@@ -99,8 +97,15 @@ Both systems operate on audio signals synchronously as an infinite stream.
 
 ---
 
-`AudioNode`s can be stack allocated for the most part.
-At the moment, block processing via `AudioNode::process` requires heap allocation.
+The main property of a component in either system is that it is a processing node in a graph with
+a specific number of input and output connections, called its *arity*. Audio and control signals flow
+through input and output connections.
+
+Both systems operate on signals synchronously as an infinite stream. The stream can be
+rewound to the start at any time using the `reset` method.
+
+`AudioNode`s can be stack allocated for the most part, if only single sample processing
+is used. Block processing via `AudioNode::process` requires heap allocation.
 Some nodes may also use the heap for audio buffers and the like.
 
 The `allocate` method preallocates all needed memory. It should be called last before
@@ -110,11 +115,31 @@ the `Net` and `Sequencer` frontends.
 The purpose of the `AudioUnit` system is to grant more flexibility in dynamic situations:
 decisions about input and output arities and contents can be deferred to runtime.
 
+### Conversions
+
+`AudioNode`s are converted to the `AudioUnit` system using the wrapper type `An`,
+which implements `AudioUnit32` or `AudioUnit64`, depending on the sample type.
+Opcodes in the preludes return nodes already wrapped.
+
+`AudioUnit`s can in turn be converted to `AudioNode` with the wrappers `Node32` and `Node64`.
+In this case, the input and output arities must be provided as type-level constants
+`U0`, `U1`, ..., for example:
+
+```rust
+use fundsp::hacker32::*;
+// The number of inputs is zero and the number of outputs is one.
+let type_erased: An<Node32<U0, U1>> = node32::<U0, U1>(Box::new(white() >> lowpass_hz(5000.0, 1.0) >> highpass_hz(1000.0, 1.0)));
+```
+
 ### Processing
 
 Processing samples is easy in both `AudioNode` and `AudioUnit` systems.
 The `tick` method is for processing single
 sample frames, while the `process` method processes whole blocks.
+
+If maximum speed is important, then
+it is a good idea to use block processing, as it amortizes
+function calling, processing setup and dynamic network overhead.
 
 Mono samples can be retrieved with `get_mono` and `filter_mono` methods. The `get_mono` method
 returns the next sample from a generator that has no inputs and one or two outputs,

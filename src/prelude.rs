@@ -1602,8 +1602,6 @@ pub fn reverb_stereo<T>(
 where
     T: Real,
 {
-    // TODO: This is the simplest possible structure, there's probably a lot of scope for improvement.
-
     // Optimized delay times for a 32-channel FDN from a legacy project.
     // These are applied unchanged for a 10 meter room.
     const DELAYS: [f64; 32] = [
@@ -1645,32 +1643,32 @@ pub fn reverb2_stereo<T: Real>(
     room_size: f64,
     time: f64,
 ) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
-    // Optimized delay times from `optimize.rs` example. Fitness = 773.69745.
+    // Optimized delay times from `optimize.rs` example. Fitness = -1.2315524.
     let mut delays = [
-        0.068582244,
-        0.02007867,
-        0.026451133,
-        0.028128913,
-        0.023684707,
-        0.02030506,
-        0.06849203,
-        0.02046375,
-        0.06855943,
-        0.02119047,
-        0.02082747,
-        0.022844134,
-        0.026518257,
-        0.027085062,
-        0.028968025,
-        0.02377437,
-        0.020056667,
-        0.020010974,
-        0.023298478,
-        0.020509405,
-        0.022709418,
-        0.022346418,
-        0.030714132,
-        0.024976023,
+        0.048582707,
+        0.03286827,
+        0.03665517,
+        0.04917211,
+        0.047017947,
+        0.020260483,
+        0.04790206,
+        0.044909067,
+        0.034047466,
+        0.038582645,
+        0.037607696,
+        0.047403608,
+        0.02232414,
+        0.03933075,
+        0.03289098,
+        0.024478406,
+        0.038786788,
+        0.032596335,
+        0.027086144,
+        0.034795906,
+        0.044659805,
+        0.045203947,
+        0.028468963,
+        0.043276247,
     ];
     for delay in delays.iter_mut() {
         *delay *= room_size / 10.0;
@@ -1696,11 +1694,11 @@ where
     let a = T::from_f64(pow(db_amp(-60.0), 0.03 * room_size / 10.0 / time));
 
     let line1 = stack::<U8, T, _, _>(|i| {
-        delay::<T>(delays[i as usize]) >> fir((a / T::new(4), a / T::new(2), a / T::new(4)))
+        delay::<T>(delays[i as usize]) >> fir((-a / T::new(4), -a / T::new(2), -a / T::new(4)))
     });
 
     let line2 = stack::<U16, T, _, _>(|i| {
-        delay::<T>(delays[8 + i as usize]) >> fir((a / T::new(4), a / T::new(2), a / T::new(4)))
+        delay::<T>(delays[8 + i as usize]) >> fir((-a / T::new(4), -a / T::new(2), -a / T::new(4)))
     });
 
     let fdn1 = fdn(line1);
