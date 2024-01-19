@@ -6,10 +6,11 @@ use super::*;
 use numeric_array::typenum::*;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::AtomicU64;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 /// A variable floating point number to use as a control.
-pub trait Atomic: Float {
+pub trait Atomic {
     type Storage: Send + Sync;
 
     fn storage(t: Self) -> Self::Storage;
@@ -52,6 +53,23 @@ impl Atomic for f64 {
     fn get_stored(stored: &Self::Storage) -> Self {
         let u = stored.load(std::sync::atomic::Ordering::Relaxed);
         f64::from_bits(u)
+    }
+}
+
+impl Atomic for bool {
+    type Storage = AtomicBool;
+
+    fn storage(t: Self) -> Self::Storage { AtomicBool::from(t) }
+
+    #[inline]
+    fn store(stored: &Self::Storage, t: Self) {
+        stored.store(t, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    #[inline]
+    fn get_stored(stored: &Self::Storage) -> Self {
+        let u = stored.load(std::sync::atomic::Ordering::Relaxed);
+        u
     }
 }
 
@@ -206,7 +224,7 @@ where
 
 impl<T, F, R> AudioNode for VarFn<T, F, R>
 where
-    T: Atomic,
+    T: Atomic + Float,
     F: Clone + Fn(T) -> R + Send + Sync,
     R: ConstantFrame<Sample = T>,
     R::Size: Size<T>,
@@ -259,7 +277,7 @@ impl<T: Atomic> Timer<T> {
     }
 }
 
-impl<T: Atomic> AudioNode for Timer<T> {
+impl<T: Atomic + Float> AudioNode for Timer<T> {
     const ID: u64 = 57;
     type Sample = T;
     type Inputs = U0;
