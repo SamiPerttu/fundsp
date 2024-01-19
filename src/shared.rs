@@ -56,6 +56,44 @@ impl Atomic for f64 {
     }
 }
 
+impl Atomic for u32 {
+    type Storage = AtomicU32;
+
+    fn storage(t: Self) -> Self::Storage {
+        AtomicU32::from(t)
+    }
+
+    #[inline]
+    fn store(stored: &Self::Storage, t: Self) {
+        stored.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
+    }
+
+    #[inline]
+    fn get_stored(stored: &Self::Storage) -> Self {
+        let u = stored.load(std::sync::atomic::Ordering::Relaxed);
+        u
+    }
+}
+
+impl Atomic for u64 {
+    type Storage = AtomicU64;
+
+    fn storage(t: Self) -> Self::Storage {
+        AtomicU64::from(t)
+    }
+
+    #[inline]
+    fn store(stored: &Self::Storage, t: Self) {
+        stored.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
+    }
+
+    #[inline]
+    fn get_stored(stored: &Self::Storage) -> Self {
+        let u = stored.load(std::sync::atomic::Ordering::Relaxed);
+        u
+    }
+}
+
 impl Atomic for bool {
     type Storage = AtomicBool;
 
