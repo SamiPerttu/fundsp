@@ -6,11 +6,10 @@ use super::*;
 use numeric_array::typenum::*;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::AtomicU64;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 /// A variable floating point number to use as a control.
-pub trait Atomic {
+pub trait Atomic: Float {
     type Storage: Send + Sync;
 
     fn storage(t: Self) -> Self::Storage;
@@ -53,61 +52,6 @@ impl Atomic for f64 {
     fn get_stored(stored: &Self::Storage) -> Self {
         let u = stored.load(std::sync::atomic::Ordering::Relaxed);
         f64::from_bits(u)
-    }
-}
-
-impl Atomic for u32 {
-    type Storage = AtomicU32;
-
-    fn storage(t: Self) -> Self::Storage {
-        AtomicU32::from(t)
-    }
-
-    #[inline]
-    fn store(stored: &Self::Storage, t: Self) {
-        stored.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
-    }
-
-    #[inline]
-    fn get_stored(stored: &Self::Storage) -> Self {
-        let u = stored.load(std::sync::atomic::Ordering::Relaxed);
-        u
-    }
-}
-
-impl Atomic for u64 {
-    type Storage = AtomicU64;
-
-    fn storage(t: Self) -> Self::Storage {
-        AtomicU64::from(t)
-    }
-
-    #[inline]
-    fn store(stored: &Self::Storage, t: Self) {
-        stored.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
-    }
-
-    #[inline]
-    fn get_stored(stored: &Self::Storage) -> Self {
-        let u = stored.load(std::sync::atomic::Ordering::Relaxed);
-        u
-    }
-}
-
-impl Atomic for bool {
-    type Storage = AtomicBool;
-
-    fn storage(t: Self) -> Self::Storage { AtomicBool::from(t) }
-
-    #[inline]
-    fn store(stored: &Self::Storage, t: Self) {
-        stored.store(t, std::sync::atomic::Ordering::Relaxed);
-    }
-
-    #[inline]
-    fn get_stored(stored: &Self::Storage) -> Self {
-        let u = stored.load(std::sync::atomic::Ordering::Relaxed);
-        u
     }
 }
 

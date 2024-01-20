@@ -1643,32 +1643,32 @@ pub fn reverb2_stereo<T: Real>(
     room_size: f64,
     time: f64,
 ) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
-    // Optimized delay times from `optimize.rs` example. Fitness = -1.2315524.
+    // Optimized delay times from `optimize.rs` example. Fitness -0.0025.
     let mut delays = [
-        0.048582707,
-        0.03286827,
-        0.03665517,
-        0.04917211,
-        0.047017947,
-        0.020260483,
-        0.04790206,
-        0.044909067,
-        0.034047466,
-        0.038582645,
-        0.037607696,
-        0.047403608,
-        0.02232414,
-        0.03933075,
-        0.03289098,
-        0.024478406,
-        0.038786788,
-        0.032596335,
-        0.027086144,
-        0.034795906,
-        0.044659805,
-        0.045203947,
-        0.028468963,
-        0.043276247,
+        0.022091309,
+        0.028631847,
+        0.037695974,
+        0.029113876,
+        0.02338984,
+        0.021005694,
+        0.028758757,
+        0.020885436,
+        0.024144981,
+        0.045484193,
+        0.022020288,
+        0.027795697,
+        0.0206333,
+        0.04424759,
+        0.021639846,
+        0.0217646,
+        0.028093584,
+        0.02073635,
+        0.023413701,
+        0.02885125,
+        0.027942967,
+        0.037879184,
+        0.02752918,
+        0.03322006,
     ];
     for delay in delays.iter_mut() {
         *delay *= room_size / 10.0;
@@ -1690,7 +1690,7 @@ where
     T: Real,
 {
     assert!(delays.len() == 24);
-    let room_size = delays.iter().sum::<f64>() / 24.0 / 0.03 * 10.0;
+    let room_size = 10.0; // delays.iter().sum::<f64>() / 24.0 / 0.03 * 10.0;
     let a = T::from_f64(pow(db_amp(-60.0), 0.03 * room_size / 10.0 / time));
 
     let line1 = stack::<U8, T, _, _>(|i| {
@@ -2724,7 +2724,7 @@ pub fn var<T: Atomic>(shared: &Shared<T>) -> An<Var<T>> {
 /// ```
 pub fn var_fn<T, F, R>(shared: &Shared<T>, f: F) -> An<VarFn<T, F, R>>
 where
-    T: Atomic + Float,
+    T: Atomic,
     F: Clone + Fn(T) -> R + Send + Sync,
     R: ConstantFrame<Sample = T>,
     R::Size: Size<T>,
