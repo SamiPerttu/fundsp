@@ -2153,7 +2153,7 @@ pub fn shared(value: f32) -> Shared<f32> {
 /// let wet = shared(0.2);
 /// pass() & var(&wet) * chorus(0, 0.015, 0.005, 0.5);
 /// ```
-pub fn var(shared: &Shared<f32>) -> An<Var<f32>> {
+pub fn var<T: Atomic>(shared: &Shared<T>) -> An<Var<T>> {
     An(Var::new(shared))
 }
 
@@ -2168,11 +2168,11 @@ pub fn var(shared: &Shared<f32>) -> An<Var<f32>> {
 /// let pitch = shared(69.0);
 /// var_fn(&pitch, |x| midi_hz(x)) >> follow(0.01) >> saw();
 /// ```
-pub fn var_fn<F, R>(shared: &Shared<f32>, f: F) -> An<VarFn<f32, F, R>>
+pub fn var_fn<T: Atomic, F, R>(shared: &Shared<T>, f: F) -> An<VarFn<T, F, R>>
 where
-    F: Clone + Fn(f32) -> R + Send + Sync,
-    R: ConstantFrame<Sample = f32>,
-    R::Size: Size<f32>,
+    F: Clone + Fn(T) -> R + Send + Sync,
+    R: ConstantFrame<Sample = T>,
+    R::Size: Size<T>,
 {
     An(VarFn::new(shared, f))
 }
