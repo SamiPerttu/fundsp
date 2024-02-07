@@ -1186,6 +1186,8 @@ These math functions have the shape of an easing function.
 | `sqrt(x)`              | square root of `x` |
 | `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
 
+![](easing_functions.png "easing_functions")
+
 ---
 
 ### Noise Functions
