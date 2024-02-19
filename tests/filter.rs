@@ -1,4 +1,4 @@
-//! Frequency response system tests.
+//! Frequency response system and other filter tests.
 
 #![allow(
     dead_code,
@@ -14,6 +14,7 @@
 use fundsp::hacker::*;
 use funutd::Rnd;
 use num_complex::Complex64;
+use realfft::*;
 use rustfft::algorithm::Radix4;
 use rustfft::Fft;
 use rustfft::FftDirection;
@@ -324,4 +325,41 @@ fn test_responses() {
             >> (Net64::wrap(Box::new(pass())) | pass() | pinkpass())
             >> (Net64::wrap(Box::new(pinkpass())) + pass() + pass()),
     );
+}
+
+// Test various allpass filters for the allpass property.
+#[test]
+fn test_allpass() {
+    let length = 0x10000;
+    let mut planner = RealFftPlanner::<f64>::new();
+    let r2c = planner.plan_fft_forward(length);
+    let mut spectrum = r2c.make_output_vec();
+
+    let allpasses: [Box<dyn AudioUnit64>; 12] = [
+        Box::new(pass()),
+        Box::new(tick()),
+        Box::new(allpole_delay(0.5)),
+        Box::new(allpole_delay(0.8)),
+        Box::new(delay(2.0 / DEFAULT_SR)),
+        Box::new(delay(0.001)),
+        Box::new(allpass_hz(1000.0, 1.0)),
+        Box::new(allpass_hz(2000.0, 2.0)),
+        Box::new(allnest_c(0.5, pass())),
+        Box::new(allnest_c(0.6, tick())),
+        Box::new(allnest_c(0.7, allpole_delay(0.5))),
+        Box::new(allnest_c(0.6, allpass_hz(3000.0, 3.0))),
+    ];
+
+    let impulse = Wave64::render(DEFAULT_SR, 1.0, &mut (impulse::<U1>()));
+
+    for mut x in allpasses {
+        let response = impulse.filter(length as f64 / DEFAULT_SR, &mut *(x));
+        let mut data = response.channel(0).clone();
+        r2c.process(&mut data, &mut spectrum).unwrap();
+        let tolerance = 1.0e-9;
+        for s in &spectrum {
+            let norm = s.norm();
+            assert!(norm >= 1.0 - tolerance && norm <= 1.0 + tolerance);
+        }
+    }
 }

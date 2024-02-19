@@ -899,7 +899,7 @@ pub fn multitick<N: Size<f64>>() -> An<Tick<N, f64>> {
 }
 
 /// Fixed delay of `t` seconds.
-/// Delay time is rounded to the nearest sample.
+/// Delay time is rounded to the nearest sample. The minimum delay is one sample.
 /// - Allocates: the delay line.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
@@ -948,6 +948,43 @@ where
     <N as Add<U1>>::Output: Size<f64>,
 {
     An(Tap::new(min_delay, max_delay))
+}
+
+/// Tapped delay line with linear interpolation.
+/// Minimum and maximum delay times are in seconds.
+/// - Allocates: the delay line.
+/// - Input 0: signal.
+/// - Input 1: delay time in seconds.
+/// - Output 0: delayed signal.
+///
+/// ### Example: Variable Delay
+/// ```
+/// use fundsp::hacker::*;
+/// pass() & (pass() | lfo(|t| lerp11(0.01, 0.1, spline_noise(0, t)))) >> tap_linear(0.01, 0.1);
+/// ```
+pub fn tap_linear(min_delay: f64, max_delay: f64) -> An<TapLinear<U1, f64>> {
+    An(TapLinear::new(min_delay, max_delay))
+}
+
+/// Tapped delay line with linear interpolation.
+/// The number of taps is `N`.
+/// Minimum and maximum delay times are in seconds.
+/// - Allocates: the delay line.
+/// - Input 0: signal.
+/// - Inputs 1...N: delay time in seconds.
+/// - Output 0: delayed signal.
+///
+/// ### Example: Dual Variable Delay
+/// ```
+/// use fundsp::hacker::*;
+/// (pass() | lfo(|t| (lerp11(0.01, 0.1, spline_noise(0, t)), lerp11(0.1, 0.2, spline_noise(1, t))))) >> multitap_linear::<U2>(0.01, 0.2);
+/// ```
+pub fn multitap_linear<N>(min_delay: f64, max_delay: f64) -> An<TapLinear<N, f64>>
+where
+    N: Size<f64> + Add<U1>,
+    <N as Add<U1>>::Output: Size<f64>,
+{
+    An(TapLinear::new(min_delay, max_delay))
 }
 
 /// 2x oversample enclosed `node`.
@@ -1035,6 +1072,51 @@ where
     Y::Outputs: Size<f64>,
 {
     An(Feedback2::new(node.0, loopback.0, FrameId::new()))
+}
+
+/// A nested allpass. The feedforward coefficient of the outer allpass
+/// is set from `coefficient`, which should have an absolute value smaller than one to prevent a blowup.
+/// The delay element of the outer allpass is replaced with `x`.
+/// The result is an allpass filter if `x` is allpass.
+/// If `x` is `pass()` then the result is a 1st order allpass.
+/// If `x` is a delay element then the result is a Schroeder allpass.
+/// If `x` is a 1st order allpass (`allpole`) then the result is a 2nd order nested allpass.
+/// - Input 0: input signal
+/// - Output 0: filtered signal
+///
+/// ### Example: Schroeder Allpass
+/// ```
+/// use fundsp::hacker::*;
+/// allnest_c(0.5, delay(0.01));
+/// ```
+pub fn allnest_c<X>(coefficient: f64, x: An<X>) -> An<AllNest<f64, U1, X>>
+where
+    X: AudioNode<Sample = f64, Inputs = U1, Outputs = U1>,
+{
+    An(AllNest::new(coefficient, x.0))
+}
+
+/// A nested allpass. The feedforward coefficient of the outer allpass
+/// is set from the second input, which should have an absolute value smaller than one to prevent a blowup.
+/// The delay element of the outer allpass is replaced with `x`.
+/// The result is an allpass filter if `x` is allpass.
+/// If `x` is `pass()` then the result is a 1st order allpass.
+/// If `x` is a delay element then the result is a Schroeder allpass.
+/// If `x` is a 1st order allpass (`allpole`) then the result is a 2nd order nested allpass.
+/// - Input 0: input signal
+/// - Input 1: feedforward coefficient
+/// - Output 0: filtered signal
+///
+/// ### Example: Schroeder Allpass
+/// ```
+/// use fundsp::hacker::*;
+/// allnest(delay(0.01));
+/// ```
+pub fn allnest<X>(x: An<X>) -> An<AllNest<f64, U2, X>>
+where
+    X: AudioNode<Sample = f64, Inputs = U1, Outputs = U1>,
+{
+    An(AllNest::new(0.0, x.0))
 }
 
 /// Transform channels freely. Accounted as non-linear processing for signal flow.
@@ -1481,6 +1563,7 @@ where
 /// Stereo reverb.
 /// `room_size` is in meters. An average room size is 10 meters.
 /// `time` is approximate reverberation time to -60 dB in seconds.
+/// - Allocates: delay lines
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: reverberated left signal
@@ -1498,31 +1581,55 @@ pub fn reverb_stereo(
     super::prelude::reverb_stereo::<f64>(room_size, time)
 }
 
-/// Stereo reverb (8-channel and 16-channel FDNs in series).
-/// `room_size` is in meters. An average room size is 10 meters.
-/// `time` is approximate reverberation time to -60 dB in seconds.
+/// Create a stereo reverb unit, given room size (in meters, between 10 and 30 meters),
+/// reverberation `time` (in seconds, to -60 dB) and modulation speed (nominal range from
+/// 0 to 1, values beyond 1 are permitted and will start to create audible Doppler effects).
+/// More sophisticated (and expensive) than `reverb_stereo`.
+/// - Allocates: delay lines
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: reverberated left signal
 /// - Output 1: reverberated right signal
+///
+/// ### Example: Add 20% Reverb
+/// ```
+/// use fundsp::hacker::*;
+/// multipass() & 0.2 * reverb2_stereo(10.0, 1.0, 1.0);
+/// ```
 pub fn reverb2_stereo(
     room_size: f64,
     time: f64,
+    modulation_speed: f64,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U2>> {
-    super::prelude::reverb2_stereo::<f64>(room_size, time)
+    super::prelude::reverb2_stereo::<f64>(room_size, time, modulation_speed)
 }
 
-/// Create a stereo reverb unit, given delay times (in seconds) for the 24 delay lines
-/// and reverberation `time` (in seconds).
+/// Create a stereo reverb unit, given approximate reverberation `time` in seconds
+/// (at least 1 second). The effect consists of many Schroeder allpasses in series.
+/// At 1 second of reverb, the result is a tail that fades in
+/// and out at approximately the same speed and has a metallic ring. At higher
+/// reverb times, the effect starts to resemble more of a conventional reverberation
+/// that fades in almost instantly.
+/// - Allocates: delay lines
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: reverberated left signal
 /// - Output 1: reverberated right signal
-pub fn reverb2_stereo_delays(
+pub fn reverb3_stereo(time: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U2>> {
+    super::prelude::reverb3_stereo::<f64>(time)
+}
+
+/// Create a stereo reverb unit, given delay times (in seconds) for the 32 delay lines
+/// and reverberation `time` (in seconds). WIP.
+/// - Input 0: left signal
+/// - Input 1: right signal
+/// - Output 0: reverberated left signal
+/// - Output 1: reverberated right signal
+pub fn reverb4_stereo_delays(
     delays: &[f64],
     time: f64,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U2>> {
-    super::prelude::reverb2_stereo_delays::<f64>(delays, time)
+    super::prelude::reverb4_stereo_delays::<f64>(delays, time)
 }
 
 /// Saw-like discrete summation formula oscillator.

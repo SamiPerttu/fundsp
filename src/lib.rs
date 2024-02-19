@@ -71,20 +71,20 @@ pub trait Num:
 macro_rules! impl_signed_num {
     ( $($t:ty),* ) => {
     $( impl Num for $t {
-        #[inline] fn zero() -> Self { 0 }
-        #[inline] fn one() -> Self { 1 }
-        #[inline] fn new(x: i64) -> Self { x as Self }
-        #[inline] fn from_f64(x: f64) -> Self { x as Self }
-        #[inline] fn from_f32(x: f32) -> Self { x as Self }
-        #[inline] fn abs(self) -> Self { <$t>::abs(self) }
-        #[inline] fn signum(self) -> Self { <$t>::signum(self) }
-        #[inline] fn min(self, other: Self) -> Self { std::cmp::min(self, other) }
-        #[inline] fn max(self, other: Self) -> Self { std::cmp::max(self, other) }
-        #[inline] fn pow(self, other: Self) -> Self { <$t>::pow(self, other as u32) }
-        #[inline] fn floor(self) -> Self { self }
-        #[inline] fn fract(self) -> Self { self }
-        #[inline] fn ceil(self) -> Self { self }
-        #[inline] fn round(self) -> Self { self }
+        #[inline(always)] fn zero() -> Self { 0 }
+        #[inline(always)] fn one() -> Self { 1 }
+        #[inline(always)] fn new(x: i64) -> Self { x as Self }
+        #[inline(always)] fn from_f64(x: f64) -> Self { x as Self }
+        #[inline(always)] fn from_f32(x: f32) -> Self { x as Self }
+        #[inline(always)] fn abs(self) -> Self { <$t>::abs(self) }
+        #[inline(always)] fn signum(self) -> Self { <$t>::signum(self) }
+        #[inline(always)] fn min(self, other: Self) -> Self { std::cmp::min(self, other) }
+        #[inline(always)] fn max(self, other: Self) -> Self { std::cmp::max(self, other) }
+        #[inline(always)] fn pow(self, other: Self) -> Self { <$t>::pow(self, other as u32) }
+        #[inline(always)] fn floor(self) -> Self { self }
+        #[inline(always)] fn fract(self) -> Self { self }
+        #[inline(always)] fn ceil(self) -> Self { self }
+        #[inline(always)] fn round(self) -> Self { self }
     }) *
     }
 }
@@ -93,20 +93,20 @@ impl_signed_num! { i8, i16, i32, i64, i128, isize }
 macro_rules! impl_unsigned_num {
     ( $($t:ty),* ) => {
     $( impl Num for $t {
-        #[inline] fn zero() -> Self { 0 }
-        #[inline] fn one() -> Self { 1 }
-        #[inline] fn new(x: i64) -> Self { x as Self }
-        #[inline] fn from_f64(x: f64) -> Self { x as Self }
-        #[inline] fn from_f32(x: f32) -> Self { x as Self }
-        #[inline] fn abs(self) -> Self { self }
-        #[inline] fn signum(self) -> Self { 1 }
-        #[inline] fn min(self, other: Self) -> Self { std::cmp::min(self, other) }
-        #[inline] fn max(self, other: Self) -> Self { std::cmp::max(self, other) }
-        #[inline] fn pow(self, other: Self) -> Self { <$t>::pow(self, other as u32) }
-        #[inline] fn floor(self) -> Self { self }
-        #[inline] fn fract(self) -> Self { self }
-        #[inline] fn ceil(self) -> Self { self }
-        #[inline] fn round(self) -> Self { self }
+        #[inline(always)] fn zero() -> Self { 0 }
+        #[inline(always)] fn one() -> Self { 1 }
+        #[inline(always)] fn new(x: i64) -> Self { x as Self }
+        #[inline(always)] fn from_f64(x: f64) -> Self { x as Self }
+        #[inline(always)] fn from_f32(x: f32) -> Self { x as Self }
+        #[inline(always)] fn abs(self) -> Self { self }
+        #[inline(always)] fn signum(self) -> Self { 1 }
+        #[inline(always)] fn min(self, other: Self) -> Self { std::cmp::min(self, other) }
+        #[inline(always)] fn max(self, other: Self) -> Self { std::cmp::max(self, other) }
+        #[inline(always)] fn pow(self, other: Self) -> Self { <$t>::pow(self, other as u32) }
+        #[inline(always)] fn floor(self) -> Self { self }
+        #[inline(always)] fn fract(self) -> Self { self }
+        #[inline(always)] fn ceil(self) -> Self { self }
+        #[inline(always)] fn round(self) -> Self { self }
     }) *
     }
 }
@@ -115,20 +115,20 @@ impl_unsigned_num! { u8, u16, u32, u64, u128, usize }
 macro_rules! impl_float_num {
     ( $($t:ty),* ) => {
     $( impl Num for $t {
-        #[inline] fn zero() -> Self { 0.0 }
-        #[inline] fn one() -> Self { 1.0 }
-        #[inline] fn new(x: i64) -> Self { x as Self }
-        #[inline] fn from_f64(x: f64) -> Self { x as Self }
-        #[inline] fn from_f32(x: f32) -> Self { x as Self }
-        #[inline] fn abs(self) -> Self { <$t>::abs(self) }
-        #[inline] fn signum(self) -> Self { <$t>::signum(self) }
-        #[inline] fn min(self, other: Self) -> Self { <$t>::min(self, other) }
-        #[inline] fn max(self, other: Self) -> Self { <$t>::max(self, other) }
-        #[inline] fn pow(self, other: Self) -> Self { <$t>::powf(self, other) }
-        #[inline] fn floor(self) -> Self { <$t>::floor(self) }
-        #[inline] fn fract(self) -> Self { <$t>::fract(self) }
-        #[inline] fn ceil(self) -> Self { <$t>::ceil(self) }
-        #[inline] fn round(self) -> Self { <$t>::round(self) }
+        #[inline(always)] fn zero() -> Self { 0.0 }
+        #[inline(always)] fn one() -> Self { 1.0 }
+        #[inline(always)] fn new(x: i64) -> Self { x as Self }
+        #[inline(always)] fn from_f64(x: f64) -> Self { x as Self }
+        #[inline(always)] fn from_f32(x: f32) -> Self { x as Self }
+        #[inline(always)] fn abs(self) -> Self { <$t>::abs(self) }
+        #[inline(always)] fn signum(self) -> Self { <$t>::signum(self) }
+        #[inline(always)] fn min(self, other: Self) -> Self { <$t>::min(self, other) }
+        #[inline(always)] fn max(self, other: Self) -> Self { <$t>::max(self, other) }
+        #[inline(always)] fn pow(self, other: Self) -> Self { <$t>::powf(self, other) }
+        #[inline(always)] fn floor(self) -> Self { <$t>::floor(self) }
+        #[inline(always)] fn fract(self) -> Self { <$t>::fract(self) }
+        #[inline(always)] fn ceil(self) -> Self { <$t>::ceil(self) }
+        #[inline(always)] fn round(self) -> Self { <$t>::round(self) }
     }) *
     }
 }
@@ -152,9 +152,9 @@ pub trait Int:
 macro_rules! impl_int {
     ( $($t:ty),* ) => {
     $( impl Int for $t {
-        #[inline] fn wrapping_add(self, other: Self) -> Self { <$t>::wrapping_add(self, other) }
-        #[inline] fn wrapping_sub(self, other: Self) -> Self { <$t>::wrapping_sub(self, other) }
-        #[inline] fn wrapping_mul(self, other: Self) -> Self { <$t>::wrapping_mul(self, other) }
+        #[inline(always)] fn wrapping_add(self, other: Self) -> Self { <$t>::wrapping_add(self, other) }
+        #[inline(always)] fn wrapping_sub(self, other: Self) -> Self { <$t>::wrapping_sub(self, other) }
+        #[inline(always)] fn wrapping_mul(self, other: Self) -> Self { <$t>::wrapping_mul(self, other) }
     }) *
     }
 }
@@ -169,51 +169,51 @@ pub trait Float: Num + Neg<Output = Self> {
 }
 
 impl Float for f32 {
-    #[inline]
+    #[inline(always)]
     fn from_float<T: Float>(x: T) -> Self {
         x.to_f32()
     }
 
-    #[inline]
+    #[inline(always)]
     fn to_f64(self) -> f64 {
         self as f64
     }
 
-    #[inline]
+    #[inline(always)]
     fn to_f32(self) -> f32 {
         self
     }
 
-    #[inline]
+    #[inline(always)]
     fn to_i64(self) -> i64 {
         self as i64
     }
 }
 
 impl Float for f64 {
-    #[inline]
+    #[inline(always)]
     fn from_float<T: Float>(x: T) -> Self {
         x.to_f64()
     }
 
-    #[inline]
+    #[inline(always)]
     fn to_f64(self) -> f64 {
         self
     }
 
-    #[inline]
+    #[inline(always)]
     fn to_f32(self) -> f32 {
         self as f32
     }
 
-    #[inline]
+    #[inline(always)]
     fn to_i64(self) -> i64 {
         self as i64
     }
 }
 
 /// Generic floating point conversion function.
-#[inline]
+#[inline(always)]
 pub fn convert<T: Float, U: Float>(x: T) -> U {
     U::from_float(x)
 }
@@ -236,17 +236,17 @@ pub trait Real: Num + Float {
 macro_rules! impl_real {
     ( $($t:ty),* ) => {
     $( impl Real for $t {
-        #[inline] fn sqrt(self) -> Self { self.sqrt() }
-        #[inline] fn exp(self) -> Self { self.exp() }
-        #[inline] fn exp2(self) -> Self { self.exp2() }
-        #[inline] fn log(self) -> Self { self.ln() }
-        #[inline] fn log2(self) -> Self { self.log2() }
-        #[inline] fn log10(self) -> Self { self.log10() }
-        #[inline] fn sin(self) -> Self { self.sin() }
-        #[inline] fn cos(self) -> Self { self.cos() }
-        #[inline] fn tan(self) -> Self { <$t>::tan(self) }
-        #[inline] fn tanh(self) -> Self { <$t>::tanh(self) }
-        #[inline] fn atan(self) -> Self { <$t>::atan(self) }
+        #[inline(always)] fn sqrt(self) -> Self { self.sqrt() }
+        #[inline(always)] fn exp(self) -> Self { self.exp() }
+        #[inline(always)] fn exp2(self) -> Self { self.exp2() }
+        #[inline(always)] fn log(self) -> Self { self.ln() }
+        #[inline(always)] fn log2(self) -> Self { self.log2() }
+        #[inline(always)] fn log10(self) -> Self { self.log10() }
+        #[inline(always)] fn sin(self) -> Self { self.sin() }
+        #[inline(always)] fn cos(self) -> Self { self.cos() }
+        #[inline(always)] fn tan(self) -> Self { <$t>::tan(self) }
+        #[inline(always)] fn tanh(self) -> Self { <$t>::tanh(self) }
+        #[inline(always)] fn atan(self) -> Self { <$t>::atan(self) }
     }) *
     }
 }

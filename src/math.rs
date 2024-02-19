@@ -672,8 +672,10 @@ pub fn ease_noise<T: Float>(ease: impl SegmentInterpolator<T>, seed: i64, x: T) 
 /// 1-D spline noise in -1...1 with frequency of 1.
 /// Value noise interpolated with a cubic spline.
 /// The noise follows a roughly triangular distribution in -1...1.
-/// Each integer cell is an interpolation segment.
+/// Each integer cell, offset pseudorandomly, is an interpolation segment.
 pub fn spline_noise<T: Float>(seed: i64, x: T) -> T {
+    // Employ a pseudorandom offset.
+    let x = x + T::from_f64(rnd2(seed));
     let fx = floor(x);
     let dx = x - fx;
     let ix = fx.to_i64();

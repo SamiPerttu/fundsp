@@ -130,7 +130,8 @@ where
     let chorus_amount = shared(1.0);
 
     let mut net = Net64::wrap(Box::new(sequencer_backend));
-    let (reverb, reverb_backend) = Slot64::new(Box::new(reverb2_stereo(room_size, reverb_time)));
+    let (reverb, reverb_backend) =
+        Slot64::new(Box::new(reverb2_stereo(room_size, reverb_time, 0.5)));
     net = net >> pan(0.0);
     // Smooth chorus and reverb amounts to prevent discontinuities.
     net = net
@@ -176,7 +177,7 @@ where
         net,
         waveform: Waveform::Saw,
         filter: Filter::None,
-        vibrato_amount: 0.7,
+        vibrato_amount: 0.5,
         chorus_amount,
         reverb_amount,
         room_size,
@@ -274,12 +275,12 @@ impl eframe::App for State {
             ui.label("Reverb Time");
             ui.add(egui::Slider::new(&mut reverb_time, 1.0..=10.0).suffix("s"));
             ui.label("Reverb Room Size");
-            ui.add(egui::Slider::new(&mut room_size, 3.0..=100.0).suffix("m"));
+            ui.add(egui::Slider::new(&mut room_size, 10.0..=30.0).suffix("m"));
             if self.room_size != room_size || self.reverb_time != reverb_time {
                 self.reverb.set(
                     Fade::Smooth,
                     0.5,
-                    Box::new(reverb2_stereo(room_size, reverb_time)),
+                    Box::new(reverb2_stereo(room_size, reverb_time, 0.5)),
                 );
                 self.room_size = room_size;
                 self.reverb_time = reverb_time;

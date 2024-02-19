@@ -190,7 +190,6 @@ It is flexible and attempts to conform to Rust practices.
 
 The 64-bit hacker environment (`fundsp::hacker`) for audio hacking
 is fully 64-bit to minimize type annotations and maximize audio quality.
-The hacker interface uses 1 floating point type (`f64`) and 1 integer type (`i64`) only.
 
 The 32-bit hacker environment (`fundsp::hacker32`) aims to offer
 maximum processing speed.
@@ -541,7 +540,7 @@ Verified frequency responses are available for all linear filters.
 | Opcode       | Type                   | Parameters   | Family       | Notes     |
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
 | `allpass`    | allpass (2nd order)    | frequency, Q | [Simper SVF](https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf) | |
-| `allpole`    | allpass (1st order)    | delay        | 1st order | Adjustable delay in samples. |
+| `allpole`    | allpass (1st order)    | delay        | 1st order | Adjustable delay at DC in samples. |
 | `bandpass`   | bandpass (2nd order)   | frequency, Q | Simper SVF   | |
 | `bell`       | peaking (2nd order)    | frequency, Q, gain | Simper SVF | Adjustable amplitude gain. |
 | `biquad`     | biquad (2nd order)     | -            | [biquad](https://en.wikipedia.org/wiki/Digital_biquad_filter) | Arbitrary biquad with fixed parameters. |
@@ -714,8 +713,9 @@ The following table summarizes the available settings.
 
 | Opcode            | Setting Format |
 | ----------------- | --------------------------------- |
+| `allnest_c`       | delay in samples at DC |
 | `allpass_hz`      | (center, Q) |
-| `allpole_delay`   | delay in samples |
+| `allpole_delay`   | delay in samples at DC |
 | `bandpass_hz`     | (center, Q) |
 | `bell_hz`         | (center, Q, gain) |
 | `biquad`          | (a1, a2, b0, b1, b2) |
@@ -860,11 +860,13 @@ The type parameters in the table refer to the hacker preludes.
 | ---------------------- |:-------:|:-------:| ---------------------------------------------- |
 | `add(x)`               |   `x`   |   `x`   | Add constant `x` to signal. |
 | `adsr_live(a, d, s, r)`|    1    |    1    | ADSR envelope. Attack time `a`, decay time `d`, sustain level `s`, and release time `r`. Input > 0.0 starts attack, input <= 0.0 starts release. Output in [0.0, 1.0].|
+| `allnest(x)`           | 2 (input, coefficient) | 1 | Nested allpass with inner allpass processing `x`. |
+| `allnest_c(c, x)`      |    1    |    1    | Nested allpass with feedforward coefficient `c` and inner allpass processing `x`. |
 | `allpass()`            | 3 (audio, frequency, Q) | 1 | Allpass filter (2nd order). |
 | `allpass_hz(f, q)`     |    1    |    1    | Allpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `allpass_q(q)`         | 2 (audio, frequency) | 1 | Allpass filter (2nd order) with Q `q`. |
 | `allpole()`            | 2 (audio, delay) | 1 | Allpass filter (1st order). 2nd input is delay in samples (`delay` > 0). |
-| `allpole_delay(delay)` |    1    |    1    | Allpass filter (1st order) with `delay` in samples (`delay` > 0). |
+| `allpole_delay(delay)` |    1    |    1    | Allpass filter (1st order) with `delay` at DC in samples (`delay` > 0). |
 | `bandpass()`           | 3 (audio, frequency, Q) | 1 | Bandpass filter (2nd order). |
 | `bandpass_hz(f, q)`    |    1    |    1    | Bandpass filter (2nd order) centered at `f` Hz with Q `q`. |
 | `bandpass_q(q)`        | 2 (audio, frequency) | 1 | Bandpass filter (2nd order) with Q `q`. |
@@ -957,6 +959,7 @@ The type parameters in the table refer to the hacker preludes.
 | `multisink::<U>()`     |   `U`   |    -    | Consumes multichannel signal. |
 | `multisplit::<M, N>()` |   `M`   | `M * N` | Split `M` channels into `N` branches. |
 | `multitap::<N>(min_delay, max_delay)` | `N + 1` (audio, delay...) | 1 | Tapped delay line with cubic interpolation. Number of taps is `N`. |
+| `multitap_linear::<N>(min_delay, max_delay)` | `N + 1` (audio, delay...) | 1 | Tapped delay line with linear interpolation. Number of taps is `N`. |
 | `multitick::<U>()`     |   `U`   |   `U`   | Multichannel single sample delay. |
 | `multizero::<U>()`     |    -    |   `U`   | Multichannel zero signal. |
 | `node32::<I, O>(unit)` |   `I`   |   `O`   | Convert an `AudioUnit32` into an `AudioNode` with `I` inputs and `O` outputs. |
@@ -986,7 +989,8 @@ The type parameters in the table refer to the hacker preludes.
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `resynth::<I, O, _>(w, f)` | `I` |   `O`   | Frequency domain resynthesis with window length `w` and processing function `f`. |
 | `reverb_stereo(r, t)`  |    2    |    2    | Stereo reverb (32-channel [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)) with room size `r` meters (10 is average) and reverberation time `t` seconds. |
-| `reverb2_stereo(r, t)` |    2    |    2    | Another stereo reverb (8-channel and 16-channel [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)s in series) with room size `r` meters (10 is average) and reverberation time `t` seconds. |
+| `reverb2_stereo(r, t, m)` | 2    |    2    | Another stereo reverb (32-channel hybrid [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)) with room size `r` meters (10-30 meters is supported), reverberation time `t` seconds and modulation speed `m` (nominal range 0-1, beyond starts being an effect). |
+| `reverb3_stereo(t)`    |    2    |    2    | Stereo reverb with reverberation time `t` seconds (at least 1 second), has a slow attack and metallic ring when `t` is near 1 second. |
 | `reverse::<N>()`       |   `N`   |   `N`   | Reverse channel order, e.g., swap left and right channels. |
 | `rossler()`            | 1 (frequency) | 1 | [Rössler dynamical system](https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor) oscillator. |
 | `saw()`                | 1 (frequency) | 1 | Bandlimited saw wave oscillator. |
@@ -1007,6 +1011,7 @@ The type parameters in the table refer to the hacker preludes.
 | `sum::<U, _, _>(f)`    | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
+| `tap_linear(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with linear interpolation. All times are in seconds. |
 | `tick()`               |    1    |    1    | Single sample delay. |
 | `timer(&shared)`       |    -    |    -    | Maintain current stream time in a shared variable. |
 | `triangle()`           | 1 (frequency) | 1 | Bandlimited triangle wave oscillator. |

@@ -582,7 +582,7 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
 /// Setting: delay.
 /// The number of inputs is `N`, either `U1` or `U2`.
 /// - Input 0: input signal
-/// - Input 1 (optional): delay in samples (delay > 0)
+/// - Input 1 (optional): delay in samples at DC (delay > 0)
 /// - Output 0: filtered signal
 #[derive(Default, Clone)]
 pub struct Allpole<T: Float, F: Float, N: Size<T>> {

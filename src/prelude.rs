@@ -933,7 +933,7 @@ pub fn multitick<N: Size<T>, T: Float>() -> An<Tick<N, T>> {
 }
 
 /// Fixed delay of `t` seconds.
-/// Delay time is rounded to the nearest sample.
+/// Delay time is rounded to the nearest sample. The minimum delay is one sample.
 /// - Allocates: the delay line.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
@@ -983,6 +983,44 @@ where
     <N as Add<U1>>::Output: Size<T>,
 {
     An(Tap::new(min_delay, max_delay))
+}
+
+/// Tapped delay line with linear interpolation.
+/// Minimum and maximum delay times are in seconds.
+/// - Allocates: the delay line.
+/// - Input 0: signal.
+/// - Input 1: delay time in seconds.
+/// - Output 0: delayed signal.
+///
+/// ### Example: Variable Delay
+/// ```
+/// use fundsp::prelude::*;
+/// pass::<f32>() & (pass() | lfo(|t| lerp11(0.01, 0.1, spline_noise(0, t)))) >> tap_linear(0.01, 0.1);
+/// ```
+pub fn tap_linear<T: Float>(min_delay: T, max_delay: T) -> An<TapLinear<U1, T>> {
+    An(TapLinear::new(min_delay, max_delay))
+}
+
+/// Tapped delay line with linear interpolation.
+/// The number of taps is `N`.
+/// Minimum and maximum delay times are in seconds.
+/// - Allocates: the delay line.
+/// - Input 0: signal.
+/// - Inputs 1...N: delay time in seconds.
+/// - Output 0: delayed signal.
+///
+/// ### Example: Dual Variable Delay
+/// ```
+/// use fundsp::prelude::*;
+/// (pass() | lfo(|t| (lerp11(0.01, 0.1, spline_noise(0, t)), lerp11(0.1, 0.2, spline_noise(1, t))))) >> multitap_linear::<U2, f64>(0.01, 0.2);
+/// ```
+pub fn multitap_linear<N, T>(min_delay: T, max_delay: T) -> An<TapLinear<N, T>>
+where
+    T: Float,
+    N: Size<T> + Add<U1>,
+    <N as Add<U1>>::Output: Size<T>,
+{
+    An(TapLinear::new(min_delay, max_delay))
 }
 
 /// 2x oversample enclosed `node`.
@@ -1074,6 +1112,53 @@ where
     Y::Outputs: Size<T>,
 {
     An(Feedback2::new(node.0, loopback.0, FrameId::new()))
+}
+
+/// A nested allpass. The feedforward coefficient of the outer allpass
+/// is set from `coefficient`, which should have an absolute value smaller than one to prevent a blowup.
+/// The delay element of the outer allpass is replaced with `x`.
+/// The result is an allpass filter if `x` is allpass.
+/// If `x` is `pass()` then the result is a 1st order allpass.
+/// If `x` is a delay element then the result is a Schroeder allpass.
+/// If `x` is a 1st order allpass (`allpole`) then the result is a 2nd order nested allpass.
+/// - Input 0: input signal
+/// - Output 0: filtered signal
+///
+/// ### Example: Schroeder Allpass
+/// ```
+/// use fundsp::prelude::*;
+/// allnest_c::<f32, _>(0.5, delay(0.01));
+/// ```
+pub fn allnest_c<T, X>(coefficient: T, x: An<X>) -> An<AllNest<T, U1, X>>
+where
+    T: Float,
+    X: AudioNode<Sample = T, Inputs = U1, Outputs = U1>,
+{
+    An(AllNest::new(coefficient, x.0))
+}
+
+/// A nested allpass. The feedforward coefficient of the outer allpass
+/// is set from the second input, which should have an absolute value smaller than one to prevent a blowup.
+/// The delay element of the outer allpass is replaced with `x`.
+/// The result is an allpass filter if `x` is allpass.
+/// If `x` is `pass()` then the result is a 1st order allpass.
+/// If `x` is a delay element then the result is a Schroeder allpass.
+/// If `x` is a 1st order allpass (`allpole`) then the result is a 2nd order nested allpass.
+/// - Input 0: input signal
+/// - Input 1: feedforward coefficient
+/// - Output 0: filtered signal
+///
+/// ### Example: Schroeder Allpass
+/// ```
+/// use fundsp::prelude::*;
+/// allnest::<f32, _>(delay(0.01));
+/// ```
+pub fn allnest<T, X>(x: An<X>) -> An<AllNest<T, U2, X>>
+where
+    T: Float,
+    X: AudioNode<Sample = T, Inputs = U1, Outputs = U1>,
+{
+    An(AllNest::new(T::zero(), x.0))
 }
 
 /// Transform channels freely. Accounted as non-linear processing for signal flow.
@@ -1585,6 +1670,7 @@ where
 /// Stereo reverb (32-channel FDN).
 /// `room_size` is in meters. An average room size is 10 meters.
 /// `time` is approximate reverberation time to -60 dB in seconds.
+/// - Allocates: delay lines
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: reverberated left signal
@@ -1595,13 +1681,10 @@ where
 /// use fundsp::prelude::*;
 /// multipass() & 0.2 * reverb_stereo::<f32>(10.0, 5.0);
 /// ```
-pub fn reverb_stereo<T>(
+pub fn reverb_stereo<T: Real>(
     room_size: f64,
     time: f64,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>>
-where
-    T: Real,
-{
+) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
     // Optimized delay times for a 32-channel FDN from a legacy project.
     // These are applied unchanged for a 10 meter room.
     const DELAYS: [f64; 32] = [
@@ -1622,94 +1705,203 @@ where
     // The feedback structure.
     let reverb = fdn::<U32, T, _>(line);
 
-    // Multiplex stereo into 32 channels, reverberate, then average them back.
-    //multisplit::<U2, U16, T>() >> reverb >> multijoin::<U2, U16, T>()
-
-    // This version pans the channels with an S shape (the above version pans them hard left or right).
+    // Pan the channels with an S shape.
     multisplit::<U2, U16, T>()
         >> reverb
-        >> sumf::<U32, _, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(smooth3(x)))))
+        >> sumf::<U32, _, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(smooth9(x)))))
             * dc((T::from_f64(1.0 / 16.0), T::from_f64(1.0 / 16.0)))
 }
 
-/// Stereo reverb (8-channel and 16-channel FDNs in series).
+/// Create a stereo reverb unit, given room size (in meters, between 10 and 30 meters),
+/// reverberation `time` (in seconds, to -60 dB) and modulation speed (nominal range from
+/// 0 to 1, values beyond 1 are permitted and will start to create audible Doppler effects).
+/// More sophisticated (and expensive) than `reverb_stereo`.
+/// - Allocates: delay lines
+/// - Input 0: left signal
+/// - Input 1: right signal
+/// - Output 0: reverberated left signal
+/// - Output 1: reverberated right signal
+///
+/// ### Example: Add 20% Reverb
+/// ```
+/// use fundsp::prelude::*;
+/// multipass() & 0.2 * reverb2_stereo::<f32>(10.0, 1.0, 1.0);
+/// ```
+pub fn reverb2_stereo<T: Real>(
+    room_size: f64,
+    time: f64,
+    modulation_speed: f64,
+) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
+    let room_size = clamp(10.0, 30.0, room_size);
+    let a = T::from_f64(pow(db_amp(-60.0), (0.060 + room_size * 0.001) / time));
+
+    // Schroeder allpass delays.
+    let delays = [
+        5, 7, 11, 13, 17, 23, 31, 41, 53, 71, 97, 113, 131, 163, 193, 223, 269, 311, 359, 397, 449,
+        503, 557, 601, 653, 709, 757, 809, 857, 911, 953, 1009,
+    ];
+
+    // The feedback structure.
+    let line = stack::<U32, T, _, _>(|i| {
+        let d = T::from_f64(0.030 + room_size * 0.001) + T::new(i) * T::from_f64(0.002);
+        let dv = T::from_f64(0.001);
+        let min_d = d - dv;
+        let max_d = d + dv;
+        let j = if i < 16 { i * 2 } else { (31 - i) * 2 + 1 };
+        (fir((-a / T::new(4), -a / T::new(2), -a / T::new(4)))
+            | An(Envelope::<T, T, _, _>::new(
+                T::from_f64(0.01),
+                DEFAULT_SR,
+                move |t| {
+                    lerp11(
+                        min_d,
+                        max_d,
+                        spline_noise(i, t * T::from_f64(modulation_speed * 0.5)),
+                    )
+                },
+            )))
+            >> tap_linear::<T>(min_d, max_d)
+            >> allnest_c::<T, _>(
+                T::from_f64(0.6),
+                delay::<T>((delays[j as usize] - 1) as f64 / DEFAULT_SR),
+            )
+    });
+
+    // Pan the channels with an S shape.
+    multisplit::<U2, U16, T>()
+        >> fdn(line)
+        >> sumf::<U32, T, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(smooth9(x)))))
+            * dc((T::from_f64(1.0 / 16.0), T::from_f64(1.0 / 16.0)))
+}
+
+/// Create a stereo reverb unit, given approximate reverberation `time` in seconds
+/// (at least 1 second). The effect consists of many Schroeder allpasses in series.
+/// At 1 second of reverb, the result is a tail that fades in
+/// and out at approximately the same speed and has a metallic ring. At higher
+/// reverb times, the effect starts to resemble more of a conventional reverberation
+/// that fades in almost instantly.
+/// - Allocates: delay lines
+/// - Input 0: left signal
+/// - Input 1: right signal
+/// - Output 0: reverberated left signal
+/// - Output 1: reverberated right signal
+pub fn reverb3_stereo<T: Real>(
+    time: f64,
+) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
+    // Rough empirical formula.
+    let coefficient = pow(0.0000001, 0.03 / (max(1.0, time) * 5.0 - 4.0));
+
+    let ldelays = [
+        13, 19, 23, 29, 43, 59, 71, 97, 109, 131, 163, 193, 223, 269, 311, 359, 397, 449, 503, 557,
+        601, 653, 709, 757, 809, 857, 911, 953, 1009, 1061, 1123, 1181, 1231, 1301, 1367, 1451,
+        1543, 1627,
+    ];
+    let rdelays = [
+        12, 17, 23, 31, 41, 53, 67, 89, 113, 137, 157, 191, 227, 271, 307, 353, 401, 457, 499, 547,
+        607, 659, 701, 751, 811, 859, 907, 947, 1013, 1063, 1117, 1171, 1237, 1303, 1361, 1447,
+        1531, 1621,
+    ];
+
+    let lchain = pipe::<U38, T, _, _>(|i| {
+        allnest_c(
+            T::from_f64(coefficient),
+            delay::<T>((ldelays[i as usize] - 1) as f64 / DEFAULT_SR),
+        )
+    });
+
+    let rchain = pipe::<U38, T, _, _>(|i| {
+        allnest_c(
+            T::from_f64(coefficient),
+            delay::<T>((rdelays[i as usize] - 1) as f64 / DEFAULT_SR),
+        )
+    });
+
+    lchain | rchain
+}
+
+/// Stereo reverb. WIP.
 /// `room_size` is in meters. An average room size is 10 meters.
 /// `time` is approximate reverberation time to -60 dB in seconds.
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: reverberated left signal
 /// - Output 1: reverberated right signal
-pub fn reverb2_stereo<T: Real>(
+pub fn reverb4_stereo<T: Real>(
     room_size: f64,
     time: f64,
 ) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
-    // Optimized delay times from `optimize.rs` example. Fitness -0.0025.
+    // Optimized delay times from `optimize.rs` example. Fitness -4546.
     let mut delays = [
-        0.022091309,
-        0.028631847,
-        0.037695974,
-        0.029113876,
-        0.02338984,
-        0.021005694,
-        0.028758757,
-        0.020885436,
-        0.024144981,
-        0.045484193,
-        0.022020288,
-        0.027795697,
-        0.0206333,
-        0.04424759,
-        0.021639846,
-        0.0217646,
-        0.028093584,
-        0.02073635,
-        0.023413701,
-        0.02885125,
-        0.027942967,
-        0.037879184,
-        0.02752918,
-        0.03322006,
+        0.059326634,
+        0.04778291,
+        0.06995449,
+        0.0393001,
+        0.041604012,
+        0.06215825,
+        0.052269846,
+        0.043227978,
+        0.06966107,
+        0.031615064,
+        0.068442,
+        0.037332155,
+        0.032944717,
+        0.034493037,
+        0.06787566,
+        0.038824916,
+        0.068260126,
+        0.068044715,
+        0.0688076,
+        0.066724524,
+        0.051293883,
+        0.06023173,
+        0.040897705,
+        0.031507637,
+        0.060309593,
+        0.049584292,
+        0.04532072,
+        0.056379095,
+        0.035180368,
+        0.041291796,
+        0.046129026,
+        0.05504605,
     ];
     for delay in delays.iter_mut() {
         *delay *= room_size / 10.0;
     }
-    reverb2_stereo_delays::<T>(&delays, time)
+    reverb4_stereo_delays::<T>(&delays, time)
 }
 
-/// Create a stereo reverb unit, given delay times (in seconds) for the 24 delay lines
-/// and reverberation `time` (in seconds).
+/// Create a stereo reverb unit, given delay times (in seconds) for the 32 delay lines
+/// and reverberation `time` (in seconds). WIP.
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: reverberated left signal
 /// - Output 1: reverberated right signal
-pub fn reverb2_stereo_delays<T>(
+pub fn reverb4_stereo_delays<T: Real>(
     delays: &[f64],
     time: f64,
-) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>>
-where
-    T: Real,
-{
-    assert!(delays.len() == 24);
-    let room_size = 10.0; // delays.iter().sum::<f64>() / 24.0 / 0.03 * 10.0;
+) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
+    assert!(delays.len() == 32);
+    let room_size = 10.0; // delays.iter().sum::<f64>() / 32.0 / 0.03 * 10.0;
     let a = T::from_f64(pow(db_amp(-60.0), 0.03 * room_size / 10.0 / time));
 
-    let line1 = stack::<U8, T, _, _>(|i| {
+    let line1 = stack::<U16, T, _, _>(|i| {
         delay::<T>(delays[i as usize]) >> fir((-a / T::new(4), -a / T::new(2), -a / T::new(4)))
     });
 
     let line2 = stack::<U16, T, _, _>(|i| {
-        delay::<T>(delays[8 + i as usize]) >> fir((-a / T::new(4), -a / T::new(2), -a / T::new(4)))
+        delay::<T>(delays[16 + i as usize]) >> fir((-a / T::new(4), -a / T::new(2), -a / T::new(4)))
     });
 
     let fdn1 = fdn(line1);
     let fdn2 = fdn(line2);
 
-    multisplit::<U2, U4, T>()
+    multisplit::<U2, U8, T>()
         >> fdn1
-        >> multijoin::<U2, U4, T>()
+        >> multijoin::<U2, U8, T>()
         >> multisplit::<U2, U8, T>()
         >> fdn2
-        >> sumf::<U16, _, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(smooth3(x)))))
+        >> sumf::<U16, _, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(smooth9(x)))))
             * dc((T::from_f64(1.0 / 8.0), T::from_f64(1.0 / 8.0)))
 }
 

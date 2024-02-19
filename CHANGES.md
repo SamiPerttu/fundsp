@@ -4,9 +4,11 @@
 
 - `Wave32/64`: `silence` is now `zero`.
 - New opcode `impulse`.
-- Optimization of reverb delay times in the example `optimize`.
+- Attempted optimization of reverb delay times in the example `optimize`.
 - New opcodes `node64` and `node32` for converting an `AudioUnit` into an `AudioNode`.
-- New reverb opcode `reverb2_stereo`.
+- New reverb opcodes `reverb2_stereo` and `reverb3_stereo`.
+- New opcodes `allnest` and `allnest_c` for nested allpass filters.
+- New opcodes `tap_linear` and `multitap_linear` for delay lines with linear interpolation.
 
 ### Version 0.16
 
