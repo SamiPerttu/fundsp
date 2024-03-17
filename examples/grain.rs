@@ -177,7 +177,7 @@ where
         println!("{}: {}", parameter.name(), parameter.value());
     }
 
-    c = c >> (multipass() & 0.1 * reverb_stereo(20.0, 2.0));
+    c = c >> (multipass() & 0.2 * reverb_stereo(20.0, 2.0, 0.5));
 
     c.set_sample_rate(sample_rate);
 

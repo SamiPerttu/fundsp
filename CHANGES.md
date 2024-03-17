@@ -9,6 +9,8 @@
 - New reverb opcodes `reverb2_stereo` and `reverb3_stereo`.
 - New opcodes `allnest` and `allnest_c` for nested allpass filters.
 - New opcodes `tap_linear` and `multitap_linear` for delay lines with linear interpolation.
+- High frequency damping parameter was added to `reverb_stereo`. Damping used to be hardcoded to 1.
+- New opcode `rotate` for rotating a stereo signal.
 
 ### Version 0.16
 

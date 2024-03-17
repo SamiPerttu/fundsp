@@ -1670,6 +1670,7 @@ where
 /// Stereo reverb (32-channel FDN).
 /// `room_size` is in meters. An average room size is 10 meters.
 /// `time` is approximate reverberation time to -60 dB in seconds.
+/// `damping` is high frequency damping in 0...1.
 /// - Allocates: delay lines
 /// - Input 0: left signal
 /// - Input 1: right signal
@@ -1679,11 +1680,12 @@ where
 /// ### Example: Add 20% Reverb
 /// ```
 /// use fundsp::prelude::*;
-/// multipass() & 0.2 * reverb_stereo::<f32>(10.0, 5.0);
+/// multipass() & 0.2 * reverb_stereo::<f32>(10.0, 5.0, 0.5);
 /// ```
 pub fn reverb_stereo<T: Real>(
     room_size: f64,
     time: f64,
+    damping: f64,
 ) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
     // Optimized delay times for a 32-channel FDN from a legacy project.
     // These are applied unchanged for a 10 meter room.
@@ -1694,12 +1696,13 @@ pub fn reverb_stereo<T: Real>(
         0.082923, 0.070121, 0.079315, 0.055039, 0.081859,
     ];
 
+    // Damping filter weights.
     let a = T::from_f64(pow(db_amp(-60.0), 0.03 * room_size / 10.0 / time));
+    let weights = fir3(T::from_f64(1.0 - damping)).weights() * Frame::splat(a);
 
     // Delay lines.
     let line = stack::<U32, T, _, _>(|i| {
-        delay::<T>(DELAYS[i as usize] * room_size / 10.0)
-            >> fir((a / T::new(4), a / T::new(2), a / T::new(4)))
+        delay::<T>(DELAYS[i as usize] * room_size / 10.0) >> fir(weights)
     });
 
     // The feedback structure.
@@ -1712,9 +1715,13 @@ pub fn reverb_stereo<T: Real>(
             * dc((T::from_f64(1.0 / 16.0), T::from_f64(1.0 / 16.0)))
 }
 
-/// Create a stereo reverb unit, given room size (in meters, between 10 and 30 meters),
-/// reverberation `time` (in seconds, to -60 dB) and modulation speed (nominal range from
-/// 0 to 1, values beyond 1 are permitted and will start to create audible Doppler effects).
+/// Create a stereo reverb unit (32-channel hybrid FDN).
+/// Parameters are room size (in meters, between 10 and 30 meters),
+/// reverberation `time` (in seconds, to -60 dB), diffusion amount (in 0...1),
+/// modulation speed (nominal range from 0 to 1, values beyond 1 are permitted
+/// and will start to create audible Doppler effects), and a user configurable loop filter.
+/// The loop filter is applied repeatedly to the reverb tail and can be used to implement
+/// frequency dependent filtering and other effects.
 /// More sophisticated (and expensive) than `reverb_stereo`.
 /// - Allocates: delay lines
 /// - Input 0: left signal
@@ -1725,30 +1732,44 @@ pub fn reverb_stereo<T: Real>(
 /// ### Example: Add 20% Reverb
 /// ```
 /// use fundsp::prelude::*;
-/// multipass() & 0.2 * reverb2_stereo::<f32>(10.0, 1.0, 1.0);
+/// multipass() & 0.2 * reverb2_stereo::<f32>(10.0, 1.0, 0.5, 1.0, lowpole_hz::<f32, f32>(8000.0));
 /// ```
 pub fn reverb2_stereo<T: Real>(
     room_size: f64,
     time: f64,
+    diffusion: f64,
     modulation_speed: f64,
+    filter: An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>>,
 ) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
     let room_size = clamp(10.0, 30.0, room_size);
-    let a = T::from_f64(pow(db_amp(-60.0), (0.060 + room_size * 0.001) / time));
 
     // Schroeder allpass delays.
     let delays = [
-        5, 7, 11, 13, 17, 23, 31, 41, 53, 71, 97, 113, 131, 163, 193, 223, 269, 311, 359, 397, 449,
-        503, 557, 601, 653, 709, 757, 809, 857, 911, 953, 1009,
+        11, 13, 17, 23, 31, 41, 53, 71, 97, 113, 131, 163, 193, 223, 241, 269, 293, 311, 337, 359,
+        397, 421, 449, 479, 503, 523, 557, 571, 601, 631, 653, 677, 709, 733, 757, 787, 809, 827,
+        857, 877, 911, 929, 953, 977, 1009,
     ];
+
+    let delay_min = 0.010 + room_size * 0.003;
+    let delay_max = max(delay_min * 2.0, delay_min + 0.002 * 31.0);
+    let delay_d = (delay_max - delay_min) / 32.0;
+
+    // Damping filter weights.
+    let a = T::from_f64(pow(db_amp(-60.0), 0.5 * delay_min / time));
+
+    // Schroeder allpass coefficient.
+    let coeff = T::from_f64(lerp(0.5, 0.9, diffusion));
 
     // The feedback structure.
     let line = stack::<U32, T, _, _>(|i| {
-        let d = T::from_f64(0.030 + room_size * 0.001) + T::new(i) * T::from_f64(0.002);
+        let j = if i < 16 { i * 2 } else { (31 - i) * 2 + 1 };
+        let allpass_delay = delays[j as usize] as f64 / DEFAULT_SR;
+        let d =
+            T::from_f64(delay_min) + T::new(j) * T::from_f64(delay_d) - T::from_f64(allpass_delay);
         let dv = T::from_f64(0.001);
         let min_d = d - dv;
         let max_d = d + dv;
-        let j = if i < 16 { i * 2 } else { (31 - i) * 2 + 1 };
-        (fir((-a / T::new(4), -a / T::new(2), -a / T::new(4)))
+        (filter.clone() * dc(a)
             | An(Envelope::<T, T, _, _>::new(
                 T::from_f64(0.01),
                 DEFAULT_SR,
@@ -1761,66 +1782,53 @@ pub fn reverb2_stereo<T: Real>(
                 },
             )))
             >> tap_linear::<T>(min_d, max_d)
-            >> allnest_c::<T, _>(
-                T::from_f64(0.6),
-                delay::<T>((delays[j as usize] - 1) as f64 / DEFAULT_SR),
-            )
+            >> allnest_c::<T, _>(coeff, delay::<T>(allpass_delay - 1.0 / DEFAULT_SR))
     });
 
+    // Pre-diffusers.
+    let lpass = allnest_c::<T, _>(T::from_f64(0.618), delay::<T>(224.0 / DEFAULT_SR))
+        >> allnest_c::<T, _>(T::from_f64(0.618), delay::<T>(340.0 / DEFAULT_SR));
+
+    let rpass = allnest_c::<T, _>(T::from_f64(0.618), delay::<T>(247.0 / DEFAULT_SR))
+        >> allnest_c::<T, _>(T::from_f64(0.618), delay::<T>(366.0 / DEFAULT_SR));
+
     // Pan the channels with an S shape.
+    (lpass | rpass) >>
     multisplit::<U2, U16, T>()
         >> fdn(line)
+        //>> (multisink::<U6, _>() | pass() | multisink::<U18, _>() | pass() | multisink::<U6, _>())
         >> sumf::<U32, T, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(smooth9(x)))))
-            * dc((T::from_f64(1.0 / 16.0), T::from_f64(1.0 / 16.0)))
+           * dc((T::from_f64(1.0 / 8.0), T::from_f64(1.0 / 8.0)))
+    //>> multijoin::<U2, U16, T>()
 }
 
-/// Create a stereo reverb unit, given approximate reverberation `time` in seconds
-/// (at least 1 second). The effect consists of many Schroeder allpasses in series.
-/// At 1 second of reverb, the result is a tail that fades in
-/// and out at approximately the same speed and has a metallic ring. At higher
-/// reverb times, the effect starts to resemble more of a conventional reverberation
-/// that fades in almost instantly.
+/// Allpass loop based stereo reverb. Parameters are reverberation `time` (in seconds to -60 dB),
+/// diffusion amount (in 0...1), and a user configurable loop filter.
+/// The loop filter is applied repeatedly to the reverb tail and can be used to implement
+/// frequency dependent filtering and other effects.
 /// - Allocates: delay lines
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: reverberated left signal
 /// - Output 1: reverberated right signal
+///
+/// ### Example: Add 25% Reverb
+/// ```
+/// use fundsp::prelude::*;
+/// multipass() & 0.25 * reverb3_stereo::<f32>(2.0, 0.5, lowpole_hz::<f32, f32>(8000.0));
+/// ```
 pub fn reverb3_stereo<T: Real>(
     time: f64,
+    diffusion: f64,
+    filter: An<impl AudioNode<Sample = T, Inputs = U1, Outputs = U1>>,
 ) -> An<impl AudioNode<Sample = T, Inputs = U2, Outputs = U2>> {
-    // Rough empirical formula.
-    let coefficient = pow(0.0000001, 0.03 / (max(1.0, time) * 5.0 - 4.0));
-
-    let ldelays = [
-        13, 19, 23, 29, 43, 59, 71, 97, 109, 131, 163, 193, 223, 269, 311, 359, 397, 449, 503, 557,
-        601, 653, 709, 757, 809, 857, 911, 953, 1009, 1061, 1123, 1181, 1231, 1301, 1367, 1451,
-        1543, 1627,
-    ];
-    let rdelays = [
-        12, 17, 23, 31, 41, 53, 67, 89, 113, 137, 157, 191, 227, 271, 307, 353, 401, 457, 499, 547,
-        607, 659, 701, 751, 811, 859, 907, 947, 1013, 1063, 1117, 1171, 1237, 1303, 1361, 1447,
-        1531, 1621,
-    ];
-
-    let lchain = pipe::<U38, T, _, _>(|i| {
-        allnest_c(
-            T::from_f64(coefficient),
-            delay::<T>((ldelays[i as usize] - 1) as f64 / DEFAULT_SR),
-        )
-    });
-
-    let rchain = pipe::<U38, T, _, _>(|i| {
-        allnest_c(
-            T::from_f64(coefficient),
-            delay::<T>((rdelays[i as usize] - 1) as f64 / DEFAULT_SR),
-        )
-    });
-
-    lchain | rchain
+    An(super::reverb::Reverb::<T, _>::new(
+        time, diffusion, filter.0,
+    ))
 }
 
-/// Stereo reverb. WIP.
-/// `room_size` is in meters. An average room size is 10 meters.
+/// Stereo reverb with a slow fade-in envelope.
+/// `room_size` is in meters (at least 15 meters).
 /// `time` is approximate reverberation time to -60 dB in seconds.
 /// - Input 0: left signal
 /// - Input 1: right signal
@@ -1866,7 +1874,8 @@ pub fn reverb4_stereo<T: Real>(
         0.05504605,
     ];
     for delay in delays.iter_mut() {
-        *delay *= room_size / 10.0;
+        // The delays sound like garbage below 15 meters.
+        *delay *= (max(room_size, 15.0)) / 10.0;
     }
     reverb4_stereo_delays::<T>(&delays, time)
 }
@@ -1902,7 +1911,7 @@ pub fn reverb4_stereo_delays<T: Real>(
         >> multisplit::<U2, U8, T>()
         >> fdn2
         >> sumf::<U16, _, _, _>(|x| pan(lerp(T::new(-1), T::new(1), convert(smooth9(x)))))
-            * dc((T::from_f64(1.0 / 8.0), T::from_f64(1.0 / 8.0)))
+            * dc((T::from_f64(1.0 / 4.0), T::from_f64(1.0 / 4.0)))
 }
 
 /// Saw-like discrete summation formula oscillator.
@@ -2986,4 +2995,26 @@ where
 /// - Output(s): impulse.
 pub fn impulse<N: Size<T>, T: Float>() -> An<Impulse<N, T>> {
     An(Impulse::new())
+}
+
+/// Rotate stereo signal `angle` radians and apply amplitude `gain`.
+/// Rotations can be useful for mixing because they maintain the L2 norm of the signal.
+/// - Input 0: left input
+/// - Input 1: right input
+/// - Output 0: rotated left output
+/// - Output 1: rotated right output
+///
+/// ### Example (45 Degree Rotation)
+/// ```
+/// use fundsp::prelude::*;
+/// rotate::<f64>(PI / 4.0, 1.0);
+/// ```
+pub fn rotate<T: Real>(angle: T, gain: T) -> An<Mixer<U2, U2, T>> {
+    An(Mixer::new(
+        [
+            [cos(angle) * gain, -sin(angle) * gain].into(),
+            [sin(angle) * gain, cos(angle) * gain].into(),
+        ]
+        .into(),
+    ))
 }

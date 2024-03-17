@@ -527,7 +527,7 @@ impl Wave48 {
     /// use fundsp::hacker32::*;
     /// let wave1 = Wave32::render(44100.0, 2.0, &mut (lfo(|t| (220.0, lerp11(0.01, 0.99, sin_hz(0.5, t)))) >> pulse() >> pan(0.0)));
     /// assert!(wave1.channels() == 2 && wave1.duration() == 2.0);
-    /// let wave2 = wave1.filter(3.0, &mut (multipass() & 0.2 * reverb_stereo(10.0, 1.0)));
+    /// let wave2 = wave1.filter(3.0, &mut (multipass() & 0.2 * reverb_stereo(10.0, 1.0, 0.5)));
     /// assert!(wave2.channels() == 2 && wave2.duration() == 3.0 && wave2.amplitude() > wave1.amplitude());
     /// ```
     pub fn filter(&self, duration: f64, node: &mut dyn AudioUnit48) -> Self {

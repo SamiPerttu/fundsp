@@ -988,11 +988,12 @@ The type parameters in the table refer to the hacker preludes.
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
 | `resynth::<I, O, _>(w, f)` | `I` |   `O`   | Frequency domain resynthesis with window length `w` and processing function `f`. |
-| `reverb_stereo(r, t)`  |    2    |    2    | Stereo reverb (32-channel [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)) with room size `r` meters (10 is average) and reverberation time `t` seconds. |
-| `reverb2_stereo(r, t, m)` | 2    |    2    | Another stereo reverb (32-channel hybrid [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)) with room size `r` meters (10-30 meters is supported), reverberation time `t` seconds and modulation speed `m` (nominal range 0-1, beyond starts being an effect). |
-| `reverb3_stereo(t)`    |    2    |    2    | Stereo reverb with reverberation time `t` seconds (at least 1 second), has a slow attack and metallic ring when `t` is near 1 second. |
+| `reverb_stereo(r, t, d)` |  2    |    2    | Stereo reverb (32-channel [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)) with room size `r` meters (10 is average), reverberation time `t` seconds and high frequency damping `d` (in 0...1). |
+| `reverb2_stereo(r, t, d, m, f)` | 2 | 2    | Another stereo reverb (32-channel hybrid [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)) with room size `r` meters (10-30 meters is supported), reverberation time `t` seconds, diffusion amount `d` (in 0...1), modulation speed `m` (nominal range 0...1, beyond starts being an effect), and loop filter `f`. |
+| `reverb3_stereo(t, d, f)` | 2    |    2    | Another stereo reverb (allpass loop) with reverberation time `t` seconds, diffusion amount `d` (in 0...1), and loop filter `f`. |
 | `reverse::<N>()`       |   `N`   |   `N`   | Reverse channel order, e.g., swap left and right channels. |
 | `rossler()`            | 1 (frequency) | 1 | [Rössler dynamical system](https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor) oscillator. |
+| `rotate(a, g)`         |    2    |    2    | Rotate stereo signal `a` radians with gain `g`. |
 | `saw()`                | 1 (frequency) | 1 | Bandlimited saw wave oscillator. |
 | `saw_hz(f)`            |    -    |    1    | Bandlimited saw wave oscillator at `f` Hz. |
 | `shape(mode)`          |    1    |    1    | Shape signal with waveshaper mode `mode`. |

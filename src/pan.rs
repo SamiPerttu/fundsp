@@ -95,3 +95,68 @@ impl<T: Real, N: Size<T>> AudioNode for Panner<T, N> {
         output
     }
 }
+
+/// Mixing matrix with `M` input channels and `N` output channels.
+#[derive(Clone)]
+pub struct Mixer<M, N, T>
+where
+    M: Size<T>,
+    N: Size<T> + Size<Frame<T, M>>,
+    T: Float,
+{
+    matrix: Frame<Frame<T, M>, N>,
+}
+
+impl<M, N, T> Mixer<M, N, T>
+where
+    M: Size<T>,
+    N: Size<T> + Size<Frame<T, M>>,
+    T: Float,
+{
+    pub fn new(matrix: Frame<Frame<T, M>, N>) -> Self {
+        Self { matrix }
+    }
+}
+
+impl<M, N, T> AudioNode for Mixer<M, N, T>
+where
+    M: Size<T>,
+    N: Size<T> + Size<Frame<T, M>>,
+    T: Float,
+{
+    const ID: u64 = 84;
+    type Sample = T;
+    type Inputs = M;
+    type Outputs = N;
+    type Setting = ();
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        Frame::generate(|i| {
+            let mut value = T::zero();
+            for (x, y) in input.iter().zip(self.matrix[i].iter()) {
+                value += (*x) * (*y);
+            }
+            value
+        })
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut output = new_signal_frame(self.outputs());
+        for i in 0..self.outputs() {
+            output[i] = input[0].scale(convert(self.matrix[i][0]));
+            for j in 1..self.inputs() {
+                output[i] = output[i].combine_linear(
+                    input[j].scale(convert(self.matrix[i][j])),
+                    0.0,
+                    |x, y| x + y,
+                    |x, y| x + y,
+                );
+            }
+        }
+        output
+    }
+}

@@ -115,7 +115,7 @@ fn main() {
 
     let wave = wave.filter(
         duration,
-        &mut (multipass() & 0.15 * reverb_stereo(10.0, 1.0)),
+        &mut (multipass() & 0.15 * reverb_stereo(10.0, 1.0, 0.5)),
     );
 
     let wave = wave.filter_latency(duration, &mut (limiter_stereo((5.0, 5.0))));

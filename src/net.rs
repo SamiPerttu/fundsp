@@ -579,7 +579,7 @@ impl Net48 {
     /// ```
     /// use fundsp::hacker::*;
     /// let mut net = Net64::new(2, 2);
-    /// let id = net.push(Box::new(multipass() & reverb_stereo(10.0, 1.0)));
+    /// let id = net.push(Box::new(multipass() & reverb_stereo(10.0, 1.0, 0.5)));
     /// net.pipe_input(id);
     /// net.pipe_output(id);
     /// net.check();

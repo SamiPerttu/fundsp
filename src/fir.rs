@@ -27,6 +27,18 @@ impl<T: Float, N: Size<T>> Fir<T, N> {
             sample_rate: DEFAULT_SR,
         }
     }
+
+    /// Return filter weights.
+    #[inline]
+    pub fn weights(&self) -> Frame<T, N> {
+        self.w.clone()
+    }
+
+    /// Set filter weights.
+    #[inline]
+    pub fn set_weights<W: ConstantFrame<Sample = T, Size = N>>(&mut self, weights: W) {
+        self.w = weights.convert();
+    }
 }
 
 impl<T: Float, N: Size<T>> AudioNode for Fir<T, N> {

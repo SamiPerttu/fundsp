@@ -83,7 +83,7 @@ where
 
     let mut c = Net64::wrap(Box::new(granular));
 
-    c = c >> (multipass() & 0.2 * reverb_stereo(20.0, 3.0)) >> (dcblock() | dcblock());
+    c = c >> (multipass() & 0.2 * reverb_stereo(20.0, 3.0, 0.5)) >> (dcblock() | dcblock());
 
     c.set_sample_rate(sample_rate);
 

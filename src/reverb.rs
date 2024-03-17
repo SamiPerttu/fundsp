@@ -131,3 +131,148 @@ pub fn reverb_fitness(reverb: An<impl AudioNode<Sample = f32, Inputs = U2, Outpu
 
     fitness
 }
+
+type Schroeder<T> = AllNest<T, U1, Delay<T>>;
+
+#[derive(Clone)]
+struct ReverbBlock<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+    allpass0: [Schroeder<T>; 4],
+    allpass1: [Schroeder<T>; 4],
+    filter0: F,
+    filter1: F,
+    delay: Delay<T>,
+}
+
+/// Allpass loop based stereo reverb with user configurable loop filtering.
+#[derive(Clone)]
+pub struct Reverb<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
+    pre: [Schroeder<T>; 4],
+    block: Vec<ReverbBlock<T, F>>,
+    feedback: T,
+    a: T,
+}
+
+impl<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> Reverb<T, F> {
+    pub fn new(time: f64, diffusion: f64, filter: F) -> Self {
+        let ldelays = [
+            401, 421, 443, 463, 487, 503, 523, 547, 563, 587, 607, 619, 643, 661, 683, 701, 727,
+            743, 761, 787, 809, 823, 839, 863, 883, 907, 929, 947, 967, 983, 1009, 1021,
+        ];
+        let rdelays = [
+            419, 433, 457, 479, 491, 509, 541, 557, 577, 593, 613, 631, 653, 673, 691, 719, 733,
+            757, 773, 797, 811, 829, 853, 877, 887, 911, 937, 953, 977, 997, 1013, 1033,
+        ];
+        let delays = [1087, 1091, 1093, 1097, 1103, 1109, 1117, 1123];
+        let coeff = T::from_f64(lerp(0.5, 0.9, diffusion));
+        let mut block = Vec::with_capacity(8);
+        for i in 0..8 {
+            let allpass0 = std::array::from_fn(|j| {
+                Schroeder::new(
+                    coeff,
+                    Delay::new((ldelays[i + j * 8] - 1) as f64 / DEFAULT_SR),
+                )
+            });
+            let allpass1 = std::array::from_fn(|j| {
+                Schroeder::new(
+                    coeff,
+                    Delay::new((rdelays[i + j * 8] - 1) as f64 / DEFAULT_SR),
+                )
+            });
+            let delay = Delay::new(delays[7 - i] as f64 / DEFAULT_SR);
+            block.push(ReverbBlock::<T, F> {
+                allpass0,
+                allpass1,
+                filter0: filter.clone(),
+                filter1: filter.clone(),
+                delay,
+            });
+        }
+
+        let a = T::from_f64(pow(db_amp(-60.0), 0.035 / time));
+
+        let predelay = [245, 367, 263, 349];
+
+        let pre = std::array::from_fn(|i| {
+            Schroeder::new(coeff, Delay::new((predelay[i] - 1) as f64 / DEFAULT_SR))
+        });
+
+        Self {
+            pre,
+            block,
+            feedback: T::zero(),
+            a,
+        }
+    }
+}
+
+impl<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> AudioNode for Reverb<T, F> {
+    const ID: u64 = 85;
+    type Sample = T;
+    type Inputs = U2;
+    type Outputs = U2;
+    type Setting = ();
+
+    fn reset(&mut self) {
+        for block in self.block.iter_mut() {
+            for x in block.allpass0.iter_mut() {
+                x.reset();
+            }
+            for x in block.allpass1.iter_mut() {
+                x.reset();
+            }
+            block.filter0.reset();
+            block.filter1.reset();
+            block.delay.reset();
+        }
+        self.feedback = T::zero();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        for block in self.block.iter_mut() {
+            for x in block.allpass0.iter_mut() {
+                x.set_sample_rate(sample_rate);
+            }
+            for x in block.allpass1.iter_mut() {
+                x.set_sample_rate(sample_rate);
+            }
+            block.filter0.set_sample_rate(sample_rate);
+            block.filter1.set_sample_rate(sample_rate);
+            block.delay.set_sample_rate(sample_rate);
+        }
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let mut v0 = self.feedback;
+        let mut output0 = T::zero();
+        let mut output1 = T::zero();
+        let input0 = self.pre[0].filter_mono(input[0] * T::from_f64(0.5));
+        let input0 = self.pre[1].filter_mono(input0);
+        let input1 = self.pre[2].filter_mono(input[1] * T::from_f64(0.5));
+        let input1 = self.pre[3].filter_mono(input1);
+        for block in self.block.iter_mut() {
+            v0 = block.delay.filter_mono(v0);
+            v0 = block.allpass0[0].filter_mono(self.a * v0 + input0);
+            v0 = block.allpass0[1].filter_mono(v0);
+            v0 = block.allpass0[2].filter_mono(v0);
+            v0 = block.allpass0[3].filter_mono(v0);
+            v0 = block.filter0.filter_mono(v0);
+            output0 = v0;
+            v0 = block.allpass1[0].filter_mono(self.a * v0 + input1);
+            v0 = block.allpass1[1].filter_mono(v0);
+            v0 = block.allpass1[2].filter_mono(v0);
+            v0 = block.allpass1[3].filter_mono(v0);
+            v0 = block.filter1.filter_mono(v0);
+            output1 = v0;
+        }
+        self.feedback = v0;
+        [output0, output1].into()
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Arbitrary(0.0).propagate(input, 2)
+    }
+}

@@ -17,3 +17,5 @@ This is a list of feature ideas for the future.
 - Conversion of graphs into a graphical form. Format associative operator chains appropriately.
 - Interpreter for simple FunDSP expressions.
 - Expand `README.md` into a book.
+- Time stretching / pitch shifting algorithm.
+- FFT convolution engine and HRTF support.

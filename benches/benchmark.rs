@@ -57,7 +57,7 @@ fn reverb_bench(_dummy: usize) -> Wave32 {
     Wave32::render(
         44100.0,
         1.0,
-        &mut ((noise() | noise()) >> reverb_stereo(10.0, 1.0)),
+        &mut ((noise() | noise()) >> reverb_stereo(10.0, 1.0, 0.5)),
     )
 }
 

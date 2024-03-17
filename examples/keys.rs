@@ -55,6 +55,8 @@ struct State {
     room_size: f64,
     /// Reverb time in seconds.
     reverb_time: f64,
+    /// Reverb diffusion.
+    reverb_diffusion: f64,
     /// Reverb frontend.
     reverb: Slot64,
     /// Left channel data for the oscilloscope.
@@ -111,6 +113,18 @@ fn main() {
     }
 }
 
+fn create_reverb(room_size: f64, time: f64, diffusion: f64) -> Box<dyn AudioUnit64> {
+    //Box::new(reverb3_stereo(time, diffusion, highshelf_hz(5000.0, 1.0, db_amp(-1.0))))
+    Box::new(reverb2_stereo(
+        room_size,
+        time,
+        diffusion,
+        1.0,
+        lowpole_hz(8000.0),
+    ))
+    //Box::new(reverb4_stereo(room_size, time))
+}
+
 fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyhow::Error>
 where
     T: SizedSample + FromSample<f64>,
@@ -125,13 +139,14 @@ where
     let (snoop1, snoop_backend1) = snoop(32768);
 
     let room_size = 10.0;
-    let reverb_amount = shared(0.2);
+    let reverb_amount = shared(0.25);
     let reverb_time = 2.0;
+    let reverb_diffusion = 0.5;
     let chorus_amount = shared(1.0);
 
     let mut net = Net64::wrap(Box::new(sequencer_backend));
     let (reverb, reverb_backend) =
-        Slot64::new(Box::new(reverb2_stereo(room_size, reverb_time, 0.5)));
+        Slot64::new(create_reverb(room_size, reverb_time, reverb_diffusion));
     net = net >> pan(0.0);
     // Smooth chorus and reverb amounts to prevent discontinuities.
     net = net
@@ -163,7 +178,7 @@ where
     )?;
     stream.play()?;
 
-    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 480.0));
+    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 510.0));
 
     let options = eframe::NativeOptions {
         viewport,
@@ -183,6 +198,7 @@ where
         room_size,
         reverb,
         reverb_time,
+        reverb_diffusion,
         snoop0,
         snoop1,
     };
@@ -272,18 +288,25 @@ impl eframe::App for State {
             self.reverb_amount.set_value(reverb * 0.01);
             let mut reverb_time = self.reverb_time;
             let mut room_size = self.room_size;
+            let mut reverb_diffusion = self.reverb_diffusion;
             ui.label("Reverb Time");
             ui.add(egui::Slider::new(&mut reverb_time, 1.0..=10.0).suffix("s"));
             ui.label("Reverb Room Size");
             ui.add(egui::Slider::new(&mut room_size, 10.0..=30.0).suffix("m"));
-            if self.room_size != room_size || self.reverb_time != reverb_time {
+            ui.label("Reverb Diffusion");
+            ui.add(egui::Slider::new(&mut reverb_diffusion, 0.0..=1.0));
+            if self.room_size != room_size
+                || self.reverb_time != reverb_time
+                || self.reverb_diffusion != reverb_diffusion
+            {
                 self.reverb.set(
                     Fade::Smooth,
-                    0.5,
-                    Box::new(reverb2_stereo(room_size, reverb_time, 0.5)),
+                    0.25,
+                    create_reverb(room_size, reverb_time, reverb_diffusion),
                 );
                 self.room_size = room_size;
                 self.reverb_time = reverb_time;
+                self.reverb_diffusion = reverb_diffusion;
             }
             ui.separator();
             ui.end_row();
@@ -337,9 +360,14 @@ impl eframe::App for State {
                 }
                 if ctx.input(|c| c.key_down(KEYS[i])) && self.id[i].is_none() {
                     let pitch_hz = midi_hz(40.0 + i as f64);
-                    let v = self.vibrato_amount * 0.003;
+                    let v = self.vibrato_amount * 0.006;
                     let pitch = lfo(move |t| {
-                        pitch_hz * xerp11(1.0 / (1.0 + v), 1.0 + v, sin_hz(6.0, t) + sin_hz(6.1, t))
+                        pitch_hz
+                            * xerp11(
+                                1.0 / (1.0 + v),
+                                1.0 + v,
+                                0.5 * (sin_hz(6.0, t) + sin_hz(6.1, t)),
+                            )
                     });
                     let waveform = match self.waveform {
                         Waveform::Sine => Net64::wrap(Box::new(pitch * 2.0 >> sine() * 0.1)),
@@ -358,19 +386,20 @@ impl eframe::App for State {
                         Waveform::Noise => Net64::wrap(Box::new(
                             (noise()
                                 | pitch * 4.0
-                                | lfo(move |t| funutd::math::lerp(100.0, 20.0, clamp01(t * 5.0))))
+                                | lfo(move |t| funutd::math::lerp(100.0, 50.0, clamp01(t * 5.0))))
                                 >> !resonator()
                                 >> resonator()
-                                >> shape(fundsp::shape::Shape::AdaptiveTanh(0.01, 0.1)),
+                                >> shape(fundsp::shape::Shape::AdaptiveTanh(0.02, 0.1)),
                         )),
                     };
                     let filter = match self.filter {
                         Filter::None => Net64::wrap(Box::new(pass())),
                         Filter::Moog => Net64::wrap(Box::new(
-                            (pass() | lfo(move |t| (max(200.0, 10000.0 * exp(-t)), 0.6))) >> moog(),
+                            (pass() | lfo(move |t| (xerp11(400.0, 10000.0, cos_hz(0.1, t)), 0.6)))
+                                >> moog(),
                         )),
                         Filter::Butterworth => Net64::wrap(Box::new(
-                            (pass() | lfo(move |t| max(200.0, 10000.0 * exp(-t * 5.0))))
+                            (pass() | lfo(move |t| max(400.0, 10000.0 * exp(-t * 5.0))))
                                 >> butterpass(),
                         )),
                         Filter::Bandpass => Net64::wrap(Box::new(

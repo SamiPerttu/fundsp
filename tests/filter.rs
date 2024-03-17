@@ -255,6 +255,8 @@ fn test_responses() {
         0.18195209,
     ));
     test_response(pass() + 1.0 >> lowpass_hz(1000.0, 1.0));
+    test_response((pass() | dc(1.0)) >> rotate(0.5, 1.0) >> (pass() | sink()));
+    test_response((dc(2.0) | pass()) >> rotate(-0.1, 0.5) >> (pass() | sink()));
 
     let mut net1 = Net64::new(1, 1);
     net1.chain(Box::new(lowpole_hz(1500.0)));
@@ -347,7 +349,7 @@ fn test_allpass() {
         Box::new(allnest_c(0.5, pass())),
         Box::new(allnest_c(0.6, tick())),
         Box::new(allnest_c(0.7, allpole_delay(0.5))),
-        Box::new(allnest_c(0.6, allpass_hz(3000.0, 3.0))),
+        Box::new(allnest_c(-0.6, allpass_hz(3000.0, 3.0))),
     ];
 
     let impulse = Wave64::render(DEFAULT_SR, 1.0, &mut (impulse::<U1>()));

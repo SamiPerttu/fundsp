@@ -1563,6 +1563,7 @@ where
 /// Stereo reverb.
 /// `room_size` is in meters. An average room size is 10 meters.
 /// `time` is approximate reverberation time to -60 dB in seconds.
+/// `damping` is high frequency damping in 0...1.
 /// - Allocates: delay lines
 /// - Input 0: left signal
 /// - Input 1: right signal
@@ -1572,18 +1573,22 @@ where
 /// ### Example: Add 20% Reverb
 /// ```
 /// use fundsp::hacker::*;
-/// multipass() & 0.2 * reverb_stereo(10.0, 5.0);
+/// multipass() & 0.2 * reverb_stereo(10.0, 5.0, 0.5);
 /// ```
 pub fn reverb_stereo(
     room_size: f64,
     time: f64,
+    damping: f64,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U2>> {
-    super::prelude::reverb_stereo::<f64>(room_size, time)
+    super::prelude::reverb_stereo::<f64>(room_size, time, damping)
 }
 
-/// Create a stereo reverb unit, given room size (in meters, between 10 and 30 meters),
-/// reverberation `time` (in seconds, to -60 dB) and modulation speed (nominal range from
-/// 0 to 1, values beyond 1 are permitted and will start to create audible Doppler effects).
+/// Create a stereo reverb unit. Parameters are room size (in meters, between 10 and 30 meters),
+/// reverberation `time` (in seconds, to -60 dB), diffusion amount (in 0...1),
+/// modulation speed (nominal range from 0 to 1, values beyond 1 are permitted
+/// and will start to create audible Doppler effects), and a user configurable loop filter.
+/// The loop filter is applied repeatedly to the reverb tail and can be used to implement
+/// frequency dependent filtering and other effects.
 /// More sophisticated (and expensive) than `reverb_stereo`.
 /// - Allocates: delay lines
 /// - Input 0: left signal
@@ -1594,29 +1599,48 @@ pub fn reverb_stereo(
 /// ### Example: Add 20% Reverb
 /// ```
 /// use fundsp::hacker::*;
-/// multipass() & 0.2 * reverb2_stereo(10.0, 1.0, 1.0);
+/// multipass() & 0.2 * reverb2_stereo(10.0, 1.0, 0.5, 1.0, lowpole_hz(8000.0));
 /// ```
 pub fn reverb2_stereo(
     room_size: f64,
     time: f64,
+    diffusion: f64,
     modulation_speed: f64,
+    filter: An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>>,
 ) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U2>> {
-    super::prelude::reverb2_stereo::<f64>(room_size, time, modulation_speed)
+    super::prelude::reverb2_stereo::<f64>(room_size, time, diffusion, modulation_speed, filter)
 }
 
-/// Create a stereo reverb unit, given approximate reverberation `time` in seconds
-/// (at least 1 second). The effect consists of many Schroeder allpasses in series.
-/// At 1 second of reverb, the result is a tail that fades in
-/// and out at approximately the same speed and has a metallic ring. At higher
-/// reverb times, the effect starts to resemble more of a conventional reverberation
-/// that fades in almost instantly.
+/// Allpass loop based stereo reverb. Parameters are reverbation `time` (in seconds to -60 dB),
+/// diffusion amount (in 0...1), and a user configurable loop filter.
+/// The loop filter is applied repeatedly to the reverb tail and can be used to implement
+/// frequency dependent filtering and other effects.
 /// - Allocates: delay lines
 /// - Input 0: left signal
 /// - Input 1: right signal
 /// - Output 0: reverberated left signal
 /// - Output 1: reverberated right signal
-pub fn reverb3_stereo(time: f64) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U2>> {
-    super::prelude::reverb3_stereo::<f64>(time)
+///
+/// ### Example: Add 25% Reverb
+/// ```
+/// use fundsp::hacker::*;
+/// multipass() & 0.25 * reverb3_stereo(2.0, 0.5, lowpole_hz(8000.0));
+/// ```
+pub fn reverb3_stereo(
+    time: f64,
+    diffusion: f64,
+    filter: An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U1>>,
+) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U2>> {
+    An(super::reverb::Reverb::<f64, _>::new(
+        time, diffusion, filter.0,
+    ))
+}
+
+pub fn reverb4_stereo(
+    room_size: f64,
+    time: f64,
+) -> An<impl AudioNode<Sample = f64, Inputs = U2, Outputs = U2>> {
+    super::prelude::reverb4_stereo::<f64>(room_size, time)
 }
 
 /// Create a stereo reverb unit, given delay times (in seconds) for the 32 delay lines
@@ -2359,4 +2383,20 @@ pub fn impulse<N: Size<f64>>() -> An<Impulse<N, f64>> {
 /// ```
 pub fn node64<I: Size<f64>, O: Size<f64>>(unit: Box<dyn AudioUnit64>) -> An<Node64<I, O>> {
     An(Node64::new(unit))
+}
+
+/// Rotate stereo signal `angle` radians and apply amplitude `gain`.
+/// Rotations can be useful for mixing because they maintain the L2 norm of the signal.
+/// - Input 0: left input
+/// - Input 1: right input
+/// - Output 0: rotated left output
+/// - Output 1: rotated right output
+///
+/// ### Example (45 Degree Rotation)
+/// ```
+/// use fundsp::hacker::*;
+/// rotate(PI / 4.0, 1.0);
+/// ```
+pub fn rotate(angle: f64, gain: f64) -> An<Mixer<U2, U2, f64>> {
+    super::prelude::rotate(angle, gain)
 }

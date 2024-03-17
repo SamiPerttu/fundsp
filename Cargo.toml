@@ -13,15 +13,15 @@ edition = "2021"
 [dependencies]
 generic-array = "0.14.7"
 numeric-array = "0.5.2"
-num-complex = "0.4.4"
-rustfft = "6.1.0"
+num-complex = "0.4.5"
+rustfft = "6.2.0"
 realfft = "3.3.0"
 lazy_static = "1.4.0"
 tinyvec = { version = "1.6.0", features = ["alloc"] }
 rsor = "0.1.4"
 duplicate = "1.0.0"
-dyn-clone = "1.0.16"
-symphonia = { version = "0.5.3", optional = true, features = ["all"] }
+dyn-clone = "1.0.17"
+symphonia = { version = "0.5.4", optional = true, features = ["all"] }
 thingbuf = "0.1.4"
 funutd = "0.14.0"
 
@@ -30,16 +30,16 @@ default = ["files"]
 files = ["dep:symphonia"]
 
 [dev-dependencies]
-cpal = "0.15.2"
-anyhow = "1.0.79"
+cpal = "0.15.3"
+anyhow = "1.0.81"
 plotters = "0.3.5"
 criterion = "0.5.1"
 midi-msg = "0.5.0"
 midir = "0.9.1"
 read_input = "0.8.6"
 assert_no_alloc = "1.1.2"
-eframe = "0.25.0"
-rayon = "1.8.0"
+eframe = "0.26.2"
+rayon = "1.9.0"
 
 [[bench]]
 name = "benchmark"
