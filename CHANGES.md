@@ -1,6 +1,6 @@
 ## Changes
 
-### Version 0.17 (Next Version)
+### Version 0.17
 
 - `Wave32/64`: `silence` is now `zero`.
 - New opcode `impulse`.
