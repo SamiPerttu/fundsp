@@ -59,6 +59,14 @@ struct State {
     reverb_diffusion: f64,
     /// Reverb frontend.
     reverb: Slot64,
+    /// Phaser frontend.
+    phaser: Slot64,
+    /// Phaser state.
+    phaser_enabled: bool,
+    /// Flanger frontend.
+    flanger: Slot64,
+    /// Flanger state.
+    flanger_enabled: bool,
     /// Left channel data for the oscilloscope.
     snoop0: Snoop<f64>,
     /// Right channel data for the oscilloscope.
@@ -120,7 +128,7 @@ fn create_reverb(room_size: f64, time: f64, diffusion: f64) -> Box<dyn AudioUnit
         time,
         diffusion,
         1.0,
-        lowpole_hz(8000.0),
+        highshelf_hz(5000.0, 1.0, db_amp(-1.0)),
     ))
     //Box::new(reverb4_stereo(room_size, time))
 }
@@ -147,12 +155,15 @@ where
     let mut net = Net64::wrap(Box::new(sequencer_backend));
     let (reverb, reverb_backend) =
         Slot64::new(create_reverb(room_size, reverb_time, reverb_diffusion));
+    let (phaser, phaser_backend) = Slot64::new(Box::new(multipass::<U2>()));
+    let (flanger, flanger_backend) = Slot64::new(Box::new(multipass::<U2>()));
     net = net >> pan(0.0);
     // Smooth chorus and reverb amounts to prevent discontinuities.
     net = net
         >> ((1.0 - var(&chorus_amount) >> follow(0.01) >> split()) * multipass()
             & (var(&chorus_amount) >> follow(0.01) >> split())
                 * (chorus(0, 0.0, 0.02, 0.3) | chorus(1, 0.0, 0.02, 0.3)));
+    net = net >> Net64::wrap(Box::new(phaser_backend)) >> Net64::wrap(Box::new(flanger_backend));
     net = net
         >> ((1.0 - var(&reverb_amount) >> follow(0.01) >> split::<U2>()) * multipass()
             & (var(&reverb_amount) >> follow(0.01) >> split::<U2>())
@@ -178,7 +189,7 @@ where
     )?;
     stream.play()?;
 
-    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 510.0));
+    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 520.0));
 
     let options = eframe::NativeOptions {
         viewport,
@@ -199,6 +210,10 @@ where
         reverb,
         reverb_time,
         reverb_diffusion,
+        phaser,
+        phaser_enabled: false,
+        flanger,
+        flanger_enabled: false,
         snoop0,
         snoop1,
     };
@@ -238,7 +253,6 @@ impl eframe::App for State {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Virtual Keyboard Example");
             ui.separator();
-            ui.end_row();
 
             ui.label("Waveform");
             ui.horizontal(|ui| {
@@ -255,14 +269,12 @@ impl eframe::App for State {
                 ui.selectable_value(&mut self.waveform, Waveform::Noise, "Noise");
             });
             ui.separator();
-            ui.end_row();
 
             ui.label("Vibrato Amount");
             let mut vibrato = self.vibrato_amount * 100.0;
             ui.add(egui::Slider::new(&mut vibrato, 0.0..=100.0).suffix("%"));
             self.vibrato_amount = vibrato * 0.01;
             ui.separator();
-            ui.end_row();
 
             ui.label("Filter");
             ui.horizontal(|ui| {
@@ -273,14 +285,63 @@ impl eframe::App for State {
                 ui.selectable_value(&mut self.filter, Filter::Peak, "Peak");
             });
             ui.separator();
-            ui.end_row();
 
-            ui.label("Chorus Amount");
-            let mut chorus = self.chorus_amount.value() * 100.0;
-            ui.add(egui::Slider::new(&mut chorus, 0.0..=100.0).suffix("%"));
-            self.chorus_amount.set_value(chorus * 0.01);
+            let mut phaser_enabled = self.phaser_enabled;
+            let mut flanger_enabled = self.flanger_enabled;
+
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    ui.label("Chorus Amount");
+                    let mut chorus = self.chorus_amount.value() * 100.0;
+                    ui.add(egui::Slider::new(&mut chorus, 0.0..=100.0).suffix("%"));
+                    self.chorus_amount.set_value(chorus * 0.01);
+                });
+                ui.add_space(10.0);
+                ui.vertical(|ui| {
+                    ui.checkbox(&mut phaser_enabled, "Phaser");
+                    ui.checkbox(&mut flanger_enabled, "Flanger");
+                });
+            });
+
             ui.separator();
-            ui.end_row();
+
+            if phaser_enabled != self.phaser_enabled {
+                self.phaser_enabled = phaser_enabled;
+                if phaser_enabled {
+                    self.phaser.set(
+                        Fade::Smooth,
+                        0.1,
+                        Box::new(
+                            phaser(0.9, |t| sin_hz(0.08, t) * 0.5 + 0.5)
+                                | phaser(0.9, |t| sin_hz(0.08, t + 0.1) * 0.5 + 0.5),
+                        ),
+                    );
+                } else {
+                    self.phaser
+                        .set(Fade::Smooth, 0.1, Box::new(multipass::<U2>()));
+                }
+            }
+
+            if flanger_enabled != self.flanger_enabled {
+                self.flanger_enabled = flanger_enabled;
+                if flanger_enabled {
+                    self.flanger.set(
+                        Fade::Smooth,
+                        0.1,
+                        Box::new(
+                            flanger(0.9, 0.005, 0.015, |t| {
+                                lerp11(0.005, 0.015, sin_hz(0.06, t + 0.1))
+                            }) | flanger(0.9, 0.005, 0.015, |t| {
+                                lerp11(0.005, 0.015, sin_hz(0.06, t))
+                            }),
+                        ),
+                    );
+                } else {
+                    self.flanger
+                        .set(Fade::Smooth, 0.1, Box::new(multipass::<U2>()));
+                }
+            }
+            ui.separator();
 
             ui.label("Reverb Amount");
             let mut reverb = self.reverb_amount.value() * 100.0;
@@ -309,7 +370,6 @@ impl eframe::App for State {
                 self.reverb_diffusion = reverb_diffusion;
             }
             ui.separator();
-            ui.end_row();
 
             // Draw oscilloscope.
             egui::containers::Frame::canvas(ui.style()).show(ui, |ui| {

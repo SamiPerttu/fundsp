@@ -2025,7 +2025,7 @@ pub fn highshelf() -> An<Svf<f32, f32, HighshelfMode<f32>>> {
     super::prelude::highshelf()
 }
 
-/// High shelf filter centered at `cutoff` Hz with Q value `q` and amplitude gain `gain`.
+/// High shelf filter centered at `f` Hz with Q value `q` and amplitude gain `gain`.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 pub fn highshelf_hz(f: f32, q: f32, gain: f32) -> An<FixedSvf<f32, f32, HighshelfMode<f32>>> {

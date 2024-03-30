@@ -66,10 +66,10 @@ fn main() {
     let mut sequencer = Sequencer64::new(true, 2);
     sequencer.set_sample_rate(sample_rate);
 
-    //sequencer.add(0.0, 60.0, Fade::Smooth, 0.0, 0.0, Box::new(stab() * 0.4));
+    //sequencer.push(0.0, 60.0, Fade::Smooth, 0.0, 0.0, Box::new(stab() * 0.4));
 
     let length = bassd_line.as_bytes().len();
-    let duration = length as f64 / bpm_hz(bpm) / 4.0 * 2.0 + 1.0;
+    let duration = length as f64 / bpm_hz(bpm) / 4.0 * 2.0 + 2.0;
 
     for i in 0..length * 2 {
         let t0 = i as f64 / bpm_hz(bpm) / 4.0;
@@ -115,10 +115,13 @@ fn main() {
 
     let wave = wave.filter(
         duration,
-        &mut (multipass() & 0.15 * reverb_stereo(10.0, 1.0, 0.5)),
+        &mut (multipass()
+            & 0.2 * reverb2_stereo(10.0, 1.0, 0.5, 1.0, highshelf_hz(6000.0, 1.0, db_amp(-3.0)))),
     );
 
     let wave = wave.filter_latency(duration, &mut (limiter_stereo((5.0, 5.0))));
 
-    wave.save_wav16(std::path::Path::new("sequence.wav"));
+    wave.save_wav16(std::path::Path::new("sequence.wav"))
+        .expect("Could not save sequence.wav");
+    println!("sequence.wav written.");
 }

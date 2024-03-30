@@ -1,4 +1,4 @@
-//! Sound generators using the Dna system.
+//! Sound generators using the Dna system. WIP.
 
 use funutd::dna::*;
 
@@ -7,28 +7,130 @@ use super::granular::*;
 use super::hacker::*;
 use super::net::*;
 
-#[derive(Clone)]
-enum Control {
-    SlowSine,
-    SplineNoise,
+/// Trait for a generated AudioUnit.
+pub trait Generated {
+    /// Get the code string for this AudioUnit.
+    fn get_code(&self) -> String;
+    /// Get the implementation for this AudioUnit.
+    fn get_unit(&self) -> Box<dyn AudioUnit64>;
 }
 
-pub fn gen_lfo(dna: &mut Dna) -> Box<dyn AudioUnit64> {
-    let control = dna.choice(
-        "Control Type",
-        [
-            (1.0, "Slow Sine", Control::SlowSine),
-            (1.0, "Spline Noise", Control::SplineNoise),
-        ],
-    );
-    let seed = dna.u32("Control Seed");
+pub struct GeneratedLeaf<U: Fn() -> Box<dyn AudioUnit64>> {
+    code: String,
+    unit: U,
+}
 
-    match control {
-        Control::SlowSine => Box::new(lfo(move |t| sin_hz(0.1, t + rnd(seed as i64) / 0.1))),
-        Control::SplineNoise => Box::new(lfo(move |t| {
-            spline_noise(seed as i64, t + rnd(seed as i64))
-        })),
+impl<U: Fn() -> Box<dyn AudioUnit64>> GeneratedLeaf<U> {
+    pub fn new(code: String, unit: U) -> Self {
+        Self { code, unit }
     }
+}
+
+impl<U: Fn() -> Box<dyn AudioUnit64>> Generated for GeneratedLeaf<U> {
+    fn get_code(&self) -> String {
+        self.code.clone()
+    }
+    fn get_unit(&self) -> Box<dyn AudioUnit64> {
+        (self.unit)()
+    }
+}
+
+pub struct GeneratedUnary<C, U>
+where
+    C: Fn(String) -> String,
+    U: Fn(Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+{
+    child: Box<dyn Generated>,
+    code: C,
+    unit: U,
+}
+
+impl<C, U> GeneratedUnary<C, U>
+where
+    C: Fn(String) -> String,
+    U: Fn(Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+{
+    pub fn new(child: Box<dyn Generated>, code: C, unit: U) -> Self {
+        Self { child, code, unit }
+    }
+}
+
+impl<C, U> Generated for GeneratedUnary<C, U>
+where
+    C: Fn(String) -> String,
+    U: Fn(Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+{
+    fn get_code(&self) -> String {
+        (self.code)(self.child.get_code())
+    }
+    fn get_unit(&self) -> Box<dyn AudioUnit64> {
+        (self.unit)(self.child.get_unit())
+    }
+}
+
+pub struct GeneratedBinary<C, U>
+where
+    C: Fn(String, String) -> String,
+    U: Fn(Box<dyn AudioUnit64>, Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+{
+    child0: Box<dyn Generated>,
+    child1: Box<dyn Generated>,
+    code: C,
+    unit: U,
+}
+
+impl<C, U> GeneratedBinary<C, U>
+where
+    C: Fn(String, String) -> String,
+    U: Fn(Box<dyn AudioUnit64>, Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+{
+    pub fn new(child0: Box<dyn Generated>, child1: Box<dyn Generated>, code: C, unit: U) -> Self {
+        Self {
+            child0,
+            child1,
+            code,
+            unit,
+        }
+    }
+}
+
+impl<C, U> Generated for GeneratedBinary<C, U>
+where
+    C: Fn(String, String) -> String,
+    U: Fn(Box<dyn AudioUnit64>, Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+{
+    fn get_code(&self) -> String {
+        (self.code)(self.child0.get_code(), self.child1.get_code())
+    }
+    fn get_unit(&self) -> Box<dyn AudioUnit64> {
+        (self.unit)(self.child0.get_unit(), self.child1.get_unit())
+    }
+}
+
+/// Generate a control envelope with values in 0...1.
+pub fn gen_lfo(dna: &mut Dna) -> Box<dyn Generated> {
+    let control = dna.index("Control Type", [(1.0, "Slow Sine"), (1.0, "Spline Noise")]);
+    dna.group();
+    let gen: Box<dyn Generated> = match control {
+        0 => {
+            let f = dna.f32_in("Frequency", 0.05, 0.5) as f64;
+            let o = dna.f32("Offset") as f64;
+            Box::new(GeneratedLeaf::new(
+                format!("lfo(|t| sin_hz({:?}, t + {:?}) * 0.5 + 0.5)", f, o),
+                move || Box::new(lfo(move |t| sin_hz(f, t + o) * 0.5 + 0.5)),
+            ))
+        }
+        _ => {
+            let seed = dna.u32("Seed");
+            let f = dna.f32_in("Frequency", 0.5, 1.0) as f64;
+            Box::new(GeneratedLeaf::new(
+                format!("lfo(|t| spline_noise({:?}, t * {:?}) * 0.5 + 0.5)", seed, f),
+                move || Box::new(lfo(move |t| spline_noise(seed as i64, t * f) * 0.5 + 0.5)),
+            ))
+        }
+    };
+    dna.ungroup();
+    gen
 }
 
 #[derive(Clone)]

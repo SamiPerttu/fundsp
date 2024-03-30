@@ -334,7 +334,7 @@ One application of the bus is controlling effect mix in conjunction with the `pa
 which passes signal through unchanged. For example, to add 20% chorus to a mono signal,
 one might type `pass() & 0.2 * chorus(0, 0.0, 0.01, 0.3)`.
 
-Or, to add 20% reverb to a stereo signal, `multipass() & 0.2 * reverb_stereo(20.0, 2.0)`.
+Or, to add 20% reverb to a stereo signal, `multipass() & 0.2 * reverb_stereo(20.0, 2.0, 1.0)`.
 Type inference works in our favor here, saving us the need to write the arity of `multipass`,
 and the constant `0.2` is broadcast to two channels.
 
