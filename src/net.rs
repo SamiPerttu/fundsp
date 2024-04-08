@@ -416,6 +416,7 @@ impl Net48 {
         let node_index = self.node_index[&node];
         assert_eq!(unit.inputs(), self.vertex[node_index].inputs());
         assert_eq!(unit.outputs(), self.vertex[node_index].outputs());
+        unit.set_sample_rate(self.sample_rate);
         std::mem::swap(&mut self.vertex[node_index].unit, &mut unit);
         self.vertex[node_index].changed = self.revision;
         unit
@@ -987,13 +988,19 @@ impl AudioUnit48 for Net48 {
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
-        self.sample_rate = sample_rate;
-        for vertex in &mut self.vertex {
-            vertex.unit.set_sample_rate(sample_rate);
-        }
-        // Take the opportunity to unload some calculations.
-        if !self.is_ordered() {
-            self.determine_order();
+        if self.sample_rate != sample_rate {
+            self.sample_rate = sample_rate;
+            for vertex in &mut self.vertex {
+                vertex.unit.set_sample_rate(sample_rate);
+                // Sample rate change counts as a change because
+                // we cannot change sample rate in the backend
+                // - it may allocate.
+                vertex.changed = self.revision;
+            }
+            // Take the opportunity to unload some calculations.
+            if !self.is_ordered() {
+                self.determine_order();
+            }
         }
     }
 
