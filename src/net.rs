@@ -992,9 +992,10 @@ impl AudioUnit48 for Net48 {
             self.sample_rate = sample_rate;
             for vertex in &mut self.vertex {
                 vertex.unit.set_sample_rate(sample_rate);
-                // Sample rate change counts as a change because
+                // Sample rate change counts as a change
+                // to be sent to the backend because
                 // we cannot change sample rate in the backend
-                // - it may allocate.
+                // - it may allocate or do something else inappropriate.
                 vertex.changed = self.revision;
             }
             // Take the opportunity to unload some calculations.
@@ -1007,6 +1008,11 @@ impl AudioUnit48 for Net48 {
     fn reset(&mut self) {
         for vertex in &mut self.vertex {
             vertex.unit.reset();
+            // Reseting a unit counts as a change
+            // to be sent to the backend because
+            // we cannot reset in the backend
+            // - it may allocate or do something else inappropriate.
+            vertex.changed = self.revision;
         }
         // Take the opportunity to unload some calculations.
         if !self.is_ordered() {

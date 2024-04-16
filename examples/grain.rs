@@ -170,14 +170,17 @@ where
         72.0, 74.0, 76.0, 79.0, 81.0, 84.0, 86.0, 88.0, 91.0, 93.0, 96.0,
     ];
 
-    let mut dna = Dna::new(36);
+    //let mut dna = Dna::new(37);
+    let mut dna = Dna::new(102);
     let mut c = Net64::wrap(gen_granular(2, &scale, 2.4, 30, &mut dna));
 
     for parameter in dna.parameter_vector().iter() {
         println!("{}: {}", parameter.name(), parameter.value());
     }
 
-    c = c >> (multipass() & 0.2 * reverb_stereo(20.0, 2.0, 0.5));
+    c = c
+        >> (multipass()
+            & 0.2 * reverb2_stereo(10.0, 4.0, 0.5, 1.0, highshelf_hz(5000.0, 1.0, db_amp(-2.0))));
 
     c.set_sample_rate(sample_rate);
 

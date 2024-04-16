@@ -35,14 +35,14 @@ where
     ];
 
     // We sample this granular synthesizer as source material for another granular synthesizer.
-    let mut dna = Dna::new(10);
+    let mut dna = Dna::new(3);
     let mut c = gen_granular(1, &scale, 2.0, 30, &mut dna);
 
     for parameter in dna.parameter_vector().iter() {
         println!("{}: {}", parameter.name(), parameter.value());
     }
 
-    let mut dna2 = Dna::new(7);
+    let mut dna2 = Dna::new(4);
     let mut fx = gen_effect(&mut dna2);
     for parameter in dna2.parameter_vector().iter() {
         println!("{}: {}", parameter.name(), parameter.value());
@@ -83,7 +83,9 @@ where
 
     let mut c = Net64::wrap(Box::new(granular));
 
-    c = c >> (multipass() & 0.2 * reverb_stereo(20.0, 3.0, 0.5)) >> (dcblock() | dcblock());
+    c = c
+        >> (multipass()
+            & 0.2 * reverb2_stereo(10.0, 4.0, 0.5, 1.0, highshelf_hz(5000.0, 1.0, db_amp(-2.0))));
 
     c.set_sample_rate(sample_rate);
 

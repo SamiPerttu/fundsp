@@ -284,7 +284,7 @@ pub fn dissonance_max<T: Num>(f: T) -> T {
     T::from_f64(1.0193) * f + T::from_f64(17.4672)
 }
 
-/// Convert decibels to gain. 0 dB = 1.0 (unity gain).
+/// Convert decibels to gain (aka amplitude). 0 dB = 1.0 (unity gain).
 ///
 /// ### Example
 /// ```
@@ -296,7 +296,7 @@ pub fn db_amp<T: Real>(db: T) -> T {
     exp10(db / T::new(20))
 }
 
-/// Convert amplitude `gain` (`gain` > 0) to decibels. 1.0 = 0 dB (unity gain).
+/// Convert amplitude `gain` (`gain` > 0) to decibels. Gain 1.0 = 0 dB (unity gain).
 #[inline]
 pub fn amp_db<T: Real>(gain: T) -> T {
     log10(gain) * T::new(20)
@@ -469,14 +469,17 @@ pub fn cos_hz<T: Real>(hz: T, t: T) -> T {
     cos(t * hz * T::from_f64(TAU))
 }
 
-/// Square wave that oscillates at the specified frequency (Hz). Not bandlimited.
-/// Time is input in seconds.
+/// Square wave that oscillates in the range -1...1 at the specified frequency (Hz).
+/// Not bandlimited. Time is input in seconds.
 ///
 /// ### Example
 /// ```
 /// use fundsp::hacker::*;
+/// assert_eq!(sqr_hz(1.0, 0.0), 1.0);
 /// assert_eq!(sqr_hz(1.0, 0.25), 1.0);
+/// assert_eq!(sqr_hz(1.0, 0.5), -1.0);
 /// assert_eq!(sqr_hz(1.0, 0.75), -1.0);
+/// assert_eq!(sqr_hz(1.0, 1.0), 1.0);
 /// ```
 #[inline]
 pub fn sqr_hz<T: Float>(hz: T, t: T) -> T {
@@ -489,8 +492,8 @@ pub fn sqr_hz<T: Float>(hz: T, t: T) -> T {
     }
 }
 
-/// Triangle wave that oscillates at the specified frequency (Hz). Not bandlimited.
-/// Time is input in seconds.
+/// Triangle wave that oscillates in the range -1...1 at the specified frequency (Hz).
+/// Not bandlimited. Time is input in seconds.
 ///
 /// ### Example
 /// ```
@@ -519,8 +522,10 @@ pub fn semitone_ratio<T: Real>(x: T) -> T {
     exp2(x / T::from_f64(12.0))
 }
 
-/// SplitMix hash as an indexed RNG.
-/// Returns pseudorandom f64 in 0...1.
+/// SplitMix hash as an indexed RNG
+/// (using successive values of the hash as an RNG
+/// passes statistical tests of randomness).
+/// Returns pseudorandom `f64` in 0...1.
 #[inline]
 pub fn rnd(x: i64) -> f64 {
     let x = x as u64 ^ 0x5555555555555555;
@@ -531,8 +536,10 @@ pub fn rnd(x: i64) -> f64 {
     (x >> 11) as f64 / (1u64 << 53) as f64
 }
 
-/// Output hash of Krull64 as an indexed RNG.
-/// Returns pseudorandom f64 in 0...1.
+/// Output hash of Krull64 as an indexed RNG
+/// (using successive values of the hash as an RNG
+/// passes statistical tests of randomness).
+/// Returns pseudorandom `f64` in 0...1.
 #[inline]
 pub fn rnd2(x: i64) -> f64 {
     let x = funutd::hash::hash64g(x as u64);

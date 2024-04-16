@@ -151,7 +151,7 @@ impl<T: Float> AudioNode for Mls<T> {
 #[derive(Default, Clone)]
 pub struct Noise<T> {
     _marker: std::marker::PhantomData<T>,
-    rnd: Rnd,
+    state: u64,
     hash: u64,
 }
 
@@ -169,7 +169,7 @@ impl<T: Float> AudioNode for Noise<T> {
     type Setting = ();
 
     fn reset(&mut self) {
-        self.rnd = Rnd::from_u64(self.hash);
+        self.state = self.hash;
     }
 
     #[inline]
@@ -177,7 +177,9 @@ impl<T: Float> AudioNode for Noise<T> {
         &mut self,
         _input: &Frame<Self::Sample, Self::Inputs>,
     ) -> Frame<Self::Sample, Self::Outputs> {
-        let value = T::from_f32(self.rnd.f32_in(-1.0, 1.0));
+        self.state = self.state.wrapping_add(1);
+        let x = funutd::hash::hash64g(self.state);
+        let value = T::from_f32((x >> 40) as f32 / (1 << 23) as f32 - 1.0);
         [value].into()
     }
 
@@ -188,7 +190,9 @@ impl<T: Float> AudioNode for Noise<T> {
         output: &mut [&mut [Self::Sample]],
     ) {
         for o in output[0][..size].iter_mut() {
-            *o = T::from_f32(self.rnd.f32_in(-1.0, 1.0));
+            self.state = self.state.wrapping_add(1);
+            let x = funutd::hash::hash64g(self.state);
+            *o = T::from_f32((x >> 40) as f32 / (1 << 23) as f32 - 1.0);
         }
     }
 
