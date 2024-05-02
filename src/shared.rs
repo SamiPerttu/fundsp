@@ -327,9 +327,9 @@ impl AtomicTable {
     pub fn set(&self, i: usize, value: f32) {
         f32::store(&self.table[i], value);
     }
-    /// Read interpolated value at the given `phase` (in 0...1).
+    /// Read cubic interpolated value at the given `phase` (in 0...1).
     #[inline]
-    pub fn read(&self, phase: f32) -> f32 {
+    pub fn read_cubic(&self, phase: f32) -> f32 {
         let p = self.table.len() as f32 * phase;
         // Safety: we know phase is in 0...1.
         let i1 = unsafe { f32::to_int_unchecked::<usize>(p) };
@@ -341,6 +341,16 @@ impl AtomicTable {
         let i3 = (i1 + 2) & mask;
         super::math::spline(self.at(i0), self.at(i1), self.at(i2), self.at(i3), w)
     }
+    /// Read nearest value at the given `phase` (in 0...1).
+    #[inline]
+    pub fn read_nearest(&self, phase: f32) -> f32 {
+        let p = self.table.len() as f32 * phase;
+        // Safety: we know phase is in 0...1.
+        let i = unsafe { f32::to_int_unchecked::<usize>(p) };
+        let mask = self.table.len() - 1;
+        self.at(i & mask)
+    }
+
 }
 
 /// Wavetable oscillator with cubic interpolation that reads from an atomic wavetable.
@@ -399,7 +409,7 @@ impl<T: Float> AudioNode for AtomicSynth<T> {
         let delta = frequency * self.sample_duration;
         self.phase += delta;
         self.phase -= self.phase.floor();
-        let output = self.table.read(self.phase);
+        let output = self.table.read_nearest(self.phase);
         Frame::splat(convert(output))
     }
 }
