@@ -295,3 +295,105 @@ impl<T: Atomic + Float> AudioNode for Timer<T> {
         self.shared.set_value(T::from_f64(self.time));
     }
 }
+
+/// Atomic wavetable that can be modified on the fly.
+pub struct AtomicTable {
+    table: Vec<AtomicU32>,
+}
+
+impl AtomicTable {
+    /// Create new table from a slice. The length of the slice must be a power of two.
+    pub fn new(wave: &[f32]) -> Self {
+        assert!(wave.len().is_power_of_two());
+        let mut table = Vec::with_capacity(wave.len());
+        for x in wave {
+            table.push(f32::storage(*x));
+        }
+        Self { table }
+    }
+    /// Read sample at index `i`.
+    #[inline]
+    pub fn at(&self, i: usize) -> f32 {
+        f32::get_stored(&self.table[i])
+    }
+    /// Set sample at index `i`.
+    #[inline]
+    pub fn set(&self, i: usize, value: f32) {
+        f32::store(&self.table[i], value);
+    }
+    /// Read interpolated value at the given `phase` (in 0...1).
+    #[inline]
+    pub fn read(&self, phase: f32) -> f32 {
+        let p = self.table.len() as f32 * phase;
+        // Safety: we know phase is in 0...1.
+        let i1 = unsafe { f32::to_int_unchecked::<usize>(p) };
+        let w = p - i1 as f32;
+        let mask = self.table.len() - 1;
+        let i0 = i1.wrapping_sub(1) & mask;
+        let i1 = i1 & mask;
+        let i2 = (i1 + 1) & mask;
+        let i3 = (i1 + 2) & mask;
+        super::math::spline(self.at(i0), self.at(i1), self.at(i2), self.at(i3), w)
+    }
+}
+
+/// Wavetable oscillator with cubic interpolation that reads from an atomic wavetable.
+#[derive(Clone)]
+pub struct AtomicSynth<T: Float> {
+    table: Arc<AtomicTable>,
+    /// Phase in 0...1.
+    phase: f32,
+    /// Initial phase in 0...1, seeded via pseudorandom phase system.
+    initial_phase: f32,
+    sample_rate: f32,
+    sample_duration: f32,
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T: Float> AtomicSynth<T> {
+    pub fn new(table: Arc<AtomicTable>) -> Self {
+        Self {
+            table,
+            phase: 0.0,
+            initial_phase: 0.0,
+            sample_rate: DEFAULT_SR as f32,
+            sample_duration: 1.0 / DEFAULT_SR as f32,
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T: Float> AudioNode for AtomicSynth<T> {
+    const ID: u64 = 86;
+    type Sample = T;
+    type Inputs = numeric_array::typenum::U1;
+    type Outputs = numeric_array::typenum::U1;
+    type Setting = ();
+
+    fn reset(&mut self) {
+        self.phase = self.initial_phase;
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate as f32;
+        self.sample_duration = 1.0 / sample_rate as f32;
+    }
+
+    fn set_hash(&mut self, hash: u64) {
+        self.initial_phase = super::hacker::rnd(hash as i64) as f32;
+        self.phase = self.initial_phase;
+    }
+
+    #[inline]
+    fn tick(
+        &mut self,
+        input: &Frame<Self::Sample, Self::Inputs>,
+    ) -> Frame<Self::Sample, Self::Outputs> {
+        let frequency = input[0].to_f32();
+        let delta = frequency * self.sample_duration;
+        self.phase += delta;
+        self.phase -= self.phase.floor();
+        let output = self.table.read(self.phase);
+        Frame::splat(convert(output))
+    }
+}
