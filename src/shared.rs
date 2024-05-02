@@ -311,6 +311,12 @@ impl AtomicTable {
         }
         Self { table }
     }
+    /// Length of the table.
+    #[inline]
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.table.len()
+    }
     /// Read sample at index `i`.
     #[inline]
     pub fn at(&self, i: usize) -> f32 {
