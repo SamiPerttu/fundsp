@@ -341,6 +341,18 @@ impl AtomicTable {
         let i3 = (i1 + 2) & mask;
         super::math::spline(self.at(i0), self.at(i1), self.at(i2), self.at(i3), w)
     }
+    /// Read linear interpolated value at the given `phase` (in 0...1).
+    #[inline]
+    pub fn read_linear(&self, phase: f32) -> f32 {
+        let p = self.table.len() as f32 * phase;
+        // Safety: we know phase is in 0...1.
+        let i0 = unsafe { f32::to_int_unchecked::<usize>(p) };
+        let w = p - i0 as f32;
+        let mask = self.table.len() - 1;
+        let i0 = i0 & mask;
+        let i1 = (i0 + 1) & mask;
+        super::math::lerp(self.at(i0), self.at(i1), w)
+    }
     /// Read nearest value at the given `phase` (in 0...1).
     #[inline]
     pub fn read_nearest(&self, phase: f32) -> f32 {
@@ -350,7 +362,6 @@ impl AtomicTable {
         let mask = self.table.len() - 1;
         self.at(i & mask)
     }
-
 }
 
 /// Wavetable oscillator with cubic interpolation that reads from an atomic wavetable.
