@@ -1,7 +1,8 @@
 //! Noise components.
 
 use super::audionode::*;
-use super::math::*;
+use super::buffer::*;
+use super::setting::*;
 use super::signal::*;
 use super::*;
 use funutd::Rnd;
@@ -97,41 +98,31 @@ impl MlsState {
 /// MLS noise component.
 /// - Output 0: noise.
 #[derive(Clone)]
-pub struct Mls<T> {
-    _marker: std::marker::PhantomData<T>,
+pub struct Mls {
     mls: MlsState,
     hash: u64,
 }
 
-impl<T: Float> Mls<T> {
+impl Mls {
     pub fn new(mls: MlsState) -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-            mls,
-            hash: 0,
-        }
+        Self { mls, hash: 0 }
     }
 }
 
-impl<T: Float> AudioNode for Mls<T> {
+impl AudioNode for Mls {
     const ID: u64 = 19;
-    type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.mls = MlsState::new_with_seed(self.mls.n, (self.hash >> 32) as u32);
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        _input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        let value = T::new(self.mls.value() as i64);
+    fn tick(&mut self, _input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let value = self.mls.value() as f32;
         self.mls = self.mls.next();
-        [value * T::new(2) - T::new(1)].into()
+        [value * 2.0 - 1.0].into()
     }
 
     fn set_hash(&mut self, hash: u64) {
@@ -139,61 +130,76 @@ impl<T: Float> AudioNode for Mls<T> {
         self.reset();
     }
 
-    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = Signal::Latency(0.0);
-        output
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        super::signal::Routing::Generator(0.0).route(input, self.outputs())
     }
+}
+
+/// 32-bit hash modified from a hash by degski. Extra high quality.
+#[inline]
+fn hash32f(x: u32) -> u32 {
+    let x = (x ^ (x >> 16)).wrapping_mul(0x45d9f3b);
+    let x = (x ^ (x >> 16)).wrapping_mul(0x45d9f3b);
+    let x = (x ^ (x >> 16)).wrapping_mul(0x45d9f3b);
+    x ^ (x >> 16)
+}
+
+/// 32-bit hash modified from a hash by degski.
+/// Hashes many values at once. Extra high quality.
+#[inline]
+fn hash32f_simd(x: U32x) -> U32x {
+    let m = U32x::splat(0x45d9f3b);
+    let x = (x ^ (x >> 16)) * m;
+    let x = (x ^ (x >> 16)) * m;
+    let x = (x ^ (x >> 16)) * m;
+    x ^ (x >> 16)
 }
 
 /// White noise component.
 /// - Output 0: noise.
 #[derive(Default, Clone)]
-pub struct Noise<T> {
-    _marker: std::marker::PhantomData<T>,
-    state: u64,
+pub struct Noise {
+    state: u32,
     hash: u64,
 }
 
-impl<T: Float> Noise<T> {
+impl Noise {
     pub fn new() -> Self {
         Noise::default()
     }
 }
 
-impl<T: Float> AudioNode for Noise<T> {
+impl AudioNode for Noise {
     const ID: u64 = 20;
-    type Sample = T;
     type Inputs = typenum::U0;
     type Outputs = typenum::U1;
-    type Setting = ();
 
     fn reset(&mut self) {
-        self.state = self.hash;
+        self.state = self.hash as u32;
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        _input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, _input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         self.state = self.state.wrapping_add(1);
-        let x = funutd::hash::hash64g(self.state);
-        let value = T::from_f32((x >> 40) as f32 / (1 << 23) as f32 - 1.0);
+        let value = (hash32f(self.state) >> 8) as f32 * (1.0 / (1 << 23) as f32) - 1.0;
         [value].into()
     }
 
-    fn process(
-        &mut self,
-        size: usize,
-        _input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
-        for o in output[0][..size].iter_mut() {
-            self.state = self.state.wrapping_add(1);
-            let x = funutd::hash::hash64g(self.state);
-            *o = T::from_f32((x >> 40) as f32 / (1 << 23) as f32 - 1.0);
+    fn process(&mut self, size: usize, _input: &BufferRef, output: &mut BufferMut) {
+        let mut state = U32x::new(core::array::from_fn(|i| {
+            self.state.wrapping_add(i as u32 + 1)
+        }));
+        let output = output.channel_f32_mut(0);
+        let m = 1.0 / (1 << 23) as f32;
+        for i in 0..simd_items(size) {
+            let value: U32x = hash32f_simd(state) >> 8;
+            let value_ref = value.as_array_ref();
+            for j in 0..SIMD_N {
+                output[(i << SIMD_S) + j] = value_ref[j] as f32 * m - 1.0;
+            }
+            state += U32x::splat(SIMD_N as u32);
         }
+        self.state = self.state.wrapping_add(size as u32);
     }
 
     fn set_hash(&mut self, hash: u64) {
@@ -201,10 +207,8 @@ impl<T: Float> AudioNode for Noise<T> {
         self.reset();
     }
 
-    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = Signal::Latency(0.0);
-        output
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Generator(0.0).route(input, self.outputs())
     }
 }
 
@@ -214,20 +218,20 @@ impl<T: Float> AudioNode for Noise<T> {
 /// - Input 1: sampling frequency (Hz).
 /// - Output 0: sampled signal.
 #[derive(Default, Clone)]
-pub struct Hold<T> {
+pub struct Hold {
     rnd: Rnd,
     hash: u64,
     sample_duration: f64,
-    variability: T,
+    variability: f32,
     t: f64,
     next_t: f64,
-    hold: T,
+    hold: f32,
 }
 
-impl<T: Float> Hold<T> {
+impl Hold {
     /// Create new sample-and-hold component.
     /// Variability is the randomness in individual hold times in 0...1.
-    pub fn new(variability: T) -> Self {
+    pub fn new(variability: f32) -> Self {
         let mut node = Self {
             variability,
             ..Self::default()
@@ -238,26 +242,20 @@ impl<T: Float> Hold<T> {
     }
     /// Variability is the randomness in individual hold times in 0...1.
     #[inline]
-    pub fn variability(&self) -> T {
+    pub fn variability(&self) -> f32 {
         self.variability
     }
     /// Set variability. Variability is the randomness in individual hold times in 0...1.
     #[inline]
-    pub fn set_variability(&mut self, variability: T) {
+    pub fn set_variability(&mut self, variability: f32) {
         self.variability = variability;
     }
 }
 
-impl<T: Float> AudioNode for Hold<T> {
+impl AudioNode for Hold {
     const ID: u64 = 76;
-    type Sample = T;
     type Inputs = typenum::U2;
     type Outputs = typenum::U1;
-    type Setting = T;
-
-    fn set(&mut self, setting: T) {
-        self.set_variability(setting);
-    }
 
     fn reset(&mut self) {
         self.rnd = Rnd::from_u64(self.hash);
@@ -270,14 +268,11 @@ impl<T: Float> AudioNode for Hold<T> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if self.t >= self.next_t {
             self.hold = input[0];
             self.next_t = self.t
-                + lerp(
+                + super::math::lerp(
                     1.0 - self.variability.to_f64(),
                     1.0 + self.variability.to_f64(),
                     self.rnd.f64(),
@@ -287,14 +282,20 @@ impl<T: Float> AudioNode for Hold<T> {
         [self.hold].into()
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Variability(variability) = setting.parameter() {
+            self.set_variability(*variability);
+        }
+    }
+
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.reset();
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].distort(0.0);
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(0, input.at(0).distort(0.0));
         output
     }
 }

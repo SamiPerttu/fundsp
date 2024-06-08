@@ -1,5 +1,25 @@
 ## Changes
 
+### Version 0.18 (Next Version)
+
+- This release involves a major rewrite and many changes.
+- 64-bit sample support is gone. All samples are now `f32`.
+- The 64-bit prelude presents a 32-bit interface now, with 64-bit internal state.
+- All types and traits with `32/64` suffix are replaced with the 32-bit version with the suffix removed.
+- Explicit SIMD support in block processing via the `wide` crate.
+- `no_std` support can be enabled by disabling the `std` feature.
+- Buffers for the `process` method have been rewritten. Both stack and heap allocation is supported.
+- Settings have been rewritten, to make them compatible with the `AudioUnit` system.
+- Waveshaping is done using a trait now. Remove `Shape::` prefix from shapes to migrate,
+  except for `AdaptiveTanh`, which is created using `AdaptiveTanh::new`.
+- The `Atan` shape was tweaked to return values in -1...1 while retaining a slope of 1 at the origin.
+- Asymmetric follow filters are now explicitly declared: `follow((a, r))` is now `afollow(a, r)`.
+- Functions corresponding to operators are now available as an option, for example, `A >> B` can now be written `pipe(A, B)`.
+  What used to be `pipe` etc. now has an `i` suffix, for example, `pipei`.
+- `rnd` function is now `rnd1`.
+- `hash` function is now `hash1`. Added new hash function `hash2`.
+- Wavetable oscillator now accepts an `Arc<Wavetable>` in the constructor.
+
 ### Version 0.17
 
 - `Wave32/64`: `silence` is now `zero`.

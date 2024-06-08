@@ -1,35 +1,44 @@
 //! Reverberation related code.
 
-use super::hacker32::*;
+use super::audionode::*;
+use super::combinator::*;
+use super::delay::{AllNest, Delay};
+use super::math::*;
+use super::signal::*;
+use super::wave::*;
+use super::*;
 use funutd::dna::*;
-use realfft::*;
+use numeric_array::typenum::*;
+extern crate alloc;
+use alloc::format;
+use alloc::vec::Vec;
 
 /// Generate a reverb unit.
-pub fn generate_reverb(
-    dna: &mut Dna,
-) -> An<impl AudioNode<Sample = f32, Inputs = U2, Outputs = U2>> {
+pub fn generate_reverb(dna: &mut Dna) -> An<impl AudioNode<Inputs = U2, Outputs = U2>> {
     let mut times = Vec::new();
     for i in 0..32 {
         let name = format!("Delay {}", i);
         if i < 32 {
-            times.push(dna.f32_in(&name, 0.030, 0.070) as f64);
+            times.push(dna.f32_in(&name, 0.030, 0.070));
         } else {
-            times.push(dna.f32_in(&name, 0.001, 0.030) as f64);
+            times.push(dna.f32_in(&name, 0.001, 0.030));
         }
     }
-    reverb4_stereo_delays(&times, 100.0)
+    super::prelude::reverb4_stereo_delays(&times, 100.0)
 }
 
 /// Attempt to measure the quality of a stereo reverb unit.
-pub fn reverb_fitness(reverb: An<impl AudioNode<Sample = f32, Inputs = U2, Outputs = U2>>) -> f32 {
-    let mut response = Wave32::render(44100.0, 2.0 * 65536.0 / 44100.0, &mut (impulse() >> reverb));
+pub fn reverb_fitness(reverb: An<impl AudioNode<Inputs = U2, Outputs = U2>>) -> f32 {
+    let mut response = Wave::render(
+        44100.0,
+        32768.0 / 44100.0,
+        &mut (An(Impulse::new()) >> reverb),
+    );
 
     let mut fitness = 0.0;
 
-    let mut planner = RealFftPlanner::<f32>::new();
-    let r2c = planner.plan_fft_forward(response.length());
-    //let c2r = planner.plan_fft_inverse(response.length());
-    let mut spectrum = r2c.make_output_vec();
+    let mut spectrum = Vec::<Complex32>::new();
+    spectrum.resize(response.length() / 2 + 1, Complex32::new(0.0, 0.0));
 
     // Deal with left, right and center signals.
     for channel in 0..=1 {
@@ -51,12 +60,12 @@ pub fn reverb_fitness(reverb: An<impl AudioNode<Sample = f32, Inputs = U2, Outpu
             let w = 0.5
                 + 0.5
                     * cos(
-                        (i as i64 - (response.length() as i64 >> 1)) as f32 * TAU as f32
+                        (i as i64 - (response.length() as i64 >> 1)) as f32 * f32::TAU
                             / response.length() as f32,
                     );
             response.set(channel, i, response.at(channel, i) * w);
         }
-        let mut data = match channel {
+        let data = match channel {
             0 | 1 => response.channel(channel).clone(),
             _ => {
                 let mut stereo = response.channel(0).clone();
@@ -66,7 +75,7 @@ pub fn reverb_fitness(reverb: An<impl AudioNode<Sample = f32, Inputs = U2, Outpu
                 stereo
             }
         };
-        r2c.process(&mut data, &mut spectrum).unwrap();
+        super::fft::real_fft(&data, &mut spectrum);
         /*
         let spectral_weight = 0.001;
         let flatness_weight = 1.0;
@@ -132,27 +141,27 @@ pub fn reverb_fitness(reverb: An<impl AudioNode<Sample = f32, Inputs = U2, Outpu
     fitness
 }
 
-type Schroeder<T> = AllNest<T, U1, Delay<T>>;
+type Schroeder = AllNest<U1, Delay>;
 
 #[derive(Clone)]
-struct ReverbBlock<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    allpass0: [Schroeder<T>; 4],
-    allpass1: [Schroeder<T>; 4],
+struct ReverbBlock<F: AudioNode<Inputs = U1, Outputs = U1>> {
+    allpass0: [Schroeder; 4],
+    allpass1: [Schroeder; 4],
     filter0: F,
     filter1: F,
-    delay: Delay<T>,
+    delay: Delay,
 }
 
 /// Allpass loop based stereo reverb with user configurable loop filtering.
 #[derive(Clone)]
-pub struct Reverb<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> {
-    pre: [Schroeder<T>; 4],
-    block: Vec<ReverbBlock<T, F>>,
-    feedback: T,
-    a: T,
+pub struct Reverb<F: AudioNode<Inputs = U1, Outputs = U1>> {
+    pre: [Schroeder; 4],
+    block: Vec<ReverbBlock<F>>,
+    feedback: f32,
+    a: f32,
 }
 
-impl<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> Reverb<T, F> {
+impl<F: AudioNode<Inputs = U1, Outputs = U1>> Reverb<F> {
     pub fn new(time: f64, diffusion: f64, filter: F) -> Self {
         let ldelays = [
             401, 421, 443, 463, 487, 503, 523, 547, 563, 587, 607, 619, 643, 661, 683, 701, 727,
@@ -163,23 +172,23 @@ impl<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> Reverb<T, F> 
             757, 773, 797, 811, 829, 853, 877, 887, 911, 937, 953, 977, 997, 1013, 1033,
         ];
         let delays = [1087, 1091, 1093, 1097, 1103, 1109, 1117, 1123];
-        let coeff = T::from_f64(lerp(0.5, 0.9, diffusion));
+        let coeff = lerp(0.5, 0.9, diffusion) as f32;
         let mut block = Vec::with_capacity(8);
         for i in 0..8 {
-            let allpass0 = std::array::from_fn(|j| {
+            let allpass0 = core::array::from_fn(|j| {
                 Schroeder::new(
                     coeff,
                     Delay::new((ldelays[i + j * 8] - 1) as f64 / DEFAULT_SR),
                 )
             });
-            let allpass1 = std::array::from_fn(|j| {
+            let allpass1 = core::array::from_fn(|j| {
                 Schroeder::new(
                     coeff,
                     Delay::new((rdelays[i + j * 8] - 1) as f64 / DEFAULT_SR),
                 )
             });
             let delay = Delay::new(delays[7 - i] as f64 / DEFAULT_SR);
-            block.push(ReverbBlock::<T, F> {
+            block.push(ReverbBlock::<F> {
                 allpass0,
                 allpass1,
                 filter0: filter.clone(),
@@ -188,29 +197,27 @@ impl<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> Reverb<T, F> 
             });
         }
 
-        let a = T::from_f64(pow(db_amp(-60.0), 0.035 / time));
+        let a = pow(db_amp(-60.0), 0.035 / time) as f32;
 
         let predelay = [245, 367, 263, 349];
 
-        let pre = std::array::from_fn(|i| {
+        let pre = core::array::from_fn(|i| {
             Schroeder::new(coeff, Delay::new((predelay[i] - 1) as f64 / DEFAULT_SR))
         });
 
         Self {
             pre,
             block,
-            feedback: T::zero(),
+            feedback: 0.0,
             a,
         }
     }
 }
 
-impl<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> AudioNode for Reverb<T, F> {
+impl<F: AudioNode<Inputs = U1, Outputs = U1>> AudioNode for Reverb<F> {
     const ID: u64 = 85;
-    type Sample = T;
     type Inputs = U2;
     type Outputs = U2;
-    type Setting = ();
 
     fn reset(&mut self) {
         for block in self.block.iter_mut() {
@@ -224,7 +231,7 @@ impl<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> AudioNode for
             block.filter1.reset();
             block.delay.reset();
         }
-        self.feedback = T::zero();
+        self.feedback = 0.0;
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
@@ -242,16 +249,13 @@ impl<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> AudioNode for
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let mut v0 = self.feedback;
-        let mut output0 = T::zero();
-        let mut output1 = T::zero();
-        let input0 = self.pre[0].filter_mono(input[0] * T::from_f64(0.5));
+        let mut output0 = 0.0;
+        let mut output1 = 0.0;
+        let input0 = self.pre[0].filter_mono(input[0] * 0.5);
         let input0 = self.pre[1].filter_mono(input0);
-        let input1 = self.pre[2].filter_mono(input[1] * T::from_f64(0.5));
+        let input1 = self.pre[2].filter_mono(input[1] * 0.5);
         let input1 = self.pre[3].filter_mono(input1);
         for block in self.block.iter_mut() {
             v0 = block.delay.filter_mono(v0);
@@ -273,6 +277,6 @@ impl<T: Real, F: AudioNode<Sample = T, Inputs = U1, Outputs = U1>> AudioNode for
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Arbitrary(0.0).propagate(input, 2)
+        Routing::Arbitrary(0.0).route(input, 2)
     }
 }

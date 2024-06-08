@@ -6,31 +6,36 @@ use super::audiounit::*;
 use super::granular::*;
 use super::hacker::*;
 use super::net::*;
+extern crate alloc;
+use alloc::boxed::Box;
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 /// Trait for a generated AudioUnit.
 pub trait Generated {
     /// Get the code string for this AudioUnit.
     fn get_code(&self) -> String;
     /// Get the implementation for this AudioUnit.
-    fn get_unit(&self) -> Box<dyn AudioUnit64>;
+    fn get_unit(&self) -> Box<dyn AudioUnit>;
 }
 
-pub struct GeneratedLeaf<U: Fn() -> Box<dyn AudioUnit64>> {
+pub struct GeneratedLeaf<U: Fn() -> Box<dyn AudioUnit>> {
     code: String,
     unit: U,
 }
 
-impl<U: Fn() -> Box<dyn AudioUnit64>> GeneratedLeaf<U> {
+impl<U: Fn() -> Box<dyn AudioUnit>> GeneratedLeaf<U> {
     pub fn new(code: String, unit: U) -> Self {
         Self { code, unit }
     }
 }
 
-impl<U: Fn() -> Box<dyn AudioUnit64>> Generated for GeneratedLeaf<U> {
+impl<U: Fn() -> Box<dyn AudioUnit>> Generated for GeneratedLeaf<U> {
     fn get_code(&self) -> String {
         self.code.clone()
     }
-    fn get_unit(&self) -> Box<dyn AudioUnit64> {
+    fn get_unit(&self) -> Box<dyn AudioUnit> {
         (self.unit)()
     }
 }
@@ -38,7 +43,7 @@ impl<U: Fn() -> Box<dyn AudioUnit64>> Generated for GeneratedLeaf<U> {
 pub struct GeneratedUnary<C, U>
 where
     C: Fn(String) -> String,
-    U: Fn(Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+    U: Fn(Box<dyn AudioUnit>) -> Box<dyn AudioUnit>,
 {
     child: Box<dyn Generated>,
     code: C,
@@ -48,7 +53,7 @@ where
 impl<C, U> GeneratedUnary<C, U>
 where
     C: Fn(String) -> String,
-    U: Fn(Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+    U: Fn(Box<dyn AudioUnit>) -> Box<dyn AudioUnit>,
 {
     pub fn new(child: Box<dyn Generated>, code: C, unit: U) -> Self {
         Self { child, code, unit }
@@ -58,12 +63,12 @@ where
 impl<C, U> Generated for GeneratedUnary<C, U>
 where
     C: Fn(String) -> String,
-    U: Fn(Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+    U: Fn(Box<dyn AudioUnit>) -> Box<dyn AudioUnit>,
 {
     fn get_code(&self) -> String {
         (self.code)(self.child.get_code())
     }
-    fn get_unit(&self) -> Box<dyn AudioUnit64> {
+    fn get_unit(&self) -> Box<dyn AudioUnit> {
         (self.unit)(self.child.get_unit())
     }
 }
@@ -71,7 +76,7 @@ where
 pub struct GeneratedBinary<C, U>
 where
     C: Fn(String, String) -> String,
-    U: Fn(Box<dyn AudioUnit64>, Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+    U: Fn(Box<dyn AudioUnit>, Box<dyn AudioUnit>) -> Box<dyn AudioUnit>,
 {
     child0: Box<dyn Generated>,
     child1: Box<dyn Generated>,
@@ -82,7 +87,7 @@ where
 impl<C, U> GeneratedBinary<C, U>
 where
     C: Fn(String, String) -> String,
-    U: Fn(Box<dyn AudioUnit64>, Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+    U: Fn(Box<dyn AudioUnit>, Box<dyn AudioUnit>) -> Box<dyn AudioUnit>,
 {
     pub fn new(child0: Box<dyn Generated>, child1: Box<dyn Generated>, code: C, unit: U) -> Self {
         Self {
@@ -97,12 +102,12 @@ where
 impl<C, U> Generated for GeneratedBinary<C, U>
 where
     C: Fn(String, String) -> String,
-    U: Fn(Box<dyn AudioUnit64>, Box<dyn AudioUnit64>) -> Box<dyn AudioUnit64>,
+    U: Fn(Box<dyn AudioUnit>, Box<dyn AudioUnit>) -> Box<dyn AudioUnit>,
 {
     fn get_code(&self) -> String {
         (self.code)(self.child0.get_code(), self.child1.get_code())
     }
-    fn get_unit(&self) -> Box<dyn AudioUnit64> {
+    fn get_unit(&self) -> Box<dyn AudioUnit> {
         (self.unit)(self.child0.get_unit(), self.child1.get_unit())
     }
 }
@@ -125,7 +130,7 @@ pub fn gen_lfo(dna: &mut Dna) -> Box<dyn Generated> {
             let f = dna.f32_in("Frequency", 0.5, 1.0) as f64;
             Box::new(GeneratedLeaf::new(
                 format!("lfo(|t| spline_noise({:?}, t * {:?}) * 0.5 + 0.5)", seed, f),
-                move || Box::new(lfo(move |t| spline_noise(seed as i64, t * f) * 0.5 + 0.5)),
+                move || Box::new(lfo(move |t| spline_noise(seed as u64, t * f) * 0.5 + 0.5)),
             ))
         }
     };
@@ -139,7 +144,7 @@ enum Effect {
     Phaser,
 }
 
-pub fn gen_effect(dna: &mut Dna) -> Box<dyn AudioUnit64> {
+pub fn gen_effect(dna: &mut Dna) -> Box<dyn AudioUnit> {
     let effect = dna.choice(
         "Effect Type",
         [
@@ -200,11 +205,11 @@ enum ChoiceZ {
 /// The scale containing MIDI pitches is used if non-empty.
 pub fn gen_granular(
     channels: usize,
-    scale: &[f64],
-    beat_length: f64,
+    scale: &[f32],
+    beat_length: f32,
     beats_per_cycle: usize,
     dna: &mut Dna,
-) -> Box<dyn AudioUnit64> {
+) -> Box<dyn AudioUnit> {
     assert!(channels == 1 || channels == 2);
     let scale_vec: Vec<_> = Vec::from(scale);
 
@@ -321,137 +326,141 @@ pub fn gen_granular(
     };
 
     let bandpass_q = if matches!(choice_z, ChoiceZ::BandpassFilter) {
-        dna.f32_in("Bandpass Filter Q", 1.0, 4.0) as f64
+        dna.f32_in("Bandpass Filter Q", 1.0, 4.0)
     } else {
         1.0
     };
 
     let peak_q = if matches!(choice_z, ChoiceZ::PeakFilter) {
-        dna.f32_in("Peak Filter Q", 2.0, 5.0) as f64
+        dna.f32_in("Peak Filter Q", 2.0, 5.0)
     } else {
         1.0
     };
 
     let stereo_width = if channels == 2 {
-        dna.f32_in("Stereo Width", 0.3, 0.8) as f64
+        dna.f32_in("Stereo Width", 0.3, 0.8)
     } else {
         0.0
     };
 
-    let create_grain = move |t: f64,
-                             _b: f64,
-                             v: f64,
-                             x: f64,
-                             y: f64,
-                             z: f64|
-          -> (f64, f64, Box<dyn AudioUnit64>) {
-        let f = if scale_vec.len() > 0 {
-            let d = lerp11(0.0, scale_vec.len() as f64 - 0.01, x);
-            midi_hz(scale_vec[d as usize] + 0.02 * (d - round(d)))
-        } else {
-            xerp11(midi_hz(36.0), midi_hz(108.0), x)
-        };
+    let create_grain =
+        move |t: f64, _b: f32, v: f32, x: f32, y: f32, z: f32| -> (f32, f32, Box<dyn AudioUnit>) {
+            let f = if scale_vec.len() > 0 {
+                let d = lerp11(0.0, scale_vec.len() as f32 - 0.01, x);
+                midi_hz(scale_vec[d as usize] + 0.02 * (d - round(d)))
+            } else {
+                xerp11(midi_hz(36.0), midi_hz(108.0), x)
+            };
 
-        let f = match choice_y {
-            ChoiceY::Vibrato => {
-                let r = max(
-                    1.0,
-                    min(vibrato_depth, xerp11(1.0 / vibrato_depth, vibrato_depth, y)),
-                );
-                f * xerp11(r, 1.0 / r, sin_hz(6.0, t))
-            }
-            _ => f,
-        };
+            let f = match choice_y {
+                ChoiceY::Vibrato => {
+                    let r = max(
+                        1.0,
+                        min(
+                            vibrato_depth,
+                            xerp11(1.0 / vibrato_depth, vibrato_depth, y as f64),
+                        ),
+                    );
+                    f * (xerp11(r, 1.0 / r, sin_hz(6.0, t)) as f32)
+                }
+                _ => f,
+            };
 
-        let mut amp = 0.1 / sqrt(voices as f64);
+            let mut amp = 0.1 / sqrt(voices as f32);
 
-        let mut c = match choice_x {
-            ChoiceX::Oscillator => match waveform {
-                Waveform::Saw => Net64::wrap(Box::new(saw_hz(f))),
-                Waveform::Square => Net64::wrap(Box::new(square_hz(f))),
-                Waveform::Triangle => Net64::wrap(Box::new(triangle_hz(f))),
-                Waveform::SoftSaw => Net64::wrap(Box::new(soft_saw_hz(f))),
-                Waveform::Organ => Net64::wrap(Box::new(organ_hz(f))),
-            },
-            ChoiceX::PulseWave => {
-                Net64::wrap(Box::new(dc((f, 1.0 - xerp11(0.02, 0.50, y))) >> pulse()))
+            let mut c = match choice_x {
+                ChoiceX::Oscillator => match waveform {
+                    Waveform::Saw => Net::wrap(Box::new(saw_hz(f as f32))),
+                    Waveform::Square => Net::wrap(Box::new(square_hz(f as f32))),
+                    Waveform::Triangle => Net::wrap(Box::new(triangle_hz(f as f32))),
+                    Waveform::SoftSaw => Net::wrap(Box::new(soft_saw_hz(f as f32))),
+                    Waveform::Organ => Net::wrap(Box::new(organ_hz(f as f32))),
+                },
+                ChoiceX::PulseWave => Net::wrap(Box::new(
+                    dc((f as f32, 1.0 - xerp11(0.02, 0.50, y))) >> pulse(),
+                )),
+                ChoiceX::NoisySine => {
+                    let bandwidth = xerp11(1.0, 200.0, y);
+                    amp *= 20.0 / sqrt(bandwidth);
+                    Net::wrap(Box::new(
+                        (white() >> lowpass_hz(bandwidth as f32, 1.0)) * sine_hz(f as f32),
+                    ))
+                }
+                ChoiceX::OverdriveSine => {
+                    let hardness = 0.1 + xerp11(0.1, 10.0, y);
+                    amp /= hardness;
+                    Net::wrap(Box::new(sine_hz(f as f32) >> shape(Tanh(hardness as f32))))
+                }
+                ChoiceX::Resonator => {
+                    let bandwidth = xerp11(2.0, 100.0, y);
+                    amp *= 0.5;
+                    Net::wrap(Box::new(
+                        pink()
+                            >> resonator_hz(f as f32, bandwidth as f32)
+                            >> resonator_hz(f as f32 + 0.5, bandwidth as f32),
+                    ))
+                }
+            };
+
+            match choice_y {
+                ChoiceY::Amplification => {
+                    amp *= xerp11(0.1, 2.0, y);
+                }
+                ChoiceY::MoogFilter => {
+                    c = c >> moog_hz(xerp11(200.0, 20_000.0, y), lerp11(0.25, 0.65, z));
+                }
+                _ => (),
             }
-            ChoiceX::NoisySine => {
-                let bandwidth = xerp11(1.0, 200.0, y);
-                amp *= 20.0 / sqrt(bandwidth);
-                Net64::wrap(Box::new(
-                    (white() >> lowpass_hz(bandwidth, 1.0)) * sine_hz(f),
-                ))
+
+            match choice_z {
+                ChoiceZ::Amplification => {
+                    amp *= xerp11(0.1, 2.0, z);
+                }
+                ChoiceZ::BandpassFilter => {
+                    c = c >> bandpass_hz(xerp11(100.0, 10_000.0, z), bandpass_q);
+                }
+                ChoiceZ::PeakFilter => {
+                    c = c >> peak_hz(xerp11(100.0, 10_000.0, z), peak_q);
+                    amp *= 0.5;
+                }
+                ChoiceZ::MoogFilterZ => {
+                    c = c >> moog_hz(xerp11(200.0, 20_000.0, z), 0.6);
+                }
+                ChoiceZ::Overdrive => {
+                    let hardness = 0.1 + xerp11(0.1, 10.0, z);
+                    amp /= hardness;
+                    c = c >> shape(Softsign(hardness as f32));
+                }
+                _ => (),
             }
-            ChoiceX::OverdriveSine => {
-                let hardness = 0.1 + xerp11(0.1, 10.0, y);
-                amp /= hardness;
-                Net64::wrap(Box::new(sine_hz(f) >> shape(Shape::Tanh(hardness))))
-            }
-            ChoiceX::Resonator => {
-                let bandwidth = xerp11(2.0, 100.0, y);
+
+            if matches!(choice_y, ChoiceY::CombFilter) {
+                c = c >> feedback2(shape(Tanh(1.1)), delay(xerp11(0.001, 0.020, y)));
                 amp *= 0.5;
-                Net64::wrap(Box::new(
-                    pink() >> resonator_hz(f, bandwidth) >> resonator_hz(f + 0.5, bandwidth),
-                ))
             }
+
+            c = c * (amp as f32);
+
+            if channels == 2 {
+                c = c >> pan(v * stereo_width);
+            }
+
+            (
+                grain_length as f32,
+                grain_length as f32 * envelope_length as f32,
+                Box::new(c),
+            )
         };
 
-        match choice_y {
-            ChoiceY::Amplification => {
-                amp *= xerp11(0.1, 2.0, y);
-            }
-            ChoiceY::MoogFilter => {
-                c = c >> moog_hz(xerp11(200.0, 20_000.0, y), lerp11(0.25, 0.65, z));
-            }
-            _ => (),
-        }
-
-        match choice_z {
-            ChoiceZ::Amplification => {
-                amp *= xerp11(0.1, 2.0, z);
-            }
-            ChoiceZ::BandpassFilter => {
-                c = c >> bandpass_hz(xerp11(100.0, 10_000.0, z), bandpass_q);
-            }
-            ChoiceZ::PeakFilter => {
-                c = c >> peak_hz(xerp11(100.0, 10_000.0, z), peak_q);
-                amp *= 0.5;
-            }
-            ChoiceZ::MoogFilterZ => {
-                c = c >> moog_hz(xerp11(200.0, 20_000.0, z), 0.6);
-            }
-            ChoiceZ::Overdrive => {
-                let hardness = 0.1 + xerp11(0.1, 10.0, z);
-                amp /= hardness;
-                c = c >> shape(Shape::Softsign(hardness));
-            }
-            _ => (),
-        }
-
-        if matches!(choice_y, ChoiceY::CombFilter) {
-            c = c >> feedback2(shape(Shape::Tanh(1.1)), delay(xerp11(0.001, 0.020, y)));
-            amp *= 0.5;
-        }
-
-        c = c * amp;
-
-        if channels == 2 {
-            c = c >> pan(v * stereo_width);
-        }
-
-        (grain_length, grain_length * envelope_length, Box::new(c))
-    };
-
-    let granular = Granular64::new(
+    let granular = Granular::new(
         channels,
         voices,
         beat_length,
         beats_per_cycle,
         texture_seed as u64,
-        inner_radius,
-        outer_radius,
-        jitter,
+        inner_radius as f32,
+        outer_radius as f32,
+        jitter as f32,
         create_grain,
     );
     Box::new(granular)

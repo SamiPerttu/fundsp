@@ -2,22 +2,25 @@
 
 use super::audionode::*;
 use super::math::*;
+use super::setting::*;
 use super::signal::*;
 use super::*;
+use core::marker::PhantomData;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
-use std::marker::PhantomData;
+extern crate alloc;
+use alloc::vec::Vec;
 
 /// Single sample delay with `N` channels.
 /// - Input(s): input signal.
 /// - Output(s): input signal delayed by one sample.
 #[derive(Clone, Default)]
-pub struct Tick<N: Size<T>, T: Float> {
-    buffer: Frame<T, N>,
+pub struct Tick<N: Size<f32>> {
+    buffer: Frame<f32, N>,
     sample_rate: f64,
 }
 
-impl<N: Size<T>, T: Float> Tick<N, T> {
+impl<N: Size<f32>> Tick<N> {
     /// Create a new single sample delay.
     pub fn new() -> Self {
         Tick {
@@ -27,12 +30,10 @@ impl<N: Size<T>, T: Float> Tick<N, T> {
     }
 }
 
-impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
+impl<N: Size<f32>> AudioNode for Tick<N> {
     const ID: u64 = 9;
-    type Sample = T;
     type Inputs = N;
     type Outputs = N;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.buffer = Frame::default();
@@ -43,20 +44,20 @@ impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let output = self.buffer.clone();
         self.buffer = input.clone();
         output
     }
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
+        let mut output = SignalFrame::new(self.outputs());
         for i in 0..self.outputs() {
-            output[i] = input[i].filter(1.0, |r| {
-                r * Complex64::from_polar(1.0, -TAU * frequency / self.sample_rate)
-            });
+            output.set(
+                i,
+                input.at(i).filter(1.0, |r| {
+                    r * Complex64::from_polar(1.0, -f64::TAU * frequency / self.sample_rate)
+                }),
+            );
         }
         output
     }
@@ -67,20 +68,20 @@ impl<N: Size<T>, T: Float> AudioNode for Tick<N, T> {
 /// - Input 0: input
 /// - Output 0: delayed input
 #[derive(Clone)]
-pub struct Delay<T: Float> {
-    buffer: Vec<T>,
+pub struct Delay {
+    buffer: Vec<f32>,
     i: usize,
     sample_rate: f64,
     length: f64,
 }
 
-impl<T: Float> Delay<T> {
+impl Delay {
     /// Create a new fixed delay. The `length` of the delay line,
     /// which is specified in seconds, is rounded to the nearest sample.
     /// The minimum delay is one sample.
-    pub fn new(length: f64) -> Delay<T> {
+    pub fn new(length: f64) -> Delay {
         let mut node = Delay {
-            buffer: vec![],
+            buffer: Vec::new(),
             i: 0,
             sample_rate: 0.0,
             length,
@@ -90,32 +91,27 @@ impl<T: Float> Delay<T> {
     }
 }
 
-impl<T: Float> AudioNode for Delay<T> {
+impl AudioNode for Delay {
     const ID: u64 = 13;
-    type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.i = 0;
-        self.buffer.fill(T::zero());
+        self.buffer.fill(0.0);
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
         if self.sample_rate != sample_rate {
             self.sample_rate = sample_rate;
             let buffer_length = max(1.0, round(self.length * sample_rate));
-            self.buffer.resize(buffer_length as usize, T::zero());
+            self.buffer.resize(buffer_length as usize, 0.0);
             self.reset();
         }
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let output = self.buffer[self.i];
         self.buffer[self.i] = input[0];
         self.i += 1;
@@ -126,13 +122,16 @@ impl<T: Float> AudioNode for Delay<T> {
     }
 
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(self.buffer.len() as f64, |r| {
-            r * Complex64::from_polar(
-                1.0,
-                -TAU * self.buffer.len() as f64 * frequency / self.sample_rate,
-            )
-        });
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input.at(0).filter(self.buffer.len() as f64, |r| {
+                r * Complex64::from_polar(
+                    1.0,
+                    -f64::TAU * self.buffer.len() as f64 * frequency / self.sample_rate,
+                )
+            }),
+        );
         output
     }
 }
@@ -144,34 +143,32 @@ impl<T: Float> AudioNode for Delay<T> {
 /// - Inputs 1...N: delay amount in seconds.
 /// - Output 0: delayed input
 #[derive(Clone)]
-pub struct Tap<N, T>
+pub struct Tap<N>
 where
-    T: Float,
-    N: Size<T> + Add<U1>,
-    <N as Add<U1>>::Output: Size<T>,
+    N: Size<f32> + Add<U1>,
+    <N as Add<U1>>::Output: Size<f32>,
 {
-    buffer: Vec<T>,
+    buffer: Vec<f32>,
     i: usize,
-    sample_rate: T,
-    min_delay: T,
-    max_delay: T,
+    sample_rate: f32,
+    min_delay: f32,
+    max_delay: f32,
     _marker: PhantomData<N>,
 }
 
-impl<N, T> Tap<N, T>
+impl<N> Tap<N>
 where
-    T: Float,
-    N: Size<T> + Add<U1>,
-    <N as Add<U1>>::Output: Size<T>,
+    N: Size<f32> + Add<U1>,
+    <N as Add<U1>>::Output: Size<f32>,
 {
     /// Create a tapped delay line. Minimum and maximum delays are specified in seconds.
-    pub fn new(min_delay: T, max_delay: T) -> Self {
-        assert!(min_delay >= T::zero());
+    pub fn new(min_delay: f32, max_delay: f32) -> Self {
+        assert!(min_delay >= 0.0);
         assert!(min_delay <= max_delay);
         let mut node = Self {
-            buffer: vec![],
+            buffer: Vec::new(),
             i: 0,
-            sample_rate: T::zero(),
+            sample_rate: 0.0,
             min_delay,
             max_delay,
             _marker: PhantomData,
@@ -181,41 +178,35 @@ where
     }
 }
 
-impl<N, T> AudioNode for Tap<N, T>
+impl<N> AudioNode for Tap<N>
 where
-    T: Float,
-    N: Size<T> + Add<U1>,
-    <N as Add<U1>>::Output: Size<T>,
+    N: Size<f32> + Add<U1>,
+    <N as Add<U1>>::Output: Size<f32>,
 {
     const ID: u64 = 50;
-    type Sample = T;
     type Inputs = Sum<N, U1>;
     type Outputs = U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.i = 0;
-        self.buffer.fill(T::zero());
+        self.buffer.fill(0.0);
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
-        let sample_rate = T::from_f64(sample_rate);
+        let sample_rate = sample_rate as f32;
         if self.sample_rate != sample_rate {
-            let buffer_length = ceil(self.max_delay * sample_rate) + T::new(2);
+            let buffer_length = ceil(self.max_delay * sample_rate) + 2.0;
             let buffer_length = (buffer_length.to_f64() as usize).next_power_of_two();
             self.sample_rate = sample_rate;
-            self.buffer.resize(buffer_length, T::zero());
+            self.buffer.resize(buffer_length, 0.0);
             self.reset();
         }
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let mask = self.buffer.len() - 1;
-        let mut output = T::zero();
+        let mut output = 0.0;
         for tap_i in 1..N::USIZE + 1 {
             let tap =
                 clamp(self.min_delay, self.max_delay, convert(input[tap_i])) * self.sample_rate;
@@ -225,7 +216,7 @@ where
             let tap_i2 = (tap_i1.wrapping_sub(1)) & mask;
             let tap_i3 = (tap_i1.wrapping_sub(2)) & mask;
             let tap_i1 = tap_i1 & mask;
-            let tap_d = tap - T::new(tap_floor as i64);
+            let tap_d = tap - tap_floor as f32;
             output += spline(
                 self.buffer[tap_i0],
                 self.buffer[tap_i1],
@@ -240,8 +231,13 @@ where
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].distort(self.min_delay.to_f64() * self.sample_rate.to_f64());
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input
+                .at(0)
+                .distort(self.min_delay.to_f64() * self.sample_rate.to_f64()),
+        );
         output
     }
 }
@@ -252,31 +248,29 @@ where
 /// - Input 1 (optional): feedforward coefficient
 /// - Output 0: filtered signal
 #[derive(Clone)]
-pub struct AllNest<T, N, X>
+pub struct AllNest<N, X>
 where
-    T: Float,
-    N: Size<T>,
-    X: AudioNode<Sample = T, Inputs = U1, Outputs = U1>,
+    N: Size<f32>,
+    X: AudioNode<Inputs = U1, Outputs = U1>,
 {
     x: X,
-    eta: T,
-    z: T,
+    eta: f32,
+    z: f32,
     _marker: PhantomData<N>,
 }
 
-impl<T, N, X> AllNest<T, N, X>
+impl<N, X> AllNest<N, X>
 where
-    T: Float,
-    N: Size<T>,
-    X: AudioNode<Sample = T, Inputs = U1, Outputs = U1>,
+    N: Size<f32>,
+    X: AudioNode<Inputs = U1, Outputs = U1>,
 {
     /// Create new nested allpass. Feedforward `coefficient` should
     /// have an absolute value smaller than one to avoid a blowup.
-    pub fn new(coefficient: T, x: X) -> Self {
+    pub fn new(coefficient: f32, x: X) -> Self {
         let mut node = Self {
             x,
-            eta: T::zero(),
-            z: T::zero(),
+            eta: 0.0,
+            z: 0.0,
             _marker: PhantomData,
         };
         node.set_coefficient(coefficient);
@@ -286,41 +280,31 @@ where
     /// Set feedforward `coefficient`. It should have an absolute
     /// value smaller than one to avoid a blowup.
     #[inline]
-    pub fn set_coefficient(&mut self, coefficient: T) {
+    pub fn set_coefficient(&mut self, coefficient: f32) {
         self.eta = coefficient;
     }
 }
 
-impl<T, N, X> AudioNode for AllNest<T, N, X>
+impl<N, X> AudioNode for AllNest<N, X>
 where
-    T: Float,
-    N: Size<T>,
-    X: AudioNode<Sample = T, Inputs = U1, Outputs = U1>,
+    N: Size<f32>,
+    X: AudioNode<Inputs = U1, Outputs = U1>,
 {
     const ID: u64 = 83;
-    type Sample = T;
     type Inputs = N;
     type Outputs = U1;
-    type Setting = T;
-
-    fn set(&mut self, setting: Self::Setting) {
-        self.set_coefficient(setting);
-    }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
         self.x.set_sample_rate(sample_rate);
     }
 
     fn reset(&mut self) {
-        self.z = T::zero();
+        self.z = 0.0;
         self.x.reset();
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if N::USIZE > 1 {
             self.set_coefficient(input[1]);
         }
@@ -328,6 +312,12 @@ where
         let y = self.eta * v + self.z;
         self.z = self.x.tick(&[v].into())[0];
         [y].into()
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Coefficient(value) = setting.parameter() {
+            self.set_coefficient(*value);
+        }
     }
 
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
@@ -339,7 +329,7 @@ where
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Arbitrary(0.0).propagate(input, self.outputs())
+        Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 }
 
@@ -350,34 +340,32 @@ where
 /// - Inputs 1...N: delay amount in seconds.
 /// - Output 0: delayed input
 #[derive(Clone)]
-pub struct TapLinear<N, T>
+pub struct TapLinear<N>
 where
-    T: Float,
-    N: Size<T> + Add<U1>,
-    <N as Add<U1>>::Output: Size<T>,
+    N: Size<f32> + Add<U1>,
+    <N as Add<U1>>::Output: Size<f32>,
 {
-    buffer: Vec<T>,
+    buffer: Vec<f32>,
     i: usize,
-    sample_rate: T,
-    min_delay: T,
-    max_delay: T,
+    sample_rate: f32,
+    min_delay: f32,
+    max_delay: f32,
     _marker: PhantomData<N>,
 }
 
-impl<N, T> TapLinear<N, T>
+impl<N> TapLinear<N>
 where
-    T: Float,
-    N: Size<T> + Add<U1>,
-    <N as Add<U1>>::Output: Size<T>,
+    N: Size<f32> + Add<U1>,
+    <N as Add<U1>>::Output: Size<f32>,
 {
     /// Create a tapped delay line. Minimum and maximum delays are specified in seconds.
-    pub fn new(min_delay: T, max_delay: T) -> Self {
-        assert!(min_delay >= T::zero());
+    pub fn new(min_delay: f32, max_delay: f32) -> Self {
+        assert!(min_delay >= 0.0);
         assert!(min_delay <= max_delay);
         let mut node = Self {
-            buffer: vec![],
+            buffer: Vec::new(),
             i: 0,
-            sample_rate: T::zero(),
+            sample_rate: 0.0,
             min_delay,
             max_delay,
             _marker: PhantomData,
@@ -387,41 +375,35 @@ where
     }
 }
 
-impl<N, T> AudioNode for TapLinear<N, T>
+impl<N> AudioNode for TapLinear<N>
 where
-    T: Float,
-    N: Size<T> + Add<U1>,
-    <N as Add<U1>>::Output: Size<T>,
+    N: Size<f32> + Add<U1>,
+    <N as Add<U1>>::Output: Size<f32>,
 {
     const ID: u64 = 50;
-    type Sample = T;
     type Inputs = Sum<N, U1>;
     type Outputs = U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.i = 0;
-        self.buffer.fill(T::zero());
+        self.buffer.fill(0.0);
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
-        let sample_rate = T::from_f64(sample_rate);
+        let sample_rate = sample_rate as f32;
         if self.sample_rate != sample_rate {
-            let buffer_length = ceil(self.max_delay * sample_rate) + T::new(2);
+            let buffer_length = ceil(self.max_delay * sample_rate) + 2.0;
             let buffer_length = (buffer_length.to_f64() as usize).next_power_of_two();
             self.sample_rate = sample_rate;
-            self.buffer.resize(buffer_length, T::zero());
+            self.buffer.resize(buffer_length, 0.0);
             self.reset();
         }
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let mask = self.buffer.len() - 1;
-        let mut output = T::zero();
+        let mut output = 0.0;
         for tap_i in 1..N::USIZE + 1 {
             let tap =
                 clamp(self.min_delay, self.max_delay, convert(input[tap_i])) * self.sample_rate;
@@ -429,7 +411,7 @@ where
             let tap_i1 = self.i + (self.buffer.len() - tap_floor);
             let tap_i2 = (tap_i1.wrapping_sub(1)) & mask;
             let tap_i1 = tap_i1 & mask;
-            let tap_d = tap - T::new(tap_floor as i64);
+            let tap_d = tap - tap_floor as f32;
             output += lerp(self.buffer[tap_i1], self.buffer[tap_i2], tap_d);
         }
         self.buffer[self.i] = input[0];
@@ -438,8 +420,13 @@ where
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].distort(self.min_delay.to_f64() * self.sample_rate.to_f64());
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input
+                .at(0)
+                .distort(self.min_delay.to_f64() * self.sample_rate.to_f64()),
+        );
         output
     }
 }

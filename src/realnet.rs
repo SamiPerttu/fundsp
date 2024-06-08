@@ -1,35 +1,25 @@
 //! Real-time friendly backend for Net64 and Net32.
 
 use super::audiounit::*;
+use super::buffer::*;
 use super::math::*;
 use super::net::*;
 use super::signal::*;
-use duplicate::duplicate_item;
-use thingbuf::mpsc::blocking::{channel, Receiver, Sender};
+use thingbuf::mpsc::{channel, Receiver, Sender};
 
-#[duplicate_item(
-    f48       Net48       NetBackend48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ NetBackend64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ NetBackend32 ]   [ Vertex32 ]   [ AudioUnit32 ];
-)]
-pub struct NetBackend48 {
+pub struct NetBackend {
     /// For sending versions for deallocation back to the frontend.
-    sender: Sender<Net48>,
+    sender: Sender<Net>,
     /// For receiving new versions from the frontend.
-    receiver: Receiver<Net48>,
-    net: Net48,
+    receiver: Receiver<Net>,
+    net: Net,
 }
 
-#[duplicate_item(
-    f48       Net48       NetBackend48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ NetBackend64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ NetBackend32 ]   [ Vertex32 ]   [ AudioUnit32 ];
-)]
-impl Clone for NetBackend48 {
+impl Clone for NetBackend {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
         let (sender, receiver) = channel(1);
-        NetBackend48 {
+        NetBackend {
             sender,
             receiver,
             net: self.net.clone(),
@@ -37,14 +27,9 @@ impl Clone for NetBackend48 {
     }
 }
 
-#[duplicate_item(
-    f48       Net48       NetBackend48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ NetBackend64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ NetBackend32 ]   [ Vertex32 ]   [ AudioUnit32 ];
-)]
-impl NetBackend48 {
+impl NetBackend {
     /// Create new backend.
-    pub fn new(sender: Sender<Net48>, receiver: Receiver<Net48>, net: Net48) -> Self {
+    pub fn new(sender: Sender<Net>, receiver: Receiver<Net>, net: Net) -> Self {
         Self {
             sender,
             receiver,
@@ -54,7 +39,7 @@ impl NetBackend48 {
 
     /// Handle changes made to the backend.
     fn handle_messages(&mut self) {
-        let mut latest_net: Option<Net48> = None;
+        let mut latest_net: Option<Net> = None;
         #[allow(clippy::while_let_loop)]
         loop {
             match self.receiver.try_recv() {
@@ -71,19 +56,14 @@ impl NetBackend48 {
         if let Some(mut net) = latest_net {
             // Migrate existing nodes to the new network.
             self.net.migrate(&mut net);
-            std::mem::swap(&mut net, &mut self.net);
+            core::mem::swap(&mut net, &mut self.net);
             // Send the previous network back for deallocation.
             if self.sender.try_send(net).is_ok() {}
         }
     }
 }
 
-#[duplicate_item(
-    f48       Net48       NetBackend48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ NetBackend64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ NetBackend32 ]   [ Vertex32 ]   [ AudioUnit32 ];
-)]
-impl AudioUnit48 for NetBackend48 {
+impl AudioUnit for NetBackend {
     fn inputs(&self) -> usize {
         self.net.inputs()
     }
@@ -102,12 +82,12 @@ impl AudioUnit48 for NetBackend48 {
         self.handle_messages();
     }
 
-    fn tick(&mut self, input: &[f48], output: &mut [f48]) {
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
         self.handle_messages();
         self.net.tick(input, output);
     }
 
-    fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]) {
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         self.handle_messages();
         self.net.process(size, input, output);
     }

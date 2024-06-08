@@ -31,8 +31,8 @@ fn test_dynamics() {
     for _ in 0..20 {
         let samples = round(xerp(2.0, 200_000.0, rnd.f64())) as usize;
         let sample_rate = 48000.0;
-        let mut x = limiter((samples as f64 / sample_rate, samples as f64 / sample_rate));
-        x.set_sample_rate(sample_rate);
+        let mut x = limiter(samples as f32 / sample_rate, samples as f32 / sample_rate);
+        x.set_sample_rate(sample_rate as f64);
         for _ in 0..samples {
             x.filter_mono(0.0);
         }
@@ -53,20 +53,22 @@ fn test_dynamics() {
     let mut m1 = monitor(&s1, Meter::Sample);
     let mut m2 = meter(Meter::Sample);
     for _ in 0..10000 {
-        let x = rnd.f64();
+        let x = rnd.f32();
         let x1 = m1.filter_mono(x);
         let x2 = m2.filter_mono(x);
-        assert!(x > 0.0 && x == x1 && x == x2);
+        assert_eq!(x, x1);
+        assert_eq!(x, x2);
         assert_eq!(x, s1.value());
     }
     let s1 = shared(0.0);
     let mut m1 = monitor(&s1, Meter::Peak(0.1));
     let mut m2 = meter(Meter::Peak(0.1));
     for _ in 0..10000 {
-        let x = rnd.f64();
+        let x = rnd.f32();
         let x1 = m1.filter_mono(x);
         let x2 = m2.filter_mono(x);
-        assert!(x > 0.0 && x == x1 && x2 >= 0.0);
+        assert_eq!(x, x1);
+        assert!(x2 >= 0.0);
         assert_eq!(x2, s1.value());
     }
 }

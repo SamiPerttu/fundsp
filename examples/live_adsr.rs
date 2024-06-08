@@ -23,7 +23,7 @@ use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, FromSample, SampleFormat, SizedSample, StreamConfig};
 use fundsp::hacker::{adsr_live, midi_hz, shared, triangle, var, Shared};
-use fundsp::prelude::AudioUnit64;
+use fundsp::prelude::AudioUnit;
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
 use midir::{Ignore, MidiInput, MidiInputPort};
 use read_input::prelude::*;
@@ -62,11 +62,11 @@ fn main() -> anyhow::Result<()> {
 /// * Finally, we modulate the volume further using the MIDI velocity.
 ///
 fn create_sound(
-    pitch: Shared<f64>,
-    volume: Shared<f64>,
-    pitch_bend: Shared<f64>,
-    control: Shared<f64>,
-) -> Box<dyn AudioUnit64> {
+    pitch: Shared,
+    volume: Shared,
+    pitch_bend: Shared,
+    control: Shared,
+) -> Box<dyn AudioUnit> {
     Box::new(
         var(&pitch_bend) * var(&pitch)
             >> triangle() * (var(&control) >> adsr_live(0.1, 0.2, 0.4, 0.2)) * var(&volume),
@@ -99,10 +99,10 @@ fn get_midi_device(midi_in: &mut MidiInput) -> anyhow::Result<MidiInputPort> {
 fn run_input(
     midi_in: MidiInput,
     in_port: MidiInputPort,
-    pitch: Shared<f64>,
-    volume: Shared<f64>,
-    pitch_bend: Shared<f64>,
-    control: Shared<f64>,
+    pitch: Shared,
+    volume: Shared,
+    pitch_bend: Shared,
+    control: Shared,
 ) -> anyhow::Result<()> {
     println!("\nOpening connection");
     let in_port_name = midi_in.port_name(&in_port)?;
@@ -116,18 +116,18 @@ fn run_input(
                     println!("Received {msg:?}");
                     match msg {
                         ChannelVoiceMsg::NoteOn { note, velocity } => {
-                            pitch.set_value(midi_hz(note as f64));
-                            volume.set_value(velocity as f64 / 127.0);
+                            pitch.set_value(midi_hz(note as f32));
+                            volume.set_value(velocity as f32 / 127.0);
                             pitch_bend.set_value(1.0);
                             control.set_value(1.0);
                         }
                         ChannelVoiceMsg::NoteOff { note, velocity: _ } => {
-                            if pitch.value() == midi_hz(note as f64) {
+                            if pitch.value() == midi_hz(note as f32) {
                                 control.set_value(-1.0);
                             }
                         }
                         ChannelVoiceMsg::PitchBend { bend } => {
-                            pitch_bend.set_value(pitch_bend_factor(bend));
+                            pitch_bend.set_value(pitch_bend_factor(bend) as f32);
                         }
                         _ => {}
                     }
@@ -144,12 +144,7 @@ fn run_input(
 }
 
 /// This function figures out the sample format and calls `run_synth()` accordingly.
-fn run_output(
-    pitch: Shared<f64>,
-    volume: Shared<f64>,
-    pitch_bend: Shared<f64>,
-    control: Shared<f64>,
-) {
+fn run_output(pitch: Shared, volume: Shared, pitch_bend: Shared, control: Shared) {
     let host = cpal::default_host();
     let device = host
         .default_output_device()
@@ -172,10 +167,10 @@ fn run_output(
 /// This function is where the sound is created and played. Once the sound is playing, it loops
 /// infinitely, allowing the `shared()` objects to shape the sound in response to MIDI events.
 fn run_synth<T: SizedSample + FromSample<f64>>(
-    pitch: Shared<f64>,
-    volume: Shared<f64>,
-    pitch_bend: Shared<f64>,
-    control: Shared<f64>,
+    pitch: Shared,
+    volume: Shared,
+    pitch_bend: Shared,
+    control: Shared,
     device: Device,
     config: StreamConfig,
 ) {
@@ -215,12 +210,12 @@ fn pitch_bend_factor(bend: u16) -> f64 {
 fn write_data<T: SizedSample + FromSample<f64>>(
     output: &mut [T],
     channels: usize,
-    next_sample: &mut dyn FnMut() -> (f64, f64),
+    next_sample: &mut dyn FnMut() -> (f32, f32),
 ) {
     for frame in output.chunks_mut(channels) {
         let sample = next_sample();
-        let left: T = T::from_sample(sample.0);
-        let right: T = T::from_sample(sample.1);
+        let left: T = T::from_sample(sample.0 as f64);
+        let right: T = T::from_sample(sample.1 as f64);
 
         for (channel, sample) in frame.iter_mut().enumerate() {
             *sample = if channel & 1 == 0 { left } else { right };

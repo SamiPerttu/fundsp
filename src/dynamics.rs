@@ -1,14 +1,17 @@
 //! Audio dynamics related components.
 
 use super::audionode::*;
-use super::combinator::*;
+use super::buffer::*;
 use super::follow::*;
 use super::math::*;
 use super::shared::*;
 use super::signal::*;
 use super::*;
+use core::sync::atomic::AtomicU32;
 use numeric_array::typenum::*;
-use std::sync::Arc;
+extern crate alloc;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 
 /// Binary operation for the monoidal reducer.
 pub trait Monoidal<T>: Clone {
@@ -17,7 +20,7 @@ pub trait Monoidal<T>: Clone {
 
 #[derive(Default, Clone)]
 pub struct Amplitude<T: Num> {
-    _marker: std::marker::PhantomData<T>,
+    _marker: core::marker::PhantomData<T>,
 }
 
 impl<T: Num> Amplitude<T> {
@@ -35,7 +38,7 @@ impl<T: Num> Monoidal<T> for Amplitude<T> {
 
 #[derive(Default, Clone)]
 pub struct Maximum<T: Num> {
-    _marker: std::marker::PhantomData<T>,
+    _marker: core::marker::PhantomData<T>,
 }
 
 impl<T: Num> Maximum<T> {
@@ -79,7 +82,7 @@ where
     pub fn new(length: usize, binop: B) -> Self {
         let leaf_offset = length.next_power_of_two();
         let mut buffer = Self {
-            buffer: vec![],
+            buffer: Vec::new(),
             length,
             leaf_offset,
             binop,
@@ -119,27 +122,23 @@ where
 
 /// Look-ahead limiter.
 #[derive(Clone)]
-pub struct Limiter<T, N, S>
+pub struct Limiter<N>
 where
-    T: Real,
-    N: Size<T>,
-    S: ScalarOrPair<Sample = T>,
+    N: Size<f32>,
 {
     lookahead: f64,
     #[allow(dead_code)]
     release: f64,
     sample_rate: f64,
-    reducer: ReduceBuffer<T, Maximum<T>>,
-    follower: AFollow<T, T, S>,
-    buffer: Vec<Frame<T, N>>,
+    reducer: ReduceBuffer<f32, Maximum<f32>>,
+    follower: AFollow<f32>,
+    buffer: Vec<Frame<f32, N>>,
     index: usize,
 }
 
-impl<T, N, S> Limiter<T, N, S>
+impl<N> Limiter<N>
 where
-    T: Real,
-    N: Size<T>,
-    S: ScalarOrPair<Sample = T>,
+    N: Size<f32>,
 {
     #[inline]
     fn advance(&mut self) {
@@ -153,41 +152,32 @@ where
         max(1, round(sample_rate * lookahead) as usize)
     }
 
-    fn new_buffer(sample_rate: f64, lookahead: f64) -> ReduceBuffer<T, Maximum<T>> {
+    fn new_buffer(sample_rate: f64, lookahead: f64) -> ReduceBuffer<f32, Maximum<f32>> {
         ReduceBuffer::new(Self::buffer_length(sample_rate, lookahead), Maximum::new())
     }
 
-    pub fn new(sample_rate: f64, time: S) -> Self {
-        let (lookahead, release) = time.broadcast();
+    pub fn new(sample_rate: f64, attack_time: f32, release_time: f32) -> Self {
+        let mut follower = AFollow::new(attack_time * 0.4, release_time * 0.4);
+        follower.set_sample_rate(sample_rate);
         Limiter {
-            lookahead: lookahead.to_f64(),
-            release: release.to_f64(),
+            lookahead: attack_time as f64,
+            release: release_time as f64,
             sample_rate,
-            follower: AFollow::new(
-                sample_rate,
-                S::construct(
-                    lookahead * convert::<f64, T>(0.4),
-                    release * convert::<f64, T>(0.4),
-                ),
-            ),
-            buffer: vec![],
-            reducer: Self::new_buffer(sample_rate, lookahead.to_f64()),
+            follower,
+            buffer: Vec::new(),
+            reducer: Self::new_buffer(sample_rate, attack_time.to_f64()),
             index: 0,
         }
     }
 }
 
-impl<T, N, S> AudioNode for Limiter<T, N, S>
+impl<N> AudioNode for Limiter<N>
 where
-    T: Real,
-    N: Size<T>,
-    S: ScalarOrPair<Sample = T>,
+    N: Size<f32>,
 {
     const ID: u64 = 25;
-    type Sample = T;
     type Inputs = N;
     type Outputs = N;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.set_sample_rate(self.sample_rate);
@@ -206,11 +196,8 @@ where
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        let amplitude = input.iter().fold(T::zero(), |amp, &x| max(amp, abs(x)));
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let amplitude = input.iter().fold(0.0, |amp, &x| max(amp, abs(x)));
         self.reducer.set(self.index, amplitude);
         if self.buffer.len() < self.reducer.length() {
             // We are filling up the initial buffer.
@@ -226,18 +213,18 @@ where
             self.buffer[self.index] = input.clone();
             // Leave some headroom.
             self.follower
-                .filter_mono(max(T::one(), self.reducer.total() * T::from_f64(1.10)));
+                .filter_mono(max(1.0, self.reducer.total() * 1.10));
             self.advance();
             let limit = self.follower.value();
-            output * Frame::splat(T::from_f64(1.0) / limit)
+            output * Frame::splat(1.0 / limit)
         }
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
+        let mut output = SignalFrame::new(self.outputs());
         for i in 0..N::USIZE {
             // We pretend that the limiter does not alter the frequency response.
-            output[i] = input[i].delay(self.reducer.length() as f64);
+            output.set(i, input.at(i).delay(self.reducer.length() as f64));
         }
         output
     }
@@ -255,31 +242,28 @@ where
 /// - Input 0: input signal
 /// - Output 0: filtered signal
 #[derive(Default, Clone)]
-pub struct Declick<T: Float, F: Real> {
-    _marker: std::marker::PhantomData<T>,
+pub struct Declick<F: Real> {
     t: F,
     duration: F,
     sample_duration: F,
     sample_rate: f64,
 }
 
-impl<T: Float, F: Real> Declick<T, F> {
-    pub fn new(sample_rate: f64, duration: F) -> Self {
-        let mut node = Declick::<T, F> {
+impl<F: Real> Declick<F> {
+    pub fn new(duration: F) -> Self {
+        let mut node = Self {
             duration,
             ..Default::default()
         };
-        node.set_sample_rate(sample_rate);
+        node.set_sample_rate(DEFAULT_SR);
         node
     }
 }
 
-impl<T: Float, F: Real> AudioNode for Declick<T, F> {
+impl<F: Real> AudioNode for Declick<F> {
     const ID: u64 = 23;
-    type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.t = F::zero();
@@ -291,27 +275,20 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if self.t < self.duration {
             let phase = delerp(F::zero(), self.duration, self.t);
             let value = smooth5(phase);
             self.t += self.sample_duration;
-            [input[0] * convert(value)].into()
+            [input[0] * value.to_f32()].into()
         } else {
             [input[0]].into()
         }
     }
 
-    fn process(
-        &mut self,
-        size: usize,
-        input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
-        output[0][..size].clone_from_slice(&input[0][..size]);
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        output.channel_mut(0)[..simd_items(size)]
+            .clone_from_slice(&input.channel(0)[..simd_items(size)]);
         if self.t < self.duration {
             let mut phase = delerp(F::zero(), self.duration, self.t);
             let phase_d = self.sample_duration / self.duration;
@@ -321,8 +298,8 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
             } else {
                 size
             };
-            for x in output[0][0..end_index].iter_mut() {
-                *x *= convert(smooth5(phase));
+            for x in output.channel_f32_mut(0)[0..end_index].iter_mut() {
+                *x *= smooth5(phase).to_f32();
                 phase += phase_d;
             }
             self.t = end_time;
@@ -330,10 +307,8 @@ impl<T: Float, F: Real> AudioNode for Declick<T, F> {
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
         // We pretend that the declicker does not alter the frequency response.
-        output[0] = input[0];
-        output
+        input.clone()
     }
 }
 
@@ -358,19 +333,19 @@ impl Meter {
 }
 
 #[derive(Clone)]
-pub struct MeterState<T: Real> {
+pub struct MeterState {
     /// Per-sample smoothing calculated from smoothing timescale.
-    smoothing: T,
+    smoothing: f32,
     /// Current meter level.
-    state: T,
+    state: f32,
 }
 
-impl<T: Real> MeterState<T> {
+impl MeterState {
     /// Create a new MeterState for the given metering mode.
     pub fn new(meter: Meter) -> Self {
         let mut state = Self {
-            smoothing: T::zero(),
-            state: T::zero(),
+            smoothing: 0.0,
+            state: 0.0,
         };
         state.set_sample_rate(meter, DEFAULT_SR);
         state
@@ -378,7 +353,7 @@ impl<T: Real> MeterState<T> {
 
     /// Reset meter state.
     pub fn reset(&mut self, _meter: Meter) {
-        self.state = T::zero();
+        self.state = 0.0;
     }
 
     /// Set meter sample rate.
@@ -390,25 +365,24 @@ impl<T: Real> MeterState<T> {
             Meter::Peak(timescale) => timescale,
             Meter::Rms(timescale) => timescale,
         };
-        self.smoothing = T::from_f64(pow(0.5, 1.0 / (timescale * sample_rate)));
+        self.smoothing = (pow(0.5f64, 1.0 / (timescale * sample_rate))).to_f32();
     }
 
     /// Process an input sample.
     #[inline]
-    pub fn tick(&mut self, meter: Meter, value: T) {
+    pub fn tick(&mut self, meter: Meter, value: f32) {
         match meter {
             Meter::Sample => self.state = value,
             Meter::Peak(_) => self.state = max(self.state * self.smoothing, abs(value)),
             Meter::Rms(_) => {
-                self.state =
-                    self.state * self.smoothing + squared(value) * (T::one() - self.smoothing)
+                self.state = self.state * self.smoothing + squared(value) * (1.0 - self.smoothing)
             }
         }
     }
 
     /// Current meter level.
     #[inline]
-    pub fn level(&self, meter: Meter) -> T {
+    pub fn level(&self, meter: Meter) -> f32 {
         match meter {
             Meter::Sample => self.state,
             Meter::Peak(_) => self.state,
@@ -421,12 +395,12 @@ impl<T: Real> MeterState<T> {
 /// - Input 0: input signal
 /// - Output 0: input summary
 #[derive(Clone)]
-pub struct MeterNode<T: Real> {
+pub struct MeterNode {
     meter: Meter,
-    state: MeterState<T>,
+    state: MeterState,
 }
 
-impl<T: Real> MeterNode<T> {
+impl MeterNode {
     /// Create a new metering node.
     pub fn new(meter: Meter) -> Self {
         Self {
@@ -436,12 +410,10 @@ impl<T: Real> MeterNode<T> {
     }
 }
 
-impl<T: Real> AudioNode for MeterNode<T> {
+impl AudioNode for MeterNode {
     const ID: u64 = 61;
-    type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.state.reset(self.meter);
@@ -452,42 +424,27 @@ impl<T: Real> AudioNode for MeterNode<T> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         self.state.tick(self.meter, input[0]);
         [convert(self.state.level(self.meter))].into()
     }
 
-    fn process(
-        &mut self,
-        size: usize,
-        input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
-        for i in 0..size {
-            self.state.tick(self.meter, input[0][i]);
-            output[0][i] = convert(self.state.level(self.meter));
-        }
-    }
-
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].distort(0.0);
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(0, input.at(0).distort(0.0));
         output
     }
 }
 
 /// Pass through input unchanged.
 /// Summary of the input signal is placed in a shared variable.
-pub struct Monitor<T: Real + Atomic> {
+pub struct Monitor {
     meter: Meter,
-    state: MeterState<T>,
-    shared: Arc<T::Storage>,
+    state: MeterState,
+    shared: Arc<AtomicU32>,
 }
 
-impl<T: Real + Atomic> Clone for Monitor<T> {
+impl Clone for Monitor {
     fn clone(&self) -> Self {
         Self {
             meter: self.meter,
@@ -497,9 +454,9 @@ impl<T: Real + Atomic> Clone for Monitor<T> {
     }
 }
 
-impl<T: Real + Atomic> Monitor<T> {
+impl Monitor {
     /// Create a new monitor node.
-    pub fn new(shared: &Shared<T>, meter: Meter) -> Self {
+    pub fn new(shared: &Shared, meter: Meter) -> Self {
         Self {
             meter,
             state: MeterState::new(meter),
@@ -508,12 +465,10 @@ impl<T: Real + Atomic> Monitor<T> {
     }
 }
 
-impl<T: Real + Atomic> AudioNode for Monitor<T> {
+impl AudioNode for Monitor {
     const ID: u64 = 56;
-    type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.state.reset(self.meter);
@@ -524,34 +479,27 @@ impl<T: Real + Atomic> AudioNode for Monitor<T> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         self.state.tick(self.meter, input[0]);
-        T::store(&self.shared, self.state.level(self.meter));
+        f32::store(&self.shared, self.state.level(self.meter));
         *input
     }
 
-    fn process(
-        &mut self,
-        size: usize,
-        input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         if size == 0 {
             return;
         }
         if self.meter.latest_only() {
-            self.state.tick(self.meter, input[0][size - 1]);
+            self.state.tick(self.meter, input.at_f32(0, size - 1));
         } else {
             for i in 0..size {
-                self.state.tick(self.meter, input[0][i]);
+                self.state.tick(self.meter, input.at_f32(0, i));
             }
         }
         // For efficiency, store the value only once per block.
-        T::store(&self.shared, self.state.level(self.meter));
-        output[0][..size].clone_from_slice(&input[0][..size]);
+        f32::store(&self.shared, self.state.level(self.meter));
+        output.channel_mut(0)[..simd_items(size)]
+            .clone_from_slice(&input.channel(0)[..simd_items(size)]);
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {

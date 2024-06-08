@@ -3,12 +3,14 @@
 //! See <https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf>.
 
 use super::audionode::*;
+use super::buffer::*;
 use super::math::*;
+use super::setting::*;
 use super::signal::*;
 use super::*;
+use core::marker::PhantomData;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
-use std::marker::PhantomData;
 
 /// State variable filter coefficients, generic formulation.
 #[derive(Clone, Default)]
@@ -24,7 +26,7 @@ pub struct SvfCoeffs<F: Real> {
 impl<F: Real> SvfCoeffs<F> {
     /// Calculate coefficients for a lowpass filter.
     pub fn lowpass(sample_rate: F, cutoff: F, q: F) -> Self {
-        let g = tan(F::from_f64(PI) * cutoff / sample_rate);
+        let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate);
         let k = F::one() / q;
         let a1 = F::one() / (F::one() + g * (g + k));
         let a2 = g * a1;
@@ -45,7 +47,7 @@ impl<F: Real> SvfCoeffs<F> {
 
     /// Calculate coefficients for a highpass filter.
     pub fn highpass(sample_rate: F, cutoff: F, q: F) -> Self {
-        let g = tan(F::from_f64(PI) * cutoff / sample_rate);
+        let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate);
         let k = F::one() / q;
         let a1 = F::one() / (F::one() + g * (g + k));
         let a2 = g * a1;
@@ -66,7 +68,7 @@ impl<F: Real> SvfCoeffs<F> {
 
     /// Calculate coefficients for a bandpass filter.
     pub fn bandpass(sample_rate: F, cutoff: F, q: F) -> Self {
-        let g = tan(F::from_f64(PI) * cutoff / sample_rate);
+        let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate);
         let k = F::one() / q;
         let a1 = F::one() / (F::one() + g * (g + k));
         let a2 = g * a1;
@@ -87,7 +89,7 @@ impl<F: Real> SvfCoeffs<F> {
 
     /// Calculate coefficients for a notch filter.
     pub fn notch(sample_rate: F, cutoff: F, q: F) -> Self {
-        let g = tan(F::from_f64(PI) * cutoff / sample_rate);
+        let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate);
         let k = F::one() / q;
         let a1 = F::one() / (F::one() + g * (g + k));
         let a2 = g * a1;
@@ -108,7 +110,7 @@ impl<F: Real> SvfCoeffs<F> {
 
     /// Calculate coefficients for a peak filter.
     pub fn peak(sample_rate: F, cutoff: F, q: F) -> Self {
-        let g = tan(F::from_f64(PI) * cutoff / sample_rate);
+        let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate);
         let k = F::one() / q;
         let a1 = F::one() / (F::one() + g * (g + k));
         let a2 = g * a1;
@@ -129,7 +131,7 @@ impl<F: Real> SvfCoeffs<F> {
 
     /// Calculate coefficients for an allpass filter.
     pub fn allpass(sample_rate: F, cutoff: F, q: F) -> Self {
-        let g = tan(F::from_f64(PI) * cutoff / sample_rate);
+        let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate);
         let k = F::one() / q;
         let a1 = F::one() / (F::one() + g * (g + k));
         let a2 = g * a1;
@@ -152,7 +154,7 @@ impl<F: Real> SvfCoeffs<F> {
     /// Gain is amplitude gain (gain > 0).
     pub fn bell(sample_rate: F, cutoff: F, q: F, gain: F) -> Self {
         let a = sqrt(gain);
-        let g = tan(F::from_f64(PI) * cutoff / sample_rate);
+        let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate);
         let k = F::one() / (q * a);
         let a1 = F::one() / (F::one() + g * (g + k));
         let a2 = g * a1;
@@ -175,7 +177,7 @@ impl<F: Real> SvfCoeffs<F> {
     /// Gain is amplitude gain (gain > 0).
     pub fn lowshelf(sample_rate: F, cutoff: F, q: F, gain: F) -> Self {
         let a = sqrt(gain);
-        let g = tan(F::from_f64(PI) * cutoff / sample_rate) / sqrt(a);
+        let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate) / sqrt(a);
         let k = F::one() / q;
         let a1 = F::one() / (F::one() + g * (g + k));
         let a2 = g * a1;
@@ -198,7 +200,7 @@ impl<F: Real> SvfCoeffs<F> {
     /// Gain is amplitude gain (gain > 0).
     pub fn highshelf(sample_rate: F, cutoff: F, q: F, gain: F) -> Self {
         let a = sqrt(gain);
-        let g = tan(F::from_f64(PI) * cutoff / sample_rate) * sqrt(a);
+        let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate) * sqrt(a);
         let k = F::one() / q;
         let a1 = F::one() / (F::one() + g * (g + k));
         let a2 = g * a1;
@@ -326,9 +328,9 @@ impl<F: Real> SvfMode<F> for LowpassMode<F> {
     }
 
     fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
-        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let g = tan(f64::PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
         let k = 1.0 / params.q.to_f64();
-        let f = frequency * TAU / params.sample_rate.to_f64();
+        let f = frequency * f64::TAU / params.sample_rate.to_f64();
         let z = Complex64::from_polar(1.0, f);
         (g * g * (1.0 + z) * (1.0 + z))
             / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
@@ -385,9 +387,9 @@ impl<F: Real> SvfMode<F> for HighpassMode<F> {
     }
 
     fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
-        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let g = tan(f64::PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
         let k = 1.0 / params.q.to_f64();
-        let f = frequency * TAU / params.sample_rate.to_f64();
+        let f = frequency * f64::TAU / params.sample_rate.to_f64();
         let z = Complex64::from_polar(1.0, f);
         ((z - 1.0) * (z - 1.0))
             / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
@@ -444,9 +446,9 @@ impl<F: Real> SvfMode<F> for BandpassMode<F> {
     }
 
     fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
-        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let g = tan(f64::PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
         let k = 1.0 / params.q.to_f64();
-        let f = frequency * TAU / params.sample_rate.to_f64();
+        let f = frequency * f64::TAU / params.sample_rate.to_f64();
         let z = Complex64::from_polar(1.0, f);
         (g * (z * z - 1.0))
             / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
@@ -503,9 +505,9 @@ impl<F: Real> SvfMode<F> for NotchMode<F> {
     }
 
     fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
-        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let g = tan(f64::PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
         let k = 1.0 / params.q.to_f64();
-        let f = frequency * TAU / params.sample_rate.to_f64();
+        let f = frequency * f64::TAU / params.sample_rate.to_f64();
         let z = Complex64::from_polar(1.0, f);
         ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z))
             / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
@@ -562,9 +564,9 @@ impl<F: Real> SvfMode<F> for PeakMode<F> {
     }
 
     fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
-        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let g = tan(f64::PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
         let k = 1.0 / params.q.to_f64();
-        let f = frequency * TAU / params.sample_rate.to_f64();
+        let f = frequency * f64::TAU / params.sample_rate.to_f64();
         let z = Complex64::from_polar(1.0, f);
         // Note: this is the negation of the transfer function reported in the derivation.
         -((1.0 + g + (g - 1.0) * z) * (-1.0 + g + z + g * z))
@@ -622,9 +624,9 @@ impl<F: Real> SvfMode<F> for AllpassMode<F> {
     }
 
     fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
-        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let g = tan(f64::PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
         let k = 1.0 / params.q.to_f64();
-        let f = frequency * TAU / params.sample_rate.to_f64();
+        let f = frequency * f64::TAU / params.sample_rate.to_f64();
         let z = Complex64::from_polar(1.0, f);
         ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * (k - k * z * z))
             / ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z) + g * k * (z * z - 1.0))
@@ -686,9 +688,9 @@ impl<F: Real> SvfMode<F> for BellMode<F> {
 
     fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
         let a = sqrt(params.gain.to_f64());
-        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let g = tan(f64::PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
         let k = 1.0 / params.q.to_f64();
-        let z = Complex64::from_polar(1.0, frequency * TAU / params.sample_rate.to_f64());
+        let z = Complex64::from_polar(1.0, frequency * f64::TAU / params.sample_rate.to_f64());
         (g * k * (z * z - 1.0)
             + a * (g * (1.0 + z) * ((a * a - 1.0) * k / a * (z - 1.0))
                 + ((z - 1.0) * (z - 1.0) + g * g * (1.0 + z) * (1.0 + z))))
@@ -751,9 +753,9 @@ impl<F: Real> SvfMode<F> for LowshelfMode<F> {
 
     fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
         let a = sqrt(params.gain.to_f64());
-        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let g = tan(f64::PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
         let k = 1.0 / params.q.to_f64();
-        let z = Complex64::from_polar(1.0, frequency * TAU / params.sample_rate.to_f64());
+        let z = Complex64::from_polar(1.0, frequency * f64::TAU / params.sample_rate.to_f64());
         let sqrt_a = sqrt(a);
         (a * (z - 1.0) * (z - 1.0)
             + g * g * a * a * (z + 1.0) * (z + 1.0)
@@ -819,9 +821,9 @@ impl<F: Real> SvfMode<F> for HighshelfMode<F> {
 
     fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64 {
         let a = sqrt(params.gain.to_f64());
-        let g = tan(PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
+        let g = tan(f64::PI * params.cutoff.to_f64() / params.sample_rate.to_f64());
         let k = 1.0 / params.q.to_f64();
-        let z = Complex64::from_polar(1.0, frequency * TAU / params.sample_rate.to_f64());
+        let z = Complex64::from_polar(1.0, frequency * f64::TAU / params.sample_rate.to_f64());
         let sqrt_a = sqrt(a);
         (sqrt_a
             * g
@@ -841,27 +843,24 @@ impl<F: Real> SvfMode<F> for HighshelfMode<F> {
 /// - Inputs: see descriptions of the filter modes.
 /// - Output 0: filtered audio
 #[derive(Default, Clone)]
-pub struct Svf<T, F, M>
+pub struct Svf<F, M>
 where
-    T: Float,
     F: Real,
     M: SvfMode<F>,
-    M::Inputs: Size<T>,
+    M::Inputs: Size<f32>,
 {
     mode: M,
     params: SvfParams<F>,
     coeffs: SvfCoeffs<F>,
     ic1eq: F,
     ic2eq: F,
-    _marker: PhantomData<T>,
 }
 
-impl<T, F, M> Svf<T, F, M>
+impl<F, M> Svf<F, M>
 where
-    T: Float,
     F: Real,
     M: SvfMode<F>,
-    M::Inputs: Size<T>,
+    M::Inputs: Size<f32>,
 {
     pub fn new(mode: M, params: &SvfParams<F>) -> Self {
         let params = params.clone();
@@ -874,7 +873,6 @@ where
             coeffs,
             ic1eq: F::zero(),
             ic2eq: F::zero(),
-            _marker: PhantomData,
         }
     }
 
@@ -905,18 +903,15 @@ where
     }
 }
 
-impl<T, F, M> AudioNode for Svf<T, F, M>
+impl<F, M> AudioNode for Svf<F, M>
 where
-    T: Float,
     F: Real,
     M: SvfMode<F>,
-    M::Inputs: Size<T>,
+    M::Inputs: Size<f32>,
 {
     const ID: u64 = 36;
-    type Sample = T;
     type Inputs = M::Inputs;
     type Outputs = U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.ic1eq = F::zero();
@@ -929,10 +924,7 @@ where
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         // Update parameters from input.
         let input = Frame::generate(|i| convert(input[i]));
         self.mode
@@ -950,8 +942,13 @@ where
     }
 
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| r * self.mode.response(&self.params, frequency));
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input
+                .at(0)
+                .filter(0.0, |r| r * self.mode.response(&self.params, frequency)),
+        );
         output
     }
 }
@@ -961,9 +958,8 @@ where
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[derive(Default, Clone)]
-pub struct FixedSvf<T, F, M>
+pub struct FixedSvf<F, M>
 where
-    T: Float,
     F: Real,
     M: SvfMode<F>,
 {
@@ -972,12 +968,10 @@ where
     coeffs: SvfCoeffs<F>,
     ic1eq: F,
     ic2eq: F,
-    _marker: PhantomData<T>,
 }
 
-impl<T, F, M> FixedSvf<T, F, M>
+impl<F, M> FixedSvf<F, M>
 where
-    T: Float,
     F: Real,
     M: SvfMode<F>,
 {
@@ -992,7 +986,6 @@ where
             coeffs,
             ic1eq: F::zero(),
             ic2eq: F::zero(),
-            _marker: PhantomData,
         }
     }
 
@@ -1079,21 +1072,14 @@ where
     }
 }
 
-impl<T, F, M> AudioNode for FixedSvf<T, F, M>
+impl<F, M> AudioNode for FixedSvf<F, M>
 where
-    T: Float,
     F: Real,
     M: SvfMode<F>,
 {
     const ID: u64 = 43;
-    type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = M::Setting;
-
-    fn set(&mut self, setting: Self::Setting) {
-        self.mode.set(setting, &mut self.params, &mut self.coeffs);
-    }
 
     fn reset(&mut self) {
         self.ic1eq = F::zero();
@@ -1106,10 +1092,7 @@ where
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let v0 = convert(input[0]);
         let v3 = v0 - self.ic2eq;
         let v1 = self.coeffs.a1 * self.ic1eq + self.coeffs.a2 * v3;
@@ -1122,11 +1105,27 @@ where
         .into()
     }
 
-    // Note. Implementing an optimized process() here seems to make no difference in performance.
+    fn set(&mut self, setting: Setting) {
+        match setting.parameter() {
+            Parameter::Center(center) => self.set_center(F::from_f32(*center)),
+            Parameter::CenterQ(center, q) => {
+                self.set_center_q(F::from_f32(*center), F::from_f32(*q))
+            }
+            Parameter::CenterQGain(center, q, gain) => {
+                self.set_center_q_gain(F::from_f32(*center), F::from_f32(*q), F::from_f32(*gain))
+            }
+            _ => (),
+        }
+    }
 
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| r * self.mode.response(&self.params, frequency));
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input
+                .at(0)
+                .filter(0.0, |r| r * self.mode.response(&self.params, frequency)),
+        );
         output
     }
 }
@@ -1138,22 +1137,22 @@ where
 /// - Input 3: morph in -1...1 (-1 = lowpass, 0 = peak, 1 = highpass)
 /// - Output 0: filtered signal
 #[derive(Clone)]
-pub struct Morph<T: Float, F: Real> {
-    filter: Svf<T, F, PeakMode<F>>,
-    morph: T,
+pub struct Morph<F: Real> {
+    filter: Svf<F, PeakMode<F>>,
+    morph: f32,
 }
 
-impl<T: Float, F: Real> Morph<T, F> {
-    pub fn new(sample_rate: f64, cutoff: F, q: F, morph: T) -> Self {
+impl<F: Real> Morph<F> {
+    pub fn new(cutoff: F, q: F, morph: F) -> Self {
         let params = SvfParams {
-            sample_rate: convert(sample_rate),
+            sample_rate: F::from_f64(DEFAULT_SR),
             cutoff,
             q,
             gain: F::zero(),
         };
         let mut node = Self {
             filter: Svf::new(PeakMode::new(), &params),
-            morph,
+            morph: convert(morph),
         };
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
@@ -1161,12 +1160,10 @@ impl<T: Float, F: Real> Morph<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for Morph<T, F> {
+impl<F: Real> AudioNode for Morph<F> {
     const ID: u64 = 62;
-    type Sample = T;
     type Inputs = U4;
     type Outputs = U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.filter.reset();
@@ -1177,35 +1174,34 @@ impl<T: Float, F: Real> AudioNode for Morph<T, F> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         self.morph = input[3];
         let filter_out = self.filter.tick(Frame::from_slice(&input[0..3]));
-        [(filter_out[0] + input[3] * input[0]) * T::from_f32(0.5)].into()
+        [(filter_out[0] + input[3] * input[0]) * 0.5].into()
     }
 
-    fn process(
-        &mut self,
-        size: usize,
-        input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
-        self.filter.process(size, &input[0..3], output);
-        for i in 0..size {
-            output[0][i] = (output[0][i] + input[0][i] * input[3][i]) * T::from_f32(0.5);
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        self.filter.process(size, &input.subset(0, 3), output);
+        for i in 0..simd_items(size) {
+            output.set(
+                0,
+                i,
+                (output.at(0, i) + input.at(0, i) * input.at(3, i)) * 0.5,
+            );
         }
         if size > 0 {
-            self.morph = input[3][size - 1];
+            self.morph = input.at_f32(3, size - 1);
         }
     }
 
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         let mut output = self.filter.route(input, frequency);
-        output[0] = output[0].filter(0.0, |r| {
-            (r + Complex64::new(self.morph.to_f64(), 0.0)) * 0.5
-        });
+        output.set(
+            0,
+            output.at(0).filter(0.0, |r| {
+                (r + Complex64::new(self.morph.to_f64(), 0.0)) * 0.5
+            }),
+        );
         output
     }
 

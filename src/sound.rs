@@ -5,12 +5,12 @@ use funutd::*;
 
 /// Sound 001. Risset Glissando, stereo.
 /// The direction of sound is up (true) or down (false).
-pub fn risset_glissando(up: bool) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U2>> {
-    stack::<U40, _, _>(|i| {
+pub fn risset_glissando(up: bool) -> An<impl AudioNode<Inputs = U0, Outputs = U2>> {
+    stacki::<U40, _, _>(|i| {
         lfo(move |t| {
             let (f0, f1) = if up { (20.0, 20480.0) } else { (20480.0, 20.0) };
             let phase = (t * 0.1 + i as f64 * 10.0 / 40.0) % 10.0 / 10.0;
-            let f = lerp(-1.0, 1.0, rnd(i)) + xerp(f0, f1, phase);
+            let f = lerp(-1.0, 1.0, rnd1(i)) + xerp(f0, f1, phase);
             let a = smooth3(sin_hz(0.5, phase)) / a_weight(f);
             (a, f)
         }) >> pass() * sine()
@@ -19,14 +19,13 @@ pub fn risset_glissando(up: bool) -> An<impl AudioNode<Sample = f64, Inputs = U0
 
 /// Sound 002. Dynamical system example that harmonizes a chaotic set of pitches.
 /// `speed` is rate of motion (for example, 1.0).
-pub fn pebbles(
-    speed: f64,
-    seed: i64,
-) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
-    let mut d = [0.0f64; 100];
+pub fn pebbles(speed: f32, seed: u64) -> An<impl AudioNode<Inputs = U0, Outputs = U1>> {
+    let mut d = [0.0; 100];
 
     update(
-        bus::<U100, _, _>(move |i| dc(xerp(50.0, 5000.0, rnd(i ^ seed))) >> follow(0.01) >> sine()),
+        busi::<U100, _, _>(move |i| {
+            dc(xerp(50.0, 5000.0, rnd1(i ^ seed) as f32)) >> follow(0.01) >> sine()
+        }),
         0.01,
         move |t, dt, x| {
             // We receive 1 update at time zero.
@@ -66,11 +65,12 @@ pub fn pebbles(
 /// Sound 003. An 808 style bass drum, mono. `sharpness` in 0...1 is the sharpness of the click (for example, 0.2).
 /// `pitch0` is click frequency in Hz (for example, 180.0). `pitch1` is the base pitch of the drum in Hz (for example, 60.0).
 pub fn bassdrum(
-    sharpness: f64,
-    pitch0: f64,
-    pitch1: f64,
-) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
-    let sweep = lfo(move |t| xerp(pitch0, pitch1, clamp01(t * 50.0)) - 10.0 * t) >> sine();
+    sharpness: f32,
+    pitch0: f32,
+    pitch1: f32,
+) -> An<impl AudioNode<Inputs = U0, Outputs = U1>> {
+    let sweep =
+        lfo(move |t| xerp(pitch0 as f64, pitch1 as f64, clamp01(t * 50.0)) - 10.0 * t) >> sine();
 
     let volume = lfo(|t| exp(-t * 9.0));
 
@@ -79,10 +79,7 @@ pub fn bassdrum(
 
 /// Sound 004. A snare drum, mono. Different `seed` values produce small variations of the same sound.
 /// `sharpness` in 0...1 is the sharpness of the attack (for example, 0.3).
-pub fn snaredrum(
-    seed: i64,
-    sharpness: f64,
-) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+pub fn snaredrum(seed: i64, sharpness: f32) -> An<impl AudioNode<Inputs = U0, Outputs = U1>> {
     let mut rnd = Rnd::from_u64(seed as u64);
     // Snare drum mode frequencies.
     let f0 = 180.0;
@@ -120,14 +117,14 @@ pub fn snaredrum(
 }
 
 /// Sound 005. Some kind of cymbal, mono. Different `seed` values produce small variations of the same sound.
-pub fn cymbal(seed: i64) -> An<impl AudioNode<Sample = f64, Inputs = U0, Outputs = U1>> {
+pub fn cymbal(seed: i64) -> An<impl AudioNode<Inputs = U0, Outputs = U1>> {
     let mut rnd = Rnd::from_u64(seed as u64);
-    let f1 = 1339.0586 + 5.0 * (rnd.f64() * 2.0 - 1.0);
-    let f2 = 1703.2929 + 5.0 * (rnd.f64() * 2.0 - 1.0);
-    let f3 = 2090.1314 + 5.0 * (rnd.f64() * 2.0 - 1.0);
-    let f4 = 1425.6187 + 5.0 * (rnd.f64() * 2.0 - 1.0);
-    let f5 = 1189.1727 + 5.0 * (rnd.f64() * 2.0 - 1.0);
-    let f6 = 1954.3242 + 5.0 * (rnd.f64() * 2.0 - 1.0);
+    let f1 = 1339.0586 + 5.0 * (rnd.f32() * 2.0 - 1.0);
+    let f2 = 1703.2929 + 5.0 * (rnd.f32() * 2.0 - 1.0);
+    let f3 = 2090.1314 + 5.0 * (rnd.f32() * 2.0 - 1.0);
+    let f4 = 1425.6187 + 5.0 * (rnd.f32() * 2.0 - 1.0);
+    let f5 = 1189.1727 + 5.0 * (rnd.f32() * 2.0 - 1.0);
+    let f6 = 1954.3242 + 5.0 * (rnd.f32() * 2.0 - 1.0);
     let m1 = 54127.0;
     let m2 = 43480.0;
     let m3 = 56771.0;

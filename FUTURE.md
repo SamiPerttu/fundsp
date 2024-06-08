@@ -10,7 +10,6 @@ This is a list of feature ideas for the future.
 - More physical models. Karplus-Strong exists already; figure out if it could be improved somehow.
 - Dynamic bypass wrapper that bypasses a node when input and output levels drop low enough.
 - Improve basic effects implemented in graph notation such as `reverb` (e.g., early reflections), `chorus`, `flanger` and `phaser`.
-- Some kind of parameter system that works with both `AudioNode` and `AudioUnit` systems. At its simplest, it could be a key-value system with a fixed set of keys.
 - More sound generators in the `gen` module.
 - Improve or replace the drum sounds in the library.
 - Real-time safe sound server that uses `cpal`. It could have a static set of read/write channels for rendering audio, including hardware channels.
@@ -19,3 +18,4 @@ This is a list of feature ideas for the future.
 - Expand `README.md` into a book.
 - Time stretching / pitch shifting algorithm.
 - FFT convolution engine and HRTF support.
+- Fading nodes in and out when replacing a node in `Net`.

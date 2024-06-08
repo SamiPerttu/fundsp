@@ -1,16 +1,18 @@
 //! Panning functionality.
 
 use super::audionode::*;
+use super::buffer::*;
 use super::math::*;
+use super::setting::*;
 use super::signal::*;
 use super::*;
+use core::marker::PhantomData;
 use numeric_array::*;
-use std::marker::PhantomData;
 
 /// Return equal power pan weights for pan value in -1...1.
 #[inline]
 fn pan_weights<T: Real>(value: T) -> (T, T) {
-    let angle = (clamp11(value) + T::one()) * T::from_f64(PI * 0.25);
+    let angle = (clamp11(value) + T::one()) * (T::PI * T::from_f32(0.25));
     (cos(angle), sin(angle))
 }
 
@@ -21,14 +23,14 @@ fn pan_weights<T: Real>(value: T) -> (T, T) {
 /// Output 0: left output
 /// Output 1: right output
 #[derive(Clone)]
-pub struct Panner<T: Real, N: Size<T>> {
-    _marker: PhantomData<(T, N)>,
-    left_weight: T,
-    right_weight: T,
+pub struct Panner<N: Size<f32>> {
+    _marker: PhantomData<N>,
+    left_weight: f32,
+    right_weight: f32,
 }
 
-impl<T: Real, N: Size<T>> Panner<T, N> {
-    pub fn new(value: T) -> Self {
+impl<N: Size<f32>> Panner<N> {
+    pub fn new(value: f32) -> Self {
         let (left_weight, right_weight) = pan_weights(value);
         Self {
             _marker: PhantomData,
@@ -37,29 +39,20 @@ impl<T: Real, N: Size<T>> Panner<T, N> {
         }
     }
     #[inline]
-    pub fn set_pan(&mut self, value: T) {
+    pub fn set_pan(&mut self, value: f32) {
         let (left_weight, right_weight) = pan_weights(value);
         self.left_weight = left_weight;
         self.right_weight = right_weight;
     }
 }
 
-impl<T: Real, N: Size<T>> AudioNode for Panner<T, N> {
+impl<N: Size<f32>> AudioNode for Panner<N> {
     const ID: u64 = 49;
-    type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U2;
-    type Setting = T;
-
-    fn set(&mut self, setting: Self::Setting) {
-        self.set_pan(setting);
-    }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if N::USIZE > 1 {
             let value = input[1];
             self.set_pan(value);
@@ -67,76 +60,69 @@ impl<T: Real, N: Size<T>> AudioNode for Panner<T, N> {
         [self.left_weight * input[0], self.right_weight * input[0]].into()
     }
 
-    fn process(
-        &mut self,
-        size: usize,
-        input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
-        output[0][..size].clone_from_slice(&input[0][..size]);
-        output[1][..size].clone_from_slice(&input[0][..size]);
-        for i in 0..size {
-            if N::USIZE > 1 {
-                let value = input[1][i];
-                let (left_weight, right_weight) = pan_weights(value);
-                self.left_weight = left_weight;
-                self.right_weight = right_weight;
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        if N::USIZE == 1 {
+            for i in 0..simd_items(size) {
+                output.set(0, i, input.at(0, i) * self.left_weight);
+                output.set(1, i, input.at(0, i) * self.right_weight);
             }
-            output[0][i] *= self.left_weight;
-            output[1][i] *= self.right_weight;
+        } else {
+            for i in 0..size {
+                self.set_pan(input.at_f32(1, i));
+                output.set_f32(0, i, input.at_f32(0, i) * self.left_weight);
+                output.set_f32(1, i, input.at_f32(0, i) * self.right_weight);
+            }
+        }
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Pan(pan) = setting.parameter() {
+            self.set_pan(*pan);
         }
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
+        let mut output = SignalFrame::new(self.outputs());
         // Pretend the pan value is constant.
-        output[0] = input[0].scale(self.left_weight.to_f64());
-        output[1] = input[0].scale(self.right_weight.to_f64());
+        output.set(0, input.at(0).scale(self.left_weight.to_f64()));
+        output.set(1, input.at(0).scale(self.right_weight.to_f64()));
         output
     }
 }
 
 /// Mixing matrix with `M` input channels and `N` output channels.
 #[derive(Clone)]
-pub struct Mixer<M, N, T>
+pub struct Mixer<M, N>
 where
-    M: Size<T>,
-    N: Size<T> + Size<Frame<T, M>>,
-    T: Float,
+    M: Size<f32>,
+    N: Size<f32> + Size<Frame<f32, M>>,
 {
-    matrix: Frame<Frame<T, M>, N>,
+    matrix: Frame<Frame<f32, M>, N>,
 }
 
-impl<M, N, T> Mixer<M, N, T>
+impl<M, N> Mixer<M, N>
 where
-    M: Size<T>,
-    N: Size<T> + Size<Frame<T, M>>,
-    T: Float,
+    M: Size<f32>,
+    N: Size<f32> + Size<Frame<f32, M>>,
 {
-    pub fn new(matrix: Frame<Frame<T, M>, N>) -> Self {
+    pub fn new(matrix: Frame<Frame<f32, M>, N>) -> Self {
         Self { matrix }
     }
 }
 
-impl<M, N, T> AudioNode for Mixer<M, N, T>
+impl<M, N> AudioNode for Mixer<M, N>
 where
-    M: Size<T>,
-    N: Size<T> + Size<Frame<T, M>>,
-    T: Float,
+    M: Size<f32>,
+    N: Size<f32> + Size<Frame<f32, M>>,
 {
     const ID: u64 = 84;
-    type Sample = T;
     type Inputs = M;
     type Outputs = N;
-    type Setting = ();
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         Frame::generate(|i| {
-            let mut value = T::zero();
+            let mut value = 0.0;
             for (x, y) in input.iter().zip(self.matrix[i].iter()) {
                 value += (*x) * (*y);
             }
@@ -145,15 +131,18 @@ where
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
+        let mut output = SignalFrame::new(self.outputs());
         for i in 0..self.outputs() {
-            output[i] = input[0].scale(convert(self.matrix[i][0]));
+            output.set(i, input.at(0).scale(convert(self.matrix[i][0])));
             for j in 1..self.inputs() {
-                output[i] = output[i].combine_linear(
-                    input[j].scale(convert(self.matrix[i][j])),
-                    0.0,
-                    |x, y| x + y,
-                    |x, y| x + y,
+                output.set(
+                    i,
+                    output.at(i).combine_linear(
+                        input.at(j).scale(convert(self.matrix[i][j])),
+                        0.0,
+                        |x, y| x + y,
+                        |x, y| x + y,
+                    ),
                 );
             }
         }

@@ -2,7 +2,6 @@
 //! Please run me in release mode!
 
 use fundsp::hacker32::*;
-use fundsp::reverb::*;
 use funutd::dna::*;
 use funutd::*;
 use rayon::prelude::*;
@@ -74,7 +73,7 @@ fn mutate(source: &Dna, seed: u64, mutation_p: f32) -> Dna {
 }
 
 fn main() {
-    let mut rng = Rnd::from_time();
+    let mut rng = Rnd::from_u64(1);
 
     let mut global_dna = Dna::new(rng.u64());
     let mut global_fitness = evaluate_reverb(&mut global_dna);

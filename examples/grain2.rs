@@ -3,6 +3,7 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
+use fundsp::gen::*;
 use fundsp::hacker::*;
 use funutd::dna::*;
 
@@ -49,13 +50,13 @@ where
     }
 
     println!("Rendering...");
-    let wave = Wave64::render(sample_rate, 10.0, &mut *c);
+    let wave = Wave::render(sample_rate, 10.0, &mut *c);
     let mut wave2 = wave.filter(10.0, &mut *fx);
     wave2.normalize();
     let wave_arc = std::sync::Arc::new(wave2);
     println!("OK.");
 
-    let granular = Granular64::new(
+    let granular = Granular::new(
         2,
         24,
         1.0,
@@ -66,14 +67,14 @@ where
         0.0,
         #[allow(unused_variables)]
         move |t, b, v, x, y, z| {
-            let start = lerp11(4410.0, (wave_arc.len() - 4410) as f64, x);
+            let start = lerp11(4410.0, (wave_arc.len() - 4410) as f32, x);
             let start_i = round(start) as usize;
             let duration = 0.05;
             (
                 duration,
                 duration * 0.5,
                 Box::new(
-                    wave64_at(&wave_arc, 0, start_i, wave_arc.len(), None) * xerp11(0.01, 0.1, y)
+                    wavech_at(&wave_arc, 0, start_i, wave_arc.len(), None) * xerp11(0.01, 0.1, y)
                         >> peak_hz(xerp11(50.0, 3000.0, z), 3.0)
                         >> pan(v * 0.6),
                 ),
@@ -81,7 +82,7 @@ where
         },
     );
 
-    let mut c = Net64::wrap(Box::new(granular));
+    let mut c = Net::wrap(Box::new(granular));
 
     c = c
         >> (multipass()
@@ -89,7 +90,7 @@ where
 
     c.set_sample_rate(sample_rate);
 
-    let mut c = BlockRateAdapter64::new(Box::new(c));
+    let mut c = BlockRateAdapter::new(Box::new(c));
 
     let mut next_value = move || c.get_stereo();
 
@@ -110,14 +111,14 @@ where
     Ok(())
 }
 
-fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f64, f64))
+fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f32, f32))
 where
     T: SizedSample + FromSample<f64>,
 {
     for frame in output.chunks_mut(channels) {
         let sample = next_sample();
-        let left: T = T::from_sample(sample.0);
-        let right: T = T::from_sample(sample.1);
+        let left: T = T::from_sample(sample.0 as f64);
+        let right: T = T::from_sample(sample.1 as f64);
 
         for (channel, sample) in frame.iter_mut().enumerate() {
             if channel & 1 == 0 {

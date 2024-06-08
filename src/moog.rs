@@ -2,20 +2,20 @@
 
 use super::audionode::*;
 use super::math::*;
+use super::setting::*;
 use super::signal::*;
 use super::*;
 use numeric_array::*;
 
 /// Moog resonant lowpass filter.
-/// Setting: (cutoff, Q).
 /// The number of inputs is `N`, either `U1` or `U3`.
 /// - Input 0: input signal
 /// - Input 1 (optional): cutoff frequency (Hz)
 /// - Input 2 (optional): Q
 /// - Output 0: filtered signal
 #[derive(Default, Clone)]
-pub struct Moog<T: Float, F: Real, N: Size<T>> {
-    _marker: std::marker::PhantomData<(T, N)>,
+pub struct Moog<F: Real, N: Size<f32>> {
+    _marker: core::marker::PhantomData<N>,
     q: F,
     cutoff: F,
     sample_rate: F,
@@ -32,10 +32,10 @@ pub struct Moog<T: Float, F: Real, N: Size<T>> {
     ps2: F,
 }
 
-impl<T: Float, F: Real, N: Size<T>> Moog<T, F, N> {
-    pub fn new(sample_rate: f64, cutoff: F, q: F) -> Self {
+impl<F: Real, N: Size<f32>> Moog<F, N> {
+    pub fn new(cutoff: F, q: F) -> Self {
         let mut node = Self {
-            sample_rate: convert(sample_rate),
+            sample_rate: convert(DEFAULT_SR),
             ..Self::default()
         };
         node.set_cutoff_q(cutoff, q);
@@ -50,23 +50,17 @@ impl<T: Float, F: Real, N: Size<T>> Moog<T, F, N> {
         self.q = q;
         let c = F::new(2) * cutoff / self.sample_rate;
         self.p = c * (F::from_f64(1.8) - F::from_f64(0.8) * c);
-        self.k = F::new(2) * sin(c * F::from_f64(PI * 0.5)) - F::one();
+        self.k = F::new(2) * sin(c * F::PI * F::from_f64(0.5)) - F::one();
         let t1 = (F::one() - self.p) * F::from_f64(1.386249);
         let t2 = F::new(12) + t1 * t1;
         self.rez = q * (t2 + F::new(6) * t1) / (t2 - F::new(6) * t1);
     }
 }
 
-impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
+impl<F: Real, N: Size<f32>> AudioNode for Moog<F, N> {
     const ID: u64 = 60;
-    type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = (F, F);
-
-    fn set(&mut self, (cutoff, q): Self::Setting) {
-        self.set_cutoff_q(cutoff, q);
-    }
 
     fn reset(&mut self) {
         self.s0 = F::zero();
@@ -85,10 +79,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if N::USIZE > 1 {
             self.set_cutoff_q(convert(input[1]), convert(input[2]));
         }
@@ -108,9 +99,19 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Moog<T, F, N> {
         [convert(self.s3)].into()
     }
 
+    fn set(&mut self, setting: Setting) {
+        match setting.parameter() {
+            Parameter::Center(cutoff) => self.set_cutoff_q(F::from_f32(*cutoff), self.q),
+            Parameter::CenterQ(cutoff, q) => {
+                self.set_cutoff_q(F::from_f32(*cutoff), F::from_f32(*q))
+            }
+            _ => (),
+        }
+    }
+
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].distort(0.0);
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(0, input.at(0).distort(0.0));
         output
     }
 }

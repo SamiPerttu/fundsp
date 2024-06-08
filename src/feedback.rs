@@ -6,25 +6,32 @@ use super::buffer::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
-use duplicate::duplicate_item;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
+extern crate alloc;
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
 
 /// Diffusive Hadamard feedback matrix. The number of channels must be a power of two.
 #[derive(Default, Clone)]
-pub struct FrameHadamard<N: Size<T>, T: Float> {
-    _marker: PhantomData<(N, T)>,
+pub struct FrameHadamard<N: Size<f32>> {
+    _marker: PhantomData<N>,
 }
 
-impl<N: Size<T>, T: Float> FrameHadamard<N, T> {
-    pub fn new() -> FrameHadamard<N, T> {
+impl<N: Size<f32>> FrameHadamard<N> {
+    pub fn new() -> FrameHadamard<N> {
         assert!(N::USIZE.is_power_of_two());
         FrameHadamard::default()
     }
 }
 
-impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameHadamard<N, T> {
+impl<N: Size<f32>> FrameUnop<N> for FrameHadamard<N> {
+    fn unop(&self, _x: F32x) -> F32x {
+        // Not implemented.
+        panic!()
+    }
     #[inline]
-    fn unop(&self, x: &Frame<T, N>) -> Frame<T, N> {
+    fn frame(&self, x: &Frame<f32, N>) -> Frame<f32, N> {
         let mut output = x.clone();
         let mut h = 1;
         while h < N::USIZE {
@@ -44,15 +51,14 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameHadamard<N, T> {
             }
             h *= 2;
         }
-        output * Frame::splat(T::from_f64(1.0 / sqrt(N::I32 as f64)))
+        output * Frame::splat((1.0 / sqrt(N::I32 as f64)) as f32)
     }
     // Not implemented.
     // TODO: Hadamard is a special op because of interchannel dependencies.
-    #[inline]
-    fn propagate(&self, _: Signal) -> Signal {
+    fn route(&self, _: Signal) -> Signal {
         panic!()
     }
-    fn assign(&self, _size: usize, _x: &mut [T]) {
+    fn assign(&self, _size: usize, _x: &mut [f32]) {
         panic!()
     }
 }
@@ -60,31 +66,29 @@ impl<N: Size<T>, T: Float> FrameUnop<N, T> for FrameHadamard<N, T> {
 /// Mix back output of contained node to its input.
 /// The contained node must have an equal number of inputs and outputs.
 #[derive(Clone)]
-pub struct Feedback<N, T, X, U>
+pub struct Feedback<N, X, U>
 where
-    N: Size<T>,
-    T: Float,
-    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    U: FrameUnop<X::Outputs, T>,
+    N: Size<f32>,
+    X: AudioNode<Inputs = N, Outputs = N>,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+    U: FrameUnop<X::Outputs>,
 {
     x: X,
     // Current feedback value.
-    value: Frame<T, N>,
+    value: Frame<f32, N>,
     // Feedback operator.
     #[allow(dead_code)]
     feedback: U,
 }
 
-impl<N, T, X, U> Feedback<N, T, X, U>
+impl<N, X, U> Feedback<N, X, U>
 where
-    N: Size<T>,
-    T: Float,
-    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    U: FrameUnop<X::Outputs, T>,
+    N: Size<f32>,
+    X: AudioNode<Inputs = N, Outputs = N>,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+    U: FrameUnop<X::Outputs>,
 {
     pub fn new(x: X, feedback: U) -> Self {
         let mut node = Feedback {
@@ -98,20 +102,17 @@ where
     }
 }
 
-impl<N, T, X, U> AudioNode for Feedback<N, T, X, U>
+impl<N, X, U> AudioNode for Feedback<N, X, U>
 where
-    N: Size<T>,
-    T: Float,
-    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    U: FrameUnop<X::Outputs, T>,
+    N: Size<f32>,
+    X: AudioNode<Inputs = N, Outputs = N>,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+    U: FrameUnop<X::Outputs>,
 {
     const ID: u64 = 11;
-    type Sample = T;
     type Inputs = N;
     type Outputs = N;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.x.reset();
@@ -123,17 +124,14 @@ where
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let output = self.x.tick(&(input + self.value.clone()));
-        self.value = self.feedback.unop(&output);
+        self.value = self.feedback.frame(&output);
         output
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Arbitrary(0.0).propagate(input, self.outputs())
+        Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
@@ -148,39 +146,37 @@ where
 /// Mix back output of contained node `X` to its input, with extra feedback processing `Y`.
 /// The contained nodes must have an equal number of inputs and outputs.
 #[derive(Clone)]
-pub struct Feedback2<N, T, X, Y, U>
+pub struct Feedback2<N, X, Y, U>
 where
-    N: Size<T>,
-    T: Float,
-    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    Y: AudioNode<Sample = T, Inputs = N, Outputs = N>,
-    Y::Inputs: Size<T>,
-    Y::Outputs: Size<T>,
-    U: FrameUnop<X::Outputs, T>,
+    N: Size<f32>,
+    X: AudioNode<Inputs = N, Outputs = N>,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+    Y: AudioNode<Inputs = N, Outputs = N>,
+    Y::Inputs: Size<f32>,
+    Y::Outputs: Size<f32>,
+    U: FrameUnop<X::Outputs>,
 {
     x: X,
     /// Feedback processing.
     y: Y,
     /// Current feedback value.
-    value: Frame<T, N>,
+    value: Frame<f32, N>,
     /// Feedback operator.
     #[allow(dead_code)]
     feedback: U,
 }
 
-impl<N, T, X, Y, U> Feedback2<N, T, X, Y, U>
+impl<N, X, Y, U> Feedback2<N, X, Y, U>
 where
-    N: Size<T>,
-    T: Float,
-    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    Y: AudioNode<Sample = T, Inputs = N, Outputs = N>,
-    Y::Inputs: Size<T>,
-    Y::Outputs: Size<T>,
-    U: FrameUnop<X::Outputs, T>,
+    N: Size<f32>,
+    X: AudioNode<Inputs = N, Outputs = N>,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+    Y: AudioNode<Inputs = N, Outputs = N>,
+    Y::Inputs: Size<f32>,
+    Y::Outputs: Size<f32>,
+    U: FrameUnop<X::Outputs>,
 {
     /// Create new (single sample) feedback node.
     /// It mixes back output of contained node `X` to its input, with extra feedback processing `Y`.
@@ -199,23 +195,20 @@ where
     }
 }
 
-impl<N, T, X, Y, U> AudioNode for Feedback2<N, T, X, Y, U>
+impl<N, X, Y, U> AudioNode for Feedback2<N, X, Y, U>
 where
-    N: Size<T>,
-    T: Float,
-    X: AudioNode<Sample = T, Inputs = N, Outputs = N>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    Y: AudioNode<Sample = T, Inputs = N, Outputs = N>,
-    Y::Inputs: Size<T>,
-    Y::Outputs: Size<T>,
-    U: FrameUnop<X::Outputs, T>,
+    N: Size<f32>,
+    X: AudioNode<Inputs = N, Outputs = N>,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+    Y: AudioNode<Inputs = N, Outputs = N>,
+    Y::Inputs: Size<f32>,
+    Y::Outputs: Size<f32>,
+    U: FrameUnop<X::Outputs>,
 {
     const ID: u64 = 66;
-    type Sample = T;
     type Inputs = N;
     type Outputs = N;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.x.reset();
@@ -229,17 +222,14 @@ where
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let output = self.x.tick(&(input + self.value.clone()));
-        self.value = self.feedback.unop(&self.y.tick(&output));
+        self.value = self.feedback.frame(&self.y.tick(&output));
         output
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Arbitrary(0.0).propagate(input, self.outputs())
+        Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 
     fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
@@ -251,49 +241,39 @@ where
     }
 }
 
-#[duplicate_item(
-    f48       Feedback48       AudioUnit48;
-    [ f64 ]   [ Feedback64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Feedback32 ]   [ AudioUnit32 ];
-)]
 /// Feedback unit with integrated delay.
 #[derive(Clone)]
-pub struct Feedback48 {
+pub struct FeedbackUnit {
     /// Contained feedback loop.
-    x: Box<dyn AudioUnit48>,
+    x: Box<dyn AudioUnit>,
     /// Number of input and output channels.
     channels: usize,
     /// Current sample rate of the unit.
-    sample_rate: f48,
+    sample_rate: f64,
     /// Delay in seconds.
-    delay: f48,
+    delay: f64,
     /// Delay in samples.
     samples: usize,
     /// Feedback buffers, one per channel, power-of-two sized.
-    feedback: Vec<Vec<f48>>,
+    feedback: Vec<Vec<f32>>,
     /// Feedback buffer length minus one.
     mask: usize,
     /// Current write index into feedback buffers.
     index: usize,
     /// Buffer for assembling frames.
-    tick_buffer: Vec<f48>,
+    tick_buffer: Vec<f32>,
     /// Second buffer for assembling frames.
-    tick_buffer2: Vec<f48>,
+    tick_buffer2: Vec<f32>,
     /// Buffer for assembling blocks.
-    buffer: Buffer<f48>,
+    buffer: BufferVec,
 }
 
-#[duplicate_item(
-    f48       Feedback48       AudioUnit48;
-    [ f64 ]   [ Feedback64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Feedback32 ]   [ AudioUnit32 ];
-)]
-impl Feedback48 {
+impl FeedbackUnit {
     /// Create new feedback unit with integrated feedback `delay` in seconds.
     /// The delay amount is rounded to the nearest sample.
     /// The minimum delay is one sample, which may also be accomplished by setting `delay` to zero.
     /// The feedback unit mixes back delayed output of contained unit `x` to its input.
-    pub fn new(delay: f48, x: Box<dyn AudioUnit48>) -> Self {
+    pub fn new(delay: f64, x: Box<dyn AudioUnit>) -> Self {
         let channels = x.inputs();
         assert_eq!(channels, x.outputs());
         let mut unit = Self {
@@ -307,7 +287,7 @@ impl Feedback48 {
             index: 0,
             tick_buffer: vec![0.0; channels],
             tick_buffer2: vec![0.0; channels],
-            buffer: Buffer::with_channels(channels),
+            buffer: BufferVec::new(channels),
         };
         unit.set_sample_rate(DEFAULT_SR);
         unit
@@ -320,12 +300,7 @@ impl Feedback48 {
     }
 }
 
-#[duplicate_item(
-    f48       Feedback48       AudioUnit48;
-    [ f64 ]   [ Feedback64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Feedback32 ]   [ AudioUnit32 ];
-)]
-impl AudioUnit48 for Feedback48 {
+impl AudioUnit for FeedbackUnit {
     fn reset(&mut self) {
         for feedback in self.feedback.iter_mut() {
             feedback.fill(0.0);
@@ -334,12 +309,11 @@ impl AudioUnit48 for Feedback48 {
         self.index = 0;
     }
 
-    #[allow(clippy::unnecessary_cast)]
     fn set_sample_rate(&mut self, sample_rate: f64) {
-        if self.sample_rate != sample_rate as f48 {
-            self.sample_rate = sample_rate as f48;
+        if self.sample_rate != sample_rate {
+            self.sample_rate = sample_rate;
             self.x.set_sample_rate(sample_rate);
-            self.samples = round(self.delay * sample_rate as f48).max(1.0) as usize;
+            self.samples = round(self.delay * sample_rate).max(1.0) as usize;
             let feedback_samples = self.samples.next_power_of_two();
             self.mask = feedback_samples - 1;
             for feedback in self.feedback.iter_mut() {
@@ -350,7 +324,7 @@ impl AudioUnit48 for Feedback48 {
         }
     }
 
-    fn tick(&mut self, input: &[f48], output: &mut [f48]) {
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
         let read_i = self.read_index(self.samples);
         for (channel, (tick, i)) in self.tick_buffer.iter_mut().zip(input.iter()).enumerate() {
             *tick = *i + self.feedback[channel][read_i];
@@ -362,23 +336,23 @@ impl AudioUnit48 for Feedback48 {
         self.index = (self.index + 1) & self.mask;
     }
 
-    fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]) {
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         if size <= self.samples {
             // We have enough feedback samples to process the whole block at once.
             for channel in 0..self.channels {
                 let mut read_i = self.read_index(self.samples);
-                for (b, i) in self.buffer.mut_at(channel)[0..size]
+                for (b, i) in self.buffer.channel_mut_f32(channel)[0..size]
                     .iter_mut()
-                    .zip(input[channel][0..size].iter())
+                    .zip(input.channel_f32(channel)[0..size].iter())
                 {
                     *b = *i + self.feedback[channel][read_i];
                     read_i = (read_i + 1) & self.mask;
                 }
             }
-            self.x.process(size, self.buffer.self_ref(), output);
+            self.x.process(size, &self.buffer.buffer_ref(), output);
             for channel in 0..self.channels {
                 let mut write_i = self.index;
-                for i in output[channel][0..size].iter() {
+                for i in output.channel_f32(channel)[0..size].iter() {
                     self.feedback[channel][write_i] = *i;
                     write_i = (write_i + 1) & self.mask;
                 }
@@ -389,11 +363,11 @@ impl AudioUnit48 for Feedback48 {
             let mut write_i = self.index;
             for i in 0..size {
                 for (channel, tick) in self.tick_buffer.iter_mut().enumerate() {
-                    *tick = input[channel][i] + self.feedback[channel][read_i];
+                    *tick = input.at_f32(channel, i) + self.feedback[channel][read_i];
                 }
                 self.x.tick(&self.tick_buffer, &mut self.tick_buffer2);
                 for (channel, tick) in self.tick_buffer2.iter().enumerate() {
-                    output[channel][i] = *tick;
+                    output.set_f32(channel, i, *tick);
                     self.feedback[channel][write_i] = *tick;
                 }
                 read_i = (read_i + 1) & self.mask;
@@ -412,7 +386,7 @@ impl AudioUnit48 for Feedback48 {
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Arbitrary(0.0).propagate(input, self.outputs())
+        Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 
     fn get_id(&self) -> u64 {
@@ -425,7 +399,7 @@ impl AudioUnit48 for Feedback48 {
     }
 
     fn footprint(&self) -> usize {
-        std::mem::size_of::<Self>()
+        core::mem::size_of::<Self>()
     }
 
     fn allocate(&mut self) {

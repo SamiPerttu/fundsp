@@ -16,17 +16,16 @@
 //! an `adsr_live()` envelope.
 
 use super::prelude::{clamp01, envelope2, lerp, shared, var, An, EnvelopeIn, Frame, U1};
-use super::shared::Atomic;
 use super::Float;
 
-pub fn adsr_live<F: Float + Atomic>(
-    attack: F,
-    decay: F,
-    sustain: F,
-    release: F,
-) -> An<EnvelopeIn<F, F, impl Fn(F, &Frame<F, U1>) -> F + Sized + Clone, U1, F>> {
-    let neg1 = F::from_f64(-1.0);
-    let zero = F::from_f64(0.0);
+pub fn adsr_live(
+    attack: f32,
+    decay: f32,
+    sustain: f32,
+    release: f32,
+) -> An<EnvelopeIn<f32, impl FnMut(f32, &Frame<f32, U1>) -> f32 + Clone, U1, f32>> {
+    let neg1 = -1.0;
+    let zero = 0.0;
     let a = shared(neg1);
     let b = shared(neg1);
     let attack_start = var(&a);

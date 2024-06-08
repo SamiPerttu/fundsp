@@ -6,12 +6,16 @@ use super::buffer::*;
 use super::combinator::*;
 use super::math::*;
 use super::realnet::*;
+use super::setting::*;
 use super::signal::*;
 use super::*;
-use duplicate::duplicate_item;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
-use thingbuf::mpsc::blocking::{channel, Receiver, Sender};
+use core::sync::atomic::{AtomicU64, Ordering};
+use hashbrown::HashMap;
+use thingbuf::mpsc::{channel, Receiver, Sender};
+extern crate alloc;
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
 
 pub type NodeIndex = usize;
 pub type PortIndex = usize;
@@ -56,26 +60,21 @@ pub fn edge(source: Port, target: Port) -> Edge {
     Edge { source, target }
 }
 
-#[duplicate_item(
-    f48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Vertex32 ]   [ AudioUnit32 ];
-)]
 #[derive(Clone)]
 /// Individual AudioUnits are vertices in the graph.
-struct Vertex48 {
+struct Vertex {
     /// The unit.
-    pub unit: Box<dyn AudioUnit48>,
+    pub unit: Box<dyn AudioUnit>,
     /// Edges connecting into this vertex. The length is equal to the number of inputs.
     pub source: Vec<Edge>,
     /// Input buffers. The length is equal to the number of inputs.
-    pub input: Buffer<f48>,
+    pub input: BufferVec,
     /// Output buffers. The length is equal to the number of outputs.
-    pub output: Buffer<f48>,
+    pub output: BufferVec,
     /// Input for tick iteration. The length is equal to the number of inputs.
-    pub tick_input: Vec<f48>,
+    pub tick_input: Vec<f32>,
     /// Output for tick iteration. The length is equal to the number of outputs.
-    pub tick_output: Vec<f48>,
+    pub tick_output: Vec<f32>,
     /// Stable, globally unique ID for this vertex.
     pub id: NodeId,
     /// This is set if all vertex inputs are sourced from matching outputs of the indicated node.
@@ -85,20 +84,15 @@ struct Vertex48 {
     pub changed: u64,
 }
 
-#[duplicate_item(
-    f48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Vertex32 ]   [ AudioUnit32 ];
-)]
-impl Vertex48 {
-    pub fn new(id: NodeId, index: NodeIndex, unit: Box<dyn AudioUnit48>) -> Self {
+impl Vertex {
+    pub fn new(id: NodeId, index: NodeIndex, unit: Box<dyn AudioUnit>) -> Self {
         let inputs = unit.inputs();
         let outputs = unit.outputs();
         let mut vertex = Self {
             unit,
-            source: vec![],
-            input: Buffer::with_channels(inputs),
-            output: Buffer::with_channels(outputs),
+            source: Vec::new(),
+            input: BufferVec::new(inputs),
+            output: BufferVec::new(outputs),
             tick_input: vec![0.0; inputs],
             tick_output: vec![0.0; outputs],
             id,
@@ -156,23 +150,20 @@ impl Vertex48 {
     }
 }
 
-#[duplicate_item(
-    f48       Net48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
-)]
 /// Network unit. It can contain other units and maintain connections between them.
-/// Outputs of the network are sourced from user specified unit outputs or global inputs.
+/// Outputs of the network are sourced from user specified unit outputs or
+/// global inputs, or are filled with zeros if not connected.
+/// Similarly, each input to a contained unit is unique, and can be sourced similarly.
 #[derive(Default)]
-pub struct Net48 {
+pub struct Net {
     /// Global input buffers.
-    input: Buffer<f48>,
+    input: BufferVec,
     /// Global output buffers.
-    output: Buffer<f48>,
+    output: BufferVec,
     /// Sources of global outputs.
     output_edge: Vec<Edge>,
     /// Vertices of the graph.
-    vertex: Vec<Vertex48>,
+    vertex: Vec<Vertex>,
     /// Ordering of vertex evaluation.
     order: Option<Vec<NodeIndex>>,
     /// Translation map from node ID to vertex index.
@@ -180,7 +171,7 @@ pub struct Net48 {
     /// Current sample rate.
     sample_rate: f64,
     /// Optional frontend.
-    front: Option<(Sender<Net48>, Receiver<Net48>)>,
+    front: Option<(Sender<Net>, Receiver<Net>)>,
     /// Number of inputs in the backend. This is for checking consistency during commits.
     backend_inputs: usize,
     /// Number of outputs in the backend. This is for checking consistency during commits.
@@ -190,12 +181,7 @@ pub struct Net48 {
     revision: u64,
 }
 
-#[duplicate_item(
-    f48       Net48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
-)]
-impl Clone for Net48 {
+impl Clone for Net {
     fn clone(&self) -> Self {
         Self {
             input: self.input.clone(),
@@ -214,12 +200,7 @@ impl Clone for Net48 {
     }
 }
 
-#[duplicate_item(
-    f48       Net48       NetBackend48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ NetBackend64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ NetBackend32 ]   [ Vertex32 ]   [ AudioUnit32 ];
-)]
-impl Net48 {
+impl Net {
     /// Create a new network with the given number of inputs and outputs.
     /// The number of inputs and outputs is fixed after construction.
     /// Network global outputs are initialized to zero.
@@ -227,16 +208,16 @@ impl Net48 {
     /// ### Example (Sine Oscillator)
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::new(1, 1);
+    /// let mut net = Net::new(1, 1);
     /// net.chain(Box::new(sine()));
     /// net.check();
     /// ```
     pub fn new(inputs: usize, outputs: usize) -> Self {
         let mut net = Self {
-            input: Buffer::with_channels(inputs),
-            output: Buffer::with_channels(outputs),
-            output_edge: vec![],
-            vertex: vec![],
+            input: BufferVec::new(inputs),
+            output: BufferVec::new(outputs),
+            output_edge: Vec::new(),
+            vertex: Vec::new(),
             order: None,
             node_index: HashMap::new(),
             sample_rate: DEFAULT_SR,
@@ -258,17 +239,17 @@ impl Net48 {
     /// ### Example (Sine Oscillator)
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::new(1, 1);
+    /// let mut net = Net::new(1, 1);
     /// let id = net.push(Box::new(sine()));
     /// net.pipe_input(id);
     /// net.pipe_output(id);
     /// net.check();
     /// ```
-    pub fn push(&mut self, mut unit: Box<dyn AudioUnit48>) -> NodeId {
+    pub fn push(&mut self, mut unit: Box<dyn AudioUnit>) -> NodeId {
         unit.set_sample_rate(self.sample_rate);
         let index = self.vertex.len();
         let id = NodeId::new();
-        let vertex = Vertex48::new(id, index, unit);
+        let vertex = Vertex::new(id, index, unit);
         self.vertex.push(vertex);
         self.node_index.insert(id, index);
         // Note. We have designed the hash to depend on vertices but not edges.
@@ -283,7 +264,7 @@ impl Net48 {
         self.order.is_some()
     }
 
-    /// Invalidate any precalculated order.
+    /// Invalidate any previously calculated order.
     fn invalidate_order(&mut self) {
         self.order = None;
     }
@@ -294,7 +275,7 @@ impl Net48 {
     /// ### Example (Sine Oscillator)
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::new(1, 1);
+    /// let mut net = Net::new(1, 1);
     /// let id1 = net.push(Box::new(sine()));
     /// let id2 = net.push(Box::new(sine()));
     /// net.connect_input(0, id2, 0);
@@ -303,7 +284,7 @@ impl Net48 {
     /// assert!(net.size() == 1);
     /// net.check();
     /// ```
-    pub fn remove(&mut self, node: NodeId) -> Box<dyn AudioUnit48> {
+    pub fn remove(&mut self, node: NodeId) -> Box<dyn AudioUnit> {
         self.remove_2(node, false)
     }
 
@@ -314,7 +295,7 @@ impl Net48 {
     /// ### Example
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::new(1, 1);
+    /// let mut net = Net::new(1, 1);
     /// let id1 = net.chain(Box::new(add(1.0)));
     /// let id2 = net.chain(Box::new(add(2.0)));
     /// assert!(net.size() == 2);
@@ -324,14 +305,14 @@ impl Net48 {
     /// assert!(net.filter_mono(1.0) == 2.0);
     /// net.check();
     /// ```
-    pub fn remove_link(&mut self, node: NodeId) -> Box<dyn AudioUnit48> {
+    pub fn remove_link(&mut self, node: NodeId) -> Box<dyn AudioUnit> {
         self.remove_2(node, true)
     }
 
     /// Remove `node` from network. If `link` is false then connections from the unit
     /// are replaced with zeros; if `link` is true then connections are replaced
     /// by matching inputs of the unit, and the number of inputs must be equal to the number of outputs.
-    fn remove_2(&mut self, node: NodeId, link: bool) -> Box<dyn AudioUnit48> {
+    fn remove_2(&mut self, node: NodeId, link: bool) -> Box<dyn AudioUnit> {
         let node_index = self.node_index[&node];
         assert!(!link || self.vertex[node_index].inputs() == self.vertex[node_index].outputs());
         // Replace all global ports that use an output of the node.
@@ -402,22 +383,18 @@ impl Net48 {
     /// ### Example (Replace Saw Wave With Square Wave)
     /// ```
     /// use fundsp::hacker32::*;
-    /// let mut net = Net32::new(0, 1);
+    /// let mut net = Net::new(0, 1);
     /// let id = net.push(Box::new(saw_hz(220.0)));
     /// net.pipe_output(id);
     /// net.replace(id, Box::new(square_hz(220.0)));
     /// net.check();
     /// ```
-    pub fn replace(
-        &mut self,
-        node: NodeId,
-        mut unit: Box<dyn AudioUnit48>,
-    ) -> Box<dyn AudioUnit48> {
+    pub fn replace(&mut self, node: NodeId, mut unit: Box<dyn AudioUnit>) -> Box<dyn AudioUnit> {
         let node_index = self.node_index[&node];
         assert_eq!(unit.inputs(), self.vertex[node_index].inputs());
         assert_eq!(unit.outputs(), self.vertex[node_index].outputs());
         unit.set_sample_rate(self.sample_rate);
-        std::mem::swap(&mut self.vertex[node_index].unit, &mut unit);
+        core::mem::swap(&mut self.vertex[node_index].unit, &mut unit);
         self.vertex[node_index].changed = self.revision;
         unit
     }
@@ -429,7 +406,7 @@ impl Net48 {
     /// ### Example (Filtered Saw Oscillator)
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::new(1, 1);
+    /// let mut net = Net::new(1, 1);
     /// let id1 = net.push(Box::new(saw()));
     /// let id2 = net.push(Box::new(lowpass_hz(1000.0, 1.0)));
     /// net.connect(id1, 0, id2, 0);
@@ -455,7 +432,7 @@ impl Net48 {
     /// ### Example
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::new(1, 1);
+    /// let mut net = Net::new(1, 1);
     /// let id = net.chain(Box::new(pass()));
     /// assert!(net.filter_mono(1.0) == 1.0);
     /// net.disconnect(id, 0);
@@ -490,7 +467,7 @@ impl Net48 {
     /// ### Example (Saw Wave)
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::new(1, 1);
+    /// let mut net = Net::new(1, 1);
     /// let id = net.push(Box::new(saw()));
     /// net.connect_input(0, id, 0);
     /// net.connect_output(id, 0, 0);
@@ -525,7 +502,7 @@ impl Net48 {
     /// ### Example (Stereo Filter)
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::new(2, 2);
+    /// let mut net = Net::new(2, 2);
     /// let id = net.push(Box::new(peak_hz(1000.0, 1.0) | peak_hz(1000.0, 1.0)));
     /// net.pipe_input(id);
     /// net.pipe_output(id);
@@ -579,7 +556,7 @@ impl Net48 {
     /// ### Example (Stereo Reverb)
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::new(2, 2);
+    /// let mut net = Net::new(2, 2);
     /// let id = net.push(Box::new(multipass() & reverb_stereo(10.0, 1.0, 0.5)));
     /// net.pipe_input(id);
     /// net.pipe_output(id);
@@ -600,7 +577,7 @@ impl Net48 {
     /// ### Example (Stereo Pass-Through)
     /// ```
     /// use fundsp::hacker32::*;
-    /// let mut net = Net32::new(2, 2);
+    /// let mut net = Net::new(2, 2);
     /// net.pass_through(0, 0);
     /// net.pass_through(1, 1);
     /// net.check();
@@ -616,7 +593,7 @@ impl Net48 {
     /// ### Example (Panned Sine Wave)
     /// ```
     /// use fundsp::hacker32::*;
-    /// let mut net = Net32::new(0, 2);
+    /// let mut net = Net::new(0, 2);
     /// let id1 = net.push(Box::new(sine_hz(440.0)));
     /// let id2 = net.push(Box::new(pan(0.0)));
     /// net.pipe(id1, id2);
@@ -653,12 +630,12 @@ impl Net48 {
     /// ### Example (Lowpass And Highpass Filters In Series)
     /// ```
     /// use fundsp::hacker32::*;
-    /// let mut net = Net32::new(1, 1);
+    /// let mut net = Net::new(1, 1);
     /// net.chain(Box::new(lowpass_hz(2000.0, 1.0)));
     /// net.chain(Box::new(highpass_hz(1000.0, 1.0)));
     /// net.check();
     /// ```
-    pub fn chain(&mut self, unit: Box<dyn AudioUnit48>) -> NodeId {
+    pub fn chain(&mut self, unit: Box<dyn AudioUnit>) -> NodeId {
         let unit_inputs = unit.inputs();
         let unit_outputs = unit.outputs();
         let id = self.push(unit);
@@ -677,14 +654,14 @@ impl Net48 {
     }
 
     /// Access node.
-    pub fn node(&self, node: NodeId) -> &dyn AudioUnit48 {
+    pub fn node(&self, node: NodeId) -> &dyn AudioUnit {
         &*self.vertex[self.node_index[&node]].unit
     }
 
     /// Access mutable node. Note that any changes made via this method
     /// are not accounted in the backend. This can be used to, e.g.,
     /// query for frequency responses.
-    pub fn node_mut(&mut self, node: NodeId) -> &mut dyn AudioUnit48 {
+    pub fn node_mut(&mut self, node: NodeId) -> &mut dyn AudioUnit {
         &mut *self.vertex[self.node_index[&node]].unit
     }
 
@@ -768,14 +745,14 @@ impl Net48 {
     /// ### Example (Conditional Processing)
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::wrap(Box::new(square_hz(440.0)));
+    /// let mut net = Net::wrap(Box::new(square_hz(440.0)));
     /// let add_filter = true;
     /// if add_filter {
     ///     net = net >> lowpass_hz(880.0, 1.0);
     /// }
     /// ```
-    pub fn wrap(unit: Box<dyn AudioUnit48>) -> Net48 {
-        let mut net = Net48::new(unit.inputs(), unit.outputs());
+    pub fn wrap(unit: Box<dyn AudioUnit>) -> Net {
+        let mut net = Net::new(unit.inputs(), unit.outputs());
         let id = net.push(unit);
         if net.inputs() > 0 {
             net.pipe_input(id);
@@ -791,12 +768,12 @@ impl Net48 {
     /// ### Example
     /// ```
     /// use fundsp::hacker32::*;
-    /// let mut net = Net32::scalar(2, 1.0);
+    /// let mut net = Net::scalar(2, 1.0);
     /// assert!(net.get_stereo() == (1.0, 1.0));
     /// ```
-    pub fn scalar(channels: usize, scalar: f48) -> Net48 {
-        let mut net = Net48::new(0, channels);
-        let id = net.push(Box::new(super::prelude::dc(scalar)));
+    pub fn scalar(channels: usize, scalar: f32) -> Net {
+        let mut net = Net::new(0, channels);
+        let id = net.push(Box::new(An(Constant::new([scalar].into()))));
         for i in 0..channels {
             net.connect_output(id, 0, i);
         }
@@ -863,7 +840,7 @@ impl Net48 {
 
     /// Disambiguate IDs in this network so they don't conflict with those in `other` network.
     /// Conflict is possible as a result of cloning and recombination.
-    fn disambiguate_ids(&mut self, other: &Net48) {
+    fn disambiguate_ids(&mut self, other: &Net) {
         for i in 0..self.size() {
             let id = self.vertex[i].id;
             if other.node_index.contains_key(&id) {
@@ -876,12 +853,12 @@ impl Net48 {
     }
 
     /// Migrate existing units to the new network. This is an internal function.
-    pub(crate) fn migrate(&mut self, new: &mut Net48) {
+    pub(crate) fn migrate(&mut self, new: &mut Net) {
         for (id, &index) in self.node_index.iter() {
             if let Some(&new_index) = new.node_index.get(id) {
                 // We may use the existing unit if no changes have been made since our last update.
                 if new.vertex[new_index].changed <= self.revision {
-                    std::mem::swap(
+                    core::mem::swap(
                         &mut self.vertex[index].unit,
                         &mut new.vertex[new_index].unit,
                     );
@@ -898,7 +875,7 @@ impl Net48 {
     /// ### Example
     /// ```
     /// use fundsp::hacker::*;
-    /// let mut net = Net64::new(0, 1);
+    /// let mut net = Net::new(0, 1);
     /// net.chain(Box::new(dc(1.0)));
     /// let mut backend = net.backend();
     /// net.chain(Box::new(mul(2.0)));
@@ -906,7 +883,7 @@ impl Net48 {
     /// net.commit();
     /// assert!(backend.get_mono() == 2.0);
     /// ```
-    pub fn backend(&mut self) -> NetBackend48 {
+    pub fn backend(&mut self) -> NetBackend {
         assert!(!self.has_backend());
         // Create huge channel buffers to make sure we don't run out of space easily.
         let (sender_a, receiver_a) = channel(1024);
@@ -920,10 +897,10 @@ impl Net48 {
         let mut net = self.clone();
         // Send over the original nodes to the backend.
         // This is necessary if the nodes contain any backends, which cannot be cloned effectively.
-        std::mem::swap(&mut net.vertex, &mut self.vertex);
+        core::mem::swap(&mut net.vertex, &mut self.vertex);
         net.allocate();
         self.revision += 1;
-        NetBackend48::new(sender_b, receiver_a, net)
+        NetBackend::new(sender_b, receiver_a, net)
     }
 
     /// Returns whether this network has a backend.
@@ -947,7 +924,7 @@ impl Net48 {
         let mut net = self.clone();
         // Send over the original nodes to the backend.
         // This is necessary if the nodes contain any backends, which cannot be cloned effectively.
-        std::mem::swap(&mut net.vertex, &mut self.vertex);
+        core::mem::swap(&mut net.vertex, &mut self.vertex);
         // Preallocate all necessary memory.
         net.allocate();
         if let Some((sender, receiver)) = &mut self.front {
@@ -960,12 +937,12 @@ impl Net48 {
     }
 
     /// Resolve new frontend for a binary combination.
-    fn resolve_frontend(&mut self, other: &mut Net48) {
+    fn resolve_frontend(&mut self, other: &mut Net) {
         if self.has_backend() && other.has_backend() {
             panic!("Cannot combine two frontends.");
         }
         if other.has_backend() {
-            std::mem::swap(&mut self.front, &mut other.front);
+            core::mem::swap(&mut self.front, &mut other.front);
             self.backend_inputs = other.backend_inputs;
             self.backend_outputs = other.backend_outputs;
             self.revision = other.revision;
@@ -973,12 +950,7 @@ impl Net48 {
     }
 }
 
-#[duplicate_item(
-    f48       Net48       Vertex48       AudioUnit48         Callback48;
-    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ]   [ Callback64 ];
-    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ]   [ Callback32 ];
-)]
-impl AudioUnit48 for Net48 {
+impl AudioUnit for Net {
     fn inputs(&self) -> usize {
         self.input.channels()
     }
@@ -1020,7 +992,7 @@ impl AudioUnit48 for Net48 {
         }
     }
 
-    fn tick(&mut self, input: &[f48], output: &mut [f48]) {
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
         if !self.is_ordered() {
             self.determine_order();
         }
@@ -1052,36 +1024,39 @@ impl AudioUnit48 for Net48 {
         }
     }
 
-    fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]) {
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         if !self.is_ordered() {
             self.determine_order();
         }
+        let simd_size = simd_items(size);
         // Iterate units in network order.
-        for &node_index in self.order.get_or_insert(Vec::new()).iter() {
+        for &node_index in self.order.as_ref().unwrap().iter() {
             if let Some(source_node) = self.vertex[node_index].source_vertex {
                 // We can source inputs directly from a source vertex.
-                let ptr = &mut self.vertex[source_node].output as *mut Buffer<f48>;
+                let ptr = &mut self.vertex[source_node].output as *mut BufferVec;
                 let vertex = &mut self.vertex[node_index];
                 // Safety: we know there is no aliasing, as self connections are prohibited.
                 unsafe {
-                    vertex
-                        .unit
-                        .process(size, (*ptr).self_ref(), vertex.output.self_mut());
+                    vertex.unit.process(
+                        size,
+                        &(*ptr).buffer_ref(),
+                        &mut vertex.output.buffer_mut(),
+                    );
                 }
             } else {
-                let ptr = &mut self.vertex[node_index].input as *mut Buffer<f48>;
+                let ptr = &mut self.vertex[node_index].input as *mut BufferVec;
                 // Gather inputs for this vertex.
                 for channel in 0..self.vertex[node_index].inputs() {
                     // Safety: we know there is no aliasing, as self connections are prohibited.
                     unsafe {
                         match self.vertex[node_index].source[channel].source {
-                            Port::Zero => (*ptr).mut_at(channel)[..size].fill(0.0),
-                            Port::Global(port) => {
-                                (*ptr).mut_at(channel)[..size].copy_from_slice(&input[port][..size])
-                            }
+                            Port::Zero => (*ptr).channel_mut(channel)[..simd_size].fill(F32x::ZERO),
+                            Port::Global(port) => (*ptr).channel_mut(channel)[..simd_size]
+                                .copy_from_slice(&input.channel(port)[..simd_size]),
                             Port::Local(source, port) => {
-                                (*ptr).mut_at(channel)[..size]
-                                    .copy_from_slice(&self.vertex[source].output.at(port)[..size]);
+                                (*ptr).channel_mut(channel)[..simd_size].copy_from_slice(
+                                    &self.vertex[source].output.channel(port)[..simd_size],
+                                );
                             }
                         }
                     }
@@ -1089,20 +1064,31 @@ impl AudioUnit48 for Net48 {
                 let vertex = &mut self.vertex[node_index];
                 // Safety: we know there is no aliasing, as self connections are prohibited.
                 unsafe {
-                    vertex
-                        .unit
-                        .process(size, (*ptr).self_ref(), vertex.output.self_mut());
+                    vertex.unit.process(
+                        size,
+                        &(*ptr).buffer_ref(),
+                        &mut vertex.output.buffer_mut(),
+                    );
                 }
             }
         }
 
         // Then we set the global outputs.
-        for channel in 0..output.len() {
+        for channel in 0..output.channels() {
             match self.output_edge[channel].source {
-                Port::Global(port) => output[channel][..size].copy_from_slice(&input[port][..size]),
-                Port::Local(node, port) => output[channel][..size]
-                    .copy_from_slice(&self.vertex[node].output.at(port)[..size]),
-                Port::Zero => output[channel][..size].fill(0.0),
+                Port::Global(port) => output.channel_mut(channel)[..simd_size]
+                    .copy_from_slice(&input.channel(port)[..simd_size]),
+                Port::Local(node, port) => output.channel_mut(channel)[..simd_size]
+                    .copy_from_slice(&self.vertex[node].output.channel(port)[..simd_size]),
+                Port::Zero => output.channel_mut(channel)[..simd_size].fill(F32x::ZERO),
+            }
+        }
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Address::Node(id) = setting.direction() {
+            if let Some(index) = self.node_index.get(&id) {
+                self.vertex[*index].unit.set(setting.peel());
             }
         }
     }
@@ -1120,41 +1106,41 @@ impl AudioUnit48 for Net48 {
     }
 
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut inner_signal: Vec<SignalFrame> = vec![];
+        let mut inner_signal: Vec<SignalFrame> = Vec::new();
         for vertex in self.vertex.iter() {
-            inner_signal.push(new_signal_frame(vertex.unit.outputs()));
+            inner_signal.push(SignalFrame::new(vertex.unit.outputs()));
         }
         if !self.is_ordered() {
             self.determine_order();
         }
         for &unit_index in self.order.as_mut().unwrap().iter() {
-            let mut input_signal = new_signal_frame(self.vertex[unit_index].unit.inputs());
+            let mut input_signal = SignalFrame::new(self.vertex[unit_index].unit.inputs());
             for channel in 0..self.vertex[unit_index].unit.inputs() {
                 match self.vertex[unit_index].source[channel].source {
-                    Port::Local(j, port) => input_signal[channel] = inner_signal[j][port],
-                    Port::Global(j) => input_signal[channel] = input[j],
-                    Port::Zero => input_signal[channel] = Signal::Value(0.0),
+                    Port::Local(j, port) => input_signal.set(channel, inner_signal[j].at(port)),
+                    Port::Global(j) => input_signal.set(channel, input.at(j)),
+                    Port::Zero => input_signal.set(channel, Signal::Value(0.0)),
                 }
             }
             inner_signal[unit_index] = self.vertex[unit_index].unit.route(&input_signal, frequency);
         }
 
         // Then we set the global outputs.
-        let mut output_signal = new_signal_frame(self.outputs());
+        let mut output_signal = SignalFrame::new(self.outputs());
         for channel in 0..self.outputs() {
             match self.output_edge[channel].source {
-                Port::Global(port) => output_signal[channel] = input[port],
+                Port::Global(port) => output_signal.set(channel, input.at(port)),
                 Port::Local(node, port) => {
-                    output_signal[channel] = inner_signal[node][port];
+                    output_signal.set(channel, inner_signal[node].at(port));
                 }
-                Port::Zero => output_signal[channel] = Signal::Value(0.0),
+                Port::Zero => output_signal.set(channel, Signal::Value(0.0)),
             }
         }
         output_signal
     }
 
     fn footprint(&self) -> usize {
-        std::mem::size_of::<Self>()
+        core::mem::size_of::<Self>()
     }
 
     fn allocate(&mut self) {
@@ -1167,14 +1153,9 @@ impl AudioUnit48 for Net48 {
     }
 }
 
-#[duplicate_item(
-    f48       Net48       Vertex48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ Vertex64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ Vertex32 ]   [ AudioUnit32 ];
-)]
-impl Net48 {
+impl Net {
     /// Given net A, create and return net !A.
-    pub fn thru_op(mut net: Net48) -> Net48 {
+    pub fn thru_op(mut net: Net) -> Net {
         let outputs = net.outputs();
         net.output.resize(net.inputs());
         net.output_edge
@@ -1182,11 +1163,13 @@ impl Net48 {
         for i in outputs..net.inputs() {
             net.output_edge[i] = edge(Port::Global(i), Port::Global(i));
         }
+        let hash = net.ping(true, AttoHash::default());
+        net.ping(false, hash);
         net
     }
 
     /// Given nets A and B, create and return net A ^ B.
-    pub fn branch_op(mut net1: Net48, mut net2: Net48) -> Net48 {
+    pub fn branch_op(mut net1: Net, mut net2: Net) -> Net {
         if net1.inputs() != net2.inputs() {
             panic!(
                 "Branch: mismatched inputs ({} versus {}).",
@@ -1239,11 +1222,13 @@ impl Net48 {
         }
         net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
+        let hash = net1.ping(true, AttoHash::default());
+        net1.ping(false, hash);
         net1
     }
 
     /// Given nets A and B, create and return net A | B.
-    pub fn stack_op(mut net1: Net48, mut net2: Net48) -> Net48 {
+    pub fn stack_op(mut net1: Net, mut net2: Net) -> Net {
         net2.disambiguate_ids(&net1);
         let offset = net1.vertex.len();
         let output_offset = net1.outputs();
@@ -1295,15 +1280,17 @@ impl Net48 {
         }
         net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
+        let hash = net1.ping(true, AttoHash::default());
+        net1.ping(false, hash);
         net1
     }
 
     /// Given nets A and B and binary operator op, create and return net A op B.
-    pub fn bin_op<B: FrameBinop<super::prelude::U1, f48> + Sync + Send + 'static>(
-        mut net1: Net48,
-        mut net2: Net48,
+    pub fn bin_op<B: FrameBinop<super::hacker32::U1> + Sync + Send + 'static>(
+        mut net1: Net,
+        mut net2: Net,
         op: B,
-    ) -> Net48 {
+    ) -> Net {
         if net1.outputs() != net2.outputs() {
             panic!(
                 "Binary operation: mismatched outputs ({} versus {}).",
@@ -1343,10 +1330,10 @@ impl Net48 {
         }
         let add_offset = net1.vertex.len();
         for i in 0..net1.outputs() {
-            net1.push(Box::new(An(Binop::<f48, _, _, _>::new(
-                Pass::<f48>::new(),
-                Pass::<f48>::new(),
+            net1.push(Box::new(An(Binop::<_, _, _>::new(
                 op.clone(),
+                Pass::new(),
+                Pass::new(),
             ))));
             net1.connect_output_index(add_offset + i, 0, i);
         }
@@ -1374,11 +1361,13 @@ impl Net48 {
         }
         net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
+        let hash = net1.ping(true, AttoHash::default());
+        net1.ping(false, hash);
         net1
     }
 
     /// Given nets A and B, create and return net A & B.
-    pub fn bus_op(mut net1: Net48, mut net2: Net48) -> Net48 {
+    pub fn bus_op(mut net1: Net, mut net2: Net) -> Net {
         if net1.inputs() != net2.inputs() {
             panic!(
                 "Bus: mismatched inputs ({} versus {}).",
@@ -1420,10 +1409,10 @@ impl Net48 {
         }
         let add_offset = net1.vertex.len();
         for i in 0..net1.outputs() {
-            net1.push(Box::new(An(Binop::<f48, _, _, _>::new(
-                Pass::<f48>::new(),
-                Pass::<f48>::new(),
+            net1.push(Box::new(An(Binop::<_, _, _>::new(
                 FrameAdd::new(),
+                Pass::new(),
+                Pass::new(),
             ))));
             net1.connect_output_index(add_offset + i, 0, i);
         }
@@ -1451,11 +1440,13 @@ impl Net48 {
         }
         net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
+        let hash = net1.ping(true, AttoHash::default());
+        net1.ping(false, hash);
         net1
     }
 
     /// Given nets A and B, create and return net A >> B.
-    pub fn pipe_op(mut net1: Net48, mut net2: Net48) -> Net48 {
+    pub fn pipe_op(mut net1: Net, mut net2: Net) -> Net {
         if net1.outputs() != net2.inputs() {
             panic!(
                 "Pipe: mismatched connectivity ({} outputs versus {} inputs).",
@@ -1490,8 +1481,8 @@ impl Net48 {
             }
         }
         // Adjust output ports.
-        let output_edge1 = net1.output_edge;
-        net1.output_edge = net2.output_edge.clone();
+        let output_edge1 = net1.output_edge.clone();
+        net1.output_edge.clone_from(&net2.output_edge);
         net1.output = net2.output.clone();
         for output_port in 0..net1.outputs() {
             match net1.output_edge[output_port].source {
@@ -1510,433 +1501,290 @@ impl Net48 {
         }
         net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
+        let hash = net1.ping(true, AttoHash::default());
+        net1.ping(false, hash);
         net1
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Not for Net48 {
-    type Output = Net48;
+impl core::ops::Not for Net {
+    type Output = Net;
     #[inline]
     fn not(self) -> Self::Output {
-        Net48::thru_op(self)
+        Net::thru_op(self)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Neg for Net48 {
-    type Output = Net48;
+impl core::ops::Neg for Net {
+    type Output = Net;
     #[inline]
     fn neg(self) -> Self::Output {
         // TODO. Optimize this.
         let n = self.outputs();
-        Net48::scalar(n, f48::zero()) - self
+        Net::scalar(n, f32::zero()) - self
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Shr<Net48> for Net48 {
-    type Output = Net48;
+impl core::ops::Shr<Net> for Net {
+    type Output = Net;
     #[inline]
-    fn shr(self, y: Net48) -> Self::Output {
-        Net48::pipe_op(self, y)
+    fn shr(self, y: Net) -> Self::Output {
+        Net::pipe_op(self, y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::Shr<An<X>> for Net48
+impl<X> core::ops::Shr<An<X>> for Net
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
     fn shr(self, y: An<X>) -> Self::Output {
-        Net48::pipe_op(self, Net48::wrap(Box::new(y)))
+        Net::pipe_op(self, Net::wrap(Box::new(y)))
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::Shr<Net48> for An<X>
+impl<X> core::ops::Shr<Net> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
-    fn shr(self, y: Net48) -> Self::Output {
-        Net48::pipe_op(Net48::wrap(Box::new(self)), y)
+    fn shr(self, y: Net) -> Self::Output {
+        Net::pipe_op(Net::wrap(Box::new(self)), y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::BitAnd<Net48> for Net48 {
-    type Output = Net48;
+impl core::ops::BitAnd<Net> for Net {
+    type Output = Net;
     #[inline]
-    fn bitand(self, y: Net48) -> Self::Output {
-        Net48::bus_op(self, y)
+    fn bitand(self, y: Net) -> Self::Output {
+        Net::bus_op(self, y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::BitAnd<An<X>> for Net48
+impl<X> core::ops::BitAnd<An<X>> for Net
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
     fn bitand(self, y: An<X>) -> Self::Output {
-        Net48::bus_op(self, Net48::wrap(Box::new(y)))
+        Net::bus_op(self, Net::wrap(Box::new(y)))
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::BitAnd<Net48> for An<X>
+impl<X> core::ops::BitAnd<Net> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
-    fn bitand(self, y: Net48) -> Self::Output {
-        Net48::bus_op(Net48::wrap(Box::new(self)), y)
+    fn bitand(self, y: Net) -> Self::Output {
+        Net::bus_op(Net::wrap(Box::new(self)), y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::BitOr<Net48> for Net48 {
-    type Output = Net48;
+impl core::ops::BitOr<Net> for Net {
+    type Output = Net;
     #[inline]
-    fn bitor(self, y: Net48) -> Self::Output {
-        Net48::stack_op(self, y)
+    fn bitor(self, y: Net) -> Self::Output {
+        Net::stack_op(self, y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::BitOr<An<X>> for Net48
+impl<X> core::ops::BitOr<An<X>> for Net
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
     fn bitor(self, y: An<X>) -> Self::Output {
-        Net48::stack_op(self, Net48::wrap(Box::new(y)))
+        Net::stack_op(self, Net::wrap(Box::new(y)))
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::BitOr<Net48> for An<X>
+impl<X> core::ops::BitOr<Net> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
-    fn bitor(self, y: Net48) -> Self::Output {
-        Net48::stack_op(Net48::wrap(Box::new(self)), y)
+    fn bitor(self, y: Net) -> Self::Output {
+        Net::stack_op(Net::wrap(Box::new(self)), y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::BitXor<Net48> for Net48 {
-    type Output = Net48;
+impl core::ops::BitXor<Net> for Net {
+    type Output = Net;
     #[inline]
-    fn bitxor(self, y: Net48) -> Self::Output {
-        Net48::branch_op(self, y)
+    fn bitxor(self, y: Net) -> Self::Output {
+        Net::branch_op(self, y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::BitXor<An<X>> for Net48
+impl<X> core::ops::BitXor<An<X>> for Net
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
     fn bitxor(self, y: An<X>) -> Self::Output {
-        Net48::branch_op(self, Net48::wrap(Box::new(y)))
+        Net::branch_op(self, Net::wrap(Box::new(y)))
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::BitXor<Net48> for An<X>
+impl<X> core::ops::BitXor<Net> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
-    fn bitxor(self, y: Net48) -> Self::Output {
-        Net48::branch_op(Net48::wrap(Box::new(self)), y)
+    fn bitxor(self, y: Net) -> Self::Output {
+        Net::branch_op(Net::wrap(Box::new(self)), y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Add<Net48> for Net48 {
-    type Output = Net48;
+impl core::ops::Add<Net> for Net {
+    type Output = Net;
     #[inline]
-    fn add(self, y: Net48) -> Self::Output {
-        Net48::bin_op(self, y, FrameAdd::new())
+    fn add(self, y: Net) -> Self::Output {
+        Net::bin_op(self, y, FrameAdd::new())
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::Add<An<X>> for Net48
+impl<X> core::ops::Add<An<X>> for Net
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
     fn add(self, y: An<X>) -> Self::Output {
-        Net48::bin_op(self, Net48::wrap(Box::new(y)), FrameAdd::new())
+        Net::bin_op(self, Net::wrap(Box::new(y)), FrameAdd::new())
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::Add<Net48> for An<X>
+impl<X> core::ops::Add<Net> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
-    fn add(self, y: Net48) -> Self::Output {
-        Net48::bin_op(Net48::wrap(Box::new(self)), y, FrameAdd::new())
+    fn add(self, y: Net) -> Self::Output {
+        Net::bin_op(Net::wrap(Box::new(self)), y, FrameAdd::new())
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Sub<Net48> for Net48 {
-    type Output = Net48;
+impl core::ops::Sub<Net> for Net {
+    type Output = Net;
     #[inline]
-    fn sub(self, y: Net48) -> Self::Output {
-        Net48::bin_op(self, y, FrameSub::new())
+    fn sub(self, y: Net) -> Self::Output {
+        Net::bin_op(self, y, FrameSub::new())
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::Sub<An<X>> for Net48
+impl<X> core::ops::Sub<An<X>> for Net
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
     fn sub(self, y: An<X>) -> Self::Output {
-        Net48::bin_op(self, Net48::wrap(Box::new(y)), FrameSub::new())
+        Net::bin_op(self, Net::wrap(Box::new(y)), FrameSub::new())
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::Sub<Net48> for An<X>
+impl<X> core::ops::Sub<Net> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
-    fn sub(self, y: Net48) -> Self::Output {
-        Net48::bin_op(Net48::wrap(Box::new(self)), y, FrameSub::new())
+    fn sub(self, y: Net) -> Self::Output {
+        Net::bin_op(Net::wrap(Box::new(self)), y, FrameSub::new())
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Mul<Net48> for Net48 {
-    type Output = Net48;
+impl core::ops::Mul<Net> for Net {
+    type Output = Net;
     #[inline]
-    fn mul(self, y: Net48) -> Self::Output {
-        Net48::bin_op(self, y, FrameMul::new())
+    fn mul(self, y: Net) -> Self::Output {
+        Net::bin_op(self, y, FrameMul::new())
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::Mul<An<X>> for Net48
+impl<X> core::ops::Mul<An<X>> for Net
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
     fn mul(self, y: An<X>) -> Self::Output {
-        Net48::bin_op(self, Net48::wrap(Box::new(y)), FrameMul::new())
+        Net::bin_op(self, Net::wrap(Box::new(y)), FrameMul::new())
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl<X> std::ops::Mul<Net48> for An<X>
+impl<X> core::ops::Mul<Net> for An<X>
 where
-    X: AudioNode<Sample = f48> + std::marker::Send + Sync + 'static,
+    X: AudioNode + core::marker::Send + Sync + 'static,
 {
-    type Output = Net48;
+    type Output = Net;
     #[inline]
-    fn mul(self, y: Net48) -> Self::Output {
-        Net48::bin_op(Net48::wrap(Box::new(self)), y, FrameMul::new())
+    fn mul(self, y: Net) -> Self::Output {
+        Net::bin_op(Net::wrap(Box::new(self)), y, FrameMul::new())
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Add<f48> for Net48 {
-    type Output = Net48;
+impl core::ops::Add<f32> for Net {
+    type Output = Net;
     #[inline]
-    fn add(self, y: f48) -> Self::Output {
+    fn add(self, y: f32) -> Self::Output {
         let n = self.outputs();
-        self + Net48::scalar(n, y)
+        self + Net::scalar(n, y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Add<Net48> for f48 {
-    type Output = Net48;
+impl core::ops::Add<Net> for f32 {
+    type Output = Net;
     #[inline]
-    fn add(self, y: Net48) -> Self::Output {
+    fn add(self, y: Net) -> Self::Output {
         let n = y.outputs();
-        Net48::scalar(n, self) + y
+        Net::scalar(n, self) + y
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Sub<f48> for Net48 {
-    type Output = Net48;
+impl core::ops::Sub<f32> for Net {
+    type Output = Net;
     #[inline]
-    fn sub(self, y: f48) -> Self::Output {
+    fn sub(self, y: f32) -> Self::Output {
         let n = self.outputs();
-        self - Net48::scalar(n, y)
+        self - Net::scalar(n, y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Sub<Net48> for f48 {
-    type Output = Net48;
+impl core::ops::Sub<Net> for f32 {
+    type Output = Net;
     #[inline]
-    fn sub(self, y: Net48) -> Self::Output {
+    fn sub(self, y: Net) -> Self::Output {
         let n = y.outputs();
-        Net48::scalar(n, self) - y
+        Net::scalar(n, self) - y
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Mul<f48> for Net48 {
-    type Output = Net48;
+impl core::ops::Mul<f32> for Net {
+    type Output = Net;
     #[inline]
-    fn mul(self, y: f48) -> Self::Output {
+    fn mul(self, y: f32) -> Self::Output {
         let n = self.outputs();
-        self * Net48::scalar(n, y)
+        self * Net::scalar(n, y)
     }
 }
 
-#[duplicate_item(
-    f48       Net48       AudioUnit48;
-    [ f64 ]   [ Net64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Net32 ]   [ AudioUnit32 ];
-)]
-impl std::ops::Mul<Net48> for f48 {
-    type Output = Net48;
+impl core::ops::Mul<Net> for f32 {
+    type Output = Net;
     #[inline]
-    fn mul(self, y: Net48) -> Self::Output {
+    fn mul(self, y: Net) -> Self::Output {
         let n = y.outputs();
-        Net48::scalar(n, self) * y
+        Net::scalar(n, self) * y
     }
 }

@@ -4,23 +4,24 @@
 // with contributions from Benjamin Saunders.
 
 use super::audionode::*;
+use super::buffer::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
-use duplicate::duplicate_item;
+use core::ops::{Add, BitAnd, BitOr, BitXor, Mul, Neg, Shr, Sub};
 use numeric_array::typenum::*;
 
 /// Trait for multi-channel constants.
 pub trait ConstantFrame: Clone + Sync + Send {
     type Sample: Float;
     type Size: Size<Self::Sample>;
-    fn convert(self) -> Frame<Self::Sample, Self::Size>;
+    fn frame(self) -> Frame<Self::Sample, Self::Size>;
 }
 
 impl<T: Float, N: Size<T>> ConstantFrame for Frame<T, N> {
     type Sample = T;
     type Size = N;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         self
     }
 }
@@ -28,7 +29,7 @@ impl<T: Float, N: Size<T>> ConstantFrame for Frame<T, N> {
 impl<T: Float> ConstantFrame for T {
     type Sample = T;
     type Size = U1;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         [self].into()
     }
 }
@@ -36,7 +37,7 @@ impl<T: Float> ConstantFrame for T {
 impl<T: Float> ConstantFrame for (T, T) {
     type Sample = T;
     type Size = U2;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1].into()
     }
 }
@@ -44,7 +45,7 @@ impl<T: Float> ConstantFrame for (T, T) {
 impl<T: Float> ConstantFrame for (T, T, T) {
     type Sample = T;
     type Size = U3;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1, self.2].into()
     }
 }
@@ -52,7 +53,7 @@ impl<T: Float> ConstantFrame for (T, T, T) {
 impl<T: Float> ConstantFrame for (T, T, T, T) {
     type Sample = T;
     type Size = U4;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1, self.2, self.3].into()
     }
 }
@@ -60,7 +61,7 @@ impl<T: Float> ConstantFrame for (T, T, T, T) {
 impl<T: Float> ConstantFrame for (T, T, T, T, T) {
     type Sample = T;
     type Size = U5;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1, self.2, self.3, self.4].into()
     }
 }
@@ -68,7 +69,7 @@ impl<T: Float> ConstantFrame for (T, T, T, T, T) {
 impl<T: Float> ConstantFrame for (T, T, T, T, T, T) {
     type Sample = T;
     type Size = U6;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1, self.2, self.3, self.4, self.5].into()
     }
 }
@@ -76,7 +77,7 @@ impl<T: Float> ConstantFrame for (T, T, T, T, T, T) {
 impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T) {
     type Sample = T;
     type Size = U7;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         [self.0, self.1, self.2, self.3, self.4, self.5, self.6].into()
     }
 }
@@ -84,7 +85,7 @@ impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T) {
 impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T, T) {
     type Sample = T;
     type Size = U8;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         [
             self.0, self.1, self.2, self.3, self.4, self.5, self.6, self.7,
         ]
@@ -95,7 +96,7 @@ impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T, T) {
 impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T, T, T) {
     type Sample = T;
     type Size = U9;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         [
             self.0, self.1, self.2, self.3, self.4, self.5, self.6, self.7, self.8,
         ]
@@ -106,7 +107,7 @@ impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T, T, T) {
 impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T, T, T, T) {
     type Sample = T;
     type Size = U10;
-    fn convert(self) -> Frame<Self::Sample, Self::Size> {
+    fn frame(self) -> Frame<Self::Sample, Self::Size> {
         [
             self.0, self.1, self.2, self.3, self.4, self.5, self.6, self.7, self.8, self.9,
         ]
@@ -202,16 +203,11 @@ impl<X: AudioNode> An<X> {
         self.0.set_sample_rate(sample_rate);
     }
     #[inline]
-    pub fn tick(&mut self, input: &Frame<X::Sample, X::Inputs>) -> Frame<X::Sample, X::Outputs> {
+    pub fn tick(&mut self, input: &Frame<f32, X::Inputs>) -> Frame<f32, X::Outputs> {
         self.0.tick(input)
     }
     #[inline]
-    pub fn process(
-        &mut self,
-        size: usize,
-        input: &[&[X::Sample]],
-        output: &mut [&mut [X::Sample]],
-    ) {
+    pub fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         self.0.process(size, input, output);
     }
     #[inline]
@@ -235,39 +231,38 @@ impl<X: AudioNode> An<X> {
         self.0.ping(probe, hash)
     }
     #[inline]
-    pub fn get_mono(&mut self) -> X::Sample {
+    pub fn get_mono(&mut self) -> f32 {
         self.0.get_mono()
     }
     #[inline]
-    pub fn get_stereo(&mut self) -> (X::Sample, X::Sample) {
+    pub fn get_stereo(&mut self) -> (f32, f32) {
         self.0.get_stereo()
     }
     #[inline]
-    pub fn filter_mono(&mut self, x: X::Sample) -> X::Sample {
+    pub fn filter_mono(&mut self, x: f32) -> f32 {
         self.0.filter_mono(x)
     }
     #[inline]
-    pub fn filter_stereo(&mut self, x: X::Sample, y: X::Sample) -> (X::Sample, X::Sample) {
+    pub fn filter_stereo(&mut self, x: f32, y: f32) -> (f32, f32) {
         self.0.filter_stereo(x, y)
     }
 }
 
-/// `-` unary operator: Negates node outputs. Any node can be negated.
-impl<X> std::ops::Neg for An<X>
+impl<X> Neg for An<X>
 where
     X: AudioNode,
-    X::Outputs: Size<X::Sample>,
+    X::Outputs: Size<f32>,
 {
-    type Output = An<Unop<X::Sample, X, FrameNeg<X::Outputs, X::Sample>>>;
+    type Output = An<Unop<X, FrameNeg<X::Outputs>>>;
     #[inline]
     fn neg(self) -> Self::Output {
         An(Unop::new(self.0, FrameNeg::new()))
     }
 }
 
-/// `!` unary operator: The thru operator makes output arity match input arity
+/// The thru operator makes output arity match input arity
 /// and passes through missing outputs.
-impl<X> std::ops::Not for An<X>
+impl<X> Not for An<X>
 where
     X: AudioNode,
 {
@@ -278,250 +273,178 @@ where
     }
 }
 
-/// `+` binary operator: Sums outputs of two nodes with disjoint inputs.
-/// The nodes must have the same number of outputs.
-impl<X, Y> std::ops::Add<An<Y>> for An<X>
+impl<X, Y> Add<An<Y>> for An<X>
 where
     X: AudioNode,
-    Y: AudioNode<Sample = X::Sample, Outputs = X::Outputs>,
-    X::Inputs: Size<X::Sample> + Add<Y::Inputs>,
-    Y::Inputs: Size<Y::Sample>,
-    <X::Inputs as Add<Y::Inputs>>::Output: Size<X::Sample>,
+    Y: AudioNode<Outputs = X::Outputs>,
+    X::Inputs: Add<Y::Inputs>,
+    <X::Inputs as Add<Y::Inputs>>::Output: Size<f32>,
 {
-    type Output = An<Binop<X::Sample, FrameAdd<X::Outputs, X::Sample>, X, Y>>;
+    type Output = An<Binop<FrameAdd<X::Outputs>, X, Y>>;
     #[inline]
     fn add(self, y: An<Y>) -> Self::Output {
-        An(Binop::new(self.0, y.0, FrameAdd::new()))
+        An(Binop::new(FrameAdd::new(), self.0, y.0))
     }
 }
 
-/// `X + constant` binary operator: Adds `constant` to outputs of `X`.
-/// Broadcasts `constant` to an arbitrary number of channels.
-#[duplicate_item(
-    f48;
-    [ f64 ];
-    [ f32 ];
-)]
-impl<X> std::ops::Add<f48> for An<X>
-where
-    X: AudioNode<Sample = f48>,
-    X::Inputs: Size<f48>,
-    X::Outputs: Size<f48>,
-{
-    type Output = An<Unop<f48, X, FrameAddScalar<X::Outputs, X::Sample>>>;
-    #[inline]
-    fn add(self, y: f48) -> Self::Output {
-        An(Unop::new(self.0, FrameAddScalar::new(y)))
-    }
-}
-
-/// `constant + X` binary operator: Adds `constant` to outputs of `X`.
-/// Broadcasts `constant` to an arbitrary number of channels.
-#[duplicate_item(
-    f48;
-    [ f64 ];
-    [ f32 ];
-)]
-impl<X> std::ops::Add<An<X>> for f48
-where
-    X: AudioNode<Sample = f48>,
-    X::Inputs: Size<f48>,
-    X::Outputs: Size<f48>,
-{
-    type Output = An<Unop<f48, X, FrameAddScalar<X::Outputs, f48>>>;
-    #[inline]
-    fn add(self, y: An<X>) -> Self::Output {
-        An(Unop::new(y.0, FrameAddScalar::new(self)))
-    }
-}
-
-/// `-` binary operator: The difference of outputs of two nodes with disjoint inputs.
-/// The nodes must have the same number of outputs.
-impl<X, Y> std::ops::Sub<An<Y>> for An<X>
+impl<X, Y> Sub<An<Y>> for An<X>
 where
     X: AudioNode,
-    Y: AudioNode<Sample = X::Sample, Outputs = X::Outputs>,
-    X::Inputs: Size<X::Sample> + Add<Y::Inputs>,
-    Y::Inputs: Size<Y::Sample>,
-    <X::Inputs as Add<Y::Inputs>>::Output: Size<X::Sample>,
+    Y: AudioNode<Outputs = X::Outputs>,
+    X::Outputs: Size<f32>,
+    X::Inputs: Size<f32> + Add<Y::Inputs>,
+    Y::Inputs: Size<f32>,
+    <X::Inputs as Add<Y::Inputs>>::Output: Size<f32>,
 {
-    type Output = An<Binop<X::Sample, FrameSub<X::Outputs, X::Sample>, X, Y>>;
+    type Output = An<Binop<FrameSub<X::Outputs>, X, Y>>;
     #[inline]
     fn sub(self, y: An<Y>) -> Self::Output {
-        An(Binop::new(self.0, y.0, FrameSub::new()))
+        An(Binop::new(FrameSub::new(), self.0, y.0))
     }
 }
 
-/// `X - constant` binary operator: Subtracts `constant` from outputs of `X`.
-/// Broadcasts `constant` to an arbitrary number of channels.
-#[duplicate_item(
-    f48;
-    [ f64 ];
-    [ f32 ];
-)]
-impl<X> std::ops::Sub<f48> for An<X>
-where
-    X: AudioNode<Sample = f48>,
-    X::Inputs: Size<f48>,
-    X::Outputs: Size<f48>,
-{
-    type Output = An<Unop<f48, X, FrameAddScalar<X::Outputs, f48>>>;
-    #[inline]
-    fn sub(self, y: f48) -> Self::Output {
-        An(Unop::new(self.0, FrameAddScalar::new(-y)))
-    }
-}
-
-/// `constant - X` binary operator: Negates `X` and adds `constant` to its outputs.
-/// Broadcasts `constant` to an arbitrary number of channels.
-#[duplicate_item(
-    f48;
-    [ f64 ];
-    [ f32 ];
-)]
-impl<X> std::ops::Sub<An<X>> for f48
-where
-    X: AudioNode<Sample = f48>,
-    X::Inputs: Size<f48> + Add<U0>,
-    X::Outputs: Size<f48>,
-    <X::Inputs as Add<U0>>::Output: Size<f48>,
-{
-    type Output = An<Binop<f48, FrameSub<X::Outputs, f48>, Constant<X::Outputs, f48>, X>>;
-    #[inline]
-    fn sub(self, y: An<X>) -> Self::Output {
-        An(Binop::new(
-            Constant::new(Frame::splat(self)),
-            y.0,
-            FrameSub::new(),
-        ))
-    }
-}
-
-/// `*` binary operator: Multiplies outputs of two nodes with disjoint inputs.
-/// The nodes must have the same number of outputs.
-impl<X, Y> std::ops::Mul<An<Y>> for An<X>
+impl<X, Y> Mul<An<Y>> for An<X>
 where
     X: AudioNode,
-    Y: AudioNode<Sample = X::Sample, Outputs = X::Outputs>,
-    X::Inputs: Size<X::Sample> + Add<Y::Inputs>,
-    Y::Inputs: Size<Y::Sample>,
-    <X::Inputs as Add<Y::Inputs>>::Output: Size<X::Sample>,
+    Y: AudioNode<Outputs = X::Outputs>,
+    X::Inputs: Add<Y::Inputs>,
+    <X::Inputs as Add<Y::Inputs>>::Output: Size<f32>,
 {
-    type Output = An<Binop<X::Sample, FrameMul<X::Outputs, X::Sample>, X, Y>>;
+    type Output = An<Binop<FrameMul<X::Outputs>, X, Y>>;
     #[inline]
     fn mul(self, y: An<Y>) -> Self::Output {
-        An(Binop::new(self.0, y.0, FrameMul::new()))
+        An(Binop::new(FrameMul::new(), self.0, y.0))
     }
 }
 
-/// `X * constant` binary operator: Multiplies outputs of `X` with `constant`.
-/// Broadcasts `constant` to an arbitrary number of channels.
-#[duplicate_item(
-    f48;
-    [ f64 ];
-    [ f32 ];
-)]
-impl<X> std::ops::Mul<f48> for An<X>
+impl<X, Y> Shr<An<Y>> for An<X>
 where
-    X: AudioNode<Sample = f48>,
-    X::Inputs: Size<f48>,
-    X::Outputs: Size<f48>,
+    X: AudioNode,
+    Y: AudioNode<Inputs = X::Outputs>,
 {
-    type Output = An<Unop<f48, X, FrameMulScalar<X::Outputs, f48>>>;
-    #[inline]
-    fn mul(self, y: f48) -> Self::Output {
-        An(Unop::new(self.0, FrameMulScalar::new(y)))
-    }
-}
-
-/// `constant * X` binary operator: Multiplies outputs of `X` with `constant`.
-/// Broadcasts `constant` to an arbitrary number of channels.
-#[duplicate_item(
-    f48;
-    [ f64 ];
-    [ f32 ];
-)]
-impl<X> std::ops::Mul<An<X>> for f48
-where
-    X: AudioNode<Sample = f48>,
-    X::Inputs: Size<f48>,
-    X::Outputs: Size<f48>,
-{
-    type Output = An<Unop<f48, X, FrameMulScalar<X::Outputs, f48>>>;
-    #[inline]
-    fn mul(self, y: An<X>) -> Self::Output {
-        An(Unop::new(y.0, FrameMulScalar::new(self)))
-    }
-}
-
-/// `>>` binary operator: The pipe operator pipes outputs of left node to inputs of right node.
-/// Number of outputs on the left side and number of inputs on the right side must match.
-impl<T, X, Y> std::ops::Shr<An<Y>> for An<X>
-where
-    T: Float,
-    X: AudioNode<Sample = T>,
-    Y: AudioNode<Sample = T, Inputs = X::Outputs>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    Y::Outputs: Size<T>,
-{
-    type Output = An<Pipe<T, X, Y>>;
+    type Output = An<Pipe<X, Y>>;
     #[inline]
     fn shr(self, y: An<Y>) -> Self::Output {
         An(Pipe::new(self.0, y.0))
     }
 }
 
-/// `&` binary operator: The bus operator mixes together units with similar connectivity that share inputs and outputs.
-impl<T, X, Y> std::ops::BitAnd<An<Y>> for An<X>
+impl<X, Y> BitAnd<An<Y>> for An<X>
 where
-    T: Float,
-    X: AudioNode<Sample = T>,
-    Y: AudioNode<Sample = T, Inputs = X::Inputs, Outputs = X::Outputs>,
-    Y::Inputs: Size<T>,
-    Y::Outputs: Size<T>,
+    X: AudioNode,
+    Y: AudioNode<Inputs = X::Inputs, Outputs = X::Outputs>,
 {
-    type Output = An<Bus<T, X, Y>>;
+    type Output = An<Bus<X, Y>>;
     #[inline]
     fn bitand(self, y: An<Y>) -> Self::Output {
         An(Bus::new(self.0, y.0))
     }
 }
 
-/// `^` binary operator: The branch operator sources two nodes from the same inputs and concatenates their outputs.
-impl<T, X, Y> std::ops::BitXor<An<Y>> for An<X>
+impl<X, Y> BitXor<An<Y>> for An<X>
 where
-    T: Float,
-    X: AudioNode<Sample = T>,
-    Y: AudioNode<Sample = T, Inputs = X::Inputs>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T> + Add<Y::Outputs>,
-    Y::Outputs: Size<T>,
-    <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
+    X: AudioNode,
+    Y: AudioNode<Inputs = X::Inputs>,
+    X::Outputs: Add<Y::Outputs>,
+    <X::Outputs as Add<Y::Outputs>>::Output: Size<f32>,
 {
-    type Output = An<Branch<T, X, Y>>;
+    type Output = An<Branch<X, Y>>;
     #[inline]
     fn bitxor(self, y: An<Y>) -> Self::Output {
         An(Branch::new(self.0, y.0))
     }
 }
 
-/// `|` binary operator: The stack operator stacks inputs and outputs of two nodes running in parallel.
-impl<T, X, Y> std::ops::BitOr<An<Y>> for An<X>
+impl<X, Y> BitOr<An<Y>> for An<X>
 where
-    T: Float,
-    X: AudioNode<Sample = T>,
-    Y: AudioNode<Sample = T>,
-    X::Inputs: Size<T> + Add<Y::Inputs>,
-    X::Outputs: Size<T> + Add<Y::Outputs>,
-    Y::Inputs: Size<T>,
-    Y::Outputs: Size<T>,
-    <X::Inputs as Add<Y::Inputs>>::Output: Size<T>,
-    <X::Outputs as Add<Y::Outputs>>::Output: Size<T>,
+    X: AudioNode,
+    Y: AudioNode,
+    X::Inputs: Add<Y::Inputs>,
+    X::Outputs: Add<Y::Outputs>,
+    <X::Inputs as Add<Y::Inputs>>::Output: Size<f32>,
+    <X::Outputs as Add<Y::Outputs>>::Output: Size<f32>,
 {
-    type Output = An<Stack<T, X, Y>>;
+    type Output = An<Stack<X, Y>>;
     #[inline]
     fn bitor(self, y: An<Y>) -> Self::Output {
         An(Stack::new(self.0, y.0))
+    }
+}
+
+impl<X> Add<f32> for An<X>
+where
+    X: AudioNode,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+{
+    type Output = An<Unop<X, FrameAddScalar<X::Outputs>>>;
+    #[inline]
+    fn add(self, y: f32) -> Self::Output {
+        An(Unop::new(self.0, FrameAddScalar::new(y)))
+    }
+}
+
+impl<X> Add<An<X>> for f32
+where
+    X: AudioNode,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+{
+    type Output = An<Unop<X, FrameAddScalar<X::Outputs>>>;
+    #[inline]
+    fn add(self, y: An<X>) -> Self::Output {
+        An(Unop::new(y.0, FrameAddScalar::new(self)))
+    }
+}
+
+impl<X> Sub<f32> for An<X>
+where
+    X: AudioNode,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+{
+    type Output = An<Unop<X, FrameAddScalar<X::Outputs>>>;
+    #[inline]
+    fn sub(self, y: f32) -> Self::Output {
+        An(Unop::new(self.0, FrameAddScalar::new(-y)))
+    }
+}
+
+impl<X> Sub<An<X>> for f32
+where
+    X: AudioNode,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+{
+    type Output = An<Unop<X, FrameNegAddScalar<X::Outputs>>>;
+    #[inline]
+    fn sub(self, y: An<X>) -> Self::Output {
+        An(Unop::new(y.0, FrameNegAddScalar::new(self)))
+    }
+}
+
+impl<X> Mul<f32> for An<X>
+where
+    X: AudioNode,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+{
+    type Output = An<Unop<X, FrameMulScalar<X::Outputs>>>;
+    #[inline]
+    fn mul(self, y: f32) -> Self::Output {
+        An(Unop::new(self.0, FrameMulScalar::new(y)))
+    }
+}
+
+impl<X> Mul<An<X>> for f32
+where
+    X: AudioNode,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+{
+    type Output = An<Unop<X, FrameMulScalar<X::Outputs>>>;
+    #[inline]
+    fn mul(self, y: An<X>) -> Self::Output {
+        An(Unop::new(y.0, FrameMulScalar::new(self)))
     }
 }

@@ -1,10 +1,16 @@
-#![allow(clippy::precedence)]
-
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fundsp::hacker32::*;
 
-fn resynth_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(
+fn sine_bench(_dummy: usize) -> Wave {
+    Wave::render(
+        44100.0,
+        1.0,
+        &mut (sumi::<U100, _, _>(|i| sine_hz(100.0 * (i + 1) as f32))),
+    )
+}
+
+fn resynth_bench(_dummy: usize) -> Wave {
+    Wave::render(
         44100.0,
         1.0,
         &mut (noise()
@@ -16,57 +22,58 @@ fn resynth_bench(_dummy: usize) -> Wave32 {
     )
 }
 
-fn pass_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(
+#[allow(clippy::precedence)]
+fn pass_bench(_dummy: usize) -> Wave {
+    Wave::render(
         44100.0,
         1.0,
         &mut (dc((1.0, 2.0)) * 2.0 >> pass() + pass() >> pass()),
     )
 }
 
-fn wavetable_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(44100.0, 1.0, &mut (saw_hz(110.0)))
+fn wavetable_bench(_dummy: usize) -> Wave {
+    Wave::render(44100.0, 1.0, &mut (saw_hz(110.0)))
 }
 
-fn envelope_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(
+fn envelope_bench(_dummy: usize) -> Wave {
+    Wave::render(
         44100.0,
         1.0,
-        &mut (noise() * envelope(|t| exp(-t) * sin_hz(1.0, t))),
+        &mut (noise() * envelope(|t| (-t).exp() * sin_hz(1.0, t))),
     )
 }
 
-fn oversample_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(44100.0, 1.0, &mut (noise() >> oversample(pass())))
+fn oversample_bench(_dummy: usize) -> Wave {
+    Wave::render(44100.0, 1.0, &mut (noise() >> oversample(pass())))
 }
 
-fn chorus_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(44100.0, 1.0, &mut (noise() >> chorus(0, 0.015, 0.005, 0.5)))
+fn chorus_bench(_dummy: usize) -> Wave {
+    Wave::render(44100.0, 1.0, &mut (noise() >> chorus(0, 0.015, 0.005, 0.5)))
 }
 
-fn equalizer_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(
+fn equalizer_bench(_dummy: usize) -> Wave {
+    Wave::render(
         44100.0,
         1.0,
         &mut (noise()
-            >> pipe::<U10, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f32, 1.0, db_amp(3.0)))),
+            >> pipei::<U10, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f32, 1.0, db_amp(3.0)))),
     )
 }
 
-fn reverb_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(
+fn reverb_bench(_dummy: usize) -> Wave {
+    Wave::render(
         44100.0,
         1.0,
         &mut ((noise() | noise()) >> reverb_stereo(10.0, 1.0, 0.5)),
     )
 }
 
-fn limiter_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(44100.0, 1.0, &mut (noise() >> limiter((0.1, 1.0))))
+fn limiter_bench(_dummy: usize) -> Wave {
+    Wave::render(44100.0, 1.0, &mut (noise() >> limiter(0.1, 1.0)))
 }
 
-fn phaser_bench(_dummy: usize) -> Wave32 {
-    Wave32::render(
+fn phaser_bench(_dummy: usize) -> Wave {
+    Wave::render(
         44100.0,
         1.0,
         &mut (noise() >> phaser(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5)),
@@ -74,6 +81,7 @@ fn phaser_bench(_dummy: usize) -> Wave32 {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
+    c.bench_function("sine", |b| b.iter(|| sine_bench(black_box(0))));
     c.bench_function("resynth", |b| b.iter(|| resynth_bench(black_box(0))));
     c.bench_function("pass", |b| b.iter(|| pass_bench(black_box(0))));
     c.bench_function("wavetable", |b| b.iter(|| wavetable_bench(black_box(0))));

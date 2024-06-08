@@ -1,7 +1,6 @@
 //! Math functions and utilities and procedural generation tools.
 
 use super::*;
-use funutd::Rnd;
 
 pub use num_complex::Complex32;
 pub use num_complex::Complex64;
@@ -11,117 +10,120 @@ pub use num_complex::Complex64;
 pub fn abs<T: Num>(x: T) -> T {
     x.abs()
 }
+
 /// The sign function.
 #[inline]
 pub fn signum<T: Num>(x: T) -> T {
     x.signum()
 }
+
 /// Minimum function.
 #[inline]
 pub fn min<T: Num>(x: T, y: T) -> T {
     x.min(y)
 }
+
 /// Maximum function.
 #[inline]
 pub fn max<T: Num>(x: T, y: T) -> T {
     x.max(y)
 }
+
 /// Power function.
 #[inline]
 pub fn pow<T: Num>(x: T, y: T) -> T {
     x.pow(y)
 }
+
 /// Floor function.
 #[inline]
 pub fn floor<T: Num>(x: T) -> T {
     x.floor()
 }
-/// Fraction function.
-#[inline]
-pub fn fract<T: Num>(x: T) -> T {
-    x.fract()
-}
+
 /// Ceiling function.
 #[inline]
 pub fn ceil<T: Num>(x: T) -> T {
     x.ceil()
 }
+
 /// Rounds `x`.
 #[inline]
 pub fn round<T: Num>(x: T) -> T {
     x.round()
 }
+
 /// Square root function.
 #[inline]
 pub fn sqrt<T: Real>(x: T) -> T {
     x.sqrt()
 }
+
 /// Exponential function.
 #[inline]
 pub fn exp<T: Real>(x: T) -> T {
     x.exp()
 }
+
 /// Power of 2 function.
 #[inline]
 pub fn exp2<T: Real>(x: T) -> T {
     x.exp2()
 }
+
 /// Power of 10 function.
 #[inline]
 pub fn exp10<T: Real>(x: T) -> T {
-    (x * T::from_f64(LN_10)).exp()
+    (x * T::from_f64(core::f64::consts::LN_10)).exp()
 }
+
 /// Natural logarithm.
 #[inline]
 pub fn log<T: Real>(x: T) -> T {
     x.log()
 }
+
 /// Binary logarithm.
 #[inline]
 pub fn log2<T: Real>(x: T) -> T {
     x.log2()
 }
+
 /// Base 10 logarithm.
 #[inline]
 pub fn log10<T: Real>(x: T) -> T {
     x.log10()
 }
+
 /// Sine function.
 #[inline]
 pub fn sin<T: Real>(x: T) -> T {
     x.sin()
 }
+
 #[inline]
 /// Cosine function.
 pub fn cos<T: Real>(x: T) -> T {
     x.cos()
 }
+
 /// Tangent function.
 #[inline]
 pub fn tan<T: Real>(x: T) -> T {
     x.tan()
 }
+
 /// Hyperbolic tangent function. Squashes `x` to (-1, 1).
 #[inline]
 pub fn tanh<T: Real>(x: T) -> T {
     x.tanh()
 }
+
 /// Inverse tangent function. Squashes `x` to (-π/2, π/2).
 #[inline]
 pub fn atan<T: Real>(x: T) -> T {
     x.atan()
 }
-
-/// sqrt(2)
-pub const SQRT_2: f64 = std::f64::consts::SQRT_2;
-/// pi
-pub const PI: f64 = std::f64::consts::PI;
-/// tau = 2 * pi
-pub const TAU: f64 = std::f64::consts::TAU;
-/// log(2)
-pub const LN_2: f64 = std::f64::consts::LN_2;
-/// log(10)
-pub const LN_10: f64 = std::f64::consts::LN_10;
 
 /// Clamps `x` between `x0` and `x1`.
 #[inline]
@@ -234,31 +236,27 @@ pub fn delerp11<T: Num>(a: T, b: T, x: T) -> T {
 /// Exponential interpolation in `a`...`b` with `t` in 0...1. `a`, `b` > 0.
 #[inline]
 pub fn xerp<U: Lerp<T> + Real, T>(a: U, b: U, t: T) -> U {
-    exp(lerp(log(a), log(b), t))
+    lerp(a.log(), b.log(), t).exp()
 }
 
 /// Exponential interpolation in `a`...`b` with `t` in 0...1. `a`, `b` > 0.
 #[inline]
 pub fn xerp11<U: Lerp<T> + Real, T: Num>(a: U, b: U, t: T) -> U {
-    exp(lerp(
-        log(a),
-        log(b),
-        t * T::from_f32(0.5) + T::from_f32(0.5),
-    ))
+    lerp(a.log(), b.log(), t * T::from_f32(0.5) + T::from_f32(0.5)).exp()
 }
 
 /// Exponential de-interpolation. `a`, `b`, `x` > 0.
 /// Recovers `t` in 0...1 from interpolated `x`.
 #[inline]
 pub fn dexerp<T: Real>(a: T, b: T, x: T) -> T {
-    log(x / a) / log(b / a)
+    (x / a).log() / (b / a).log()
 }
 
 /// Exponential de-interpolation. `a`, `b`, `x` > 0.
 /// Recovers `t` in -1...1 from interpolated `x`.
 #[inline]
 pub fn dexerp11<T: Real>(a: T, b: T, x: T) -> T {
-    log(x / a) / log(b / a) * T::new(2) - T::new(1)
+    (x / a).log() / (b / a).log() * T::new(2) - T::new(1)
 }
 
 /// Return a dissonance amount between pure tones at `f0` and `f1` Hz.
@@ -359,7 +357,8 @@ pub fn m_weight<T: Real>(f: T) -> T {
 /// The maximum overshoot is 1/8th of the range of the arguments.
 #[inline]
 pub fn spline<T: Num>(y0: T, y1: T, y2: T, y3: T, x: T) -> T {
-    y1 + x / T::new(2)
+    y1 + x
+        * T::from_f32(0.5)
         * (y2 - y0
             + x * (T::new(2) * y0 - T::new(5) * y1 + T::new(4) * y2 - y3
                 + x * (T::new(3) * (y1 - y2) + y3 - y0)))
@@ -450,23 +449,23 @@ pub fn downarc<T: Real>(x: T) -> T {
 
 /// 90 degree sine ease.
 #[inline]
-pub fn sine_ease<T: Float>(x: T) -> T {
-    let x = x * T::from_f64(PI * 0.5);
+pub fn sine_ease<T: Num>(x: T) -> T {
+    let x = x * T::from_f64(f64::PI * 0.5);
     // Use Bhaskara's sine approximation.
-    T::new(16) * x * (T::from_f64(PI) - x)
-        / (T::from_f64(5.0 * PI * PI) - T::new(4) * x * (T::from_f64(PI) - x))
+    T::new(16) * x * (T::from_f64(f64::PI) - x)
+        / (T::from_f64(5.0 * f64::PI * f64::PI) - T::new(4) * x * (T::from_f64(f64::PI) - x))
 }
 
 /// Sine that oscillates at the specified frequency (Hz). Time is input in seconds.
 #[inline]
 pub fn sin_hz<T: Real>(hz: T, t: T) -> T {
-    sin(t * hz * T::from_f64(TAU))
+    sin(t * hz * T::from_f64(f64::TAU))
 }
 
 /// Cosine that oscillates at the specified frequency (Hz). Time is input in seconds.
 #[inline]
 pub fn cos_hz<T: Real>(hz: T, t: T) -> T {
-    cos(t * hz * T::from_f64(TAU))
+    cos(t * hz * T::from_f64(f64::TAU))
 }
 
 /// Square wave that oscillates in the range -1...1 at the specified frequency (Hz).
@@ -504,7 +503,7 @@ pub fn sqr_hz<T: Float>(hz: T, t: T) -> T {
 /// assert_eq!(tri_hz(1.0, 0.75), -1.0);
 /// ```
 #[inline]
-pub fn tri_hz<T: Float>(hz: T, t: T) -> T {
+pub fn tri_hz<T: Num>(hz: T, t: T) -> T {
     let x = t * hz - T::from_f32(0.25);
     let x = x - x.floor();
     abs(x - T::from_f32(0.5)) * T::new(4) - T::one()
@@ -519,43 +518,52 @@ pub fn tri_hz<T: Float>(hz: T, t: T) -> T {
 /// ```
 #[inline]
 pub fn semitone_ratio<T: Real>(x: T) -> T {
-    exp2(x / T::from_f64(12.0))
+    exp2(x * (T::one() / T::new(12)))
 }
 
-/// SplitMix hash as an indexed RNG
-/// (using successive values of the hash as an RNG
-/// passes statistical tests of randomness).
+/// SplitMix hash as an indexed random number generator.
+/// Using successive values of the hash as an RNG
+/// passes statistical tests of randomness.
 /// Returns pseudorandom `f64` in 0...1.
 #[inline]
-pub fn rnd(x: i64) -> f64 {
-    let x = x as u64 ^ 0x5555555555555555;
+pub fn rnd1(x: u64) -> f64 {
+    let x = x ^ 0x5555555555555555;
     let x = x.wrapping_mul(0x9e3779b97f4a7c15);
     let x = (x ^ (x >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
     let x = (x ^ (x >> 27)).wrapping_mul(0x94d049bb133111eb);
     let x = x ^ (x >> 31);
-    (x >> 11) as f64 / (1u64 << 53) as f64
+    (x >> 11) as f64 * (1.0 / (1u64 << 53) as f64)
 }
 
-/// Output hash of Krull64 as an indexed RNG
-/// (using successive values of the hash as an RNG
-/// passes statistical tests of randomness).
+/// Output hash of Krull64 as an indexed random number generator.
+/// Using successive values of the hash as an RNG
+/// passes statistical tests of randomness.
 /// Returns pseudorandom `f64` in 0...1.
 #[inline]
-pub fn rnd2(x: i64) -> f64 {
-    let x = funutd::hash::hash64g(x as u64);
-    (x >> 11) as f64 / (1u64 << 53) as f64
+pub fn rnd2(x: u64) -> f64 {
+    let x = funutd::hash::hash64g(x);
+    (x >> 11) as f64 * (1.0 / (1u64 << 53) as f64)
 }
 
 /// 64-bit hash function.
 /// This hash is a pseudorandom permutation.
+/// Successive values of the hash pass statistical tests of randomness.
 #[inline]
-pub fn hash(x: i64) -> i64 {
-    let x = x as u64 ^ 0x5555555555555555;
+pub fn hash1(x: u64) -> u64 {
+    let x = x ^ 0x5555555555555555;
     let x = x.wrapping_mul(0x517cc1b727220a95);
     // Following hash is by degsky.
     let x = (x ^ (x >> 32)).wrapping_mul(0xd6e8feb86659fd93);
     let x = (x ^ (x >> 32)).wrapping_mul(0xd6e8feb86659fd93);
-    (x ^ (x >> 32)) as i64
+    x ^ (x >> 32)
+}
+
+/// Output hash of Krull64.
+/// This hash is a pseudorandom permutation.
+/// Successive values of the hash pass statistical tests of randomness.
+#[inline]
+pub fn hash2(x: u64) -> u64 {
+    funutd::hash::hash64g(x)
 }
 
 /// Convert MIDI note number to frequency in Hz. Returns 440 Hz for A_4 (note number 69).
@@ -574,8 +582,8 @@ pub fn midi_hz<T: Real>(x: T) -> T {
 
 /// Convert BPM (beats per minute) to Hz.
 #[inline]
-pub fn bpm_hz<T: Real>(bpm: T) -> T {
-    bpm / T::new(60)
+pub fn bpm_hz<T: Num>(bpm: T) -> T {
+    bpm * (T::one() / T::new(60))
 }
 
 /// Pico sized hasher.
@@ -680,15 +688,15 @@ pub fn ease_noise<T: Float>(ease: impl SegmentInterpolator<T>, seed: i64, x: T) 
 /// Value noise interpolated with a cubic spline.
 /// The noise follows a roughly triangular distribution in -1...1.
 /// Each integer cell, offset pseudorandomly, is an interpolation segment.
-pub fn spline_noise<T: Float>(seed: i64, x: T) -> T {
+pub fn spline_noise<T: Float>(seed: u64, x: T) -> T {
     // Employ a pseudorandom offset.
     let x = x + T::from_f64(rnd2(seed));
     let fx = floor(x);
     let dx = x - fx;
     let ix = fx.to_i64();
 
-    fn get_point<T: Float>(seed: i64, i: i64) -> T {
-        AttoHash::new(seed as u64).hash(i as u64).hash11()
+    fn get_point<T: Float>(seed: u64, i: i64) -> T {
+        AttoHash::new(seed).hash(i as u64).hash11()
     }
 
     let y0 = get_point(seed, ix.wrapping_sub(1));
@@ -698,7 +706,7 @@ pub fn spline_noise<T: Float>(seed: i64, x: T) -> T {
 
     // The divisor brings the final result into the range -1...1.
     // Maximum overshoot occurs with spline(-1.0, 1.0, 1.0, -1.0, 0.5).
-    spline(y0, y1, y2, y3, dx) / T::from_f32(1.25)
+    spline(y0, y1, y2, y3, dx) * (T::one() / T::from_f32(1.25))
 }
 
 /// 1-D fractal spline noise in -1...1.
@@ -711,11 +719,11 @@ pub fn fractal_noise<T: Float>(seed: i64, octaves: i64, roughness: T, x: T) -> T
     let mut total_weight = T::zero();
     let mut frequency = T::one();
     let mut result = T::zero();
-    let mut rnd = Rnd::from_u64(seed as u64);
+    let mut rnd = funutd::Rnd::from_u64(seed as u64);
     for _octave in 0..octaves {
         // Employ a pseudorandom offset for each octave.
         let octave_x = x * frequency + T::from_f32(rnd.f32());
-        result += octave_weight * spline_noise(rnd.i64(), octave_x);
+        result += octave_weight * spline_noise(rnd.u64(), octave_x);
         total_weight += octave_weight;
         octave_weight *= roughness;
         frequency *= T::new(2);
@@ -739,7 +747,7 @@ pub fn fractal_ease_noise<T: Float>(
     let mut total_weight = T::zero();
     let mut frequency = T::one();
     let mut result = T::zero();
-    let mut rnd = Rnd::from_u64(seed as u64);
+    let mut rnd = funutd::Rnd::from_u64(seed as u64);
     for _octave in 0..octaves {
         // Employ a pseudorandom offset for each octave.
         let octave_x = x * frequency + T::from_f32(rnd.f32());

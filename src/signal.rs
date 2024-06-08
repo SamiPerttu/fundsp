@@ -2,6 +2,7 @@
 
 use super::math::*;
 use num_complex::Complex64;
+extern crate alloc;
 use tinyvec::TinyVec;
 
 /// Contents of a mono signal. Used in latency and frequency response analysis.
@@ -108,21 +109,51 @@ impl Signal {
     }
 }
 
-/// Frame of input or output signals. Up to 64 channels can be analyzed on stack.
-pub type SignalFrame = TinyVec<[Signal; 64]>;
+/// Frame of input or output signals. Up to 16 channels can be analyzed on stack.
+#[derive(Clone)]
+pub struct SignalFrame(TinyVec<[Signal; 16]>);
 
-/// Create a new signal frame with all channels marked unknown.
-pub fn new_signal_frame(channels: usize) -> SignalFrame {
-    let mut frame = TinyVec::with_capacity(channels);
-    frame.resize(channels, Signal::Unknown);
-    frame
-}
+impl SignalFrame {
+    /// Create a new signal frame with all channels marked unknown.
+    pub fn new(channels: usize) -> SignalFrame {
+        let mut frame = SignalFrame(TinyVec::with_capacity(channels));
+        frame.0.resize(channels, Signal::Unknown);
+        frame
+    }
 
-/// Create a new signal frame by copying from `source` `n` channels starting from index `i`.
-pub fn copy_signal_frame(source: &SignalFrame, i: usize, n: usize) -> SignalFrame {
-    let mut frame = new_signal_frame(n);
-    frame[0..n].copy_from_slice(&source[i..i + n]);
-    frame
+    /// Create a new signal frame by copying from `source` `n` channels starting from index `i`.
+    pub fn copy(source: &SignalFrame, i: usize, n: usize) -> SignalFrame {
+        let mut frame = SignalFrame::new(n);
+        frame.0[0..n].copy_from_slice(&source.0[i..i + n]);
+        frame
+    }
+
+    pub fn fill(&mut self, signal: Signal) {
+        self.0.fill(signal);
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+    pub fn length(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn at(&self, i: usize) -> Signal {
+        self.0[i]
+    }
+
+    pub fn set(&mut self, i: usize, signal: Signal) {
+        self.0[i] = signal;
+    }
+
+    pub fn resize(&mut self, size: usize) {
+        self.0.resize(size, Signal::Unknown);
+    }
 }
 
 /// Signal routing information. This is a dumping ground for signal routing
@@ -143,50 +174,50 @@ pub enum Routing {
 
 impl Routing {
     /// Routes signals from input to output.
-    pub fn propagate(&self, input: &SignalFrame, outputs: usize) -> SignalFrame {
-        let mut output = new_signal_frame(outputs);
+    pub fn route(&self, input: &SignalFrame, outputs: usize) -> SignalFrame {
+        let mut output = SignalFrame::new(outputs);
         if input.is_empty() {
             return output;
         }
         match self {
             Routing::Arbitrary(latency) => {
-                let mut combo = input[0].distort(*latency);
+                let mut combo = input.at(0).distort(*latency);
                 for i in 1..input.len() {
-                    combo = combo.combine_nonlinear(input[i], *latency);
+                    combo = combo.combine_nonlinear(input.at(i), *latency);
                 }
                 output.fill(combo);
             }
             Routing::Split => {
                 for i in 0..outputs {
-                    output[i] = input[i % input.len()];
+                    output.set(i, input.at(i % input.len()));
                 }
             }
             Routing::Join => {
                 // How many inputs for each output.
                 let bundle = input.len() / output.len();
                 for i in 0..outputs {
-                    let mut combo = input[i];
+                    let mut combo = input.at(i);
                     for j in 1..bundle {
                         combo = combo.combine_linear(
-                            input[i + j * outputs],
+                            input.at(i + j * outputs),
                             0.0,
                             |x, y| x + y,
                             |x, y| x + y,
                         );
                     }
                     // Normalize. This is done to make join an inverse of split.
-                    output[i] = combo.scale(output.len() as f64 / input.len() as f64);
+                    output.set(i, combo.scale(output.len() as f64 / input.len() as f64));
                 }
             }
             Routing::Reverse => {
                 assert_eq!(input.len(), outputs);
                 for i in 0..outputs {
-                    output[i] = input[input.len() - 1 - i];
+                    output.set(i, input.at(input.len() - 1 - i));
                 }
             }
             Routing::Generator(latency) => {
                 for i in 0..outputs {
-                    output[i] = Signal::Latency(*latency);
+                    output.set(i, Signal::Latency(*latency));
                 }
             }
         }

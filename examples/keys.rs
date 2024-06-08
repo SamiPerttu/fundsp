@@ -38,9 +38,9 @@ struct State {
     /// Status of keys.
     id: Vec<Option<EventId>>,
     /// Sequencer frontend.
-    sequencer: Sequencer64,
+    sequencer: Sequencer,
     /// Network frontend.
-    net: Net64,
+    net: Net,
     /// Selected waveform.
     waveform: Waveform,
     /// Selected filter.
@@ -48,9 +48,9 @@ struct State {
     /// Vibrato amount in 0...1.
     vibrato_amount: f64,
     /// Chorus amount.
-    chorus_amount: Shared<f64>,
+    chorus_amount: Shared,
     /// Reverb amount.
-    reverb_amount: Shared<f64>,
+    reverb_amount: Shared,
     /// Reverb room size.
     room_size: f64,
     /// Reverb time in seconds.
@@ -58,19 +58,19 @@ struct State {
     /// Reverb diffusion.
     reverb_diffusion: f64,
     /// Reverb frontend.
-    reverb: Slot64,
+    reverb: Slot,
     /// Phaser frontend.
-    phaser: Slot64,
+    phaser: Slot,
     /// Phaser state.
     phaser_enabled: bool,
     /// Flanger frontend.
-    flanger: Slot64,
+    flanger: Slot,
     /// Flanger state.
     flanger_enabled: bool,
     /// Left channel data for the oscilloscope.
-    snoop0: Snoop<f64>,
+    snoop0: Snoop,
     /// Right channel data for the oscilloscope.
-    snoop1: Snoop<f64>,
+    snoop1: Snoop,
 }
 
 static KEYS: [Key; 29] = [
@@ -121,7 +121,7 @@ fn main() {
     }
 }
 
-fn create_reverb(room_size: f64, time: f64, diffusion: f64) -> Box<dyn AudioUnit64> {
+fn create_reverb(room_size: f32, time: f32, diffusion: f32) -> Box<dyn AudioUnit> {
     //Box::new(reverb3_stereo(time, diffusion, highshelf_hz(5000.0, 1.0, db_amp(-1.0))))
     Box::new(reverb2_stereo(
         room_size,
@@ -140,7 +140,7 @@ where
     let sample_rate = config.sample_rate.0 as f64;
     let channels = config.channels as usize;
 
-    let mut sequencer = Sequencer64::new(false, 1);
+    let mut sequencer = Sequencer::new(false, 1);
     let sequencer_backend = sequencer.backend();
 
     let (snoop0, snoop_backend0) = snoop(32768);
@@ -152,28 +152,28 @@ where
     let reverb_diffusion = 0.5;
     let chorus_amount = shared(1.0);
 
-    let mut net = Net64::wrap(Box::new(sequencer_backend));
+    let mut net = Net::wrap(Box::new(sequencer_backend));
     let (reverb, reverb_backend) =
-        Slot64::new(create_reverb(room_size, reverb_time, reverb_diffusion));
-    let (phaser, phaser_backend) = Slot64::new(Box::new(multipass::<U2>()));
-    let (flanger, flanger_backend) = Slot64::new(Box::new(multipass::<U2>()));
+        Slot::new(create_reverb(room_size, reverb_time, reverb_diffusion));
+    let (phaser, phaser_backend) = Slot::new(Box::new(multipass::<U2>()));
+    let (flanger, flanger_backend) = Slot::new(Box::new(multipass::<U2>()));
     net = net >> pan(0.0);
     // Smooth chorus and reverb amounts to prevent discontinuities.
     net = net
         >> ((1.0 - var(&chorus_amount) >> follow(0.01) >> split()) * multipass()
             & (var(&chorus_amount) >> follow(0.01) >> split())
                 * (chorus(0, 0.0, 0.02, 0.3) | chorus(1, 0.0, 0.02, 0.3)));
-    net = net >> Net64::wrap(Box::new(phaser_backend)) >> Net64::wrap(Box::new(flanger_backend));
+    net = net >> Net::wrap(Box::new(phaser_backend)) >> Net::wrap(Box::new(flanger_backend));
     net = net
         >> ((1.0 - var(&reverb_amount) >> follow(0.01) >> split::<U2>()) * multipass()
             & (var(&reverb_amount) >> follow(0.01) >> split::<U2>())
-                * Net64::wrap(Box::new(reverb_backend)))
+                * Net::wrap(Box::new(reverb_backend)))
         >> (snoop_backend0 | snoop_backend1);
 
     net.set_sample_rate(sample_rate);
 
     // Use block processing for maximum efficiency.
-    let mut backend = BlockRateAdapter64::new(Box::new(net.backend()));
+    let mut backend = BlockRateAdapter::new(Box::new(net.backend()));
 
     let mut next_value = move || backend.get_stereo();
 
@@ -197,7 +197,7 @@ where
     };
 
     let state: State = State {
-        rnd: Rnd::from_time(),
+        rnd: Rnd::from_u64(0), // Rnd::from_time(),
         id: vec![None; KEYS.len()],
         sequencer,
         net,
@@ -206,10 +206,10 @@ where
         vibrato_amount: 0.5,
         chorus_amount,
         reverb_amount,
-        room_size,
+        room_size: room_size as f64,
         reverb,
-        reverb_time,
-        reverb_diffusion,
+        reverb_time: reverb_time as f64,
+        reverb_diffusion: reverb_diffusion as f64,
         phaser,
         phaser_enabled: false,
         flanger,
@@ -228,14 +228,14 @@ where
     Ok(())
 }
 
-fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f64, f64))
+fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f32, f32))
 where
     T: SizedSample + FromSample<f64>,
 {
     for frame in output.chunks_mut(channels) {
         let sample = next_sample();
-        let left: T = T::from_sample(sample.0);
-        let right: T = T::from_sample(sample.1);
+        let left: T = T::from_sample(sample.0 as f64);
+        let right: T = T::from_sample(sample.1 as f64);
 
         for (channel, sample) in frame.iter_mut().enumerate() {
             if channel & 1 == 0 {
@@ -363,7 +363,11 @@ impl eframe::App for State {
                 self.reverb.set(
                     Fade::Smooth,
                     0.25,
-                    create_reverb(room_size, reverb_time, reverb_diffusion),
+                    create_reverb(
+                        room_size as f32,
+                        reverb_time as f32,
+                        reverb_diffusion as f32,
+                    ),
                 );
                 self.room_size = room_size;
                 self.reverb_time = reverb_time;
@@ -430,43 +434,43 @@ impl eframe::App for State {
                             )
                     });
                     let waveform = match self.waveform {
-                        Waveform::Sine => Net64::wrap(Box::new(pitch * 2.0 >> sine() * 0.1)),
-                        Waveform::Saw => Net64::wrap(Box::new(pitch >> saw() * 0.5)),
-                        Waveform::Square => Net64::wrap(Box::new(pitch >> square() * 0.5)),
-                        Waveform::Triangle => Net64::wrap(Box::new(pitch >> triangle() * 0.5)),
-                        Waveform::Organ => Net64::wrap(Box::new(pitch >> organ() * 0.5)),
-                        Waveform::Hammond => Net64::wrap(Box::new(pitch >> hammond() * 0.5)),
-                        Waveform::Pulse => Net64::wrap(Box::new(
+                        Waveform::Sine => Net::wrap(Box::new(pitch * 2.0 >> sine() * 0.1)),
+                        Waveform::Saw => Net::wrap(Box::new(pitch >> saw() * 0.5)),
+                        Waveform::Square => Net::wrap(Box::new(pitch >> square() * 0.5)),
+                        Waveform::Triangle => Net::wrap(Box::new(pitch >> triangle() * 0.5)),
+                        Waveform::Organ => Net::wrap(Box::new(pitch >> organ() * 0.5)),
+                        Waveform::Hammond => Net::wrap(Box::new(pitch >> hammond() * 0.5)),
+                        Waveform::Pulse => Net::wrap(Box::new(
                             (pitch | lfo(move |t| lerp11(0.01, 0.99, sin_hz(0.1, t))))
                                 >> pulse() * 0.5,
                         )),
                         Waveform::Pluck => {
-                            Net64::wrap(Box::new(zero() >> pluck(pitch_hz, 0.5, 0.5) * 0.5))
+                            Net::wrap(Box::new(zero() >> pluck(pitch_hz as f32, 0.5, 0.5) * 0.5))
                         }
-                        Waveform::Noise => Net64::wrap(Box::new(
+                        Waveform::Noise => Net::wrap(Box::new(
                             (noise()
                                 | pitch * 4.0
                                 | lfo(move |t| funutd::math::lerp(100.0, 50.0, clamp01(t * 5.0))))
                                 >> !resonator()
                                 >> resonator()
-                                >> shape(fundsp::shape::Shape::AdaptiveTanh(0.02, 0.1)),
+                                >> shape(AdaptiveTanh::new(0.02, 0.1)),
                         )),
                     };
                     let filter = match self.filter {
-                        Filter::None => Net64::wrap(Box::new(pass())),
-                        Filter::Moog => Net64::wrap(Box::new(
+                        Filter::None => Net::wrap(Box::new(pass())),
+                        Filter::Moog => Net::wrap(Box::new(
                             (pass() | lfo(move |t| (xerp11(400.0, 10000.0, cos_hz(0.1, t)), 0.6)))
                                 >> moog(),
                         )),
-                        Filter::Butterworth => Net64::wrap(Box::new(
+                        Filter::Butterworth => Net::wrap(Box::new(
                             (pass() | lfo(move |t| max(400.0, 10000.0 * exp(-t * 5.0))))
                                 >> butterpass(),
                         )),
-                        Filter::Bandpass => Net64::wrap(Box::new(
+                        Filter::Bandpass => Net::wrap(Box::new(
                             (pass() | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 2.0)))
                                 >> bandpass(),
                         )),
-                        Filter::Peak => Net64::wrap(Box::new(
+                        Filter::Peak => Net::wrap(Box::new(
                             (pass() | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 2.0)))
                                 >> peak(),
                         )),

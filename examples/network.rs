@@ -34,7 +34,7 @@ where
     let sample_rate = config.sample_rate.0 as f64;
     let channels = config.channels as usize;
 
-    let mut net = Net64::new(0, 2);
+    let mut net = Net::new(0, 2);
 
     let id_noise = net.chain(Box::new(pink()));
     let id_pan = net.chain(Box::new(pan(0.0)));
@@ -57,7 +57,7 @@ where
     )?;
     stream.play()?;
 
-    let mut rnd = Rnd::from_time();
+    let mut rnd = Rnd::from_u64(1);
     let mut delay_added = false;
     let mut filter_added = false;
 
@@ -70,7 +70,7 @@ where
             net.replace(id_noise, Box::new(pink()));
         }
         if rnd.bool(0.5) {
-            net.replace(id_pan, Box::new(pan(rnd.f64_in(-0.8, 0.8))));
+            net.replace(id_pan, Box::new(pan(rnd.f32_in(-0.8, 0.8))));
         }
         if !delay_added && rnd.bool(0.1) {
             let id_delay = net.push(Box::new(pass() & feedback(delay(0.2) * db_amp(-5.0))));
@@ -87,14 +87,14 @@ where
     }
 }
 
-fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f64, f64))
+fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f32, f32))
 where
     T: SizedSample + FromSample<f64>,
 {
     for frame in output.chunks_mut(channels) {
         let sample = next_sample();
-        let left = T::from_sample(sample.0);
-        let right: T = T::from_sample(sample.1);
+        let left = T::from_sample(sample.0 as f64);
+        let right: T = T::from_sample(sample.1 as f64);
 
         for (channel, sample) in frame.iter_mut().enumerate() {
             if channel & 1 == 0 {

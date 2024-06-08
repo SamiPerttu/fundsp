@@ -2,8 +2,10 @@
 
 use super::audionode::*;
 use super::math::*;
+use super::setting::*;
 use super::signal::*;
 use super::*;
+use core::marker::PhantomData;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
 use numeric_array::*;
@@ -22,10 +24,10 @@ impl<F: Real> BiquadCoefs<F> {
     /// Cutoff is the -3 dB point of the filter in Hz.
     pub fn butter_lowpass(sample_rate: F, cutoff: F) -> Self {
         let c = F::from_f64;
-        let f: F = tan(cutoff * c(PI) / sample_rate);
-        let a0r: F = c(1.0) / (c(1.0) + c(SQRT_2) * f + f * f);
+        let f: F = tan(cutoff * F::PI / sample_rate);
+        let a0r: F = c(1.0) / (c(1.0) + F::SQRT_2 * f + f * f);
         let a1: F = (c(2.0) * f * f - c(2.0)) * a0r;
-        let a2: F = (c(1.0) - c(SQRT_2) * f + f * f) * a0r;
+        let a2: F = (c(1.0) - F::SQRT_2 * f + f * f) * a0r;
         let b0: F = f * f * a0r;
         let b1: F = c(2.0) * b0;
         let b2: F = b0;
@@ -38,8 +40,8 @@ impl<F: Real> BiquadCoefs<F> {
     /// The overall gain of the filter is independent of bandwidth.
     pub fn resonator(sample_rate: F, center: F, bandwidth: F) -> Self {
         let c = F::from_f64;
-        let r: F = exp(c(-PI) * bandwidth / sample_rate);
-        let a1: F = c(-2.0) * r * cos(c(TAU) * center / sample_rate);
+        let r: F = exp(-F::PI * bandwidth / sample_rate);
+        let a1: F = c(-2.0) * r * cos(F::TAU * center / sample_rate);
         let a2: F = r * r;
         let b0: F = sqrt(c(1.0) - r * r) * c(0.5);
         let b1: F = c(0.0);
@@ -54,7 +56,7 @@ impl<F: Real> BiquadCoefs<F> {
 
     /// Frequency response at frequency `omega` expressed as fraction of sampling rate.
     pub fn response(&self, omega: f64) -> Complex64 {
-        let z1 = Complex64::from_polar(1.0, -TAU * omega);
+        let z1 = Complex64::from_polar(1.0, -f64::TAU * omega);
         let z2 = z1 * z1;
         /// Complex64 with real component `x` and imaginary component zero.
         fn re<T: Float>(x: T) -> Complex64 {
@@ -66,12 +68,11 @@ impl<F: Real> BiquadCoefs<F> {
 }
 
 /// 2nd order IIR filter implemented in normalized Direct Form I.
-/// Setting: coefficients as tuple (a1, a2, b0, b1, b2).
+/// - Setting: coefficients as tuple Parameter::Biquad(a1, a2, b0, b1, b2).
 /// - Input 0: input signal.
 /// - Output 0: filtered signal.
 #[derive(Default, Clone)]
-pub struct Biquad<T, F> {
-    _marker: std::marker::PhantomData<T>,
+pub struct Biquad<F> {
     coefs: BiquadCoefs<F>,
     x1: F,
     x2: F,
@@ -80,7 +81,7 @@ pub struct Biquad<T, F> {
     sample_rate: f64,
 }
 
-impl<T: Float, F: Real> Biquad<T, F> {
+impl<F: Real> Biquad<F> {
     pub fn new() -> Self {
         Self {
             sample_rate: DEFAULT_SR,
@@ -102,16 +103,10 @@ impl<T: Float, F: Real> Biquad<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
+impl<F: Real> AudioNode for Biquad<F> {
     const ID: u64 = 15;
-    type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
-    type Setting = (F, F, F, F, F);
-
-    fn set(&mut self, (a1, a2, b0, b1, b2): Self::Setting) {
-        self.set_coefs(BiquadCoefs::arbitrary(a1, a2, b0, b1, b2));
-    }
 
     fn reset(&mut self) {
         self.x1 = F::zero();
@@ -125,10 +120,7 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let x0 = convert(input[0]);
         let y0 = self.coefs.b0 * x0 + self.coefs.b1 * self.x1 + self.coefs.b2 * self.x2
             - self.coefs.a1 * self.y1
@@ -145,11 +137,26 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
         //   s2 = b2 * x0 - a2 * y0
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Biquad(a1, a2, b0, b1, b2) = setting.parameter() {
+            self.set_coefs(BiquadCoefs::arbitrary(
+                F::from_f32(*a1),
+                F::from_f32(*a2),
+                F::from_f32(*b0),
+                F::from_f32(*b1),
+                F::from_f32(*b2),
+            ));
+        }
+    }
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| {
-            r * self.coefs().response(frequency / self.sample_rate)
-        });
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input.at(0).filter(0.0, |r| {
+                r * self.coefs().response(frequency / self.sample_rate)
+            }),
+        );
         output
     }
 }
@@ -161,18 +168,18 @@ impl<T: Float, F: Real> AudioNode for Biquad<T, F> {
 /// - Input 1 (optional): cutoff frequency (Hz)
 /// - Output 0: filtered signal
 #[derive(Clone)]
-pub struct ButterLowpass<T: Float, F: Real, N: Size<T>> {
-    _marker: std::marker::PhantomData<N>,
-    biquad: Biquad<T, F>,
+pub struct ButterLowpass<F: Real, N: Size<f32>> {
+    _marker: PhantomData<N>,
+    biquad: Biquad<F>,
     sample_rate: F,
     cutoff: F,
 }
 
-impl<T: Float, F: Real, N: Size<T>> ButterLowpass<T, F, N> {
+impl<F: Real, N: Size<f32>> ButterLowpass<F, N> {
     /// Create new Butterworth lowpass filter with initial `cutoff` frequency in Hz.
     pub fn new(cutoff: F) -> Self {
         let mut node = ButterLowpass {
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
             biquad: Biquad::new(),
             sample_rate: F::from_f64(DEFAULT_SR),
             cutoff: F::zero(),
@@ -188,16 +195,10 @@ impl<T: Float, F: Real, N: Size<T>> ButterLowpass<T, F, N> {
     }
 }
 
-impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
+impl<F: Real, N: Size<f32>> AudioNode for ButterLowpass<F, N> {
     const ID: u64 = 16;
-    type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = F;
-
-    fn set(&mut self, setting: F) {
-        self.set_cutoff(setting);
-    }
 
     fn reset(&mut self) {
         self.biquad.reset();
@@ -210,10 +211,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if N::USIZE > 1 {
             let cutoff: F = convert(input[1]);
             if cutoff != self.cutoff {
@@ -223,14 +221,23 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
         self.biquad.tick(&[input[0]].into())
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Center(cutoff) = setting.parameter() {
+            self.set_cutoff(F::from_f32(*cutoff));
+        }
+    }
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| {
-            r * self
-                .biquad
-                .coefs()
-                .response(frequency / self.sample_rate.to_f64())
-        });
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input.at(0).filter(0.0, |r| {
+                r * self
+                    .biquad
+                    .coefs()
+                    .response(frequency / self.sample_rate.to_f64())
+            }),
+        );
         output
     }
 }
@@ -244,19 +251,19 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for ButterLowpass<T, F, N> {
 /// - Input 2 (optional): filter bandwidth (distance) between -3 dB points (Hz)
 /// - Output 0: filtered signal
 #[derive(Clone)]
-pub struct Resonator<T: Float, F: Real, N: Size<T>> {
-    _marker: std::marker::PhantomData<N>,
-    biquad: Biquad<T, F>,
+pub struct Resonator<F: Real, N: Size<f32>> {
+    _marker: PhantomData<N>,
+    biquad: Biquad<F>,
     sample_rate: F,
     center: F,
     bandwidth: F,
 }
 
-impl<T: Float, F: Real, N: Size<T>> Resonator<T, F, N> {
+impl<F: Real, N: Size<f32>> Resonator<F, N> {
     /// Create new resonator bandpass. Initial `center` frequency and `bandwidth` are specified in Hz.
     pub fn new(center: F, bandwidth: F) -> Self {
         let mut node = Resonator {
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
             biquad: Biquad::new(),
             sample_rate: F::from_f64(DEFAULT_SR),
             center,
@@ -274,16 +281,10 @@ impl<T: Float, F: Real, N: Size<T>> Resonator<T, F, N> {
     }
 }
 
-impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
+impl<F: Real, N: Size<f32>> AudioNode for Resonator<F, N> {
     const ID: u64 = 17;
-    type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = (F, F);
-
-    fn set(&mut self, (center, bandwidth): Self::Setting) {
-        self.set_center_bandwidth(center, bandwidth);
-    }
 
     fn reset(&mut self) {
         self.biquad.reset();
@@ -295,10 +296,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if N::USIZE >= 3 {
             let center: F = convert(input[1]);
             let bandwidth: F = convert(input[2]);
@@ -312,14 +310,29 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
         self.biquad.tick(&[input[0]].into())
     }
 
+    fn set(&mut self, setting: Setting) {
+        match setting.parameter() {
+            Parameter::Center(center) => {
+                self.set_center_bandwidth(F::from_f32(*center), self.bandwidth)
+            }
+            Parameter::CenterBandwidth(center, bandwidth) => {
+                self.set_center_bandwidth(F::from_f32(*center), F::from_f32(*bandwidth))
+            }
+            _ => (),
+        }
+    }
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| {
-            r * self
-                .biquad
-                .coefs()
-                .response(frequency / self.sample_rate.to_f64())
-        });
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input.at(0).filter(0.0, |r| {
+                r * self
+                    .biquad
+                    .coefs()
+                    .response(frequency / self.sample_rate.to_f64())
+            }),
+        );
         output
     }
 }
@@ -331,19 +344,19 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Resonator<T, F, N> {
 /// - Input 1 (optional): cutoff frequency (Hz)
 /// - Output 0: filtered signal
 #[derive(Default, Clone)]
-pub struct Lowpole<T: Float, F: Real, N: Size<T>> {
-    _marker: std::marker::PhantomData<(T, N)>,
+pub struct Lowpole<F: Real, N: Size<f32>> {
+    _marker: PhantomData<N>,
     value: F,
     coeff: F,
     cutoff: F,
     sample_rate: F,
 }
 
-impl<T: Float, F: Real, N: Size<T>> Lowpole<T, F, N> {
+impl<F: Real, N: Size<f32>> Lowpole<F, N> {
     /// Create new lowpass filter. Cutoff frequency is specified in Hz.
     pub fn new(cutoff: F) -> Self {
         let mut node = Lowpole {
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
             value: F::zero(),
             coeff: F::zero(),
             cutoff,
@@ -357,20 +370,14 @@ impl<T: Float, F: Real, N: Size<T>> Lowpole<T, F, N> {
     /// This has no effect if the filter has a cutoff frequency input.
     pub fn set_cutoff(&mut self, cutoff: F) {
         self.cutoff = cutoff;
-        self.coeff = exp(F::from_f64(-TAU) * cutoff / self.sample_rate);
+        self.coeff = exp(-F::TAU * cutoff / self.sample_rate);
     }
 }
 
-impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
+impl<F: Real, N: Size<f32>> AudioNode for Lowpole<F, N> {
     const ID: u64 = 18;
-    type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = F;
-
-    fn set(&mut self, setting: Self::Setting) {
-        self.set_cutoff(setting);
-    }
 
     fn reset(&mut self) {
         self.value = F::zero();
@@ -382,10 +389,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if N::USIZE > 1 {
             let cutoff: F = convert(input[1]);
             if cutoff != self.cutoff {
@@ -397,14 +401,23 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
         [convert(self.value)].into()
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Center(cutoff) = setting.parameter() {
+            self.set_cutoff(F::from_f32(*cutoff));
+        }
+    }
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| {
-            let c = self.coeff.to_f64();
-            let f = frequency * TAU / self.sample_rate.to_f64();
-            let z1 = Complex64::from_polar(1.0, -f);
-            r * ((1.0 - c) / (1.0 - c * z1))
-        });
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input.at(0).filter(0.0, |r| {
+                let c = self.coeff.to_f64();
+                let f = frequency * f64::TAU / self.sample_rate.to_f64();
+                let z1 = Complex64::from_polar(1.0, -f);
+                r * ((1.0 - c) / (1.0 - c * z1))
+            }),
+        );
         output
     }
 }
@@ -414,8 +427,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Lowpole<T, F, N> {
 /// - Input 0: signal
 /// - Output 0: zero centered signal
 #[derive(Default, Clone)]
-pub struct DCBlock<T: Float, F: Real> {
-    _marker: std::marker::PhantomData<T>,
+pub struct DCBlock<F: Real> {
     x1: F,
     y1: F,
     cutoff: F,
@@ -423,10 +435,10 @@ pub struct DCBlock<T: Float, F: Real> {
     sample_rate: F,
 }
 
-impl<T: Float, F: Real> DCBlock<T, F> {
+impl<F: Real> DCBlock<F> {
     /// Create new DC blocking filter with `cutoff` frequency specified in Hz.
     pub fn new(cutoff: F) -> Self {
-        let mut node = DCBlock::<T, F> {
+        let mut node = Self {
             cutoff,
             ..Default::default()
         };
@@ -438,20 +450,14 @@ impl<T: Float, F: Real> DCBlock<T, F> {
     /// Set the cutoff frequency (in Hz).
     pub fn set_cutoff(&mut self, cutoff: F) {
         self.cutoff = cutoff;
-        self.coeff = F::one() - F::from_f64(TAU) / self.sample_rate * cutoff;
+        self.coeff = F::one() - F::TAU / self.sample_rate * cutoff;
     }
 }
 
-impl<T: Float, F: Real> AudioNode for DCBlock<T, F> {
+impl<F: Real> AudioNode for DCBlock<F> {
     const ID: u64 = 22;
-    type Sample = T;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
-    type Setting = F;
-
-    fn set(&mut self, setting: Self::Setting) {
-        self.set_cutoff(setting);
-    }
 
     fn reset(&mut self) {
         self.x1 = F::zero();
@@ -464,10 +470,7 @@ impl<T: Float, F: Real> AudioNode for DCBlock<T, F> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let x = convert(input[0]);
         let y0 = x - self.x1 + self.coeff * self.y1;
         self.x1 = x;
@@ -475,14 +478,23 @@ impl<T: Float, F: Real> AudioNode for DCBlock<T, F> {
         [convert(y0)].into()
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Center(cutoff) = setting.parameter() {
+            self.set_cutoff(F::from_f32(*cutoff));
+        }
+    }
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| {
-            let c = self.coeff.to_f64();
-            let f = frequency * TAU / self.sample_rate.to_f64();
-            let z1 = Complex64::from_polar(1.0, -f);
-            r * ((1.0 - z1) / (1.0 - c * z1))
-        });
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input.at(0).filter(0.0, |r| {
+                let c = self.coeff.to_f64();
+                let f = frequency * f64::TAU / self.sample_rate.to_f64();
+                let z1 = Complex64::from_polar(1.0, -f);
+                r * ((1.0 - z1) / (1.0 - c * z1))
+            }),
+        );
         output
     }
 }
@@ -491,7 +503,7 @@ impl<T: Float, F: Real> AudioNode for DCBlock<T, F> {
 /// - Input 0: input signal
 /// - Output 0: filtered signal
 #[derive(Default, Clone)]
-pub struct Pinkpass<T: Float, F: Float> {
+pub struct Pinkpass<F: Float> {
     // Algorithm by Paul Kellett. +-0.05 dB accuracy above 9.2 Hz @ 44.1 kHz.
     b0: F,
     b1: F,
@@ -500,26 +512,23 @@ pub struct Pinkpass<T: Float, F: Float> {
     b4: F,
     b5: F,
     b6: F,
-    _marker: std::marker::PhantomData<T>,
     sample_rate: F,
 }
 
-impl<T: Float, F: Float> Pinkpass<T, F> {
+impl<F: Float> Pinkpass<F> {
     /// Create pinking filter.
     pub fn new() -> Self {
-        Pinkpass::<T, F> {
+        Self {
             sample_rate: convert(DEFAULT_SR),
             ..Pinkpass::default()
         }
     }
 }
 
-impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
+impl<F: Float> AudioNode for Pinkpass<F> {
     const ID: u64 = 26;
-    type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.b0 = F::zero();
@@ -536,10 +545,7 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let x: F = convert(input[0]);
         self.b0 = F::from_f64(0.99886) * self.b0 + x * F::from_f64(0.0555179);
         self.b1 = F::from_f64(0.99332) * self.b1 + x * F::from_f64(0.0750759);
@@ -561,19 +567,22 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
     }
 
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| {
-            let f = frequency * TAU / self.sample_rate.to_f64();
-            let z1 = Complex64::from_polar(1.0, -f);
-            let pole0 = 0.0555179 / (1.0 - 0.99886 * z1);
-            let pole1 = 0.0750759 / (1.0 - 0.99332 * z1);
-            let pole2 = 0.1538520 / (1.0 - 0.96900 * z1);
-            let pole3 = 0.3104856 / (1.0 - 0.86650 * z1);
-            let pole4 = 0.5329522 / (1.0 - 0.55000 * z1);
-            let pole5 = -0.016898 / (1.0 + 0.7616 * z1);
-            r * (pole0 + pole1 + pole2 + pole3 + pole4 + pole5 + 0.115926 * z1 + 0.5362)
-                * 0.115830421
-        });
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input.at(0).filter(0.0, |r| {
+                let f = frequency * f64::TAU / self.sample_rate.to_f64();
+                let z1 = Complex64::from_polar(1.0, -f);
+                let pole0 = 0.0555179 / (1.0 - 0.99886 * z1);
+                let pole1 = 0.0750759 / (1.0 - 0.99332 * z1);
+                let pole2 = 0.1538520 / (1.0 - 0.96900 * z1);
+                let pole3 = 0.3104856 / (1.0 - 0.86650 * z1);
+                let pole4 = 0.5329522 / (1.0 - 0.55000 * z1);
+                let pole5 = -0.016898 / (1.0 + 0.7616 * z1);
+                r * (pole0 + pole1 + pole2 + pole3 + pole4 + pole5 + 0.115926 * z1 + 0.5362)
+                    * 0.115830421
+            }),
+        );
         output
     }
 }
@@ -585,20 +594,20 @@ impl<T: Float, F: Float> AudioNode for Pinkpass<T, F> {
 /// - Input 1 (optional): delay in samples at DC (delay > 0)
 /// - Output 0: filtered signal
 #[derive(Default, Clone)]
-pub struct Allpole<T: Float, F: Float, N: Size<T>> {
-    _marker: std::marker::PhantomData<(T, N)>,
+pub struct Allpole<F: Float, N: Size<f32>> {
+    _marker: PhantomData<N>,
     eta: F,
     x1: F,
     y1: F,
     sample_rate: F,
 }
 
-impl<T: Float, F: Float, N: Size<T>> Allpole<T, F, N> {
+impl<F: Float, N: Size<f32>> Allpole<F, N> {
     /// Create new allpass filter. Initial `delay` is specified in samples.
     pub fn new(delay: F) -> Self {
         assert!(delay > F::zero());
         let mut node = Allpole {
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
             eta: F::zero(),
             x1: F::zero(),
             y1: F::zero(),
@@ -615,16 +624,10 @@ impl<T: Float, F: Float, N: Size<T>> Allpole<T, F, N> {
     }
 }
 
-impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
+impl<F: Float, N: Size<f32>> AudioNode for Allpole<F, N> {
     const ID: u64 = 46;
-    type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = F;
-
-    fn set(&mut self, setting: Self::Setting) {
-        self.set_delay(setting);
-    }
 
     fn reset(&mut self) {
         self.x1 = F::zero();
@@ -636,10 +639,7 @@ impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if N::USIZE > 1 {
             self.set_delay(convert(input[1]));
         }
@@ -650,13 +650,23 @@ impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
         [convert(y0)].into()
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Delay(delay) = setting.parameter() {
+            self.set_delay(F::from_f32(*delay));
+        }
+    }
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| {
-            let eta = self.eta.to_f64();
-            let z1 = Complex64::from_polar(1.0, -frequency * TAU / self.sample_rate.to_f64());
-            r * (eta + z1) / (1.0 + eta * z1)
-        });
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input.at(0).filter(0.0, |r| {
+                let eta = self.eta.to_f64();
+                let z1 =
+                    Complex64::from_polar(1.0, -frequency * f64::TAU / self.sample_rate.to_f64());
+                r * (eta + z1) / (1.0 + eta * z1)
+            }),
+        );
         output
     }
 }
@@ -668,8 +678,8 @@ impl<T: Float, F: Float, N: Size<T>> AudioNode for Allpole<T, F, N> {
 /// - Input 1 (optional): cutoff frequency (Hz)
 /// - Output 0: filtered signal
 #[derive(Default, Clone)]
-pub struct Highpole<T: Float, F: Real, N: Size<T>> {
-    _marker: std::marker::PhantomData<(T, N)>,
+pub struct Highpole<F: Real, N: Size<f32>> {
+    _marker: PhantomData<N>,
     x1: F,
     y1: F,
     coeff: F,
@@ -677,11 +687,11 @@ pub struct Highpole<T: Float, F: Real, N: Size<T>> {
     sample_rate: F,
 }
 
-impl<T: Float, F: Real, N: Size<T>> Highpole<T, F, N> {
+impl<F: Real, N: Size<f32>> Highpole<F, N> {
     /// Create new highpass filter. Initial `cutoff` frequency is specified in Hz.
     pub fn new(cutoff: F) -> Self {
         let mut node = Highpole {
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
             x1: F::zero(),
             y1: F::zero(),
             coeff: F::zero(),
@@ -693,20 +703,14 @@ impl<T: Float, F: Real, N: Size<T>> Highpole<T, F, N> {
     }
     pub fn set_cutoff(&mut self, cutoff: F) {
         self.cutoff = cutoff;
-        self.coeff = exp(F::from_f64(-TAU) * cutoff / self.sample_rate);
+        self.coeff = exp(-F::TAU * cutoff / self.sample_rate);
     }
 }
 
-impl<T: Float, F: Real, N: Size<T>> AudioNode for Highpole<T, F, N> {
+impl<F: Real, N: Size<f32>> AudioNode for Highpole<F, N> {
     const ID: u64 = 47;
-    type Sample = T;
     type Inputs = N;
     type Outputs = typenum::U1;
-    type Setting = F;
-
-    fn set(&mut self, setting: Self::Setting) {
-        self.set_cutoff(setting);
-    }
 
     fn reset(&mut self) {
         self.x1 = F::zero();
@@ -719,10 +723,7 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Highpole<T, F, N> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if N::USIZE > 1 {
             let cutoff: F = convert(input[1]);
             if cutoff != self.cutoff {
@@ -736,14 +737,23 @@ impl<T: Float, F: Real, N: Size<T>> AudioNode for Highpole<T, F, N> {
         [convert(y0)].into()
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Center(cutoff) = setting.parameter() {
+            self.set_cutoff(F::from_f32(*cutoff));
+        }
+    }
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| {
-            let c = self.coeff.to_f64();
-            let f = frequency * TAU / self.sample_rate.to_f64();
-            let z1 = Complex64::from_polar(1.0, -f);
-            r * (c * (1.0 - z1) / (1.0 - c * z1))
-        });
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input.at(0).filter(0.0, |r| {
+                let c = self.coeff.to_f64();
+                let f = frequency * f64::TAU / self.sample_rate.to_f64();
+                let z1 = Complex64::from_polar(1.0, -f);
+                r * (c * (1.0 - z1) / (1.0 - c * z1))
+            }),
+        );
         output
     }
 }

@@ -63,7 +63,7 @@ fn main() {
     };
     */
 
-    let mut sequencer = Sequencer64::new(true, 2);
+    let mut sequencer = Sequencer::new(true, 2);
     sequencer.set_sample_rate(sample_rate);
 
     //sequencer.push(0.0, 60.0, Fade::Smooth, 0.0, 0.0, Box::new(stab() * 0.4));
@@ -81,7 +81,7 @@ fn main() {
                 Fade::Smooth,
                 0.0,
                 0.25,
-                Box::new(bassdrum(0.2 + rng.f64() * 0.02, 180.0, 60.0) >> pan(0.0)),
+                Box::new(bassdrum(0.2 + rng.f32() * 0.02, 180.0, 60.0) >> pan(0.0)),
             );
         }
         if snare_line.as_bytes()[i % length] == b'x' {
@@ -91,7 +91,7 @@ fn main() {
                 Fade::Smooth,
                 0.0,
                 0.25,
-                Box::new(snaredrum(rng.i64(), 0.4 + rng.f64() * 0.02) * 1.5 >> pan(0.0)),
+                Box::new(snaredrum(rng.i64(), 0.4 + rng.f32() * 0.02) * 1.5 >> pan(0.0)),
             );
         }
         if cymbl_line.as_bytes()[i % length] == b'x' {
@@ -106,7 +106,7 @@ fn main() {
         }
     }
 
-    let wave = Wave64::render(sample_rate, duration, &mut sequencer);
+    let wave = Wave::render(sample_rate, duration, &mut sequencer);
 
     //let wave = wave.filter(
     //    duration,
@@ -119,7 +119,7 @@ fn main() {
             & 0.2 * reverb2_stereo(10.0, 1.0, 0.5, 1.0, highshelf_hz(6000.0, 1.0, db_amp(-3.0)))),
     );
 
-    let wave = wave.filter_latency(duration, &mut (limiter_stereo((5.0, 5.0))));
+    let wave = wave.filter_latency(duration, &mut (limiter_stereo(5.0, 5.0)));
 
     wave.save_wav16(std::path::Path::new("sequence.wav"))
         .expect("Could not save sequence.wav");

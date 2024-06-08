@@ -1,68 +1,42 @@
-//! Real-time friendly backend for the sequencer unit.
+//! Realtime safe backend for Sequencer.
 
 use super::audiounit::*;
+use super::buffer::*;
 use super::math::*;
 use super::sequencer::*;
 use super::signal::*;
-use duplicate::duplicate_item;
-use thingbuf::mpsc::blocking::{channel, Receiver, Sender};
+use thingbuf::mpsc::{channel, Receiver, Sender};
 
-#[duplicate_item(
-    f48       Sequencer48       Message48       SequencerBackend48       Event48       AudioUnit48       Edit48;
-    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ]   [ Edit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ]   [ Edit32 ];
-)]
-#[derive(Default)]
-pub enum Message48 {
+#[derive(Default, Clone)]
+pub(crate) enum Message {
     /// Nothing.
     #[default]
     Null,
     /// Add new event in absolute time.
-    Push(Event48),
+    Push(Event),
     /// Add new event in relative time.
-    PushRelative(Event48),
+    PushRelative(Event),
     /// Edit event.
-    Edit(EventId, Edit48),
+    Edit(EventId, Edit),
     /// Edit event in relative time.
-    EditRelative(EventId, Edit48),
+    EditRelative(EventId, Edit),
 }
 
-#[duplicate_item(
-    f48       Sequencer48       Message48       SequencerBackend48       Event48       AudioUnit48;
-    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ];
-)]
-impl Clone for Message48 {
-    fn clone(&self) -> Self {
-        Message48::Null
-    }
-}
-
-#[duplicate_item(
-    f48       Sequencer48       Message48       SequencerBackend48       Event48       AudioUnit48;
-    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ];
-)]
-pub struct SequencerBackend48 {
+pub struct SequencerBackend {
     /// For sending events for deallocation back to the frontend.
-    pub sender: Sender<Option<Event48>>,
+    pub(crate) sender: Sender<Option<Event>>,
     /// For receiving new events from the frontend.
-    receiver: Receiver<Message48>,
+    receiver: Receiver<Message>,
     /// The backend sequencer.
-    sequencer: Sequencer48,
+    sequencer: Sequencer,
 }
 
-#[duplicate_item(
-    f48       Sequencer48       Message48       SequencerBackend48       Event48       AudioUnit48;
-    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ];
-)]
-impl Clone for SequencerBackend48 {
+impl Clone for SequencerBackend {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
         let (sender_1, _receiver_1) = channel(1);
         let (_sender_2, receiver_2) = channel(1);
-        SequencerBackend48 {
+        SequencerBackend {
             sender: sender_1,
             receiver: receiver_2,
             sequencer: self.sequencer.clone(),
@@ -70,17 +44,12 @@ impl Clone for SequencerBackend48 {
     }
 }
 
-#[duplicate_item(
-    f48       Sequencer48       Message48       SequencerBackend48       Event48       AudioUnit48;
-    [ f64 ]   [ Sequencer64 ]   [ Message64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ Message32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ];
-)]
-impl SequencerBackend48 {
+impl SequencerBackend {
     /// Create new backend.
-    pub fn new(
-        sender: Sender<Option<Event48>>,
-        receiver: Receiver<Message48>,
-        sequencer: Sequencer48,
+    pub(crate) fn new(
+        sender: Sender<Option<Event>>,
+        receiver: Receiver<Message>,
+        sequencer: Sequencer,
     ) -> Self {
         Self {
             sender,
@@ -93,20 +62,20 @@ impl SequencerBackend48 {
     fn handle_messages(&mut self) {
         while let Ok(message) = self.receiver.try_recv() {
             match message {
-                Message48::Push(event) => {
+                Message::Push(event) => {
                     self.sequencer.push_event(event);
                 }
-                Message48::PushRelative(event) => {
+                Message::PushRelative(event) => {
                     self.sequencer.push_relative_event(event);
                 }
-                Message48::Edit(id, edit) => {
+                Message::Edit(id, edit) => {
                     self.sequencer.edit(id, edit.end_time, edit.fade_out);
                 }
-                Message48::EditRelative(id, edit) => {
+                Message::EditRelative(id, edit) => {
                     self.sequencer
                         .edit_relative(id, edit.end_time, edit.fade_out);
                 }
-                Message48::Null => {}
+                Message::Null => {}
             }
         }
     }
@@ -119,12 +88,7 @@ impl SequencerBackend48 {
     }
 }
 
-#[duplicate_item(
-    f48       Sequencer48       SequencerBackend48       Event48       AudioUnit48;
-    [ f64 ]   [ Sequencer64 ]   [ SequencerBackend64 ]   [ Event64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Sequencer32 ]   [ SequencerBackend32 ]   [ Event32 ]   [ AudioUnit32 ];
-)]
-impl AudioUnit48 for SequencerBackend48 {
+impl AudioUnit for SequencerBackend {
     fn inputs(&self) -> usize {
         0
     }
@@ -153,7 +117,7 @@ impl AudioUnit48 for SequencerBackend48 {
     }
 
     #[inline]
-    fn tick(&mut self, input: &[f48], output: &mut [f48]) {
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
         self.handle_messages();
         self.sequencer.tick(input, output);
         // Tick and process are the only places where events may be pushed to the past vector.
@@ -162,7 +126,7 @@ impl AudioUnit48 for SequencerBackend48 {
         }
     }
 
-    fn process(&mut self, size: usize, input: &[&[f48]], output: &mut [&mut [f48]]) {
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         self.handle_messages();
         self.sequencer.process(size, input, output);
         // Tick and process are the only places where events may be pushed to the past vector.

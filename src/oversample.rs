@@ -152,59 +152,57 @@ const HALFBAND_MIN: [f32; HALFBAND_MIN_LEN] = [
 ];
 
 #[inline]
-fn tick_even<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
+fn tick_even(v: &Frame<f32, U128>, j: usize) -> f32 {
     let j = j + 0x80 - HALFBAND_MIN_LEN;
-    let mut output = T::zero();
+    let mut output = 0.0;
     for i in 0..HALFBAND_MIN_LEN / 2 + 1 {
-        output += v[(j + i * 2) & 0x7f] * T::from_f32(HALFBAND_MIN[i * 2]);
+        output += v[(j + i * 2) & 0x7f] * HALFBAND_MIN[i * 2];
     }
-    output * T::new(2)
+    output * 2.0
 }
 
 #[inline]
-fn tick_odd<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
+fn tick_odd(v: &Frame<f32, U128>, j: usize) -> f32 {
     let j = j + 0x80 - HALFBAND_MIN_LEN;
-    let mut output = T::zero();
+    let mut output = 0.0;
     for i in 0..HALFBAND_MIN_LEN / 2 {
-        output += v[(j + i * 2 + 1) & 0x7f] * T::from_f32(HALFBAND_MIN[i * 2 + 1]);
+        output += v[(j + i * 2 + 1) & 0x7f] * HALFBAND_MIN[i * 2 + 1];
     }
-    output * T::new(2)
+    output * 2.0
 }
 
 #[inline]
-fn tick<T: Float>(v: &Frame<T, U128>, j: usize) -> T {
+fn tick(v: &Frame<f32, U128>, j: usize) -> f32 {
     let j = j + 0x80 - HALFBAND_MIN_LEN;
-    let mut output = T::zero();
+    let mut output = 0.0;
     for i in 0..HALFBAND_MIN_LEN {
-        output += v[(j + i) & 0x7f] * T::from_f32(HALFBAND_MIN[i]);
+        output += v[(j + i) & 0x7f] * HALFBAND_MIN[i];
     }
     output
 }
 
 #[derive(Clone)]
-pub struct Oversampler<T, X>
+pub struct Oversampler<X>
 where
-    T: Float,
-    X: AudioNode<Sample = T>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    X::Inputs: Size<Frame<T, U128>>,
-    X::Outputs: Size<Frame<T, U128>>,
+    X: AudioNode,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+    X::Inputs: Size<Frame<f32, U128>>,
+    X::Outputs: Size<Frame<f32, U128>>,
 {
     x: X,
-    inv: Frame<Frame<T, U128>, X::Inputs>,
-    outv: Frame<Frame<T, U128>, X::Outputs>,
+    inv: Frame<Frame<f32, U128>, X::Inputs>,
+    outv: Frame<Frame<f32, U128>, X::Outputs>,
     j: usize,
 }
 
-impl<T, X> Oversampler<T, X>
+impl<X> Oversampler<X>
 where
-    T: Float,
-    X: AudioNode<Sample = T>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    X::Inputs: Size<Frame<T, U128>>,
-    X::Outputs: Size<Frame<T, U128>>,
+    X: AudioNode,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+    X::Inputs: Size<Frame<f32, U128>>,
+    X::Outputs: Size<Frame<f32, U128>>,
 {
     /// Create new oversampler. 2x oversamples enclosed node.
     pub fn new(sample_rate: f64, mut node: X) -> Self {
@@ -231,20 +229,17 @@ where
     }
 }
 
-impl<T, X> AudioNode for Oversampler<T, X>
+impl<X> AudioNode for Oversampler<X>
 where
-    T: Float,
-    X: AudioNode<Sample = T>,
-    X::Inputs: Size<T>,
-    X::Outputs: Size<T>,
-    X::Inputs: Size<Frame<T, U128>>,
-    X::Outputs: Size<Frame<T, U128>>,
+    X: AudioNode,
+    X::Inputs: Size<f32>,
+    X::Outputs: Size<f32>,
+    X::Inputs: Size<Frame<f32, U128>>,
+    X::Outputs: Size<Frame<f32, U128>>,
 {
     const ID: u64 = 51;
-    type Sample = T;
     type Inputs = X::Inputs;
     type Outputs = X::Outputs;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.x.reset();
@@ -258,14 +253,11 @@ where
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         for channel in 0..Self::Inputs::USIZE {
             self.inv[channel][self.j] = input[channel];
         }
-        let over_input: Frame<T, Self::Inputs> =
+        let over_input: Frame<f32, Self::Inputs> =
             Frame::generate(|channel| tick_even(&self.inv[channel], self.j + 1));
         let over_output = self.x.tick(&over_input);
         for channel in 0..Self::Outputs::USIZE {
@@ -273,15 +265,15 @@ where
         }
         self.j = (self.j + 1) & 0x7f;
         for channel in 0..Self::Inputs::USIZE {
-            self.inv[channel][self.j] = T::zero();
+            self.inv[channel][self.j] = 0.0;
         }
-        let over_input2: Frame<T, Self::Inputs> =
+        let over_input2: Frame<f32, Self::Inputs> =
             Frame::generate(|channel| tick_odd(&self.inv[channel], self.j + 1));
         let over_output2 = self.x.tick(&over_input2);
         for channel in 0..Self::Outputs::USIZE {
             self.outv[channel][self.j] = over_output2[channel];
         }
-        let output: Frame<T, Self::Outputs> =
+        let output: Frame<f32, Self::Outputs> =
             Frame::generate(|channel| tick(&self.outv[channel], self.j));
         self.j = (self.j + 1) & 0x7f;
         output

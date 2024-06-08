@@ -2,6 +2,7 @@
 name = "fundsp"
 description = "Audio processing and synthesis library."
 keywords = ["dsp", "audio", "synthesizer", "sound", "wave"]
+categories = ["multimedia::audio"]
 license = "MIT OR Apache-2.0"
 version = "0.17.1"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
@@ -12,82 +13,39 @@ edition = "2021"
 
 [dependencies]
 generic-array = "0.14.7"
-numeric-array = "0.5.2"
-num-complex = "0.4.5"
-rustfft = "6.2.0"
-realfft = "3.3.0"
-lazy_static = "1.4.0"
-tinyvec = { version = "1.6.0", features = ["alloc"] }
-rsor = "0.1.4"
-duplicate = "1.0.0"
+numeric-array = { version = "0.5.2", default-features = false }
 dyn-clone = "1.0.17"
+libm = "0.2.8"
+wide = "0.7.23"
+num-complex = { version = "0.4.6", default-features = false, features = ["libm"] }
+tinyvec = { version = "1.6.0", features = ["alloc"] }
+hashbrown = "0.14.5"
+microfft = { version = "0.6.0", features = ["size-32768"] }
+funutd = { version = "0.15.0", default-features = false }
+thingbuf = { version = "0.1.6", default-features = false, features = ["alloc"] }
+once_cell = { version = "1.19.0", default-features = false, features = ["race", "alloc"] }
 symphonia = { version = "0.5.4", optional = true, features = ["all"] }
-thingbuf = "0.1.5"
-funutd = "0.14.0"
-
-[features]
-default = ["files"]
-files = ["dep:symphonia"]
 
 [dev-dependencies]
-cpal = "0.15.3"
-anyhow = "1.0.82"
-plotters = "0.3.5"
+anyhow = "1.0.86"
 criterion = "0.5.1"
+cpal = "0.15.3"
+assert_no_alloc = "1.1.2"
+eframe = "0.27.2"
+plotters = "0.3.6"
 midi-msg = "0.5.0"
 midir = "0.9.1"
 read_input = "0.8.6"
-assert_no_alloc = "1.1.2"
-eframe = "0.27.2"
 rayon = "1.10.0"
+
+[features]
+default = ["std", "files"]
+std = []
+files = ["dep:symphonia"]
 
 [[bench]]
 name = "benchmark"
 harness = false
-
-[[example]]
-name = "beep"
-path = "examples/beep.rs"
-
-[[example]]
-name = "peek"
-path = "examples/peek.rs"
-
-[[example]]
-name = "sequence"
-path = "examples/sequence.rs"
-
-[[example]]
-name = "type"
-path = "examples/type.rs"
-
-[[example]]
-name = "plot"
-path = "examples/plot.rs"
-
-[[example]]
-name = "file"
-path = "examples/file.rs"
-
-[[example]]
-name = "grain"
-path = "examples/grain.rs"
-
-[[example]]
-name = "grain2"
-path = "examples/grain2.rs"
-
-[[example]]
-name = "network"
-path = "examples/network.rs"
-
-[[example]]
-name = "keys"
-path = "examples/keys.rs"
-
-[[example]]
-name = "optimize"
-path = "examples/optimize.rs"
 
 [package.metadata.docs.rs]
 all-features = true

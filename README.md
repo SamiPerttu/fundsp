@@ -43,7 +43,30 @@ the [Bevy](https://bevyengine.org/) game engine.
 [midi_fundsp](https://github.com/gjf2a/midi_fundsp) enables the easy creation
 of live synthesizer software using FunDSP for synthesis.
 
-### Graph Notation
+## Installation
+
+Add `fundsp` to your `Cargo.toml` as a dependency.
+
+```rust
+[dependencies]
+fundsp = "0.18.0"
+```
+
+### no_std Support
+
+FunDSP supports `no_std` environments. To enable `no_std`, disable
+the feature `std`, which is enabled by default. The `alloc` crate
+is still needed for components that allocate memory.
+
+In a `no_std` environment,
+audio file reading and writing is not available.
+
+```rust
+[dependencies]
+fundsp = { version = "0.18.0", default-features = false }
+```
+
+## Graph Notation
 
 *FunDSP Composable Graph Notation* expresses audio networks
 in algebraic form, using graph operators. It
@@ -54,7 +77,7 @@ of typed characters needed to accomplish common audio tasks.
 Many common algorithms can be expressed in a natural form
 conducive to understanding.
 For example, an [FM oscillator](https://ccrma.stanford.edu/~jos/sasp/Frequency_Modulation_FM_Synthesis.html)
-can be written simply as:
+can be written simply (for some `f` and `m`) as:
 
 ```rust
 sine_hz(f) * f * m + f >> sine()
@@ -80,7 +103,6 @@ A mono network can be expressed
 as a stereo network simply by replacing its mono generators and
 filters with stereo ones, the graph notation remaining the same.
 
-
 ## Basics
 
 ### Component Systems
@@ -89,11 +111,10 @@ There are two parallel component systems: the static `AudioNode` and the dynamic
 
 ---
 
-| Trait         | Sample Type              | Dispatch             | Allocation Strategy | Connectivity |
-| ------------- | ------------------------ | -------------------- | ------------------- | ------------ |
-| `AudioNode`   | generic (`f32` or `f64`) | static, inlined      | stack               | input and output arity fixed at compile time |
-| `AudioUnit32` | `f32`                    | dynamic, object safe | heap                | input and output arity fixed after construction |
-| `AudioUnit64` | `f64`                    | -..-                 | -..-                | -..- |
+| Trait         | Dispatch             | Allocation Strategy | Connectivity |
+| ------------- | -------------------- | ------------------- | ------------ |
+| `AudioNode`   | static, inlined      | stack               | input and output arity fixed at compile time |
+| `AudioUnit`   | dynamic, object safe | heap                | input and output arity fixed after construction |
 
 ---
 
@@ -104,9 +125,10 @@ through input and output connections.
 Both systems operate on signals synchronously as an infinite stream. The stream can be
 rewound to the start at any time using the `reset` method.
 
-`AudioNode`s can be stack allocated for the most part, if only single sample processing
-is used. Block processing via `AudioNode::process` requires heap allocation.
-Some nodes may also use the heap for audio buffers and the like.
+All `AudioNode` and `AudioUnit` components use 32-bit floating point samples (`f32`).
+
+`AudioNode`s can be stack allocated for the most part.
+Some nodes may use the heap for audio buffers and the like.
 
 The `allocate` method preallocates all needed memory. It should be called last before
 sending something into a real-time context. This is done automatically in
@@ -117,18 +139,18 @@ decisions about input and output arities and contents can be deferred to runtime
 
 ### Conversions
 
-`AudioNode`s are converted to the `AudioUnit` system using the wrapper type `An`,
-which implements `AudioUnit32` or `AudioUnit64`, depending on the sample type.
+`AudioNode`s are converted to the `AudioUnit` system
+using the wrapper type `An`, which implements `AudioUnit`.
 Opcodes in the preludes return nodes already wrapped.
 
-`AudioUnit`s can in turn be converted to `AudioNode` with the wrappers `Node32` and `Node64`.
+`AudioUnit`s can in turn be converted to `AudioNode` with the wrapper `unit`.
 In this case, the input and output arities must be provided as type-level constants
 `U0`, `U1`, ..., for example:
 
 ```rust
 use fundsp::hacker32::*;
 // The number of inputs is zero and the number of outputs is one.
-let type_erased: An<Node32<U0, U1>> = node32::<U0, U1>(Box::new(white() >> lowpass_hz(5000.0, 1.0) >> highpass_hz(1000.0, 1.0)));
+let type_erased: An<Unit<U0, U1>> = unit::<U0, U1>(Box::new(white() >> lowpass_hz(5000.0, 1.0) >> highpass_hz(1000.0, 1.0)));
 ```
 
 ### Processing
@@ -139,7 +161,8 @@ sample frames, while the `process` method processes whole blocks.
 
 If maximum speed is important, then
 it is a good idea to use block processing, as it amortizes
-function calling, processing setup and dynamic network overhead.
+function calling, processing setup and dynamic network overhead,
+and enables explicit [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) support.
 
 Mono samples can be retrieved with `get_mono` and `filter_mono` methods. The `get_mono` method
 returns the next sample from a generator that has no inputs and one or two outputs,
@@ -162,6 +185,47 @@ let (out_left_sample, out_right_sample) = node.get_stereo();
 let (out_left_sample, out_right_sample) = node.filter_stereo(left_sample, right_sample);
 ```
 
+### Block Processing
+
+The `buffer` module contains buffers for block processing.
+The buffers contain 32-bit float samples. There are two types of owned
+buffers: the static `BufferArray` and the dynamic `BufferVec`.
+
+Buffers are always 64 samples long (`MAX_BUFFER_SIZE`),
+have an arbitrary number of channels, and are explicitly
+[SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data)
+accelerated with the type `f32x8` from the [`wide`](https://crates.io/crates/wide) crate.
+The samples are laid out noninterleaved in a flat array.
+
+`BufferArray` is an audio buffer backed by an array.
+The number of channels is a generic parameter which must be known at compile time.
+Using this buffer type it is possible to do block processing without allocating heap memory.
+
+`BufferVec` is an audio buffer backed by a dynamic vector. The buffer is heap allocated.
+The number of channels can be decided at runtime.
+
+```rust
+use fundsp::hacker::*;
+// Create a stereo buffer on the stack.
+let mut buffer = BufferArray::<U2>::new();
+// Declare stereo noise.
+let mut node = noise() | noise();
+// Process 50 samples into the buffer. There are no inputs, so we can borrow an empty buffer.
+node.process(50, &BufferRef::empty(), &mut buffer.buffer_mut());
+// Create another stereo buffer, this one on the heap.
+let mut filtered = BufferVec::new(2);
+// Declare stereo filter.
+let mut filter = lowpole_hz(3000.0) | lowpole_hz(3000.0);
+// Filter the 50 noise samples.
+filter.process(50, &buffer.buffer_ref(), &mut filtered.buffer_mut());
+```
+
+To call `process` automatically behind the scenes, use the `BlockRateAdapter` adapter component.
+However, it works only with *generators*, which are components with no inputs.
+
+To access `f32` values in a buffer, use methods with the `f32` suffix, for example,
+`at_f32` or `channel_f32`.
+
 ### Sample Rate Independence
 
 Of the signals flowing in graphs, some contain audio while others are controls of different kinds.
@@ -170,14 +234,14 @@ With control signals and parameters in general, we prefer to use natural units l
 It is useful to keep parameters independent of the sample rate, which we can then adjust as we like.
 
 In addition to sample rate adjustments, natural units enable support for
-selective oversampling (the `oversample` component)
+selective oversampling (with the `oversample` component)
 in nested sections that are easy to configure and modify.
 
 Some low-level components ignore the sample rate by design, such as the single sample delay `tick`.
 
 The default sample rate is 44.1 kHz.
-In both systems, the sample rate can be set for component `A` via `A.set_sample_rate(sample_rate)`.
-
+In both systems, the sample rate can be set for component `A`, and any children it may have,
+via `A.set_sample_rate(sample_rate)`.
 
 ## Audio Processing Environment
 
@@ -186,13 +250,12 @@ FunDSP preludes define convenient combinator environments for audio processing.
 There are three name-level compatible versions of the prelude.
 
 The default environment (`fundsp::prelude`) offers a generic interface.
-It is flexible and attempts to conform to Rust practices.
 
 The 64-bit hacker environment (`fundsp::hacker`) for audio hacking
-is fully 64-bit to minimize type annotations and maximize audio quality.
+uses 64-bit internal state for components to maximize audio quality.
 
-The 32-bit hacker environment (`fundsp::hacker32`) aims to offer
-maximum processing speed.
+The 32-bit hacker environment (`fundsp::hacker32`) uses 32-bit internal
+state for components. It aims to offer maximum processing speed.
 
 An application interfacing `fundsp` can mix and match preludes as needed.
 The aims of the environments are:
@@ -201,7 +264,6 @@ The aims of the environments are:
 - Keep the syntax clean so that a subset of the hacker environment
   can be parsed straightforwardly as a high-level DSL for quick prototyping.
 - Make the syntax usable even to people with no prior exposure to programming.
-- Exemplify an effective procedural style.
 
 ### Deterministic Pseudorandom Phase
 
@@ -211,6 +273,8 @@ Generator phases are seeded from network structure and node location.
 Thus, two identical networks sound identical separately but different when combined.
 This means that `noise() | noise()` is a stereo noise source, for example.
 
+Pseudorandom phase is an attempt to decorrelate different channels of audio.
+It is also used to pick sample points for envelopes, contributing to a "warmer" sound.
 
 ## Operators
 
@@ -234,12 +298,27 @@ In order of precedence, from highest to lowest:
 | `A ^ B`        | branch input to `A` and `B` in parallel | `a`&#160;`=`&#160;`b` | `a`&#160;`+`&#160;`b` | Number of inputs in `A` and `B` must match. |
 | `A \| B`       | stack `A` and `B` in parallel | `a`&#160;`+`&#160;`b` | `a`&#160;`+`&#160;`b` | Concatenates `A` and `B` inputs and outputs. |
 
----
-
-In the table, `constant` denotes an `f32` or `f64` value.
+In the table, `constant` denotes an `f32` value.
 
 All operators are associative, except the left associative `-`.
 
+An alternative to some operators are functions available in the preludes.
+Some of them have multiple combination versions;
+these work only for multiples of the same type of node, with statically (at compile time) set number of nodes.
+
+The nodes are allocated inline in all functions.
+
+| Operator Form | Function Form   | Multiple Combination Forms |
+| ------------- | --------------- | -------------------------- |
+| `!A`          | `thru(A)`       | - |
+| `A * B`       | `product(A, B)` | - |
+| `A + B`       | `sum(A, B)`     | `sumi, sumf` |
+| `A >> B`      | `pipe(A, B)`    | `pipei, pipef` |
+| `A & B`       | `bus(A, B)`     | `busi, busf` |
+| `A ^ B`       | `branch(A, B)`  | `branchi, branchf` |
+| `A \| B`      | `stack(A, B)`   | `stacki, stackf` |
+
+---
 
 ### Operators Diagram
 
@@ -247,7 +326,7 @@ All operators are associative, except the left associative `-`.
 
 ### Broadcasting
 
-Arithmetic operators are applied to outputs channel-wise.
+Arithmetic operators are applied to outputs channelwise.
 
 Arithmetic between two components never broadcasts channels: channel arities have to match always.
 
@@ -256,7 +335,7 @@ Direct arithmetic with `f32` and `f64` values, however, broadcasts to an arbitra
 The negation operator broadcasts also: `-A` is equivalent with `(0.0 - A)`.
 
 For example, `A * constant(2.0)` and `A >> mul(2.0)` are equivalent and expect `A` to have one output.
-On the other hand, `A * 2.0` works with any `A`, even *sinks*.
+On the other hand, `A * 2.0` works with any `A`, even with zero outputs.
 
 ### Thru
 
@@ -267,6 +346,8 @@ The missing outputs are parameters to the filter.
 
 For example, while `lowpass()` is a 2nd order lowpass filter, `!lowpass() >> lowpass()`
 is a steeper 4th order lowpass filter with identical connectivity.
+
+The thru operator is also available as a function: `thru(A)` is equivalent with `!A`.
 
 ### Generators, Filters and Sinks
 
@@ -302,6 +383,8 @@ Pipe is a fundamental operation. It wires units in series.
 It is possible to pipe a sink to a generator. This is similar to stacking.
 Processing works as normal and the sink processes its inputs before the generator is run.
 
+The pipe operation is also available as a function: `pipe(A, B)` is equal to `A >> B`.
+
 #### Branch
 
 Where the arithmetic operators are reducing in nature,
@@ -312,6 +395,8 @@ Because the components receive the same input, the number of inputs in `A` and `
 In `A ^ B`, the outputs of `A` appear first, followed with outputs of `B`.
 
 Branching is useful for building *banks* of components such as filters.
+
+The branch operation is also available as a function: `branch(A, B)` is equal to `A ^ B`.
 
 #### Bus
 
@@ -338,6 +423,8 @@ Or, to add 20% reverb to a stereo signal, `multipass() & 0.2 * reverb_stereo(20.
 Type inference works in our favor here, saving us the need to write the arity of `multipass`,
 and the constant `0.2` is broadcast to two channels.
 
+The bus operation is also available as a function: `bus(A, B)` is equal to `A & B`.
+
 #### Stack
 
 The stack ( `|` ) operator builds composite components.
@@ -355,6 +442,8 @@ The stack is often used to build filter parameters. For example, in
 the stack and two other signals, frequency and Q, are concatenated to it to form the input
 to a lowpass filter.
 
+The stack operation is also available as a function: `stack(A, B)` is equal to `A | B`.
+
 ## Expressions Are Graphs
 
 The expression `A >> (B ^ C ^ D)` defines a signal processing graph.
@@ -367,7 +456,7 @@ See the preludes for examples.
 Connectivity is checked during compilation.
 Mismatched connectivity will result in a compilation error complaining about mismatched
 [`typenum`](https://crates.io/crates/typenum) [types](https://docs.rs/typenum/1.12.0/typenum/uint/struct.UInt.html).
-The arrays `Frame<T, Size>` that connect components come from the
+The arrays `Frame<f32, Size>` that connect components in `tick` come from the
 [`generic-array`](https://crates.io/crates/generic-array) and
 [`numeric-array`](https://crates.io/crates/numeric-array) crates.
 
@@ -384,20 +473,21 @@ branching and busing. Both are exposed as fundamental operators,
 guiding toward efficient structuring of computation.
 Dataflow concerns are thus explicated in the graph notation itself.
 
-### Net32 and Net64
+### Net
 
 The graph notation can get cumbersome for complex graphs. Also, sometimes
 the number of inputs and outputs is not known until runtime.
 
-The `Net32` and `Net64` components offer an explicit graph interface
-for connecting `AudioUnit32` and `AudioUnit64` nodes, respectively.
+The `Net` component offers an explicit graph interface
+for connecting `AudioUnit` nodes.
+Arity of the net is specified as constructor arguments.
 
-For example, to build `dc(220.0) >> sine()` dynamically using `Net64`:
+For example, to build `dc(220.0) >> sine()` dynamically using `Net`:
 
 ```rust
 use fundsp::hacker::*;
 // Instantiate network with 0 inputs and 1 output.
-let mut net = Net64::new(0, 1);
+let mut net = Net::new(0, 1);
 // Add nodes, obtaining their IDs.
 let dc_id = net.push(Box::new(dc(220.0)));
 let sine_id = net.push(Box::new(sine()));
@@ -406,19 +496,19 @@ net.pipe(dc_id, sine_id);
 net.pipe_output(sine_id);
 ```
 
-The graph syntax is also available for combining `Net32` and `Net64` instances.
+The graph syntax is also available for combining `Net` instances.
 Connectivity checks are then deferred to runtime.
 
-`Net32` and `Net64` can also be combined inline with components from the preludes.
-The components are first converted to `Net32` or `Net64`.
+Networks can also be combined inline with components from the preludes.
+The components are first converted to `Net`.
 
-When you need dynamic processing, you can start it with `Net32::wrap` or `Net64::wrap`,
-which convert any unit into a network.
+When you need dynamic processing, you can start it with `Net::wrap`,
+which converts any unit into a network.
 
 ```rust
 use fundsp::hacker::*;
 // Wrap saw wave in a network.
-let mut net = Net64::wrap(Box::new(saw()));
+let mut net = Net::wrap(Box::new(saw()));
 // Now we can add filters conditionally.
 let add_filter = true;
 if add_filter {
@@ -426,13 +516,13 @@ if add_filter {
 }
 ```
 
-For real-time situations, a `Net32` or `Net64` can be divided into a frontend
+For real-time situations, a `Net` can be divided into a frontend
 and a backend. The frontend handles changes to the network,
 while the real-time safe backend renders audio.
 
 ```rust
 use fundsp::hacker::*;
-let mut net = Net64::new(0, 1);
+let mut net = Net::new(0, 1);
 let noise_id = net.chain(Box::new(pink()));
 // Create the backend.
 let mut backend = net.backend();
@@ -444,6 +534,37 @@ net.commit();
 // is maintained at commit time.
 net = net >> peak_hz(1000.0, 1.0);
 net.commit();
+```
+
+Using dynamic networks incurs overhead so it is an especially good idea
+to use block processing to amortize the overhead.
+
+### Sequencer
+
+The `Sequencer` component mixes together generator nodes dynamically.
+It can start and stop rendering nodes with sample accuracy.
+
+For use as a dynamic mixer, it can be split into a frontend and a backend.
+The frontend is for adding and editing events, and the real-time safe backend renders audio.
+
+The sequencer has no inputs and a user specified number of outputs.
+
+```rust
+use fundsp::hacker::*;
+// Create stereo sequencer.
+// The first argument should be set true if we want to replay events after `reset`.
+let mut sequencer = Sequencer::new(false, 2);
+// Add a new event with start time 1.0 seconds and end time 2.0 seconds.
+// This returns an `EventId`.
+let id1 = sequencer.push(1.0, 2.0, Fade::Smooth, 0.1, 0.1, Box::new(noise()));
+// Add a new event that starts immediately and plays indefinitely.
+let id2 = sequencer.push_relative(0.0, f64::INFINITY, Fade::Smooth, 0.1, 0.1, Box::new(pink()));
+// Get a backend for this sequencer. This sequencer is then the frontend.
+let mut backend = sequencer.backend();
+// Now we can insert the backend into, for example, a `Net`.
+// Later we can use the frontend to make edits to an event; the end time and fade-out time
+// can be changed. Here we start fading out the event immediately.
+sequencer.edit_relative(id2, 0.0, 0.1);
 ```
 
 ## Input Modalities And Ranges
@@ -461,12 +582,12 @@ Some signals found flowing in audio networks.
 
 ## Working With Waves
 
-FunDSP includes multichannel wave abstractions. They are named `Wave32` and `Wave64`.
+FunDSP includes a multichannel wave abstraction called `Wave`.
 For example, to render 10 seconds of pink noise:
 
 ```rust
 use fundsp::hacker::*;
-let wave1 = Wave64::render(44100.0, 10.0, &mut (pink()));
+let wave1 = Wave::render(44100.0, 10.0, &mut (pink()));
 ```
 
 Then filter it with a moving bandpass filter and normalize samples to -1..1:
@@ -476,8 +597,10 @@ let mut wave2 = wave1.filter(10.0, &mut ((pass() | lfo(|t| (xerp11(110.0, 880.0,
 wave2.normalize();
 ```
 
-Saving of waves is possible in 16-bit or 32-bit WAV.
-The latter is floating point.
+Saving of waves is possible in 16-bit or 32-bit [WAV](https://en.wikipedia.org/wiki/WAV)
+when the `std` feature is enabled.
+The 16-bit format is integer based while the 32-bit format is floating point.
+
 For example, to save `wave2` to `test.wav`:
 
 ```rust
@@ -487,12 +610,15 @@ wave2.save_wav16("test.wav").expect("Could not save wave.");
 Loading of audio files in various formats is handled by the
 [Symphonia](https://crates.io/crates/symphonia) crate.
 Symphonia integration is enabled by the `files` feature, which is enabled by default.
+The `std` feature must be enabled also.
 
 For example, to load `test.wav`:
 
 ```rust
-let wave3 = Wave64::load("test.wav").expect("Could not load wave.");
+let wave3 = Wave::load("test.wav").expect("Could not load wave.");
 ```
+
+Individual channels of waves can be played back with the `wavech` and `wavech_at` opcodes.
 
 ## Signal Flow Analysis
 
@@ -531,6 +657,8 @@ use fundsp::hacker::*;
 assert!((0.5 * pass() & tick() & 0.5 * tick() >> tick()).response(0, 22050.0).unwrap().norm() < 1.0e-9);
 ```
 
+## Filters
+
 ### List of Linear Filters
 
 Verified frequency responses are available for all linear filters.
@@ -563,7 +691,7 @@ Verified frequency responses are available for all linear filters.
 ### Parameter Smoothing Filter
 
 The `follow` filter is special. It supports different rates for rising (attack) and falling (release) segments.
-For example, `follow((0.1, 0.2))` has a 0.1 second attack and a 0.2 second release.
+For example, `afollow(0.1, 0.2)` has a 0.1 second attack and a 0.2 second release.
 
 It also jumps immediately to the very first value in the input stream, and starts smoothing from there.
 This means the output value is always within input bounds.
@@ -629,12 +757,12 @@ object, to support time varying effects.
 For more information on the technique, see
 [Fourier analysis and reconstruction of audio signals](http://msp.ucsd.edu/techniques/v0.11/book-html/node172.html).
 
-### More On Multithreading And Real-Time Control
+## More On Multithreading And Real-Time Control
 
 Besides `Net` and `Sequencer` frontends, there are two ways to introduce real-time
 control to graph expressions: shared atomic variables and setting listeners.
 
-#### Atomic Variables
+### Atomic Variables
 
 We may use shared atomic variables to communicate data from and to external contexts.
 A shared variable is declared with an initial value:
@@ -668,19 +796,47 @@ let amp_controlled = noise() * (var(&amp) >> follow(0.1));
 The `timer` opcode maintains stream time in a shared variable.
 The timer node has no inputs or outputs and can be joined to any node by stacking.
 
-#### Settings
+### Settings
 
 Settings are all kinds of node parameters with no dedicated inputs.
-A node can respond to one type of setting.
+A node can respond to one or more types of settings, which are
+applied using the `set` method.
 
-The purpose of settings is to automate setting listeners,
-which are instantiated with the `listen(graph)` opcode. It
-returns a `(sender, graph)` pair. The graph has been wrapped
-with a listener listening to settings sent through `sender`.
+```rust
+use fundsp::hacker::*;
+let mut node = afollow(0.1, 1.0);
+node.set(Setting::attack_release(0.2, 2.0));
+```
+
+To adjust settings from other threads, a node can be
+wrapped inside a setting listener with the `listen(node)`
+opcode. It returns a `(sender, node)` pair.
 
 The sender can be cloned and invoked from other threads.
-The format of the settings available through `sender` depends
+The format of settings available through `sender` depends
 on the type of the graph.
+
+Nodes inside structures can be accessed via addressing:
+
+| `Setting` Call | Address Meaning |
+| -------------- | --------------------------------- |
+| `left()`       | Pick left side of binary operation. |
+| `right()`      | Pick right side of binary operation. |
+| `index(i)`     | Pick index `i` inside structure such as `busi`. |
+| `node(id)`     | Pick node with `id` inside `Net`. |
+
+Addresses are specified after the parameter constructor.
+They can be nested up to four levels deep.
+
+If a listener is attached to a binary operation, then the
+different sides can be picked with the `left` or `right` method.
+For example, constants are exposed as scalar settings:
+
+```rust
+use fundsp::hacker::*;
+let (sender, node) = listen(dc(0.5) >> resample(pink()));
+sender.try_send(Setting::value(0.6).left()).expect("Cannot send setting.");
+```
 
 If a parameter has a dedicated input then it cannot be a setting.
 The way to get filters with parameters controlled via settings
@@ -689,64 +845,58 @@ as constant, for example, `lowpass_hz`.
 
 ```rust
 use fundsp::hacker::*;
-let (sender, graph) = listen(lowpass_hz(1000.0, 1.0));
+let (sender, node) = listen(lowpass_hz(1000.0, 1.0));
 ```
 
-Later we can send filter parameters from anywhere via sender.
-For example, the setting format of a lowpass filter is (cutoff, Q).
-Set filter cutoff to 1 kHz and Q to 2.0:
+Later we can send filter parameters from anywhere via `sender`.
+For example, the lowpass filter supports setting cutoff frequency and Q value.
+Set filter cutoff to 2 kHz and Q to 2.0:
 
 ```rust
-sender.try_send((1000.0, 2.0)).expect("Cannot send setting.");
-```
-
-If a listener is attached to a binary operation, then the
-different sides can be picked with the `left` or `right` function.
-For example, constants are exposed as settings:
-
-```rust
-let (sender, graph) = listen(dc(0.5) >> resample(pink()));
-sender.try_send(left([0.6].into())).expect("Cannot send setting.");
+sender.try_send(Setting::center_q(2000.0, 2.0)).expect("Cannot send setting.");
 ```
 
 The following table summarizes the available settings.
 
-| Opcode            | Setting Format |
+| Opcode            | `Setting` Constructor Call |
 | ----------------- | --------------------------------- |
-| `allnest_c`       | delay in samples at DC |
-| `allpass_hz`      | (center, Q) |
-| `allpole_delay`   | delay in samples at DC |
-| `bandpass_hz`     | (center, Q) |
-| `bell_hz`         | (center, Q, gain) |
-| `biquad`          | (a1, a2, b0, b1, b2) |
-| `butterpass_hz`   | cutoff |
-| `constant`        | constant value as `Frame<T, N>` |
-| `dc`              | constant value as `Frame<T, N>` |
-| `dcblock_hz`      | cutoff |
-| `dsf_saw_r`       | roughness > 0 |
-| `dsf_square_r`    | roughness > 0 |
-| `fir`             | coefficients as `Frame<T, N>` |
-| `follow(t)`       | halfway follow time in seconds |
-| `follow((a, r))`  | (halfway attack time, halfway release time) in seconds |
-| `highpass_hz`     | (cutoff, Q) |
-| `highpole_hz`     | cutoff |
-| `highshelf_hz`    | (cutoff, Q, gain) |
-| `hold`            | variability in 0...1 |
-| `lowpass_hz`      | (cutoff, Q) |
-| `lowpole_hz`      | cutoff |
-| `lowshelf_hz`     | (cutoff, Q, gain) |
-| `moog_hz`         | (cutoff, Q) |
-| `notch_hz`        | (center, Q) |
-| `pan`             | pan value in -1...1 |
-| `peak_hz`         | (center, Q) |
-| `resonator_hz`    | (center, bandwidth) |
+| `afollow`         | `attack_release` to set attack and release times in seconds |
+| `allnest_c`       | `delay` in samples at DC |
+| `allpass_hz`      | `center_q` |
+| `allpole_delay`   | `delay` in samples at DC |
+| `bandpass_hz`     | `center_q` |
+| `bell_hz`         | `center_q_gain` |
+| `biquad`          | `biquad` to set biquad coefficients |
+| `butterpass_hz`   | `center` |
+| `constant`        | `value` to set scalar value on all channels |
+| `dc`              | `value` to set scalar value on all channels |
+| `dcblock_hz`      | `center` |
+| `dsf_saw_r`       | `roughness` in 0...1 |
+| `dsf_square_r`    | `roughness` in 0...1 |
+| `follow`          | `time` to set follow time in seconds |
+| `highpass_hz`     | `center_q` |
+| `highpole_hz`     | `center` |
+| `highshelf_hz`    | `center_q_gain` |
+| `hold`            | `variability` in 0...1 |
+| `lowpass_hz`      | `center_q` |
+| `lowpole_hz`      | `center` |
+| `lowshelf_hz`     | `center_q_gain` |
+| `moog_hz`         | `center_q` |
+| `notch_hz`        | `center_q` |
+| `pan`             | `pan` to set pan value in -1...1 |
+| `peak_hz`         | `center_q` |
+| `resonator_hz`    | `center_bandwidth` to set center and bandwidth in Hz |
+
+If a node responds to `center_q_gain`, then it also responds to `center_q` and `center`.
+If a node responds to `center_q`, then it also responds to `center`.
 
 ---
 
-### Parametric Equalizer Recipe
+## Parametric Equalizer Recipe
 
 In this example we make a 12-band, double precision parametric equalizer
 using the peaking `bell` filter.
+The sample type, as always, is 32-bit floating point (`f32`).
 
 First, declare the processing pipeline.
 Here we space the bands at 1 kHz increments starting from 1 kHz, set Q values to 1.0
@@ -754,10 +904,10 @@ and set gains of all bands to 0 dB initially:
 
 ```rust
 use fundsp::hacker::*;
-let mut equalizer = pipe::<U12, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f64, 1.0, db_amp(0.0)));
+let mut equalizer = pipei::<U12, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f32, 1.0, db_amp(0.0)));
 ```
 
-The type of the equalizer is `An<Chain<U12, f64, FixedSvf<f64, f64, BellMode<f64>>>>`.
+The type of the equalizer is `An<Chain<U12, FixedSvf<f64, BellMode<f64>>>>`.
 The equalizer is ready to use immediately. Filter samples:
 
 ```rust
@@ -803,7 +953,7 @@ Set band 1 to amplify by 3 dB at 1000 Hz with Q set to 2.0:
 sender.try_send((1, (1000.0, 2.0, db_amp(3.0)))).expect("Cannot send setting.");
 ```
 
-### evcxr
+## evcxr
 
 The `display` method returns information about a node,
 including an ASCII chart of the frequency response of channel 0.
@@ -860,6 +1010,7 @@ The type parameters in the table refer to the hacker preludes.
 | ---------------------- |:-------:|:-------:| ---------------------------------------------- |
 | `add(x)`               |   `x`   |   `x`   | Add constant `x` to signal. |
 | `adsr_live(a, d, s, r)`|    1    |    1    | ADSR envelope. Attack time `a`, decay time `d`, sustain level `s`, and release time `r`. Input > 0.0 starts attack, input <= 0.0 starts release. Output in [0.0, 1.0].|
+| `afollow(a, r)`        |    1    |    1    | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `allnest(x)`           | 2 (input, coefficient) | 1 | Nested allpass with inner allpass processing `x`. |
 | `allnest_c(c, x)`      |    1    |    1    | Nested allpass with feedforward coefficient `c` and inner allpass processing `x`. |
 | `allpass()`            | 3 (audio, frequency, Q) | 1 | Allpass filter (2nd order). |
@@ -878,9 +1029,11 @@ The type parameters in the table refer to the hacker preludes.
 | `bell_q(q, gain)`      | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `biquad(a1, a2, b0, b1, b2)` | 1 |    1    | Arbitrary [biquad filter](https://en.wikipedia.org/wiki/Digital_biquad_filter) with coefficients in normalized form. |
 | `brown()`              |    -    |    1    | [Brown](https://en.wikipedia.org/wiki/Brownian_noise) noise. |
-| `branch::<U, _, _>(f)` |   `f`   | `U * f` | Branch into `U` nodes from indexed generator `f`. |
+| `branch(x, y)`         | `x = y` | `x + y` | Branch into `x` and `y`. Identical with `x ^ y`. |
+| `branchi::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from indexed generator `f`. |
 | `branchf::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))`. |
-| `bus::<U, _, _>(f)`    |   `f`   |   `f`   | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f64 + 1.0) >> sine()`. |
+| `bus(x, y)`            | `x = y` | `x = y` | Bus `x` and `y`. Identical with `x & y`. |
+| `busi::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f64 + 1.0) >> sine()`. |
 | `busf::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from fractional generator `f`. |
 | `butterpass()`         | 2 (audio, frequency) | 1 | Butterworth lowpass filter (2nd order). |
 | `butterpass_hz(f)`     |    1    |    1    | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
@@ -910,7 +1063,6 @@ The type parameters in the table refer to the hacker preludes.
 | `fir3(gain)`           |    1    |    1    | Symmetric 3-point FIR calculated from desired `gain` at the Nyquist frequency. |
 | `flanger(fb, min_d, max_d, f)`| 1|    1    | Flanger effect with feedback amount `fb`, minimum delay `min_d` seconds, maximum delay `max_d` seconds and delay function `f`, e.g., `\|t\| lerp11(0.01, 0.02, sin_hz(0.1, t))`. |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
-| `follow((a, r))`       |    1    |    1    | Asymmetric smoothing filter with halfway attack time `a` seconds and halfway release time `r` seconds. |
 | `hammond()`            | 1 (frequency) | 1 | Bandlimited Hammond oscillator. Emphasizes first three partials. |
 | `hammond_hz(f)`        |    -    |    1    | Bandlimited Hammond oscillator at `f` Hz. Emphasizes first three partials. |
 | `highpass()`           | 3 (audio, frequency, Q) | 1 | Highpass filter (2nd order). |
@@ -962,8 +1114,6 @@ The type parameters in the table refer to the hacker preludes.
 | `multitap_linear::<N>(min_delay, max_delay)` | `N + 1` (audio, delay...) | 1 | Tapped delay line with linear interpolation. Number of taps is `N`. |
 | `multitick::<U>()`     |   `U`   |   `U`   | Multichannel single sample delay. |
 | `multizero::<U>()`     |    -    |   `U`   | Multichannel zero signal. |
-| `node32::<I, O>(unit)` |   `I`   |   `O`   | Convert an `AudioUnit32` into an `AudioNode` with `I` inputs and `O` outputs. |
-| `node64::<I, O>(unit)` |   `I`   |   `O`   | Convert an `AudioUnit64` into an `AudioNode` with `I` inputs and `O` outputs. |
 | `noise()`              |    -    |    1    | [White noise](https://en.wikipedia.org/wiki/White_noise) source. Synonymous with `white`. |
 | `notch()`              | 3 (audio, frequency, Q) | 1 | Notch filter (2nd order). |
 | `notch_hz(f, q)`       |    1    |    1    | Notch filter (2nd order) centered at `f` Hz with Q `q`. |
@@ -980,9 +1130,11 @@ The type parameters in the table refer to the hacker preludes.
 | `phaser(fb, f)`        |    1    |    1    | Phaser effect with feedback amount `fb` and modulation function `f`, e.g., `\|t\| sin_hz(0.1, t) * 0.5 + 0.5`. |
 | `pink()`               |    -    |    1    | [Pink noise](https://en.wikipedia.org/wiki/Pink_noise) source. |
 | `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave lowpass). |
-| `pipe::<U, _, _>(f)`   |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |
+| `pipe(x, y)`           |   `x`   |   `y`   | Pipe `x` to `y`. Identical with `x >> y`. |
+| `pipei::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from fractional generator `f`. |
 | `pluck(f, gain, damping)` | 1 (excitation) | 1 | [Karplus-Strong](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis) plucked string oscillator with frequency `f` Hz, `gain` per second (`gain` <= 1) and high frequency `damping` in 0...1. |
+| `product(x, y)`        | `x + y` | `x = y` | Multiply nodes `x` and `y`. Same as `x * y`. |
 | `pulse()`              | 2 (frequency, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
 | `resample(node)`       | 1 (speed) | `node` | Resample generator `node` using cubic interpolation at speed obtained from the input, where 1 is the original speed. |
 | `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
@@ -1006,30 +1158,32 @@ The type parameters in the table refer to the hacker preludes.
 | `split::<U>()`         |    1    |   `U`   | Split signal into `U` channels. |
 | `square()`             | 1 (frequency) | 1 | Bandlimited square wave oscillator. |
 | `square_hz(f)`         |    -    |    1    | Bandlimited square wave oscillator at frequency `f` Hz. |
-| `stack::<U, _, _>(f)`  | `U * f` | `U * f` | Stack `U` nodes from indexed generator `f`. |
+| `stack(x, y)`          | `x + y` | `x + y` | Stack `x` and `y`. Identical with `x \| y`. |
+| `stacki::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from indexed generator `f`. |
 | `stackf::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `sub(x)`               |   `x`   |   `x`   | Subtract constant `x` from signal. |
-| `sum::<U, _, _>(f)`    | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
+| `sum(x, y)`            | `x + y` | `x = y` | Add nodes `x` and `y`. Same as `x + y`. |
+| `sumi::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
 | `tap_linear(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with linear interpolation. All times are in seconds. |
+| `thru(x)`              |   `x`   | `x` inputs | Pass through missing outputs. Same as `!x`. |
 | `tick()`               |    1    |    1    | Single sample delay. |
 | `timer(&shared)`       |    -    |    -    | Maintain current stream time in a shared variable. |
 | `triangle()`           | 1 (frequency) | 1 | Bandlimited triangle wave oscillator. |
 | `triangle_hz(f)`       |    -    |    1    | Bandlimited triangle wave oscillator at `f` Hz. |
+| `unit::<I, O>(unit)`   |   `I`   |   `O`   | Convert an `AudioUnit` into an `AudioNode` with `I` inputs and `O` outputs. |
 | `update(x, dt, f)`     |   `x`   |   `x`   | Update node `x` with update interval `dt` seconds and update function `f(t, dt, x)`. |
 | `var(&shared)`         |    -    |    1    | Output value of the shared variable. |
 | `var_fn(&shared, f)`   |    -    |   `f`   | Output value of the shared variable mapped through function `f`. |
-| `wave32(&wave, channel, loop)` | - | 1 | Play back a channel of `Arc<Wave32>`. Optional loop point is the index to jump to at the end of the wave. |
-| `wave32_at(&wave, channel, start, end, loop)` | - | 1 | Play back a channel of `Arc<Wave32>` between indices `start` (inclusive) and `end` (exclusive), with optional `loop` index to jump to at the end. |
-| `wave64(&wave, channel, loop)` | - | 1 | Play back a channel of `Arc<Wave64>`. Optional loop point is the index to jump to at the end of the wave. |
-| `wave64_at(&wave, channel, start, end, loop)` | - | 1 | Play back a channel of `Arc<Wave64>` between indices `start` (inclusive) and `end` (exclusive), with optional `loop` index to jump to at the end. |
+| `wavech(&wave, channel, loop)` | - | 1 | Play back a channel of `Arc<Wave>`. Optional loop point is the index to jump to at the end of the wave. |
+| `wavech_at(&wave, channel, start, end, loop)` | - | 1 | Play back a channel of `Arc<Wave>` between indices `start` (inclusive) and `end` (exclusive), with optional `loop` index to jump to at the end. |
 | `white()`              |    -    |    1    | [White noise](https://en.wikipedia.org/wiki/White_noise) source. Synonymous with `noise`. |
 | `zero()`               |    -    |    1    | Zero signal. |
 
 #### Subsampled Controls
 
-`envelope(f)` is a node that samples a time varying control function `f`.
+`envelope` is a node that samples a time varying control function.
 For example, `envelope(|t| exp(-t))` is an exponentially decaying [envelope](https://en.wikipedia.org/wiki/Envelope_(music)).
 A control function is something that is expected to change relatively slowly.
 Therefore, we can save time by not calling it at every sample.
@@ -1047,16 +1201,16 @@ The values in between are linearly interpolated.
 
 #### Indexed And Fractional Generator Functions
 
-`branch`, `bus`, `pipe`, `sum` and `stack` are opcodes that combine multiple nodes,
-according to their first generic argument.
-They accept a generator function that is issued `i64` integers starting from 0.
-The nodes are stack allocated, and each node is assigned its own pseudorandom phase.
+`branchi`, `busi`, `pipei`, `sumi` and `stacki` are opcodes that combine multiple nodes of the same type.
+The number of nodes is their first generic argument.
+They accept a generator function that is issued `u64` integers starting from 0.
+The nodes are allocated inline, and each node is assigned its own pseudorandom phase.
 
 For example, to create 20 noise bands in 1 kHz...2 kHz:
 
 ```rust
 use fundsp::hacker::*;
-let partials = bus::<U20, _, _>(|i| noise() >> resonator_hz(xerp(1_000.0, 2_000.0, rnd(i)), 20.0));
+let partials = busi::<U20, _, _>(|i| noise() >> resonator_hz(xerp(1_000.0, 2_000.0, rnd1(i) as f32), 20.0));
 ```
 
 Similarly, `branchf`, `busf`, `pipef`, `sumf` and `stackf` accept a generator function
@@ -1075,14 +1229,14 @@ let partials = busf::<U20, _, _>(|f| noise() >> resonator_hz(xerp(1_000.0, 2_000
 
 These are arguments to the `shape` opcode.
 
-- `Shape::Clip`: Clip signal to -1...1.
-- `Shape::ClipTo(minimum, maximum)`: Clip signal between the two arguments.
-- `Shape::Tanh(hardness)`: Apply `tanh` distortion with configurable hardness. Argument to `tanh` is multiplied by the hardness value.
-- `Shape::Atan(hardness)`: Apply `atan` distortion with configurable hardness. Argument to `atan` is multiplied by the hardness value.
-- `Shape::Softsign(hardness)`: Apply `softsign` distortion with configurable hardness. Argument to `softsign` is multiplied by the hardness value.
-- `Shape::Crush(levels)`: Apply a staircase function with configurable number of levels per unit.
-- `Shape::SoftCrush(levels)`: Apply a smooth staircase function with configurable number of levels per unit.
-- `Shape::AdaptiveTanh(timescale, hardness)`: Apply adaptive normalizing distortion with smoothing `timescale` in seconds.
+- `Clip`: Clip signal to -1...1.
+- `ClipTo(minimum, maximum)`: Clip signal between the two arguments.
+- `Tanh(hardness)`: Apply `tanh` distortion with configurable hardness. Argument to `tanh` is multiplied by the hardness value.
+- `Atan(hardness)`: Apply `atan` distortion with configurable hardness, with the output range scaled to -1...1. Argument to `atan` is multiplied by the hardness value.
+- `Softsign(hardness)`: Apply `softsign` distortion with configurable hardness. Argument to `softsign` is multiplied by the hardness value.
+- `Crush(levels)`: Apply a staircase function with configurable number of levels per unit.
+- `SoftCrush(levels)`: Apply a smooth staircase function with configurable number of levels per unit.
+- `AdaptiveTanh::new(timescale, hardness)`: Apply adaptive normalizing distortion with smoothing `timescale` in seconds.
 Smoothing timescale is the time it takes for level estimation to move halfway to a new value.
 Argument to `tanh` is multiplied by the hardness value and divided by the RMS level of the signal.
 
@@ -1107,8 +1261,9 @@ The same modes are used in the `meter` opcode.
 
 | Function               | Explanation                                    |
 | ---------------------- | ---------------------------------------------- |
-| `abs(x)`               | absolute value of `x` |
 | `a_weight(f)`          | [A-weighted](https://en.wikipedia.org/wiki/A-weighting) amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
+| `abs(x)`               | absolute value of `x` |
+| `amp_db(x)`            | convert amplitude (aka gain) `x` to decibels with amplitude 1.0 equal to 0 dB |
 | `bpm_hz(bpm)`          | convert `bpm` BPM (beats per minute) to Hz |
 | `ceil(x)`              | ceiling function |
 | `clamp(min, max, x)`   | clamp `x` between `min` and `max` |
@@ -1117,7 +1272,7 @@ The same modes are used in the `meter` opcode.
 | `cos(x)`               | cos |
 | `cos_hz(f, t)`         | cosine that oscillates at `f` Hz at time `t` seconds |
 | `cubed(x)`             | cube of `x` |
-| `db_amp(x)`            | convert `x` dB to amplitude (or gain) with 0 dB = 1.0 |
+| `db_amp(x)`            | convert `x` dB to amplitude (aka gain) with 0 dB equal to amplitude 1.0 |
 | `delerp(x0, x1, x)`    | recover linear interpolation amount `t` in 0...1 from interpolated value |
 | `delerp11(x0, x1, x)`  | recover linear interpolation amount `t` in -1...1 from interpolated value |
 | `dexerp(x0, x1, x)`    | recover exponential interpolation amount `t` in 0...1 from interpolated value (`x0`, `x1`, `x` > 0) |
@@ -1134,6 +1289,8 @@ The same modes are used in the `meter` opcode.
 | `fract(x)`             | fract function |
 | `fractal_noise(seed, octaves, roughness, x)` | fractal spline noise (`octaves` > 0, `roughness` > 0) |
 | `fractal_ease_noise(ease, seed, octaves, roughness, x)` | fractal ease noise (`octaves` > 0, `roughness` > 0) interpolated with easing function `ease` |
+| `hash1(x)`             | `u64` hashing function which is a pseudorandom permutation |
+| `hash2(x)`             | `u64` hashing function which is a pseudorandom permutation |
 | `identity(x)`          | identity function (linear easing function) |
 | `lerp(x0, x1, t)`      | linear interpolation between `x0` and `x1` with `t` in 0...1 |
 | `lerp11(x0, x1, t)`    | linear interpolation between `x0` and `x1` with `t` in -1...1 |
@@ -1145,7 +1302,7 @@ The same modes are used in the `meter` opcode.
 | `max(x, y)`            | maximum of `x` and `y` |
 | `m_weight(f)`          | [M-weighted](https://en.wikipedia.org/wiki/ITU-R_468_noise_weighting) amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `pow(x, y)`            | `x` raised to the power `y` |
-| `rnd(i)`               | pseudorandom number in 0...1 from integer `i` |
+| `rnd1(i)`              | pseudorandom number in 0...1 from integer `i` |
 | `rnd2(i)`              | pseudorandom number in 0...1 from integer `i` |
 | `round(x)`             | round `x` to nearest integer |
 | `semitone_ratio(x)`    | convert interval `x` semitones to frequency ratio |
@@ -1296,13 +1453,9 @@ The representation contains input and output arities,
 which are encoded as types `U0`, `U1`, ..., by the `typenum` crate.
 The associated types are `AudioNode::Inputs` and `AudioNode::Outputs`.
 
-The representation contains sample and inner processing types when applicable, encoded in that order.
-These are chosen statically. The associated sample type, which is used to transport
-data between nodes, is `AudioNode::Sample`.
-
 The preludes employ the wrapper type `An<X: AudioNode>`
 containing operator overloads and other trait implementations.
-The wrapper also implements either of `AudioUnit32` or `AudioUnit64` traits.
+The wrapper also implements the `AudioUnit` trait.
 
 The type encoding is straightforward. As an example, in the hacker prelude
 
@@ -1313,7 +1466,7 @@ noise() & constant(440.0) >> sine()
 is represented as
 
 ```rust
-An<Bus<f64, Noise<f64>, Pipe<f64, Constant<U1, f64>, Sine<f64>>>>
+An<Bus<Noise, Pipe<Constant<U1>, Sine>>>
 ```
 
 The compiler reports these types in an opaque form.
@@ -1321,19 +1474,19 @@ An attached utility, `examples/type.rs`, can unscramble such opaque types.
 This invocation prints the above type:
 
 ```sh
-cargo run --example type -- "fundsp::combinator::An<Bus<f64, Noise<f64>, Pipe<f64, Constant<typenum::uint::UInt<typenum::uint::UTerm, typenum::bit::B1>, f64>, Sine<f64>>>>"
+cargo run --example type -- "fundsp::combinator::An<Bus<Noise, Pipe<Constant<typenum::uint::UInt<typenum::uint::UTerm,typenum::bit::B1>>, Sine>>>"
 ```
 
 It is also possible to declare the return type as an `impl AudioNode`.
 However, this type is also opaque and cannot be stored as an `AudioNode`;
-conversion to `AudioUnit32` or `AudioUnit64` may be necessary in this case.
+conversion to `AudioUnit` may be necessary in this case.
 
 Declaring the full arity in the signature does enable use of the node
 in further combinations. For example:
 
 ```rust
 use fundsp::hacker::*;
-fn split_quad() -> An<impl AudioNode<Sample = f64, Inputs = U1, Outputs = U4>> {
+fn split_quad() -> An<impl AudioNode<Inputs = U1, Outputs = U4>> {
     pass() ^ pass() ^ pass() ^ pass()
 }
 ```

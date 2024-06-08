@@ -1,221 +1,238 @@
 //! Waveshaping components.
 
 use super::audionode::*;
+use super::buffer::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
 use numeric_array::typenum::*;
-use std::marker::PhantomData;
 
-/// Waveshaper from a closure.
-#[derive(Clone)]
-pub struct ShaperFn<T, S> {
-    f: S,
-    _marker: PhantomData<T>,
-}
-
-impl<T, S> ShaperFn<T, S>
-where
-    T: Float,
-    S: Fn(T) -> T + Clone,
-{
-    pub fn new(f: S) -> Self {
-        Self {
-            f,
-            _marker: PhantomData,
+/// A waveshaper: some kind of nonlinearity. It may have a state.
+pub trait Shape: Clone + Sync + Send {
+    /// Process a single sample.
+    fn shape(&mut self, input: f32) -> f32;
+    /// Process multiple samples at once in a SIMD element.
+    #[inline]
+    fn simd(&mut self, input: F32x) -> F32x {
+        F32x::new(core::array::from_fn(|i| {
+            self.shape(input.as_array_ref()[i])
+        }))
+        /*
+        let mut output = [0.0; SIMD_N];
+        for i in 0..SIMD_N {
+            output[i] = self.shape(input.as_array_ref()[i]);
         }
+        F32x::new(output)
+        */
     }
+    /// Set the sample rate. The default sample rate is 44.1 kHz.
+    #[allow(unused_variables)]
+    fn set_sample_rate(&mut self, sample_rate: f64) {}
+    /// Reset state.
+    fn reset(&mut self) {}
 }
 
-impl<T, S> AudioNode for ShaperFn<T, S>
-where
-    T: Float,
-    S: Fn(T) -> T + Clone + Sync + Send,
-{
-    const ID: u64 = 37;
-    type Sample = T;
-    type Inputs = U1;
-    type Outputs = U1;
-    type Setting = ();
-
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        [(self.f)(input[0])].into()
-    }
-
-    fn process(
-        &mut self,
-        size: usize,
-        input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
-        let input = input[0];
-        let output = &mut *output[0];
-        for i in 0..size {
-            output[i] = (self.f)(input[i]);
-        }
-    }
-
-    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].distort(0.0);
-        output
-    }
-}
-
-/// Waveshaping modes.
+/// Memoryless waveshaper from a closure.
 #[derive(Clone)]
-pub enum Shape<T: Real> {
-    /// Clip signal to -1...1.
-    Clip,
-    /// Clip signal between the two arguments.
-    ClipTo(T, T),
-    /// Apply `tanh` distortion with configurable hardness.
-    /// Argument to `tanh` is multiplied by the hardness value.
-    Tanh(T),
-    /// Apply `atan` distortion with configurable hardness.
-    /// Argument to `atan` is multiplied by the hardness value.
-    Atan(T),
-    /// Apply `softsign` distortion with configurable hardness.
-    /// Argument to `softsign` is multiplied by the hardness value.
-    Softsign(T),
-    /// Apply a staircase function with configurable number of levels per unit.
-    Crush(T),
-    /// Apply a smooth staircase function with configurable number of levels per unit.
-    SoftCrush(T),
-    /// Adaptive normalizing `tanh` distortion with smoothing timescale and hardness as parameters.
-    /// Smoothing timescale is specified in seconds.
-    /// It is the time it takes for level estimation to move halfway to a new level.
-    /// The argument to `tanh` is divided by the RMS level of the signal and multiplied by hardness.
-    /// Minimum estimated signal level for adaptive distortion is approximately -60 dB.
-    AdaptiveTanh(T, T),
+pub struct ShapeFn<S: Fn(f32) -> f32 + Clone + Sync + Send>(pub S);
+
+impl<S: Fn(f32) -> f32 + Clone + Sync + Send> Shape for ShapeFn<S> {
+    #[inline]
+    fn shape(&mut self, input: f32) -> f32 {
+        self.0(input)
+    }
 }
 
-/// Waveshaper with various shaping modes.
+/// Clip signal to -1...1.
 #[derive(Clone)]
-pub struct Shaper<T: Real> {
-    shape: Shape<T>,
+pub struct Clip;
+
+impl Shape for Clip {
+    #[inline]
+    fn shape(&mut self, input: f32) -> f32 {
+        input.clamp(-1.0, 1.0)
+    }
+    #[inline]
+    fn simd(&mut self, input: F32x) -> F32x {
+        input.fast_max(-F32x::ONE).fast_min(F32x::ONE)
+    }
+}
+
+/// Clip signal between the two arguments (minimum and maximum).
+#[derive(Clone)]
+pub struct ClipTo(pub f32, pub f32);
+
+impl Shape for ClipTo {
+    #[inline]
+    fn shape(&mut self, input: f32) -> f32 {
+        input.clamp(self.0, self.1)
+    }
+    #[inline]
+    fn simd(&mut self, input: F32x) -> F32x {
+        input
+            .fast_max(F32x::splat(self.0))
+            .fast_min(F32x::splat(self.1))
+    }
+}
+
+/// Apply `tanh` distortion with configurable hardness.
+/// Argument to `tanh` is multiplied by the hardness value.
+#[derive(Clone)]
+pub struct Tanh(pub f32);
+
+impl Shape for Tanh {
+    #[inline]
+    fn shape(&mut self, input: f32) -> f32 {
+        (input * self.0).tanh()
+    }
+}
+
+/// Apply `atan` distortion with configurable hardness.
+/// Argument to `atan` is multiplied by the hardness value.
+#[derive(Clone)]
+pub struct Atan(pub f32);
+
+impl Shape for Atan {
+    #[inline]
+    fn shape(&mut self, input: f32) -> f32 {
+        (input * (self.0 * f32::PI * 0.5)).atan() * (2.0 / f32::PI)
+    }
+    #[inline]
+    fn simd(&mut self, input: F32x) -> F32x {
+        (input * (self.0 * f32::PI * 0.5)).atan() * (2.0 / f32::PI)
+    }
+}
+
+/// Apply `softsign` distortion with configurable hardness.
+/// Argument to `softsign` is multiplied by the hardness value.
+#[derive(Clone)]
+pub struct Softsign(pub f32);
+
+impl Shape for Softsign {
+    #[inline]
+    fn shape(&mut self, input: f32) -> f32 {
+        softsign(input * self.0)
+    }
+    #[inline]
+    fn simd(&mut self, input: F32x) -> F32x {
+        input * self.0 / (F32x::ONE + input.abs() * self.0)
+    }
+}
+
+/// A staircase function with configurable number of levels per unit.
+#[derive(Clone)]
+pub struct Crush(pub f32);
+
+impl Shape for Crush {
+    #[inline]
+    fn shape(&mut self, input: f32) -> f32 {
+        (input * self.0).round() / self.0
+    }
+    #[inline]
+    fn simd(&mut self, input: F32x) -> F32x {
+        (input * self.0).round() / self.0
+    }
+}
+
+/// A smooth staircase function with configurable number of levels per unit.
+#[derive(Clone)]
+pub struct SoftCrush(pub f32);
+
+impl Shape for SoftCrush {
+    #[inline]
+    fn shape(&mut self, input: f32) -> f32 {
+        let x = input * self.0;
+        let y = floor(x);
+        (y + smooth9(x - y)) / self.0
+    }
+}
+
+/// Adaptive normalizing `tanh` distortion with smoothing timescale and hardness as parameters.
+/// Smoothing timescale is specified in seconds.
+/// It is the time it takes for level estimation to move halfway to a new level.
+/// The argument to `tanh` is divided by the RMS level of the signal and multiplied by hardness.
+/// Minimum estimated signal level for adaptive distortion is approximately -60 dB.
+#[derive(Clone)]
+pub struct AdaptiveTanh {
+    timescale: f32,
     /// Per-sample smoothing factor.
-    smoothing: T,
-    state: T,
+    smoothing: f32,
+    hardness: f32,
+    state: f32,
 }
 
-impl<T: Real> Shaper<T> {
-    pub fn new(shape: Shape<T>) -> Self {
-        let mut shaper = Self {
-            shape,
-            smoothing: T::zero(),
-            state: T::zero(),
+impl AdaptiveTanh {
+    pub fn new(timescale: f32, hardness: f32) -> Self {
+        let mut adaptive = Self {
+            timescale,
+            smoothing: 0.0,
+            hardness,
+            state: 0.0,
         };
+        adaptive.set_sample_rate(DEFAULT_SR);
+        adaptive
+    }
+}
+
+impl Shape for AdaptiveTanh {
+    #[inline]
+    fn shape(&mut self, input: f32) -> f32 {
+        self.state =
+            self.smoothing * self.state + (1.0 - self.smoothing) * (1.0e-6 + squared(input));
+        tanh(input * self.hardness / sqrt(self.state))
+    }
+    fn reset(&mut self) {
+        self.state = 0.0;
+    }
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.smoothing = pow(0.5, 1.0 / (self.timescale.to_f64() * sample_rate)).to_f32();
+    }
+}
+
+/// Waveshaper.
+#[derive(Clone)]
+pub struct Shaper<S: Shape> {
+    shape: S,
+}
+
+impl<S: Shape> Shaper<S> {
+    pub fn new(shape: S) -> Self {
+        let mut shaper = Self { shape };
         shaper.set_sample_rate(DEFAULT_SR);
         shaper
     }
 }
 
-impl<T: Real> AudioNode for Shaper<T> {
+impl<S: Shape> AudioNode for Shaper<S> {
     const ID: u64 = 42;
-    type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = ();
 
     fn reset(&mut self) {
-        self.state = T::zero();
+        self.shape.reset();
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
-        if let Shape::AdaptiveTanh(timescale, _) = self.shape {
-            self.smoothing = T::from_f64(pow(0.5, 1.0 / (timescale.to_f64() * sample_rate)));
-        }
+        self.shape.set_sample_rate(sample_rate);
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        let input = input[0];
-        match self.shape {
-            Shape::Clip => [clamp11(input)].into(),
-            Shape::ClipTo(min, max) => [clamp(min, max, input)].into(),
-            Shape::Tanh(hardness) => [tanh(input * hardness)].into(),
-            Shape::Atan(hardness) => [atan(input * hardness)].into(),
-            Shape::Softsign(hardness) => [softsign(input * hardness)].into(),
-            Shape::Crush(levels) => [round(input * levels) / levels].into(),
-            Shape::SoftCrush(levels) => {
-                let x = input * levels;
-                let y = floor(x);
-                [(y + smooth9(smooth9(x - y))) / levels].into()
-            }
-            Shape::AdaptiveTanh(_timescale, hardness) => {
-                self.state = self.smoothing * self.state
-                    + (T::one() - self.smoothing) * (T::from_f32(1.0e-6) + squared(input));
-                [tanh(input * hardness / sqrt(self.state))].into()
-            }
-        }
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        Frame::from([self.shape.shape(input[0])])
     }
 
-    fn process(
-        &mut self,
-        size: usize,
-        input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
-        let input = input[0];
-        let output = &mut *output[0];
-        match self.shape {
-            Shape::Clip => {
-                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
-                    *x = clamp11(*y);
-                }
-            }
-            Shape::ClipTo(min, max) => {
-                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
-                    *x = clamp(min, max, *y);
-                }
-            }
-            Shape::Tanh(hardness) => {
-                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
-                    *x = tanh(*y * hardness);
-                }
-            }
-            Shape::Atan(hardness) => {
-                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
-                    *x = atan(*y * hardness);
-                }
-            }
-            Shape::Softsign(hardness) => {
-                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
-                    *x = softsign(*y * hardness);
-                }
-            }
-            Shape::Crush(levels) => {
-                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
-                    *x = round(*y * levels) / levels;
-                }
-            }
-            Shape::SoftCrush(levels) => {
-                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
-                    let a = *y * levels;
-                    let b = floor(a);
-                    *x = (b + smooth9(smooth9(a - b))) / levels;
-                }
-            }
-            Shape::AdaptiveTanh(_timescale, hardness) => {
-                for (x, y) in output[0..size].iter_mut().zip(input[0..size].iter()) {
-                    self.state = self.smoothing * self.state
-                        + (T::one() - self.smoothing) * (T::from_f32(1.0e-6) + squared(*y));
-                    *x = tanh(*y * hardness / sqrt(self.state));
-                }
-            }
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        for i in 0..size >> SIMD_S {
+            output.set(0, i, self.shape.simd(input.at(0, i)));
+        }
+        for i in size & !SIMD_M..size {
+            output.set_f32(0, i, self.shape.shape(input.at_f32(0, i)));
         }
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].distort(0.0);
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(0, input.at(0).distort(0.0));
         output
     }
 }

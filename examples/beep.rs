@@ -40,7 +40,7 @@ where
     // FM synthesis.
     //let f = 110.0;
     //let m = 5.0;
-    //let c = oversample(sine_hz(f) * f * m + f >> sine());
+    //let c = oversample(sine_hz(f as f64) * f * m + f >> sine());
 
     // Pulse wave.
     //let c = lfo(|t| {
@@ -72,7 +72,7 @@ where
     //let c = c >> (pass() | envelope(|t| (xerp11(500.0, 5000.0, sin_hz(0.05, t)), 0.9))) >> !bandrez() >> bandrez();
 
     // Waveshaper.
-    //let c = c >> shape(Shape::Crush(20.0));
+    //let c = c >> shape(Crush(20.0));
 
     // Add feedback delay.
     //let c = c >> (pass() & feedback(butterpass_hz(1000.0) >> delay(1.0) * 0.5));
@@ -100,8 +100,8 @@ where
     let mut c = c
         >> (declick() | declick())
         >> (dcblock() | dcblock())
-        //>> (multipass() & 0.2 * reverb_stereo(10.0, 3.0))
-        >> limiter_stereo((1.0, 5.0));
+        //>> (multipass() & 0.2 * reverb_stereo(10.0, 3.0, 1.0))
+        >> limiter_stereo(1.0, 5.0);
     //let mut c = c * 0.1;
 
     c.set_sample_rate(sample_rate);
@@ -126,14 +126,14 @@ where
     Ok(())
 }
 
-fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f64, f64))
+fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f32, f32))
 where
     T: SizedSample + FromSample<f64>,
 {
     for frame in output.chunks_mut(channels) {
         let sample = next_sample();
-        let left = T::from_sample(sample.0);
-        let right: T = T::from_sample(sample.1);
+        let left = T::from_sample(sample.0 as f64);
+        let right: T = T::from_sample(sample.1 as f64);
 
         for (channel, sample) in frame.iter_mut().enumerate() {
             if channel & 1 == 0 {

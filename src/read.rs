@@ -1,10 +1,11 @@
 //! Symphonia integration for reading audio files.
 
 use super::wave::*;
-use duplicate::duplicate_item;
 use std::fs::File;
 use std::io::Cursor;
 use std::path::Path;
+extern crate alloc;
+use alloc::boxed::Box;
 use symphonia::core::audio::{AudioBuffer, Signal};
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::errors::{Error, Result};
@@ -16,37 +17,32 @@ use symphonia::core::probe::Hint;
 pub type WaveResult<T> = Result<T>;
 pub type WaveError = Error;
 
-#[duplicate_item(
-    f48       Wave48       AudioUnit48;
-    [ f64 ]   [ Wave64 ]   [ AudioUnit64 ];
-    [ f32 ]   [ Wave32 ]   [ AudioUnit32 ];
-)]
-impl Wave48 {
+impl Wave {
     /// Load first track of audio file from the given path.
     /// Supported formats are anything that Symphonia can read.
-    pub fn load<P: AsRef<Path>>(path: P) -> WaveResult<Wave48> {
-        Wave48::load_track(path, None)
+    pub fn load<P: AsRef<Path>>(path: P) -> WaveResult<Wave> {
+        Wave::load_track(path, None)
     }
 
     /// Load first track of audio from the given slice.
     /// Supported formats are anything that Symphonia can read.
-    pub fn load_slice(slice: &'static [u8]) -> WaveResult<Wave48> {
-        Wave48::load_slice_track(slice, None)
+    pub fn load_slice(slice: &'static [u8]) -> WaveResult<Wave> {
+        Wave::load_slice_track(slice, None)
     }
 
     /// Load audio from the given slice. Track can be optionally selected.
     /// If not selected, the first track with a known codec will be loaded.
     /// Supported formats are anything that Symphonia can read.
-    pub fn load_slice_track(slice: &'static [u8], track: Option<usize>) -> WaveResult<Wave48> {
+    pub fn load_slice_track(slice: &'static [u8], track: Option<usize>) -> WaveResult<Wave> {
         let hint = Hint::new();
         let source: Box<dyn MediaSource> = Box::new(Cursor::new(slice));
-        Wave48::decode(source, track, hint)
+        Wave::decode(source, track, hint)
     }
 
     /// Load audio file from the given path. Track can be optionally selected.
     /// If not selected, the first track with a known codec will be loaded.
     /// Supported formats are anything that Symphonia can read.
-    pub fn load_track<P: AsRef<Path>>(path: P, track: Option<usize>) -> WaveResult<Wave48> {
+    pub fn load_track<P: AsRef<Path>>(path: P, track: Option<usize>) -> WaveResult<Wave> {
         let path = path.as_ref();
         let mut hint = Hint::new();
 
@@ -61,15 +57,11 @@ impl Wave48 {
             Err(error) => return Err(Error::IoError(error)),
         };
 
-        Wave48::decode(source, track, hint)
+        Wave::decode(source, track, hint)
     }
 
     /// Decode track from the given source.
-    fn decode(
-        source: Box<dyn MediaSource>,
-        track: Option<usize>,
-        hint: Hint,
-    ) -> WaveResult<Wave48> {
+    fn decode(source: Box<dyn MediaSource>, track: Option<usize>, hint: Hint) -> WaveResult<Wave> {
         let stream = MediaSourceStream::new(source, Default::default());
 
         let format_opts = FormatOptions {
@@ -79,7 +71,7 @@ impl Wave48 {
 
         let metadata_opts: MetadataOptions = Default::default();
 
-        let mut wave: Option<Wave48> = None;
+        let mut wave: Option<Wave> = None;
 
         match symphonia::default::get_probe().format(&hint, stream, &format_opts, &metadata_opts) {
             Ok(probed) => {
@@ -129,13 +121,13 @@ impl Wave48 {
                         Ok(decoded) => {
                             if wave.is_none() {
                                 let spec = *decoded.spec();
-                                wave = Some(Wave48::new(spec.channels.count(), spec.rate as f64));
+                                wave = Some(Wave::new(spec.channels.count(), spec.rate as f64));
                             } else {
                                 // TODO: Check that audio spec hasn't changed.
                             }
 
                             if let Some(ref mut wave_output) = wave {
-                                let mut dest = AudioBuffer::<f48>::new(
+                                let mut dest = AudioBuffer::<f32>::new(
                                     decoded.capacity() as u64,
                                     *decoded.spec(),
                                 );

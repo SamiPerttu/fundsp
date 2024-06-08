@@ -1,12 +1,15 @@
 //! Shared atomic controls.
 
 use super::audionode::*;
+use super::buffer::*;
 use super::combinator::*;
+use super::signal::*;
 use super::*;
+use core::sync::atomic::{AtomicU32, AtomicU64};
 use numeric_array::typenum::*;
-use std::sync::atomic::AtomicU32;
-use std::sync::atomic::AtomicU64;
-use std::sync::Arc;
+extern crate alloc;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 
 /// A variable floating point number to use as a control.
 pub trait Atomic: Float {
@@ -26,12 +29,12 @@ impl Atomic for f32 {
 
     #[inline]
     fn store(stored: &Self::Storage, t: Self) {
-        stored.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
+        stored.store(t.to_bits(), core::sync::atomic::Ordering::Relaxed);
     }
 
     #[inline]
     fn get_stored(stored: &Self::Storage) -> Self {
-        let u = stored.load(std::sync::atomic::Ordering::Relaxed);
+        let u = stored.load(core::sync::atomic::Ordering::Relaxed);
         f32::from_bits(u)
     }
 }
@@ -45,158 +48,121 @@ impl Atomic for f64 {
 
     #[inline]
     fn store(stored: &Self::Storage, t: Self) {
-        stored.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
+        stored.store(t.to_bits(), core::sync::atomic::Ordering::Relaxed);
     }
 
     #[inline]
     fn get_stored(stored: &Self::Storage) -> Self {
-        let u = stored.load(std::sync::atomic::Ordering::Relaxed);
+        let u = stored.load(core::sync::atomic::Ordering::Relaxed);
         f64::from_bits(u)
     }
 }
 
 /// A shared float variable that can be accessed from multiple threads.
-#[derive(Default)]
-pub struct Shared<T: Atomic> {
-    value: Arc<T::Storage>,
+#[derive(Default, Clone)]
+pub struct Shared {
+    value: Arc<AtomicU32>,
 }
 
-impl<T: Atomic> Clone for Shared<T> {
-    fn clone(&self) -> Self {
+impl Shared {
+    pub fn new(value: f32) -> Self {
         Self {
-            value: Arc::clone(&self.value),
-        }
-    }
-}
-
-impl<T: Atomic> Shared<T> {
-    pub fn new(value: T) -> Self {
-        Self {
-            value: Arc::new(T::storage(value)),
+            value: Arc::new(f32::storage(value)),
         }
     }
 
     /// Get reference to underlying atomic.
     #[inline]
-    pub fn get_shared(&self) -> &Arc<T::Storage> {
+    pub fn get_shared(&self) -> &Arc<AtomicU32> {
         &self.value
     }
 
     /// Set the value of this variable. Synonymous with `set`.
     #[inline]
-    pub fn set_value(&self, t: T) {
-        T::store(&self.value, t)
+    pub fn set_value(&self, value: f32) {
+        f32::store(&self.value, value)
     }
 
     /// Set the value of this variable. Synonymous with `set_value`.
     #[inline]
-    pub fn set(&self, t: T) {
-        T::store(&self.value, t)
+    pub fn set(&self, value: f32) {
+        f32::store(&self.value, value)
     }
 
     /// Get the value of this variable.
     #[inline]
-    pub fn value(&self) -> T {
-        T::get_stored(&self.value)
+    pub fn value(&self) -> f32 {
+        f32::get_stored(&self.value)
     }
 }
 
 /// Outputs the value of a shared variable.
-#[derive(Default)]
-pub struct Var<T: Atomic> {
-    value: Arc<T::Storage>,
+#[derive(Default, Clone)]
+pub struct Var {
+    value: Arc<AtomicU32>,
 }
 
-impl<T: Atomic> Clone for Var<T> {
-    fn clone(&self) -> Self {
-        Self {
-            value: Arc::clone(&self.value),
-        }
-    }
-}
-
-impl<T: Atomic> Var<T> {
-    pub fn new(shared: &Shared<T>) -> Self {
+impl Var {
+    pub fn new(shared: &Shared) -> Self {
         Self {
             value: Arc::clone(shared.get_shared()),
         }
     }
 
     /// Set the value of this variable.
-    pub fn set_value(&self, t: T) {
-        T::store(&self.value, t)
+    pub fn set_value(&self, value: f32) {
+        f32::store(&self.value, value)
     }
 
     /// Get the value of this variable.
-    pub fn value(&self) -> T {
-        T::get_stored(&self.value)
+    pub fn value(&self) -> f32 {
+        f32::get_stored(&self.value)
     }
 }
 
-impl<T: Atomic> AudioNode for Var<T> {
+impl AudioNode for Var {
     const ID: u64 = 68;
 
-    type Sample = T;
     type Inputs = U0;
     type Outputs = U1;
-    type Setting = ();
 
     #[inline]
-    fn tick(
-        &mut self,
-        _: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        let sample: T = self.value();
+    fn tick(&mut self, _: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let sample = self.value();
         [sample].into()
     }
 
-    fn process(
-        &mut self,
-        size: usize,
-        _input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
+    fn process(&mut self, size: usize, _input: &BufferRef, output: &mut BufferMut) {
         let sample = self.value();
-        output[0][..size].fill(sample);
+        output.channel_mut(0)[..simd_items(size)].fill(F32x::splat(sample.to_f32()));
+    }
+
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut signal = SignalFrame::new(self.outputs());
+        signal.set(0, Signal::Value(self.value().to_f64()));
+        signal
     }
 }
 
 /// Outputs the value of a shared variable mapped through a function.
-#[derive(Default)]
-pub struct VarFn<T, F, R>
+#[derive(Default, Clone)]
+pub struct VarFn<F, R>
 where
-    T: Atomic,
-    F: Clone + Fn(T) -> R,
-    R: ConstantFrame<Sample = T>,
-    R::Size: Size<T>,
+    F: Clone + Fn(f32) -> R + Send + Sync,
+    R: ConstantFrame<Sample = f32>,
+    R::Size: Size<f32>,
 {
-    value: Arc<T::Storage>,
+    value: Arc<AtomicU32>,
     f: F,
 }
 
-impl<T, F, R> Clone for VarFn<T, F, R>
+impl<F, R> VarFn<F, R>
 where
-    T: Atomic,
-    F: Clone + Fn(T) -> R,
-    R: ConstantFrame<Sample = T>,
-    R::Size: Size<T>,
+    F: Clone + Fn(f32) -> R + Send + Sync,
+    R: ConstantFrame<Sample = f32>,
+    R::Size: Size<f32>,
 {
-    fn clone(&self) -> Self {
-        Self {
-            value: Arc::clone(&self.value),
-            f: self.f.clone(),
-        }
-    }
-}
-
-impl<T, F, R> VarFn<T, F, R>
-where
-    T: Atomic,
-    F: Clone + Fn(T) -> R,
-    R: ConstantFrame<Sample = T>,
-    R::Size: Size<T>,
-{
-    pub fn new(shared: &Shared<T>, f: F) -> Self {
+    pub fn new(shared: &Shared, f: F) -> Self {
         Self {
             value: Arc::clone(shared.get_shared()),
             f,
@@ -204,71 +170,64 @@ where
     }
 }
 
-impl<T, F, R> AudioNode for VarFn<T, F, R>
+impl<F, R> AudioNode for VarFn<F, R>
 where
-    T: Atomic + Float,
-    F: Clone + Fn(T) -> R + Send + Sync,
-    R: ConstantFrame<Sample = T>,
-    R::Size: Size<T>,
+    F: Clone + Fn(f32) -> R + Send + Sync,
+    R: ConstantFrame<Sample = f32>,
+    R::Size: Size<f32>,
 {
     const ID: u64 = 70;
 
-    type Sample = T;
     type Inputs = U0;
     type Outputs = R::Size;
-    type Setting = ();
 
     #[inline]
-    fn tick(
-        &mut self,
-        _: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        (self.f)(T::get_stored(&self.value)).convert()
+    fn tick(&mut self, _input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        (self.f)(f32::get_stored(&self.value)).frame()
     }
 
-    fn process(
-        &mut self,
-        size: usize,
-        _input: &[&[Self::Sample]],
-        output: &mut [&mut [Self::Sample]],
-    ) {
-        let frame = (self.f)(T::get_stored(&self.value)).convert();
+    fn process(&mut self, size: usize, _input: &BufferRef, output: &mut BufferMut) {
+        let frame = (self.f)(f32::get_stored(&self.value)).frame();
         for channel in 0..self.outputs() {
-            output[channel][..size].fill(frame[channel]);
+            output.channel_mut(channel)[..simd_items(size)]
+                .fill(F32x::splat(frame[channel].to_f32()));
         }
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        // TODO. Should we cache the latest function value and use it as a constant?
+        super::signal::Routing::Generator(0.0).route(input, self.outputs())
     }
 }
 
 /// Store present stream time to a shared variable.
 #[derive(Clone)]
-pub struct Timer<T: Atomic> {
-    shared: Shared<T>,
+pub struct Timer {
+    shared: Shared,
     time: f64,
     sample_duration: f64,
 }
 
-impl<T: Atomic> Timer<T> {
+impl Timer {
     /// Create a new timer node. Current time can be read from the shared variable.
-    pub fn new(sample_rate: f64, shared: &Shared<T>) -> Self {
-        shared.set_value(T::zero());
+    pub fn new(shared: &Shared) -> Self {
+        shared.set_value(0.0);
         Self {
             shared: shared.clone(),
             time: 0.0,
-            sample_duration: 1.0 / sample_rate,
+            sample_duration: 1.0 / DEFAULT_SR,
         }
     }
 }
 
-impl<T: Atomic + Float> AudioNode for Timer<T> {
+impl AudioNode for Timer {
     const ID: u64 = 57;
-    type Sample = T;
     type Inputs = U0;
     type Outputs = U0;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.time = 0.0;
-        self.shared.set_value(T::zero());
+        self.shared.set_value(0.0);
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
@@ -276,23 +235,19 @@ impl<T: Atomic + Float> AudioNode for Timer<T> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         self.time += self.sample_duration;
-        self.shared.set_value(T::from_f64(self.time));
+        self.shared.set_value(self.time as f32);
         *input
     }
 
-    fn process(
-        &mut self,
-        size: usize,
-        _input: &[&[Self::Sample]],
-        _output: &mut [&mut [Self::Sample]],
-    ) {
+    fn process(&mut self, size: usize, _input: &BufferRef, _output: &mut BufferMut) {
         self.time += size as f64 * self.sample_duration;
-        self.shared.set_value(T::from_f64(self.time));
+        self.shared.set_value(self.time as f32);
+    }
+
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        SignalFrame::new(self.outputs())
     }
 }
 
@@ -374,7 +329,7 @@ pub struct AtomicSynth<T: Float> {
     initial_phase: f32,
     sample_rate: f32,
     sample_duration: f32,
-    _marker: std::marker::PhantomData<T>,
+    _marker: core::marker::PhantomData<T>,
 }
 
 impl<T: Float> AtomicSynth<T> {
@@ -385,17 +340,15 @@ impl<T: Float> AtomicSynth<T> {
             initial_phase: 0.0,
             sample_rate: DEFAULT_SR as f32,
             sample_duration: 1.0 / DEFAULT_SR as f32,
-            _marker: std::marker::PhantomData,
+            _marker: core::marker::PhantomData,
         }
     }
 }
 
 impl<T: Float> AudioNode for AtomicSynth<T> {
     const ID: u64 = 86;
-    type Sample = T;
     type Inputs = numeric_array::typenum::U1;
     type Outputs = numeric_array::typenum::U1;
-    type Setting = ();
 
     fn reset(&mut self) {
         self.phase = self.initial_phase;
@@ -407,20 +360,21 @@ impl<T: Float> AudioNode for AtomicSynth<T> {
     }
 
     fn set_hash(&mut self, hash: u64) {
-        self.initial_phase = super::hacker::rnd(hash as i64) as f32;
+        self.initial_phase = super::math::rnd1(hash) as f32;
         self.phase = self.initial_phase;
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
-        let frequency = input[0].to_f32();
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let frequency = input[0];
         let delta = frequency * self.sample_duration;
         self.phase += delta;
         self.phase -= self.phase.floor();
         let output = self.table.read_nearest(self.phase);
         Frame::splat(convert(output))
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        super::signal::Routing::Generator(0.0).route(input, self.outputs())
     }
 }

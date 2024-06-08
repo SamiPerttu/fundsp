@@ -3,6 +3,7 @@
 use super::audionode::*;
 use super::combinator::*;
 use super::math::*;
+use super::setting::*;
 use super::signal::*;
 use super::*;
 use num_complex::Complex64;
@@ -27,7 +28,7 @@ fn halfway_coeff(samples: f64) -> f64 {
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
 #[derive(Default, Clone)]
-pub struct Follow<T: Float, F: Real> {
+pub struct Follow<F: Real> {
     v3: F,
     v2: F,
     v1: F,
@@ -37,19 +38,18 @@ pub struct Follow<T: Float, F: Real> {
     /// Halfway response time.
     response_time: F,
     sample_rate: F,
-    _marker: std::marker::PhantomData<T>,
 }
 
-impl<T: Float, F: Real> Follow<T, F> {
+impl<F: Real> Follow<F> {
     /// Create new smoothing filter. Response time (in seconds)
     /// is how long it takes for the follower to reach halfway to the new value.
-    pub fn new(sample_rate: f64, response_time: F) -> Self {
-        let mut node = Follow::<T, F> {
+    pub fn new(response_time: F) -> Self {
+        let mut node = Self {
             response_time,
             ..Follow::default()
         };
         node.reset();
-        node.set_sample_rate(sample_rate);
+        node.set_sample_rate(DEFAULT_SR);
         node
     }
 
@@ -80,16 +80,10 @@ impl<T: Float, F: Real> Follow<T, F> {
     }
 }
 
-impl<T: Float, F: Real> AudioNode for Follow<T, F> {
+impl<F: Real> AudioNode for Follow<F> {
     const ID: u64 = 24;
-    type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = F;
-
-    fn set(&mut self, setting: Self::Setting) {
-        self.set_response_time(setting);
-    }
 
     fn reset(&mut self) {
         self.v3 = F::zero();
@@ -104,10 +98,7 @@ impl<T: Float, F: Real> AudioNode for Follow<T, F> {
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         // Three 1-pole filters in series.
         let rcoeff = F::one() - self.coeff_now;
         self.v1 = self.coeff_now * convert(input[0]) + rcoeff * self.v1;
@@ -117,25 +108,33 @@ impl<T: Float, F: Real> AudioNode for Follow<T, F> {
         [convert(self.v3)].into()
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Time(time) = setting.parameter() {
+            self.set_response_time(F::from_f32(*time));
+        }
+    }
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
-        output[0] = input[0].filter(0.0, |r| {
-            let c = 1.0 - self.coeff.to_f64();
-            let f = frequency * TAU / self.sample_rate.to_f64();
-            let z1 = Complex64::from_polar(1.0, -f);
-            let pole = (1.0 - c) / (1.0 - c * z1);
-            r * pole * pole * pole
-        });
+        let mut output = SignalFrame::new(self.outputs());
+        output.set(
+            0,
+            input.at(0).filter(0.0, |r| {
+                let c = 1.0 - self.coeff.to_f64();
+                let f = frequency * f64::TAU / self.sample_rate.to_f64();
+                let z1 = Complex64::from_polar(1.0, -f);
+                let pole = (1.0 - c) / (1.0 - c * z1);
+                r * pole * pole * pole
+            }),
+        );
         output
     }
 }
 
 /// Smoothing filter with adjustable edge response times for attack and release.
-/// Setting: same form as in constructor.
 /// - Input 0: input signal
 /// - Output 0: smoothed signal
 #[derive(Default, Clone)]
-pub struct AFollow<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
+pub struct AFollow<F: Real> {
     v3: F,
     v2: F,
     v1: F,
@@ -143,38 +142,41 @@ pub struct AFollow<T: Float, F: Real, S: ScalarOrPair<Sample = F>> {
     rcoeff: F,
     acoeff_now: F,
     rcoeff_now: F,
-    /// Response times.
-    time: S,
+    /// Attack time.
+    atime: F,
+    /// Release time.
+    rtime: F,
     sample_rate: F,
-    _marker: std::marker::PhantomData<T>,
 }
 
-impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollow<T, F, S> {
+impl<F: Real> AFollow<F> {
     /// Create new smoothing filter.
     /// Response time is how long it takes for the follower to reach halfway to the new value.
-    pub fn new(sample_rate: f64, time: S) -> Self {
-        let mut node = AFollow::<T, F, S> {
-            time,
+    pub fn new(attack_time: F, release_time: F) -> Self {
+        let mut node = Self {
+            atime: attack_time,
+            rtime: release_time,
             ..AFollow::default()
         };
         node.reset();
-        node.set_sample_rate(sample_rate);
+        node.set_sample_rate(DEFAULT_SR);
         node
     }
 
     /// Attack time in seconds.
     pub fn attack_time(&self) -> F {
-        self.time.broadcast().0
+        self.atime
     }
 
     /// Release time in seconds.
     pub fn release_time(&self) -> F {
-        self.time.broadcast().1
+        self.rtime
     }
 
     /// Set attack/release time in seconds.
-    pub fn set_time(&mut self, time: S) {
-        self.time = time;
+    pub fn set_time(&mut self, attack_time: F, release_time: F) {
+        self.atime = attack_time;
+        self.rtime = release_time;
         self.acoeff = F::from_f64(halfway_coeff(
             (self.attack_time() * self.sample_rate).to_f64(),
         ));
@@ -200,16 +202,10 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AFollow<T, F, S> {
     }
 }
 
-impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F, S> {
+impl<F: Real> AudioNode for AFollow<F> {
     const ID: u64 = 29;
-    type Sample = T;
     type Inputs = U1;
     type Outputs = U1;
-    type Setting = S;
-
-    fn set(&mut self, setting: Self::Setting) {
-        self.set_time(setting);
-    }
 
     fn reset(&mut self) {
         self.v3 = F::zero();
@@ -222,43 +218,54 @@ impl<T: Float, F: Real, S: ScalarOrPair<Sample = F>> AudioNode for AFollow<T, F,
     fn set_sample_rate(&mut self, sample_rate: f64) {
         self.sample_rate = convert(sample_rate);
         // Recalculate coefficients.
-        self.set_time(self.time.clone());
+        self.set_time(self.atime, self.rtime);
     }
 
     #[inline]
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         // Three 1-pole filters in series.
         let v0: F = convert(input[0]);
-        self.v1 = self
-            .time
-            .filter_pole(v0, self.v1, self.acoeff_now, self.rcoeff_now);
-        self.v2 = self
-            .time
-            .filter_pole(self.v1, self.v2, self.acoeff_now, self.rcoeff_now);
-        self.v3 = self
-            .time
-            .filter_pole(self.v2, self.v3, self.acoeff_now, self.rcoeff_now);
+        self.v1 =
+            (self.atime, self.rtime).filter_pole(v0, self.v1, self.acoeff_now, self.rcoeff_now);
+        self.v2 = (self.atime, self.rtime).filter_pole(
+            self.v1,
+            self.v2,
+            self.acoeff_now,
+            self.rcoeff_now,
+        );
+        self.v3 = (self.atime, self.rtime).filter_pole(
+            self.v2,
+            self.v3,
+            self.acoeff_now,
+            self.rcoeff_now,
+        );
         self.acoeff_now = self.acoeff;
         self.rcoeff_now = self.rcoeff;
         [convert(self.v3)].into()
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::AttackRelease(attack, release) = setting.parameter() {
+            self.set_time(F::from_f32(*attack), F::from_f32(*release));
+        }
+    }
+
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
-        let mut output = new_signal_frame(self.outputs());
+        let mut output = SignalFrame::new(self.outputs());
         // The frequency response exists only in symmetric mode, as the asymmetric mode is nonlinear.
         if self.acoeff == self.rcoeff {
-            output[0] = input[0].filter(0.0, |r| {
-                let c = 1.0 - self.acoeff.to_f64();
-                let f = frequency * TAU / self.sample_rate.to_f64();
-                let z1 = Complex64::from_polar(1.0, -f);
-                let pole = (1.0 - c) / (1.0 - c * z1);
-                r * pole * pole * pole
-            });
+            output.set(
+                0,
+                input.at(0).filter(0.0, |r| {
+                    let c = 1.0 - self.acoeff.to_f64();
+                    let f = frequency * f64::TAU / self.sample_rate.to_f64();
+                    let z1 = Complex64::from_polar(1.0, -f);
+                    let pole = (1.0 - c) / (1.0 - c * z1);
+                    r * pole * pole * pole
+                }),
+            );
         } else {
-            output[0] = input[0].distort(0.0);
+            output.set(0, input.at(0).distort(0.0));
         }
         output
     }

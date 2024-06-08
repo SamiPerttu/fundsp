@@ -9,8 +9,9 @@ use super::math::*;
 use super::signal::*;
 use super::*;
 use num_complex::Complex32;
-use realfft::{ComplexToReal, RealFftPlanner, RealToComplex};
-use std::sync::Arc;
+extern crate alloc;
+use alloc::vec;
+use alloc::vec::Vec;
 
 /// Number of overlapping FFT windows.
 const WINDOWS: usize = 4;
@@ -43,6 +44,16 @@ impl FftWindow {
     #[inline]
     pub fn inputs(&self) -> usize {
         self.input.len()
+    }
+
+    /// Extend positive frequency values to negative frequencies to keep the inverse FFT result
+    /// real only.
+    pub(crate) fn extend_values(&mut self) {
+        for channel in 0..self.outputs() {
+            for i in self.length() / 2 + 1..self.length() {
+                self.output_fft[channel][i] = self.output_fft[channel][self.length() - i].conj();
+            }
+        }
     }
 
     /// Number of output channels.
@@ -86,20 +97,14 @@ impl FftWindow {
 
     /// Get forward vectors for forward FFT.
     #[inline]
-    pub(crate) fn forward_vectors(
-        &mut self,
-        channel: usize,
-    ) -> (&mut Vec<f32>, &mut Vec<Complex32>) {
-        (&mut self.input[channel], &mut self.input_fft[channel])
+    pub(crate) fn forward_vectors(&mut self, channel: usize) -> (&Vec<f32>, &mut Vec<Complex32>) {
+        (&self.input[channel], &mut self.input_fft[channel])
     }
 
     /// Get inverse vectors for inverse FFT.
     #[inline]
-    pub(crate) fn inverse_vectors(
-        &mut self,
-        channel: usize,
-    ) -> (&mut Vec<Complex32>, &mut Vec<f32>) {
-        (&mut self.output_fft[channel], &mut self.output[channel])
+    pub(crate) fn inverse_vectors(&mut self, channel: usize) -> (&Vec<Complex32>, &mut Vec<f32>) {
+        (&self.output_fft[channel], &mut self.output[channel])
     }
 
     /// FFT window length. This is a power of two and at least four.
@@ -110,7 +115,7 @@ impl FftWindow {
 
     /// Number of FFT bins.
     /// Equals the length of each frequency domain vector.
-    /// The lowest bin is zero and the highest bin (at the Nyquist frequency) is `bins() - 1`.
+    /// The lowest bin is zero and the highest bin (corresponding to the Nyquist frequency) is `bins() - 1`.
     #[inline]
     pub fn bins(&self) -> usize {
         (self.length() >> 1) + 1
@@ -157,7 +162,7 @@ impl FftWindow {
             .resize(inputs, vec![Complex32::default(); window.bins()]);
         window
             .output_fft
-            .resize(outputs, vec![Complex32::default(); window.bins()]);
+            .resize(outputs, vec![Complex32::default(); length]);
         window
     }
 
@@ -227,14 +232,13 @@ impl FftWindow {
 /// If any output is a copy of an input, then the input will be reconstructed exactly once
 /// the windows are all overlapping, which happens one window length beyond latency.
 #[derive(Clone)]
-pub struct Resynth<I, O, T, F>
+pub struct Resynth<I, O, F>
 where
-    I: Size<T>,
-    O: Size<T>,
-    T: Float,
+    I: Size<f32>,
+    O: Size<f32>,
     F: FnMut(&mut FftWindow) + Clone + Send + Sync,
 {
-    _marker: std::marker::PhantomData<(T, I, O)>,
+    _marker: core::marker::PhantomData<(I, O)>,
     /// FFT windows.
     window: [FftWindow; WINDOWS],
     /// Window length.
@@ -245,10 +249,6 @@ where
     processing: F,
     /// Sample rate.
     sample_rate: f64,
-    /// Forward transform.
-    forward: Arc<dyn RealToComplex<f32>>,
-    /// Inverse transform.
-    inverse: Arc<dyn ComplexToReal<f32>>,
     /// Temporary vector for FFT.
     scratch: Vec<Complex32>,
     /// Number of processed samples.
@@ -257,11 +257,10 @@ where
     z: f32,
 }
 
-impl<I, O, T, F> Resynth<I, O, T, F>
+impl<I, O, F> Resynth<I, O, F>
 where
-    I: Size<T>,
-    O: Size<T>,
-    T: Float,
+    I: Size<f32>,
+    O: Size<f32>,
     F: FnMut(&mut FftWindow) + Clone + Send + Sync,
 {
     /// Number of FFT bins. Equals the length of each frequency domain vector in FFT windows.
@@ -276,20 +275,16 @@ where
         self.window_length
     }
 
-    /// Create new resynthesizer. Window length must be a power of two and at least four.
+    /// Create new resynthesizer. Window length must be a power of two between 4 and 32768.
     pub fn new(window_length: usize, processing: F) -> Self {
         assert!(window_length >= 4 && window_length.is_power_of_two());
-
-        let mut planner = RealFftPlanner::<f32>::new();
-        let forward = planner.plan_fft_forward(window_length);
-        let inverse = planner.plan_fft_inverse(window_length);
 
         let mut window_function = Vec::with_capacity(window_length);
 
         for i in 0..window_length {
             let hann = 0.5
                 + 0.5
-                    * cos((i as i32 - (window_length >> 1) as i32) as f32 * TAU as f32
+                    * cos((i as i32 - (window_length >> 1) as i32) as f32 * f32::TAU
                         / window_length as f32);
             window_function.push(hann);
         }
@@ -306,37 +301,31 @@ where
             ),
         ];
 
-        let scratch =
-            vec![Complex32::default(); max(forward.get_scratch_len(), inverse.get_scratch_len())];
+        let scratch = vec![Complex32::default(); window_length];
 
         Self {
-            _marker: std::marker::PhantomData,
+            _marker: core::marker::PhantomData,
             window,
             window_length,
             window_function,
             processing,
             sample_rate: DEFAULT_SR,
-            forward,
-            inverse,
             scratch,
             samples: 0,
-            z: 2.0 / (3.0 * window_length as f32),
+            z: 2.0 / 3.0,
         }
     }
 }
 
-impl<I, O, T, F> AudioNode for Resynth<I, O, T, F>
+impl<I, O, F> AudioNode for Resynth<I, O, F>
 where
-    I: Size<T>,
-    O: Size<T>,
-    T: Float,
+    I: Size<f32>,
+    O: Size<f32>,
     F: FnMut(&mut FftWindow) + Clone + Send + Sync,
 {
     const ID: u64 = 80;
-    type Sample = T;
     type Inputs = I;
     type Outputs = O;
-    type Setting = ();
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
         self.sample_rate = sample_rate;
@@ -352,10 +341,7 @@ where
         }
     }
 
-    fn tick(
-        &mut self,
-        input: &Frame<Self::Sample, Self::Inputs>,
-    ) -> Frame<Self::Sample, Self::Outputs> {
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let mut output = Frame::default();
 
         for i in 0..WINDOWS {
@@ -372,19 +358,21 @@ where
                 if self.window[i].is_fft_time() {
                     for channel in 0..I::USIZE {
                         let (input, input_fft) = self.window[i].forward_vectors(channel);
-                        self.forward
-                            .process_with_scratch(input, input_fft, &mut self.scratch)
-                            .expect("Internal error");
+                        super::fft::real_fft(input, input_fft);
                     }
 
                     self.window[i].clear_output();
+
                     (self.processing)(&mut self.window[i]);
 
+                    self.window[i].extend_values();
+
                     for channel in 0..O::USIZE {
-                        let (output_fft, output) = self.window[i].inverse_vectors(channel);
-                        self.inverse
-                            .process_with_scratch(output_fft, output, &mut self.scratch)
-                            .expect("Internal error");
+                        let (output_fft, output_scalar) = self.window[i].inverse_vectors(channel);
+                        super::fft::inverse_fft(output_fft, &mut self.scratch);
+                        for (x, y) in output_scalar.iter_mut().zip(self.scratch.iter()) {
+                            *x = y.re;
+                        }
                     }
                 }
             }
@@ -393,6 +381,6 @@ where
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Arbitrary(self.window_length as f64).propagate(input, self.outputs())
+        Routing::Arbitrary(self.window_length as f64).route(input, self.outputs())
     }
 }

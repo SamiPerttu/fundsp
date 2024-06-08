@@ -29,7 +29,7 @@ where
     let sample_rate = config.sample_rate.0 as f64;
     let channels = config.channels as usize;
 
-    let _c = Granular64::new(
+    let _c = Granular::new(
         2,
         32,
         2.0,
@@ -44,10 +44,10 @@ where
                 36.0, 38.0, 41.0, 43.0, 46.0, 48.0, 50.0, 53.0, 55.0, 58.0, 60.0, 62.0, 65.0, 67.0,
                 70.0, 72.0, 74.0, 77.0, 79.0, 82.0, 84.0,
             ];
-            let d = lerp11(0.0, scale.len() as f64 - 0.01, x);
+            let d = lerp11(0.0, scale.len() as f32 - 0.01, x);
             let f = midi_hz(scale[d as usize] + 0.02 * (d - round(d)));
             let r = max(1.0, xerp11(0.50, 2.00, z));
-            let f = f * xerp11(1.0 / r, r, sin_hz(6.0, t));
+            let f = f * xerp11(1.0 / r as f64, r as f64, sin_hz(6.0, t)) as f32;
             (
                 0.060,
                 0.030,
@@ -172,7 +172,7 @@ where
 
     //let mut dna = Dna::new(37);
     let mut dna = Dna::new(102);
-    let mut c = Net64::wrap(gen_granular(2, &scale, 2.4, 30, &mut dna));
+    let mut c = Net::wrap(fundsp::gen::gen_granular(2, &scale, 2.4, 30, &mut dna));
 
     for parameter in dna.parameter_vector().iter() {
         println!("{}: {}", parameter.name(), parameter.value());
@@ -185,7 +185,7 @@ where
     c.set_sample_rate(sample_rate);
 
     // Use block processing for maximum efficiency.
-    let mut c = BlockRateAdapter64::new(Box::new(c));
+    let mut c = BlockRateAdapter::new(Box::new(c));
 
     let mut next_value = move || c.get_stereo();
 
@@ -206,14 +206,14 @@ where
     Ok(())
 }
 
-fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f64, f64))
+fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f32, f32))
 where
     T: SizedSample + FromSample<f64>,
 {
     for frame in output.chunks_mut(channels) {
         let sample = next_sample();
-        let left: T = T::from_sample(sample.0);
-        let right: T = T::from_sample(sample.1);
+        let left: T = T::from_sample(sample.0 as f64);
+        let right: T = T::from_sample(sample.1 as f64);
 
         for (channel, sample) in frame.iter_mut().enumerate() {
             if channel & 1 == 0 {
