@@ -266,6 +266,15 @@ fn test_basic() {
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
     check_wave(impulse::<U2>());
 
+    let dc42 = Net::wrap(Box::new(dc(42.)));
+    let dcs = dc42.clone() | dc42;
+    let reverb = Net::wrap(Box::new(reverb_stereo(40., 5., 1.)));
+    let filter = Net::wrap(Box::new(lowpass_hz(1729., 1.)));
+    let filters = filter.clone() | filter;
+    let net = dcs >> reverb >> filters;
+    net.check();
+    check_wave(net);
+
     // Wave filtering, tick vs. process rendering, node reseting.
     let input = Wave::render(44100.0, 1.0, &mut (noise() | noise()));
     check_wave_filter(&input, butterpass_hz(1000.0) | lowpole_hz(100.0));

@@ -77,9 +77,9 @@ struct Vertex {
     pub tick_output: Vec<f32>,
     /// Stable, globally unique ID for this vertex.
     pub id: NodeId,
-    /// This is set if all vertex inputs are sourced from matching outputs of the indicated node.
-    /// We can then omit copying and use the node outputs directly.
-    pub source_vertex: Option<NodeIndex>,
+    /// This is set if all vertex inputs are sourced from successive outputs of the indicated node.
+    /// We can then omit copying and use the source node outputs directly.
+    pub source_vertex: Option<(NodeIndex, usize)>,
     /// Network revision in which this vertex was changed last.
     pub changed: u64,
 }
@@ -117,36 +117,35 @@ impl Vertex {
         self.tick_output.len()
     }
 
-    /// Update source vertex shortcut.
-    pub fn update_source_vertex(&mut self) {
-        self.source_vertex = None;
-        if self.inputs() == 0 {
-            return;
-        }
-        let mut source_node = 0;
-        for i in 0..self.inputs() {
-            match self.source[i].source {
-                Port::Local(node, port) => {
-                    if port != i {
-                        return;
-                    }
-                    if i == 0 {
-                        source_node = node;
-                    } else if source_node != node {
-                        return;
-                    }
-                }
-                _ => {
-                    return;
-                }
-            }
-        }
-        self.source_vertex = Some(source_node);
-    }
-
     /// Preallocate everything.
     pub fn allocate(&mut self) {
         self.unit.allocate();
+    }
+
+    /// Calculate source vertex and source port.
+    pub fn get_source_vertex(&self) -> Option<(NodeIndex, usize)> {
+        if self.inputs() == 0 {
+            return None;
+        }
+        let mut source_node = 0;
+        let mut source_port = 0;
+        for i in 0..self.inputs() {
+            let source = self.source[i].source;
+            match source {
+                Port::Local(node, port) => {
+                    if i == 0 {
+                        source_node = node;
+                        source_port = port;
+                    } else if source_node != node || source_port + i != port {
+                        return None;
+                    }
+                }
+                _ => {
+                    return None;
+                }
+            }
+        }
+        Some((source_node, source_port))
     }
 }
 
@@ -667,8 +666,9 @@ impl Net {
 
     /// Compute and store node order for this network.
     fn determine_order(&mut self) {
-        for vertex in self.vertex.iter_mut() {
-            vertex.update_source_vertex();
+        // Update source vertex shortcut.
+        for j in 0..self.vertex.len() {
+            self.vertex[j].source_vertex = self.vertex[j].get_source_vertex();
         }
         let mut order = Vec::new();
         if !self.determine_order_in(&mut order) {
@@ -826,6 +826,7 @@ impl Net {
                 match self.vertex[index].source[channel].source {
                     Port::Local(node, port) => {
                         assert!(node < self.size());
+                        // Self connections are prohibited.
                         assert!(node != index);
                         assert!(port < self.vertex[node].outputs());
                     }
@@ -834,6 +835,13 @@ impl Net {
                     }
                     _ => (),
                 }
+            }
+            if let Some((source_node, source_port)) = self.vertex[index].source_vertex {
+                assert!(source_node < self.size());
+                assert!(source_node != index);
+                assert!(
+                    source_port + self.vertex[index].inputs() <= self.vertex[source_node].outputs()
+                );
             }
         }
     }
@@ -1031,7 +1039,7 @@ impl AudioUnit for Net {
         let simd_size = simd_items(size);
         // Iterate units in network order.
         for &node_index in self.order.as_ref().unwrap().iter() {
-            if let Some(source_node) = self.vertex[node_index].source_vertex {
+            if let Some((source_node, source_port)) = self.vertex[node_index].source_vertex {
                 // We can source inputs directly from a source vertex.
                 let ptr = &mut self.vertex[source_node].output as *mut BufferVec;
                 let vertex = &mut self.vertex[node_index];
@@ -1039,7 +1047,7 @@ impl AudioUnit for Net {
                 unsafe {
                     vertex.unit.process(
                         size,
-                        &(*ptr).buffer_ref(),
+                        &(*ptr).buffer_ref().subset(source_port, vertex.inputs()),
                         &mut vertex.output.buffer_mut(),
                     );
                 }

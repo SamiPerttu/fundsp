@@ -58,8 +58,7 @@ FunDSP supports `no_std` environments. To enable `no_std`, disable
 the feature `std`, which is enabled by default. The `alloc` crate
 is still needed for components that allocate memory.
 
-In a `no_std` environment,
-audio file reading and writing is not available.
+Audio file reading and writing is not available in `no_std`.
 
 ```rust
 [dependencies]
@@ -330,7 +329,7 @@ Arithmetic operators are applied to outputs channelwise.
 
 Arithmetic between two components never broadcasts channels: channel arities have to match always.
 
-Direct arithmetic with `f32` and `f64` values, however, broadcasts to an arbitrary number of channels.
+Direct arithmetic with `f32` values, however, broadcasts to an arbitrary number of channels.
 
 The negation operator broadcasts also: `-A` is equivalent with `(0.0 - A)`.
 
@@ -944,13 +943,13 @@ a setting listener.
 let (sender, equalizer) = listen(equalizer);
 ```
 
-Then, we can send settings of the form (band, (center, Q, gain)).
+Then, we can send settings to change center frequency, Q and gain.
 The settings are available because we constructed the filter using
 the `bell_hz` form.
 Set band 1 to amplify by 3 dB at 1000 Hz with Q set to 2.0:
 
 ```rust
-sender.try_send((1, (1000.0, 2.0, db_amp(3.0)))).expect("Cannot send setting.");
+sender.try_send(Setting::center_q_gain(1000.0, 2.0, db_amp(3.0)).index(1)).expect("Cannot send setting.");
 ```
 
 ## evcxr
