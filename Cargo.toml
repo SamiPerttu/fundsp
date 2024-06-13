@@ -16,12 +16,12 @@ generic-array = "0.14.7"
 numeric-array = { version = "0.5.2", default-features = false }
 dyn-clone = "1.0.17"
 libm = "0.2.8"
-wide = "0.7.23"
+wide = "0.7.24"
 num-complex = { version = "0.4.6", default-features = false, features = ["libm"] }
 tinyvec = { version = "1.6.0", features = ["alloc"] }
 hashbrown = "0.14.5"
 microfft = { version = "0.6.0", features = ["size-32768"] }
-funutd = { version = "0.15.0", default-features = false }
+funutd = { version = "0.16.0", default-features = false }
 thingbuf = { version = "0.1.6", default-features = false, features = ["alloc"] }
 once_cell = { version = "1.19.0", default-features = false, features = ["race", "alloc"] }
 symphonia = { version = "0.5.4", optional = true, features = ["all"] }
