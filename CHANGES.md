@@ -19,6 +19,7 @@
 - `rnd` function is now `rnd1`.
 - `hash` function is now `hash1`. Added new hash function `hash2`.
 - Wavetable oscillator now accepts an `Arc<Wavetable>` in the constructor.
+- Denormals are now flushed to zero in feedback loops.
 
 ### Version 0.17
 

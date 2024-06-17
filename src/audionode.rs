@@ -162,7 +162,7 @@ pub trait AudioNode: Clone + Sync + Send {
         hash.hash(Self::ID)
     }
 
-    /// Preallocate all needed memory, including buffers for block processing.
+    /// Preallocate all needed memory.
     fn allocate(&mut self) {
         // The default implementation does nothing.
     }
@@ -171,11 +171,10 @@ pub trait AudioNode: Clone + Sync + Send {
     /// from inputs to outputs. Return output signal.
     /// If there are no frequency responses in `input`, then `frequency` is ignored.
     #[allow(unused_variables)]
-    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame;
-    /* {
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         // The default implementation marks all outputs unknown.
         SignalFrame::new(self.outputs())
-    }*/
+    }
 
     // End of interface. There is no need to override the following.
 

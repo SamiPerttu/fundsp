@@ -61,6 +61,7 @@ pub fn simd_items(samples: usize) -> usize {
     (samples + SIMD_M) >> SIMD_S
 }
 
+/// Convert amount from samples to full SIMD elements.
 #[inline(always)]
 pub fn full_simd_items(samples: usize) -> usize {
     samples >> SIMD_S
@@ -295,13 +296,11 @@ impl Num for F32x {
     }
     #[inline(always)]
     fn floor(self) -> Self {
-        let a = self.as_array_ref();
-        Self::new(core::array::from_fn(|x| a[x].floor()))
+        (self - 0.5).round()
     }
     #[inline(always)]
     fn ceil(self) -> Self {
-        let a = self.as_array_ref();
-        Self::new(core::array::from_fn(|x| a[x].ceil()))
+        (self + 0.4999999).round()
     }
     #[inline(always)]
     fn round(self) -> Self {

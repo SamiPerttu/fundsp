@@ -1,8 +1,8 @@
 [package]
 name = "fundsp"
 description = "Audio processing and synthesis library."
-keywords = ["dsp", "audio", "synthesizer", "sound", "wave"]
-categories = ["multimedia::audio"]
+keywords = ["dsp", "audio", "synthesizer", "sound", "no_std"]
+categories = ["multimedia::audio", "no-std"]
 license = "MIT OR Apache-2.0"
 version = "0.17.1"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
@@ -25,6 +25,7 @@ funutd = { version = "0.16.0", default-features = false }
 thingbuf = { version = "0.1.6", default-features = false, features = ["alloc"] }
 once_cell = { version = "1.19.0", default-features = false, features = ["race", "alloc"] }
 symphonia = { version = "0.5.4", optional = true, features = ["all"] }
+no_denormals = "0.1.2"
 
 [dev-dependencies]
 anyhow = "1.0.86"

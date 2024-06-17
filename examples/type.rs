@@ -1,9 +1,9 @@
-/// This example utility "unscrambles" FunDSP type names reported from the compiler.
-///
-/// For example,
-/// cargo run --example type -- "An<Bus<f64, Noise<f64>, Pipe<f64, fundsp::audionode::Constant<typenum::uint::UInt<typenum::uint::UTerm, typenum::bit::B1>, f64>, Sine<f64>>>>"
-/// prints
-/// An<Bus<f64, Noise<f64>, Pipe<f64, Constant<U1, f64>, Sine<f64>>>>
+// This example utility "unscrambles" FunDSP type names reported from the compiler.
+//
+// For example,
+// cargo run --example type -- "An<Bus<Noise, Pipe<fundsp::audionode::Constant<typenum::uint::UInt<typenum::uint::UTerm, typenum::bit::B1>>, Sine>>>"
+// prints
+// An<Bus<Noise, Pipe<Constant<U1>, Sine>>>
 
 fn remove_string(text: &mut String, what: &str) {
     while let Some(position) = text.find(what) {
@@ -58,6 +58,8 @@ fn main() {
     remove_string(&mut arg, "filter::");
     remove_string(&mut arg, "fir::");
     remove_string(&mut arg, "follow::");
+    remove_string(&mut arg, "hacker::");
+    remove_string(&mut arg, "hacker32::");
     remove_string(&mut arg, "math::");
     remove_string(&mut arg, "moog::");
     remove_string(&mut arg, "net::");
@@ -69,16 +71,20 @@ fn main() {
     remove_string(&mut arg, "realnet::");
     remove_string(&mut arg, "realseq::");
     remove_string(&mut arg, "resample::");
+    remove_string(&mut arg, "reverb::");
     remove_string(&mut arg, "rez::");
     remove_string(&mut arg, "sequencer::");
     remove_string(&mut arg, "setting::");
     remove_string(&mut arg, "shape::");
+    remove_string(&mut arg, "shared::");
     remove_string(&mut arg, "signal::");
+    remove_string(&mut arg, "slot::");
     remove_string(&mut arg, "snoop::");
     remove_string(&mut arg, "svf::");
     remove_string(&mut arg, "system::");
     remove_string(&mut arg, "wave::");
     remove_string(&mut arg, "wavetable::");
+    remove_string(&mut arg, "typenum::");
     remove_string(&mut arg, "typenum::uint::");
     parse_uint(&mut arg);
 

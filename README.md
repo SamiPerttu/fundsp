@@ -543,9 +543,6 @@ to use block processing to amortize the overhead.
 The `Sequencer` component mixes together generator nodes dynamically.
 It can start and stop rendering nodes with sample accuracy.
 
-For use as a dynamic mixer, it can be split into a frontend and a backend.
-The frontend is for adding and editing events, and the real-time safe backend renders audio.
-
 The sequencer has no inputs and a user specified number of outputs.
 
 ```rust
@@ -553,15 +550,27 @@ use fundsp::hacker::*;
 // Create stereo sequencer.
 // The first argument should be set true if we want to replay events after `reset`.
 let mut sequencer = Sequencer::new(false, 2);
+```
+
+Adding new events, their start and stop times as well as fade-in and fade-out envelopes
+can be set. The sequencer returns an `ID` that can be used for later edits to the events.
+
+```rust
 // Add a new event with start time 1.0 seconds and end time 2.0 seconds.
 // This returns an `EventId`.
-let id1 = sequencer.push(1.0, 2.0, Fade::Smooth, 0.1, 0.1, Box::new(noise()));
+let id1 = sequencer.push(1.0, 2.0, Fade::Smooth, 0.1, 0.1, Box::new(noise() | noise()));
 // Add a new event that starts immediately and plays indefinitely.
-let id2 = sequencer.push_relative(0.0, f64::INFINITY, Fade::Smooth, 0.1, 0.1, Box::new(pink()));
+let id2 = sequencer.push_relative(0.0, f64::INFINITY, Fade::Smooth, 0.1, 0.1, Box::new(pink() | pink()));
+```
+
+For use as a dynamic mixer, the sequencer can be split into a frontend and a backend.
+The frontend is for adding and editing events, and the real-time safe backend renders audio.
+
+```rust
 // Get a backend for this sequencer. This sequencer is then the frontend.
 let mut backend = sequencer.backend();
 // Now we can insert the backend into, for example, a `Net`.
-// Later we can use the frontend to make edits to an event; the end time and fade-out time
+// Later we can use the frontend to create events and make edits to them; the end time and fade-out time
 // can be changed. Here we start fading out the event immediately.
 sequencer.edit_relative(id2, 0.0, 0.1);
 ```

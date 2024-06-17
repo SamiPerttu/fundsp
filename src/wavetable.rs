@@ -230,7 +230,11 @@ impl Wavetable {
     #[inline]
     pub fn read_simd(&self, table_hint: usize, frequency: f32, phase: F32x) -> (F32x, usize) {
         let table = self.table_index(table_hint, frequency);
-        let w = delerp(self.table[table].0, self.table[table + 1].0, frequency);
+        let w = clamp01(delerp(
+            self.table[table].0,
+            self.table[table + 1].0,
+            frequency,
+        ));
         (
             // Note the different table index. We can use `table + 1` up to its designated pitch.
             (1.0 - w) * self.at_simd(table + 1, phase) + w * self.at_simd(table + 2, phase),
@@ -331,6 +335,9 @@ where
             let (output_simd, hint) = self.table.read_simd(table_hint, abs(frequency), phase_simd);
             output.set(0, i, output_simd);
             table_hint = hint;
+            if Self::Outputs::USIZE > 1 {
+                output.set(1, i, phase_simd);
+            }
         }
         self.phase = phase - floor(phase);
         self.table_hint = table_hint;
