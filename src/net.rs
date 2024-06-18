@@ -170,7 +170,7 @@ pub struct Net {
     /// Current sample rate.
     sample_rate: f64,
     /// Optional frontend.
-    front: Option<(Sender<Net>, Receiver<Net>)>,
+    front: Option<(Sender<NetMessage>, Receiver<Net>)>,
     /// Number of inputs in the backend. This is for checking consistency during commits.
     backend_inputs: usize,
     /// Number of outputs in the backend. This is for checking consistency during commits.
@@ -939,7 +939,7 @@ impl Net {
             // Deallocate all previous versions.
             while receiver.try_recv().is_ok() {}
             // Send the new version over.
-            if sender.try_send(net).is_ok() {}
+            if sender.try_send(NetMessage::Net(net)).is_ok() {}
         }
         self.revision += 1;
     }
@@ -1094,7 +1094,9 @@ impl AudioUnit for Net {
     }
 
     fn set(&mut self, setting: Setting) {
-        if let Address::Node(id) = setting.direction() {
+        if let Some((sender, _receiver)) = &mut self.front {
+            if sender.try_send(NetMessage::Setting(setting)).is_ok() {}
+        } else if let Address::Node(id) = setting.direction() {
             if let Some(index) = self.node_index.get(&id) {
                 self.vertex[*index].unit.set(setting.peel());
             }

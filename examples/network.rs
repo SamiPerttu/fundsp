@@ -70,7 +70,7 @@ where
             net.replace(id_noise, Box::new(pink()));
         }
         if rnd.bool(0.5) {
-            net.replace(id_pan, Box::new(pan(rnd.f32_in(-0.8, 0.8))));
+            net.set(Setting::pan(rnd.f32_in(-0.8, 0.8)).node(id_pan));
         }
         if !delay_added && rnd.bool(0.1) {
             let id_delay = net.push(Box::new(pass() & feedback(delay(0.2) * db_amp(-5.0))));

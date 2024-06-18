@@ -117,14 +117,14 @@ There are two parallel component systems: the static `AudioNode` and the dynamic
 
 ---
 
+All `AudioNode` and `AudioUnit` components use 32-bit floating point samples (`f32`).
+
 The main property of a component in either system is that it is a processing node in a graph with
 a specific number of input and output connections, called its *arity*. Audio and control signals flow
 through input and output connections.
 
 Both systems operate on signals synchronously as an infinite stream. The stream can be
 rewound to the start at any time using the `reset` method.
-
-All `AudioNode` and `AudioUnit` components use 32-bit floating point samples (`f32`).
 
 `AudioNode`s can be stack allocated for the most part.
 Some nodes may use the heap for audio buffers and the like.

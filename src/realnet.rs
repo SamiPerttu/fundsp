@@ -1,27 +1,37 @@
-//! Real-time friendly backend for Net64 and Net32.
+//! Real-time friendly backend for Net.
 
 use super::audiounit::*;
 use super::buffer::*;
 use super::math::*;
 use super::net::*;
+use super::setting::*;
 use super::signal::*;
 use thingbuf::mpsc::{channel, Receiver, Sender};
+
+#[derive(Default, Clone)]
+pub(crate) enum NetMessage {
+    #[default]
+    Null,
+    Net(Net),
+    Setting(Setting),
+}
 
 pub struct NetBackend {
     /// For sending versions for deallocation back to the frontend.
     sender: Sender<Net>,
-    /// For receiving new versions from the frontend.
-    receiver: Receiver<Net>,
+    /// For receiving new versions and settings from the frontend.
+    receiver: Receiver<NetMessage>,
     net: Net,
 }
 
 impl Clone for NetBackend {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
-        let (sender, receiver) = channel(1);
+        let (sender_net, _receiver_net) = channel(1);
+        let (_sender_message, receiver_message) = channel(1);
         NetBackend {
-            sender,
-            receiver,
+            sender: sender_net,
+            receiver: receiver_message,
             net: self.net.clone(),
         }
     }
@@ -29,7 +39,7 @@ impl Clone for NetBackend {
 
 impl NetBackend {
     /// Create new backend.
-    pub fn new(sender: Sender<Net>, receiver: Receiver<Net>, net: Net) -> Self {
+    pub(crate) fn new(sender: Sender<Net>, receiver: Receiver<NetMessage>, net: Net) -> Self {
         Self {
             sender,
             receiver,
@@ -43,12 +53,20 @@ impl NetBackend {
         #[allow(clippy::while_let_loop)]
         loop {
             match self.receiver.try_recv() {
-                Ok(net) => {
-                    if let Some(net) = latest_net {
-                        // This is not the latest network, send it back immediately for deallocation.
-                        if self.sender.try_send(net).is_ok() {}
+                Ok(message) => {
+                    match message {
+                        NetMessage::Net(net) => {
+                            if let Some(net) = latest_net {
+                                // This is not the latest network, send it back immediately for deallocation.
+                                if self.sender.try_send(net).is_ok() {}
+                            }
+                            latest_net = Some(net);
+                        }
+                        NetMessage::Setting(setting) => {
+                            self.net.set(setting);
+                        }
+                        NetMessage::Null => (),
                     }
-                    latest_net = Some(net)
                 }
                 _ => break,
             }
