@@ -296,7 +296,7 @@ impl Num for F32x {
     }
     #[inline(always)]
     fn floor(self) -> Self {
-        (self - 0.5).round()
+        (self - 0.4999999).round()
     }
     #[inline(always)]
     fn ceil(self) -> Self {

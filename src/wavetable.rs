@@ -218,7 +218,11 @@ impl Wavetable {
     #[inline]
     pub fn read(&self, table_hint: usize, frequency: f32, phase: f32) -> (f32, usize) {
         let table = self.table_index(table_hint, frequency);
-        let w = delerp(self.table[table].0, self.table[table + 1].0, frequency);
+        let w = clamp01(delerp(
+            self.table[table].0,
+            self.table[table + 1].0,
+            frequency,
+        ));
         (
             // Note the different table index. We can use `table + 1` up to its designated pitch.
             (1.0 - w) * self.at(table + 1, phase) + w * self.at(table + 2, phase),
@@ -330,7 +334,7 @@ where
                 phase += input.at(0, i).as_array_ref()[j] * self.sample_duration;
                 phase
             }));
-            let phase_simd = phase_simd - (phase_simd - 0.5).round();
+            let phase_simd = phase_simd - phase_simd.floor();
             // Try to support negative frequencies as well by taking the absolute value of the input frequency.
             let (output_simd, hint) = self.table.read_simd(table_hint, abs(frequency), phase_simd);
             output.set(0, i, output_simd);
