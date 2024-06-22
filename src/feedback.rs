@@ -12,18 +12,6 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))]
-#[inline(always)]
-pub fn flush_denormals<T, F: FnOnce() -> T>(f: F) -> T {
-    f()
-}
-
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
-#[inline(always)]
-pub fn flush_denormals<T, F: FnOnce() -> T>(f: F) -> T {
-    no_denormals::no_denormals(f)
-}
-
 /// Diffusive Hadamard feedback matrix. The number of channels must be a power of two.
 #[derive(Default, Clone)]
 pub struct FrameHadamard<N: Size<f32>> {
@@ -137,25 +125,21 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        flush_denormals(|| {
-            let output = self.x.tick(&(input + self.value.clone()));
-            self.value = self.feedback.frame(&output);
-            output
-        })
+        let output = self.x.tick(&(input + self.value.clone()));
+        self.value = self.feedback.frame(&output);
+        output
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
-        flush_denormals(|| {
-            for i in 0..size {
-                let input_frame =
-                    Frame::generate(|channel| input.at_f32(channel, i) + self.value[channel]);
-                let output_frame = self.x.tick(&input_frame);
-                self.value = self.feedback.frame(&output_frame);
-                for channel in 0..self.outputs() {
-                    output.set_f32(channel, i, output_frame[channel]);
-                }
+        for i in 0..size {
+            let input_frame =
+                Frame::generate(|channel| input.at_f32(channel, i) + self.value[channel]);
+            let output_frame = self.x.tick(&input_frame);
+            self.value = self.feedback.frame(&output_frame);
+            for channel in 0..self.outputs() {
+                output.set_f32(channel, i, output_frame[channel]);
             }
-        })
+        }
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -251,25 +235,21 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        flush_denormals(|| {
-            let output = self.x.tick(&(input + self.value.clone()));
-            self.value = self.feedback.frame(&self.y.tick(&output));
-            output
-        })
+        let output = self.x.tick(&(input + self.value.clone()));
+        self.value = self.feedback.frame(&self.y.tick(&output));
+        output
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
-        flush_denormals(|| {
-            for i in 0..size {
-                let input_frame =
-                    Frame::generate(|channel| input.at_f32(channel, i) + self.value[channel]);
-                let output_frame = self.x.tick(&input_frame);
-                self.value = self.feedback.frame(&self.y.tick(&output_frame));
-                for channel in 0..self.outputs() {
-                    output.set_f32(channel, i, output_frame[channel]);
-                }
+        for i in 0..size {
+            let input_frame =
+                Frame::generate(|channel| input.at_f32(channel, i) + self.value[channel]);
+            let output_frame = self.x.tick(&input_frame);
+            self.value = self.feedback.frame(&self.y.tick(&output_frame));
+            for channel in 0..self.outputs() {
+                output.set_f32(channel, i, output_frame[channel]);
             }
-        })
+        }
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -369,60 +349,56 @@ impl AudioUnit for FeedbackUnit {
     }
 
     fn tick(&mut self, input: &[f32], output: &mut [f32]) {
-        flush_denormals(|| {
-            let read_i = self.read_index(self.samples);
-            for (channel, (tick, i)) in self.tick_buffer.iter_mut().zip(input.iter()).enumerate() {
-                *tick = *i + self.feedback[channel][read_i];
-            }
-            self.x.tick(&self.tick_buffer, output);
-            for (channel, i) in output.iter().enumerate() {
-                self.feedback[channel][self.index] = *i;
-            }
-            self.index = (self.index + 1) & self.mask;
-        });
+        let read_i = self.read_index(self.samples);
+        for (channel, (tick, i)) in self.tick_buffer.iter_mut().zip(input.iter()).enumerate() {
+            *tick = *i + self.feedback[channel][read_i];
+        }
+        self.x.tick(&self.tick_buffer, output);
+        for (channel, i) in output.iter().enumerate() {
+            self.feedback[channel][self.index] = *i;
+        }
+        self.index = (self.index + 1) & self.mask;
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
-        flush_denormals(|| {
-            if size <= self.samples {
-                // We have enough feedback samples to process the whole block at once.
-                for channel in 0..self.channels {
-                    let mut read_i = self.read_index(self.samples);
-                    for (b, i) in self.buffer.channel_mut_f32(channel)[0..size]
-                        .iter_mut()
-                        .zip(input.channel_f32(channel)[0..size].iter())
-                    {
-                        *b = *i + self.feedback[channel][read_i];
-                        read_i = (read_i + 1) & self.mask;
-                    }
-                }
-                self.x.process(size, &self.buffer.buffer_ref(), output);
-                for channel in 0..self.channels {
-                    let mut write_i = self.index;
-                    for i in output.channel_f32(channel)[0..size].iter() {
-                        self.feedback[channel][write_i] = *i;
-                        write_i = (write_i + 1) & self.mask;
-                    }
-                }
-            } else {
-                // The feedback delay is small so we proceed sample by sample.
+        if size <= self.samples {
+            // We have enough feedback samples to process the whole block at once.
+            for channel in 0..self.channels {
                 let mut read_i = self.read_index(self.samples);
-                let mut write_i = self.index;
-                for i in 0..size {
-                    for (channel, tick) in self.tick_buffer.iter_mut().enumerate() {
-                        *tick = input.at_f32(channel, i) + self.feedback[channel][read_i];
-                    }
-                    self.x.tick(&self.tick_buffer, &mut self.tick_buffer2);
-                    for (channel, tick) in self.tick_buffer2.iter().enumerate() {
-                        output.set_f32(channel, i, *tick);
-                        self.feedback[channel][write_i] = *tick;
-                    }
+                for (b, i) in self.buffer.channel_mut_f32(channel)[0..size]
+                    .iter_mut()
+                    .zip(input.channel_f32(channel)[0..size].iter())
+                {
+                    *b = *i + self.feedback[channel][read_i];
                     read_i = (read_i + 1) & self.mask;
+                }
+            }
+            self.x.process(size, &self.buffer.buffer_ref(), output);
+            for channel in 0..self.channels {
+                let mut write_i = self.index;
+                for i in output.channel_f32(channel)[0..size].iter() {
+                    self.feedback[channel][write_i] = *i;
                     write_i = (write_i + 1) & self.mask;
                 }
             }
-            self.index = (self.index + size) & self.mask;
-        });
+        } else {
+            // The feedback delay is small so we proceed sample by sample.
+            let mut read_i = self.read_index(self.samples);
+            let mut write_i = self.index;
+            for i in 0..size {
+                for (channel, tick) in self.tick_buffer.iter_mut().enumerate() {
+                    *tick = input.at_f32(channel, i) + self.feedback[channel][read_i];
+                }
+                self.x.tick(&self.tick_buffer, &mut self.tick_buffer2);
+                for (channel, tick) in self.tick_buffer2.iter().enumerate() {
+                    output.set_f32(channel, i, *tick);
+                    self.feedback[channel][write_i] = *tick;
+                }
+                read_i = (read_i + 1) & self.mask;
+                write_i = (write_i + 1) & self.mask;
+            }
+        }
+        self.index = (self.index + size) & self.mask;
     }
 
     fn inputs(&self) -> usize {

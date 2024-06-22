@@ -1,6 +1,6 @@
 ## Changes
 
-### Version 0.18 (Next Version)
+### Version 0.18
 
 - This release involves a major rewrite and many changes.
 - 64-bit sample support is gone. All samples are now `f32`.

@@ -52,6 +52,10 @@ Add `fundsp` to your `Cargo.toml` as a dependency.
 fundsp = "0.18.0"
 ```
 
+The `files` feature is enabled by default. It adds support for
+loading of audio files into `Wave` objects
+via the [Symphonia](https://crates.io/crates/symphonia) crate.
+
 ### no_std Support
 
 FunDSP supports `no_std` environments. To enable `no_std`, disable

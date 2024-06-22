@@ -69,7 +69,7 @@ impl Wave {
         for i in 0..self.length() {
             for channel in 0..self.channels() {
                 let sample = round(clamp11(self.at(channel, i)) * 32767.49);
-                write16(&mut writer, (sample as i64) as u16)?;
+                write16(&mut writer, (sample as i16) as u16)?;
             }
         }
         std::io::Result::Ok(())
