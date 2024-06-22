@@ -15,7 +15,7 @@
 //! connected MIDI input device it finds, and play the corresponding pitches with the volume moderated by
 //! an `adsr_live()` envelope.
 
-use super::prelude::{clamp01, envelope2, lerp, shared, var, An, EnvelopeIn, Frame, U1};
+use super::prelude::{clamp01, delerp, envelope2, lerp, shared, var, An, EnvelopeIn, Frame, U1};
 use super::Float;
 
 pub fn adsr_live(
@@ -26,23 +26,28 @@ pub fn adsr_live(
 ) -> An<EnvelopeIn<f32, impl FnMut(f32, &Frame<f32, U1>) -> f32 + Clone, U1, f32>> {
     let neg1 = -1.0;
     let zero = 0.0;
-    let a = shared(neg1);
+    let a = shared(zero);
     let b = shared(neg1);
     let attack_start = var(&a);
     let release_start = var(&b);
     envelope2(move |time, control| {
-        if attack_start.value() < zero && control > zero {
+        if release_start.value() >= zero && control > zero {
             attack_start.set_value(time);
             release_start.set_value(neg1);
         } else if release_start.value() < zero && control <= zero {
             release_start.set_value(time);
-            attack_start.set_value(neg1);
         }
-        clamp01(if release_start.value() < zero {
-            ads(attack, decay, sustain, time - attack_start.value())
+        let ads_value = ads(attack, decay, sustain, time - attack_start.value());
+        if release_start.value() < zero {
+            ads_value
         } else {
-            releasing(sustain, release, time - release_start.value())
-        })
+            ads_value
+                * clamp01(delerp(
+                    release_start.value() + release,
+                    release_start.value(),
+                    time,
+                ))
+        }
     })
 }
 
@@ -56,13 +61,5 @@ fn ads<F: Float>(attack: F, decay: F, sustain: F, time: F) -> F {
         } else {
             sustain
         }
-    }
-}
-
-fn releasing<F: Float>(sustain: F, release: F, release_time: F) -> F {
-    if release_time > release {
-        F::from_f64(0.0)
-    } else {
-        lerp(sustain, F::from_f64(0.0), release_time / release)
     }
 }

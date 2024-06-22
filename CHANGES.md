@@ -1,5 +1,9 @@
 ## Changes
 
+### Version 0.18.1
+
+- Denormal flushing was removed for now.
+
 ### Version 0.18
 
 - This release involves a major rewrite and many changes.
