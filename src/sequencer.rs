@@ -4,6 +4,7 @@ use super::audiounit::*;
 use super::buffer::*;
 use super::math::*;
 use super::realseq::*;
+use super::shared::IdGenerator;
 use super::signal::*;
 use super::*;
 use core::cmp::{Eq, Ord, Ordering};
@@ -12,7 +13,6 @@ use alloc::boxed::Box;
 use alloc::collections::BinaryHeap;
 use alloc::vec;
 use alloc::vec::Vec;
-use core::sync::atomic::AtomicU64;
 use hashbrown::HashMap;
 use thingbuf::mpsc::{channel, Receiver, Sender};
 
@@ -21,13 +21,13 @@ use thingbuf::mpsc::{channel, Receiver, Sender};
 pub struct EventId(u64);
 
 /// This atomic supplies globally unique IDs.
-static GLOBAL_EVENT_ID: AtomicU64 = AtomicU64::new(0);
+static GLOBAL_EVENT_ID: IdGenerator = IdGenerator::new();
 
 impl EventId {
     /// Create a new, globally unique event ID.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        EventId(GLOBAL_EVENT_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed))
+        EventId(GLOBAL_EVENT_ID.get_id())
     }
 }
 

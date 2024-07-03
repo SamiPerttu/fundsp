@@ -386,6 +386,7 @@ fn test_basic() {
     let id0 = add_net.push(Box::new(add((2.0, 3.0))));
     let idd = add_net.push(Box::new(zero()));
     let id1 = add_net.push(Box::new(multipass::<U2>()));
+    assert!(id0 != idd && id0 != id1 && idd != id1);
     add_net.remove(idd);
     add_net.pipe_input(id0);
     add_net.pipe(id0, id1);

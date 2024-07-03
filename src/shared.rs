@@ -1,11 +1,12 @@
-//! Shared atomic controls.
+//! Shared atomic controls and other atomic stuff.
 
 use super::audionode::*;
 use super::buffer::*;
 use super::combinator::*;
 use super::signal::*;
 use super::*;
-use core::sync::atomic::{AtomicU32, AtomicU64};
+use core::sync::atomic::{AtomicU32, Ordering};
+
 use numeric_array::typenum::*;
 extern crate alloc;
 use alloc::sync::Arc;
@@ -29,32 +30,13 @@ impl Atomic for f32 {
 
     #[inline]
     fn store(stored: &Self::Storage, t: Self) {
-        stored.store(t.to_bits(), core::sync::atomic::Ordering::Relaxed);
+        stored.store(t.to_bits(), Ordering::Relaxed);
     }
 
     #[inline]
     fn get_stored(stored: &Self::Storage) -> Self {
-        let u = stored.load(core::sync::atomic::Ordering::Relaxed);
+        let u = stored.load(Ordering::Relaxed);
         f32::from_bits(u)
-    }
-}
-
-impl Atomic for f64 {
-    type Storage = AtomicU64;
-
-    fn storage(t: Self) -> Self::Storage {
-        AtomicU64::from(t.to_bits())
-    }
-
-    #[inline]
-    fn store(stored: &Self::Storage, t: Self) {
-        stored.store(t.to_bits(), core::sync::atomic::Ordering::Relaxed);
-    }
-
-    #[inline]
-    fn get_stored(stored: &Self::Storage) -> Self {
-        let u = stored.load(core::sync::atomic::Ordering::Relaxed);
-        f64::from_bits(u)
     }
 }
 
@@ -376,5 +358,67 @@ impl<T: Float> AudioNode for AtomicSynth<T> {
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         super::signal::Routing::Generator(0.0).route(input, self.outputs())
+    }
+}
+
+/// This thing generates unique 64-bit IDs using 32-bit atomics.
+#[derive(Default)]
+pub struct IdGenerator {
+    low: AtomicU32,
+    high: AtomicU32,
+}
+
+/// When the low word of an `IdGenerator` enters the danger zone,
+/// we attempt to rewind it and increase the high word.
+const DANGER: u32 = 0xff000000;
+
+impl IdGenerator {
+    pub const fn new() -> Self {
+        Self {
+            low: AtomicU32::new(0),
+            high: AtomicU32::new(0),
+        }
+    }
+
+    /// Generate a unique 64-bit ID.
+    pub fn get_id(&self) -> u64 {
+        // TODO. I have no idea whether the atomic orderings are correct in the following.
+        let low = self
+            .low
+            .fetch_update(Ordering::Release, Ordering::Acquire, |x| {
+                Some(x.wrapping_add(1))
+            })
+            .unwrap();
+        if low < DANGER {
+            let high = self.high.load(Ordering::Acquire);
+            let low_again = self.low.load(Ordering::Acquire);
+            if low_again < low || low_again >= DANGER {
+                // The low word has spilled over, so we cannot trust the high word value. Try again.
+                self.get_id()
+            } else {
+                low as u64 | ((high as u64) << 32)
+            }
+        } else {
+            // We are in the danger zone. Our goal is to wind back the low word to the beginning while manipulating
+            // the high word to stay unique.
+            let high = self
+                .high
+                .fetch_update(Ordering::Release, Ordering::Acquire, |x| {
+                    Some(x.wrapping_add(1))
+                })
+                .unwrap();
+            let _ = self
+                .low
+                .fetch_update(Ordering::Release, Ordering::Acquire, |x| {
+                    if x < DANGER {
+                        // Another thread has already rewound the low word.
+                        None
+                    } else {
+                        // Try to rewind.
+                        Some(0)
+                    }
+                });
+            low as u64 | ((high as u64) << 32)
+        }
     }
 }

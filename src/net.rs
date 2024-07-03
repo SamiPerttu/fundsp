@@ -7,9 +7,9 @@ use super::combinator::*;
 use super::math::*;
 use super::realnet::*;
 use super::setting::*;
+use super::shared::IdGenerator;
 use super::signal::*;
 use super::*;
-use core::sync::atomic::{AtomicU64, Ordering};
 use hashbrown::HashMap;
 use thingbuf::mpsc::{channel, Receiver, Sender};
 extern crate alloc;
@@ -24,14 +24,14 @@ pub type PortIndex = usize;
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct NodeId(u64);
 
-/// This atomic supplies globally unique IDs.
-static GLOBAL_NODE_ID: AtomicU64 = AtomicU64::new(0);
+/// This atomic supplies globally unique node IDs.
+static GLOBAL_NODE_ID: IdGenerator = IdGenerator::new();
 
 impl NodeId {
     /// Create a new, globally unique node ID.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        NodeId(GLOBAL_NODE_ID.fetch_add(1, Ordering::Relaxed))
+        NodeId(GLOBAL_NODE_ID.get_id())
     }
 }
 
