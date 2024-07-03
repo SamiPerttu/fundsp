@@ -2,3 +2,5 @@
 Cargo.lock
 .vscode
 /.cargo
+examples/input/target
+examples/input/Cargo.lock

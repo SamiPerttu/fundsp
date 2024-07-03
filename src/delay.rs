@@ -210,6 +210,7 @@ where
         for tap_i in 1..N::USIZE + 1 {
             let tap =
                 clamp(self.min_delay, self.max_delay, convert(input[tap_i])) * self.sample_rate;
+            // Safety: the value has been clamped.
             let tap_floor = unsafe { f32::to_int_unchecked::<usize>(tap.to_f32()) };
             let tap_i1 = self.i + (self.buffer.len() - tap_floor);
             let tap_i0 = (tap_i1 + 1) & mask;
@@ -407,6 +408,7 @@ where
         for tap_i in 1..N::USIZE + 1 {
             let tap =
                 clamp(self.min_delay, self.max_delay, convert(input[tap_i])) * self.sample_rate;
+            // Safety: the value has been clamped.
             let tap_floor = unsafe { f32::to_int_unchecked::<usize>(tap.to_f32()) };
             let tap_i1 = self.i + (self.buffer.len() - tap_floor);
             let tap_i2 = (tap_i1.wrapping_sub(1)) & mask;

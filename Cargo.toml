@@ -16,7 +16,7 @@ generic-array = "0.14.7"
 numeric-array = { version = "0.5.2", default-features = false }
 dyn-clone = "1.0.17"
 libm = "0.2.8"
-wide = "0.7.24"
+wide = { version = "0.7.25", default-features = false }
 num-complex = { version = "0.4.6", default-features = false, features = ["libm"] }
 tinyvec = { version = "1.6.0", features = ["alloc"] }
 hashbrown = "0.14.5"

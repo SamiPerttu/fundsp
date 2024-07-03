@@ -49,7 +49,7 @@ Add `fundsp` to your `Cargo.toml` as a dependency.
 
 ```rust
 [dependencies]
-fundsp = "0.18.0"
+fundsp = "0.18.1"
 ```
 
 The `files` feature is enabled by default. It adds support for
@@ -66,7 +66,7 @@ Audio file reading and writing is not available in `no_std`.
 
 ```rust
 [dependencies]
-fundsp = { version = "0.18.0", default-features = false }
+fundsp = { version = "0.18.1", default-features = false }
 ```
 
 ## Graph Notation
@@ -309,7 +309,8 @@ An alternative to some operators are functions available in the preludes.
 Some of them have multiple combination versions;
 these work only for multiples of the same type of node, with statically (at compile time) set number of nodes.
 
-The nodes are allocated inline in all functions.
+The nodes are allocated inline in all functions, as are any
+inner buffers needed for block processing.
 
 | Operator Form | Function Form   | Multiple Combination Forms |
 | ------------- | --------------- | -------------------------- |
@@ -326,6 +327,12 @@ The nodes are allocated inline in all functions.
 ### Operators Diagram
 
 ![](operators.png "FunDSP Graph Operators")
+
+Each cyan dot in the diagram above can contain an arbitrary number of channels, including zero.
+
+In the `AudioNode` system the number of channels is determined statically, at compile time,
+while in the `AudioUnit` system (using `Net`) the number of channels can be
+decided at runtime.
 
 ### Broadcasting
 
@@ -499,6 +506,10 @@ net.pipe(dc_id, sine_id);
 net.pipe_output(sine_id);
 ```
 
+The overhead of `Net` is the overhead of calling into `Box<dyn AudioUnit>`
+objects. Beyond that, the dynamic versions are roughly as efficient
+as the static ones.
+
 The graph syntax is also available for combining `Net` instances.
 Connectivity checks are then deferred to runtime.
 
@@ -539,8 +550,8 @@ net = net >> peak_hz(1000.0, 1.0);
 net.commit();
 ```
 
-Using dynamic networks incurs overhead so it is an especially good idea
-to use block processing to amortize the overhead.
+Using dynamic networks incurs some overhead so it is an especially good idea
+to use block processing, which amortizes it effectively.
 
 ### Sequencer
 
@@ -561,10 +572,11 @@ can be set. The sequencer returns an `ID` that can be used for later edits to th
 
 ```rust
 // Add a new event with start time 1.0 seconds and end time 2.0 seconds.
+// Fade-in time is 0.1 seconds, while the fade-out time is 0.2 seconds.
 // This returns an `EventId`.
-let id1 = sequencer.push(1.0, 2.0, Fade::Smooth, 0.1, 0.1, Box::new(noise() | noise()));
+let id1 = sequencer.push(1.0, 2.0, Fade::Smooth, 0.1, 0.2, Box::new(noise() | noise()));
 // Add a new event that starts immediately and plays indefinitely.
-let id2 = sequencer.push_relative(0.0, f64::INFINITY, Fade::Smooth, 0.1, 0.1, Box::new(pink() | pink()));
+let id2 = sequencer.push_relative(0.0, f64::INFINITY, Fade::Smooth, 0.1, 0.2, Box::new(pink() | pink()));
 ```
 
 For use as a dynamic mixer, the sequencer can be split into a frontend and a backend.
@@ -575,7 +587,7 @@ The frontend is for adding and editing events, and the real-time safe backend re
 let mut backend = sequencer.backend();
 // Now we can insert the backend into, for example, a `Net`.
 // Later we can use the frontend to create events and make edits to them; the end time and fade-out time
-// can be changed. Here we start fading out the event immediately.
+// can be changed. Here we start fading out the event immediately with an envelope duration of 0.1 seconds.
 sequencer.edit_relative(id2, 0.0, 0.1);
 ```
 
@@ -1362,6 +1374,22 @@ These math functions have the shape of an easing function.
 | `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
 
 ![](easing_functions.png "easing_functions")
+
+---
+
+For example, if we wish to interpolate a transition, then interpolation, de-interpolation and
+re-interpolation combined with easing functions is handy. This example defines
+an inaudible tone suppression function for pure tones, falling smoothly from one at 20 kHz to zero at the default Nyquist
+frequency of 22.05 kHz.
+
+```rust
+use fundsp::hacker::*;
+fn pure_tone_amp(hz: f32) -> f32 { lerp(1.0, 0.0, smooth5(clamp01(delerp(20_000.0, 22_050.0, hz)))) }
+```
+
+The above is an example of re-interpolation, which is de-interpolation followed with interpolation. First we recover, using `delerp` and clamping, an interpolation value in 0...1 (this is de-interpolation). Then we interpolate that value smoothly using `lerp` with the `smooth5` ease, in the desired final range of 1 to 0.
+
+For exponential interpolation and de-interpolation, such as might be often used to deal with amplitudes or frequencies, use the `xerp` and `dexerp` functions.
 
 ---
 

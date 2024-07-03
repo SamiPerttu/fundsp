@@ -42,6 +42,7 @@ impl<N: Size<f32>> FrameUnop<N> for FrameHadamard<N> {
                     let y = output[j + h];
                     output[j] = x + y;
                     output[j + h] = x - y;
+                    // Note. This unsafe version is not any faster.
                     //let x = unsafe { *output.get_unchecked(j) };
                     //let y = unsafe { *output.get_unchecked(j + h) };
                     //unsafe { *output.get_unchecked_mut(j) = x + y };
