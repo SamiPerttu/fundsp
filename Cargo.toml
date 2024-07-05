@@ -12,8 +12,7 @@ readme = "README.md"
 edition = "2021"
 
 [dependencies]
-generic-array = "0.14.7"
-numeric-array = { version = "0.5.2", default-features = false }
+numeric-array = { version = "0.6.1", default-features = false }
 dyn-clone = "1.0.17"
 libm = "0.2.8"
 wide = { version = "0.7.25", default-features = false }

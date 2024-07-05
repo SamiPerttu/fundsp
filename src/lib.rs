@@ -557,12 +557,10 @@ pub mod system;
 pub mod wave;
 pub mod wavetable;
 
-// For Frame::generate.
-pub use generic_array::sequence::GenericSequence;
+// GenericSequence is for Frame::generate.
+pub use numeric_array::{self, generic_array::sequence::GenericSequence, typenum};
 
 pub use funutd;
-pub use numeric_array;
-pub use numeric_array::typenum;
 pub use thingbuf;
 pub use wide;
 

@@ -12,9 +12,9 @@ use numeric_array::typenum::*;
 use numeric_array::{ArrayLength, NumericArray};
 
 /// Type-level integer. These are notated as `U0`, `U1`...
-pub trait Size<T>: ArrayLength<T> + ArrayLength<[F32x; SIMD_LEN]> + Sync + Send + Clone {}
+pub trait Size<T>: ArrayLength + Sync + Send + Clone {}
 
-impl<T, A: ArrayLength<T> + ArrayLength<[F32x; SIMD_LEN]> + Sync + Send + Clone> Size<T> for A {}
+impl<T, A: ArrayLength + Sync + Send + Clone> Size<T> for A {}
 
 /// Frames are arrays with a static size used to transport audio data
 /// between `AudioNode` instances.

@@ -302,11 +302,11 @@ impl BufferVec {
 /// The number of channels must be known at compile time:
 /// the size `N` is given as a type-level integer (`U0`, `U1`, ...).
 #[derive(Clone, Default)]
-pub struct BufferArray<N: ArrayLength<[F32x; SIMD_LEN]>> {
+pub struct BufferArray<N: ArrayLength> {
     array: Frame<[F32x; SIMD_LEN], N>,
 }
 
-impl<N: ArrayLength<[F32x; SIMD_LEN]>> BufferArray<N> {
+impl<N: ArrayLength> BufferArray<N> {
     /// Create new buffer.
     #[inline]
     pub fn new() -> Self {
