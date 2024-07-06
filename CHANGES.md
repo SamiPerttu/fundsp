@@ -1,5 +1,10 @@
 ## Changes
 
+### Version 0.18.2
+
+- 64-bit atomics were removed in order to support 32-bit targets.
+- Fixed `no_std` support.
+
 ### Version 0.18.1
 
 - Denormal flushing was removed for now.
