@@ -49,7 +49,7 @@ Add `fundsp` to your `Cargo.toml` as a dependency.
 
 ```rust
 [dependencies]
-fundsp = "0.18.1"
+fundsp = "0.18.2"
 ```
 
 The `files` feature is enabled by default. It adds support for
@@ -66,7 +66,7 @@ Audio file reading and writing is not available in `no_std`.
 
 ```rust
 [dependencies]
-fundsp = { version = "0.18.1", default-features = false }
+fundsp = { version = "0.18.2", default-features = false }
 ```
 
 ## Graph Notation
