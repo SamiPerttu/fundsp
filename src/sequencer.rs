@@ -789,3 +789,45 @@ impl AudioUnit for Sequencer {
         core::mem::size_of::<Self>()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use hacker::sine_hz;
+
+    use super::*;
+
+    #[test]
+    fn reset_replays_events() {
+        let mut seq = Sequencer::new(true, 1);
+        seq.set_sample_rate(1.0);
+        seq.push(0.0, 1.0, Fade::Smooth, 0.0, 0.0, Box::new(sine_hz(440.0)));
+
+        let mut first = [0.0; 1];
+        seq.tick(&[], &mut first);
+
+        seq.reset();
+
+        let mut second = [0.0; 1];
+        seq.tick(&[], &mut second);
+
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn reset_replays_events_with_backend() {
+        let mut front = Sequencer::new(true, 1);
+        front.set_sample_rate(1.0);
+        front.push(0.0, 1.0, Fade::Smooth, 0.0, 0.0, Box::new(sine_hz(440.0)));
+        let mut back = front.backend();
+
+        let mut first = [0.0; 1];
+        back.tick(&[], &mut first);
+
+        front.reset();
+
+        let mut second = [0.0; 1];
+        back.tick(&[], &mut second);
+
+        assert_eq!(first, second);
+    }
+}
