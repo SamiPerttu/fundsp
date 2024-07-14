@@ -9,9 +9,9 @@ use thingbuf::mpsc::{channel, Receiver, Sender};
 
 #[derive(Default, Clone)]
 pub(crate) enum Message {
-    /// Nothing.
+    /// Reset the sequencer.
     #[default]
-    Null,
+    Reset,
     /// Add new event in absolute time.
     Push(Event),
     /// Add new event in relative time.
@@ -62,6 +62,9 @@ impl SequencerBackend {
     fn handle_messages(&mut self) {
         while let Ok(message) = self.receiver.try_recv() {
             match message {
+                Message::Reset => {
+                    self.reset();
+                }
                 Message::Push(event) => {
                     self.sequencer.push_event(event);
                 }
@@ -75,7 +78,6 @@ impl SequencerBackend {
                     self.sequencer
                         .edit_relative(id, edit.end_time, edit.fade_out);
                 }
-                Message::Null => {}
             }
         }
     }
@@ -99,14 +101,16 @@ impl AudioUnit for SequencerBackend {
 
     fn reset(&mut self) {
         self.handle_messages();
-        while let Some(event) = self.sequencer.get_past_event() {
-            if self.sender.try_send(Some(event)).is_ok() {}
-        }
-        while let Some(event) = self.sequencer.get_ready_event() {
-            if self.sender.try_send(Some(event)).is_ok() {}
-        }
-        while let Some(event) = self.sequencer.get_active_event() {
-            if self.sender.try_send(Some(event)).is_ok() {}
+        if !self.sequencer.replay_events() {
+            while let Some(event) = self.sequencer.get_past_event() {
+                if self.sender.try_send(Some(event)).is_ok() {}
+            }
+            while let Some(event) = self.sequencer.get_ready_event() {
+                if self.sender.try_send(Some(event)).is_ok() {}
+            }
+            while let Some(event) = self.sequencer.get_active_event() {
+                if self.sender.try_send(Some(event)).is_ok() {}
+            }
         }
         self.sequencer.reset();
     }

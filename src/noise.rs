@@ -135,24 +135,24 @@ impl AudioNode for Mls {
     }
 }
 
-/// 32-bit hash modified from a hash by degski. Extra high quality.
+const MUL_X: u32 = 0x45d9f3b;
+
+/// Special 32-bit hash modified from a hash by degski.
 #[inline]
-fn hash32f(x: u32) -> u32 {
-    let x = (x ^ (x >> 16)).wrapping_mul(0x45d9f3b);
-    let x = (x ^ (x >> 16)).wrapping_mul(0x45d9f3b);
-    let x = (x ^ (x >> 16)).wrapping_mul(0x45d9f3b);
-    x ^ (x >> 16)
+fn hash32x(x: u32) -> u32 {
+    let x = (x ^ (x >> 16)).wrapping_mul(MUL_X);
+    let x = (x ^ (x >> 16)).wrapping_mul(MUL_X);
+    (x ^ (x >> 16)).wrapping_mul(MUL_X)
 }
 
-/// 32-bit hash modified from a hash by degski.
-/// Hashes many values at once. Extra high quality.
+/// Special 32-bit hash modified from a hash by degski.
+/// Hashes many values at once.
 #[inline]
-fn hash32f_simd(x: U32x) -> U32x {
-    let m = U32x::splat(0x45d9f3b);
+fn hash32x_simd(x: U32x) -> U32x {
+    let m = U32x::splat(MUL_X);
     let x = (x ^ (x >> 16)) * m;
     let x = (x ^ (x >> 16)) * m;
-    let x = (x ^ (x >> 16)) * m;
-    x ^ (x >> 16)
+    (x ^ (x >> 16)) * m
 }
 
 /// White noise component.
@@ -169,6 +169,8 @@ impl Noise {
     }
 }
 
+const NOISE_Z: f32 = 2.0 / ((1 << 24) - 1) as f32;
+
 impl AudioNode for Noise {
     const ID: u64 = 20;
     type Inputs = typenum::U0;
@@ -181,7 +183,7 @@ impl AudioNode for Noise {
     #[inline]
     fn tick(&mut self, _input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         self.state = self.state.wrapping_add(1);
-        let value = (hash32f(self.state) >> 8) as f32 * (1.0 / (1 << 23) as f32) - 1.0;
+        let value = (hash32x(self.state) >> 8) as f32 * NOISE_Z - 1.0;
         [value].into()
     }
 
@@ -190,12 +192,11 @@ impl AudioNode for Noise {
             self.state.wrapping_add(i as u32 + 1)
         }));
         let output = output.channel_f32_mut(0);
-        let m = 1.0 / (1 << 23) as f32;
         for i in 0..simd_items(size) {
-            let value: U32x = hash32f_simd(state) >> 8;
+            let value: U32x = hash32x_simd(state) >> 8;
             let value_ref = value.as_array_ref();
             for j in 0..SIMD_N {
-                output[(i << SIMD_S) + j] = value_ref[j] as f32 * m - 1.0;
+                output[(i << SIMD_S) + j] = value_ref[j] as f32 * NOISE_Z - 1.0;
             }
             state += U32x::splat(SIMD_N as u32);
         }

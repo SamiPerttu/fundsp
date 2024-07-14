@@ -1,5 +1,9 @@
 ## Changes
 
+### Version 0.19 (Next Version)
+
+- Added choice of interpolation algorithm to `AtomicSynth`.
+
 ### Version 0.18.2
 
 - 64-bit atomics were removed in order to support 32-bit targets.

@@ -516,8 +516,9 @@ Connectivity checks are then deferred to runtime.
 Networks can also be combined inline with components from the preludes.
 The components are first converted to `Net`.
 
-When you need dynamic processing, you can start it with `Net::wrap`,
-which converts any unit into a network.
+When we need dynamic processing, we can start it with `Net::wrap`,
+which converts any unit into a network. Also, we can control when
+to cross from the static realm into the dynamic by the placement of `Net::wrap`.
 
 ```rust
 use fundsp::hacker::*;

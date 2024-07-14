@@ -527,8 +527,8 @@ impl Sequencer {
     pub fn backend(&mut self) -> SequencerBackend {
         assert!(!self.has_backend());
         // Create huge channel buffers to make sure we don't run out of space easily.
-        let (sender_a, receiver_a) = channel(16384);
-        let (sender_b, receiver_b) = channel(16384);
+        let (sender_a, receiver_a) = channel(2048);
+        let (sender_b, receiver_b) = channel(2048);
         let mut sequencer = self.clone();
         sequencer.allocate();
         self.front = Some((sender_a, receiver_b));

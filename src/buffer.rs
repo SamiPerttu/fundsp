@@ -16,7 +16,7 @@ impl<'a> BufferMut<'a> {
     /// Create new buffer from a slice. The length of the slice must be divisible by 8.
     #[inline]
     pub fn new(buffer: &'a mut [F32x]) -> Self {
-        debug_assert!(buffer.len() & SIMD_M == 0);
+        debug_assert!(buffer.len() & (SIMD_LEN - 1) == 0);
         Self(buffer)
     }
 
@@ -132,7 +132,7 @@ impl<'a> BufferRef<'a> {
     /// Create new buffer from a slice. The length of the slice must be divisible by 8.
     #[inline]
     pub fn new(buffer: &'a [F32x]) -> Self {
-        debug_assert!(buffer.len() & SIMD_M == 0);
+        debug_assert!(buffer.len() & (SIMD_LEN - 1) == 0);
         Self(buffer)
     }
 

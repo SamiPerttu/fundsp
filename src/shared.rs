@@ -233,6 +233,14 @@ impl AudioNode for Timer {
     }
 }
 
+#[derive(Clone, Default)]
+pub enum Interpolation {
+    #[default]
+    Nearest,
+    Linear,
+    Cubic,
+}
+
 /// Atomic wavetable that can be modified on the fly.
 pub struct AtomicTable {
     table: Vec<AtomicU32>,
@@ -301,7 +309,7 @@ impl AtomicTable {
     }
 }
 
-/// Wavetable oscillator with cubic interpolation that reads from an atomic wavetable.
+/// Wavetable oscillator with nearest, linear or cubic interpolation that reads from an atomic wavetable.
 #[derive(Clone)]
 pub struct AtomicSynth<T: Float> {
     table: Arc<AtomicTable>,
@@ -312,9 +320,11 @@ pub struct AtomicSynth<T: Float> {
     sample_rate: f32,
     sample_duration: f32,
     _marker: core::marker::PhantomData<T>,
+    interpolation: Interpolation,
 }
 
 impl<T: Float> AtomicSynth<T> {
+    /// Create new atomic synth. Interpolation mode is set to nearest.
     pub fn new(table: Arc<AtomicTable>) -> Self {
         Self {
             table,
@@ -323,7 +333,16 @@ impl<T: Float> AtomicSynth<T> {
             sample_rate: DEFAULT_SR as f32,
             sample_duration: 1.0 / DEFAULT_SR as f32,
             _marker: core::marker::PhantomData,
+            interpolation: Interpolation::Nearest,
         }
+    }
+    /// Get current interpolation mode.
+    pub fn interpolation(&self) -> Interpolation {
+        self.interpolation.clone()
+    }
+    /// Set interpolation mode.
+    pub fn set_interpolation(&mut self, interpolation: Interpolation) {
+        self.interpolation = interpolation;
     }
 }
 
@@ -352,8 +371,12 @@ impl<T: Float> AudioNode for AtomicSynth<T> {
         let delta = frequency * self.sample_duration;
         self.phase += delta;
         self.phase -= self.phase.floor();
-        let output = self.table.read_nearest(self.phase);
-        Frame::splat(convert(output))
+        let output = match self.interpolation {
+            Interpolation::Nearest => self.table.read_nearest(self.phase),
+            Interpolation::Linear => self.table.read_linear(self.phase),
+            Interpolation::Cubic => self.table.read_cubic(self.phase),
+        };
+        [output].into()
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -361,7 +384,7 @@ impl<T: Float> AudioNode for AtomicSynth<T> {
     }
 }
 
-/// This thing generates unique 64-bit IDs using 32-bit atomics.
+/// This lock-free thing generates unique 64-bit IDs using 32-bit atomics.
 #[derive(Default)]
 pub struct IdGenerator {
     low: AtomicU32,
@@ -369,8 +392,8 @@ pub struct IdGenerator {
 }
 
 /// When the low word of an `IdGenerator` enters the danger zone,
-/// we attempt to rewind it and increase the high word.
-const DANGER: u32 = 0xff000000;
+/// we attempt to rewind it and increment the high word.
+const DANGER: u32 = 0xfff00000;
 
 impl IdGenerator {
     pub const fn new() -> Self {
@@ -399,8 +422,8 @@ impl IdGenerator {
                 low as u64 | ((high as u64) << 32)
             }
         } else {
-            // We are in the danger zone. Our goal is to wind back the low word to the beginning while manipulating
-            // the high word to stay unique.
+            // We are in the danger zone. Our goal is to wind back the low word to the beginning
+            // while manipulating the high word to stay unique.
             let high = self
                 .high
                 .fetch_update(Ordering::Release, Ordering::Acquire, |x| {
