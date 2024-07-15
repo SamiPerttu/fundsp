@@ -567,6 +567,12 @@ impl Sequencer {
 
 impl AudioUnit for Sequencer {
     fn reset(&mut self) {
+        if let Some((sender, receiver)) = &mut self.front {
+            // Deallocate all past events.
+            while receiver.try_recv().is_ok() {}
+            let _ = sender.try_send(Message::Reset);
+            return;
+        }
         if self.replay_events {
             while let Some(ready) = self.ready.pop() {
                 self.active.push(ready);
@@ -799,7 +805,6 @@ mod tests {
     #[test]
     fn reset_replays_events() {
         let mut seq = Sequencer::new(true, 1);
-        seq.set_sample_rate(1.0);
         seq.push(0.0, 1.0, Fade::Smooth, 0.0, 0.0, Box::new(sine_hz(440.0)));
 
         let mut first = [0.0; 1];
@@ -816,7 +821,6 @@ mod tests {
     #[test]
     fn reset_replays_events_with_backend() {
         let mut front = Sequencer::new(true, 1);
-        front.set_sample_rate(1.0);
         front.push(0.0, 1.0, Fade::Smooth, 0.0, 0.0, Box::new(sine_hz(440.0)));
         let mut back = front.backend();
 
