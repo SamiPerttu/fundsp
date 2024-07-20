@@ -42,6 +42,8 @@ pub trait AudioNode: Clone + Sync + Send {
 
     /// Reset the input state of the component and all its children to an initial state
     /// where it has not processed any samples. In other words, reset time to zero.
+    /// If `allocate` has been called previously, and the sample rate is unchanged,
+    /// then it is expected that no memory allocation or deallocation takes place here.
     ///
     /// ### Example
     /// ```
@@ -838,7 +840,6 @@ where
     x: X,
     y: Y,
     binop: B,
-    buffer: BufferArray<X::Outputs>,
 }
 
 impl<B, X, Y> Binop<B, X, Y>
@@ -850,12 +851,7 @@ where
     <X::Inputs as Add<Y::Inputs>>::Output: Size<f32>,
 {
     pub fn new(binop: B, x: X, y: Y) -> Self {
-        let mut node = Self {
-            x,
-            y,
-            binop,
-            buffer: BufferArray::new(),
-        };
+        let mut node = Self { x, y, binop };
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
@@ -917,10 +913,11 @@ where
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        let mut buffer = BufferArray::<X::Outputs>::new();
         self.x.process(
             size,
             &input.subset(0, self.x.inputs()),
-            &mut self.buffer.buffer_mut(),
+            &mut buffer.buffer_mut(),
         );
         self.y.process(
             size,
@@ -933,7 +930,7 @@ where
                     channel,
                     i,
                     self.binop
-                        .binop(self.buffer.at(channel, i), output.at(channel, i)),
+                        .binop(buffer.at(channel, i), output.at(channel, i)),
                 );
             }
         }
@@ -1300,7 +1297,6 @@ where
 {
     x: X,
     y: Y,
-    buffer: BufferArray<X::Outputs>,
 }
 
 impl<X, Y> Pipe<X, Y>
@@ -1309,11 +1305,7 @@ where
     Y: AudioNode<Inputs = X::Outputs>,
 {
     pub fn new(x: X, y: Y) -> Self {
-        let mut node = Pipe {
-            x,
-            y,
-            buffer: BufferArray::new(),
-        };
+        let mut node = Pipe { x, y };
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
@@ -1369,8 +1361,9 @@ where
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
-        self.x.process(size, input, &mut self.buffer.buffer_mut());
-        self.y.process(size, &self.buffer.buffer_ref(), output);
+        let mut buffer = BufferArray::<X::Outputs>::new();
+        self.x.process(size, input, &mut buffer.buffer_mut());
+        self.y.process(size, &buffer.buffer_ref(), output);
     }
 
     fn set(&mut self, setting: Setting) {
@@ -1655,7 +1648,6 @@ where
 {
     x: X,
     y: Y,
-    buffer: BufferArray<X::Outputs>,
 }
 
 impl<X, Y> Bus<X, Y>
@@ -1664,11 +1656,7 @@ where
     Y: AudioNode<Inputs = X::Inputs, Outputs = X::Outputs>,
 {
     pub fn new(x: X, y: Y) -> Self {
-        let mut node = Bus {
-            x,
-            y,
-            buffer: BufferArray::new(),
-        };
+        let mut node = Bus { x, y };
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
@@ -1726,11 +1714,12 @@ where
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        let mut buffer = BufferArray::<X::Outputs>::new();
         self.x.process(size, input, output);
-        self.y.process(size, input, &mut self.buffer.buffer_mut());
+        self.y.process(size, input, &mut buffer.buffer_mut());
         for channel in 0..self.outputs() {
             for i in 0..simd_items(size) {
-                output.add(channel, i, self.buffer.at(channel, i));
+                output.add(channel, i, buffer.at(channel, i));
             }
         }
     }
@@ -1772,15 +1761,11 @@ where
 #[derive(Clone)]
 pub struct Thru<X: AudioNode> {
     x: X,
-    buffer: BufferArray<X::Outputs>,
 }
 
 impl<X: AudioNode> Thru<X> {
     pub fn new(x: X) -> Self {
-        let mut node = Thru {
-            x,
-            buffer: BufferArray::new(),
-        };
+        let mut node = Thru { x };
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
@@ -1817,12 +1802,13 @@ impl<X: AudioNode> AudioNode for Thru<X> {
             return;
         }
         if X::Inputs::USIZE < X::Outputs::USIZE {
-            // The intermediate buffer is only used in this "degenerate" case where
+            // An intermediate buffer is only used in this "degenerate" case where
             // we are not passing through inputs - we are cutting out some of them.
-            self.x.process(size, input, &mut self.buffer.buffer_mut());
+            let mut buffer = BufferArray::<X::Outputs>::new();
+            self.x.process(size, input, &mut buffer.buffer_mut());
             for channel in 0..X::Inputs::USIZE {
                 for i in 0..simd_items(size) {
-                    output.set(channel, i, self.buffer.at(channel, i));
+                    output.set(channel, i, buffer.at(channel, i));
                 }
             }
         } else {
@@ -1866,7 +1852,6 @@ where
     X: AudioNode,
 {
     x: Frame<X, N>,
-    buffer: BufferArray<X::Outputs>,
 }
 
 impl<N, X> MultiBus<N, X>
@@ -1875,10 +1860,7 @@ where
     X: AudioNode,
 {
     pub fn new(x: Frame<X, N>) -> Self {
-        let mut node = MultiBus {
-            x,
-            buffer: BufferArray::new(),
-        };
+        let mut node = MultiBus { x };
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
@@ -1924,12 +1906,13 @@ where
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        let mut buffer = BufferArray::<X::Outputs>::new();
         self.x[0].process(size, input, output);
         for i in 1..N::USIZE {
-            self.x[i].process(size, input, &mut self.buffer.buffer_mut());
+            self.x[i].process(size, input, &mut buffer.buffer_mut());
             for channel in 0..X::Outputs::USIZE {
                 for j in 0..simd_items(size) {
-                    output.add(channel, j, self.buffer.at(channel, j));
+                    output.add(channel, j, buffer.at(channel, j));
                 }
             }
         }
@@ -2124,7 +2107,6 @@ where
 {
     x: Frame<X, N>,
     b: B,
-    buffer: BufferArray<X::Outputs>,
 }
 
 impl<N, X, B> Reduce<N, X, B>
@@ -2136,11 +2118,7 @@ where
     B: FrameBinop<X::Outputs>,
 {
     pub fn new(x: Frame<X, N>, b: B) -> Self {
-        let mut node = Reduce {
-            x,
-            b,
-            buffer: BufferArray::new(),
-        };
+        let mut node = Reduce { x, b };
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
@@ -2196,13 +2174,14 @@ where
         output
     }
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        let mut buffer = BufferArray::<X::Outputs>::new();
         self.x[0].process(size, &input.subset(0, X::Inputs::USIZE), output);
         let mut in_channel = X::Inputs::USIZE;
         for i in 1..N::USIZE {
             self.x[i].process(
                 size,
                 &input.subset(in_channel, X::Inputs::USIZE),
-                &mut self.buffer.buffer_mut(),
+                &mut buffer.buffer_mut(),
             );
             in_channel += X::Inputs::USIZE;
             for channel in 0..X::Outputs::USIZE {
@@ -2210,8 +2189,7 @@ where
                     output.set(
                         channel,
                         j,
-                        self.b
-                            .binop(output.at(channel, j), self.buffer.at(channel, j)),
+                        self.b.binop(output.at(channel, j), buffer.at(channel, j)),
                     );
                 }
             }
@@ -2379,7 +2357,6 @@ where
     X: AudioNode,
 {
     x: Frame<X, N>,
-    buffer: BufferArray<X::Inputs>,
 }
 
 impl<N, X> Chain<N, X>
@@ -2391,10 +2368,7 @@ where
         // TODO. We'd like to require statically that X::Inputs equals X::Outputs
         // but I don't know how to write such a trait bound.
         assert_eq!(x[0].inputs(), x[0].outputs());
-        let mut node = Chain {
-            x,
-            buffer: BufferArray::new(),
-        };
+        let mut node = Chain { x };
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
         node
@@ -2442,16 +2416,17 @@ where
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        let mut buffer = BufferArray::<X::Outputs>::new();
         if N::USIZE & 1 > 0 {
             self.x[0].process(size, input, output);
         } else {
-            self.x[0].process(size, input, &mut self.buffer.buffer_mut());
+            self.x[0].process(size, input, &mut buffer.buffer_mut());
         }
         for i in 1..N::USIZE {
             if (N::USIZE ^ i) & 1 > 0 {
-                self.x[i].process(size, &self.buffer.buffer_ref(), output);
+                self.x[i].process(size, &buffer.buffer_ref(), output);
             } else {
-                self.x[i].process(size, &output.buffer_ref(), &mut self.buffer.buffer_mut());
+                self.x[i].process(size, &output.buffer_ref(), &mut buffer.buffer_mut());
             }
         }
     }

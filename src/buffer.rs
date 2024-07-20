@@ -301,6 +301,7 @@ impl BufferVec {
 /// Samples are stored non-interleaved.
 /// The number of channels must be known at compile time:
 /// the size `N` is given as a type-level integer (`U0`, `U1`, ...).
+#[repr(C)]
 #[derive(Clone, Default)]
 pub struct BufferArray<N: ArrayLength> {
     array: Frame<[F32x; SIMD_LEN], N>,
@@ -310,7 +311,11 @@ impl<N: ArrayLength> BufferArray<N> {
     /// Create new buffer.
     #[inline]
     pub fn new() -> Self {
-        Self::default()
+        // Safety: This is undefined behavior but it seems to work fine. Zero initialization is safe but slower in benchmarks.
+        #[allow(clippy::uninit_assumed_init)]
+        unsafe {
+            core::mem::MaybeUninit::uninit().assume_init()
+        }
     }
 
     /// Access value at index `i` (0 <= `i` <= 7) of `channel`.
