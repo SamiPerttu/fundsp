@@ -1,6 +1,7 @@
 //! Delay components.
 
 use super::audionode::*;
+use super::buffer::*;
 use super::math::*;
 use super::setting::*;
 use super::signal::*;
@@ -198,10 +199,10 @@ where
         let sample_rate = sample_rate as f32;
         if self.sample_rate != sample_rate {
             self.sample_rate = sample_rate;
-            self.min_delay_clamped = max(self.min_delay, 1.0 / sample_rate);
-            self.max_delay_clamped = max(self.max_delay, 1.0 / sample_rate);
-            let buffer_length = ceil(self.max_delay * sample_rate) + 2.0;
-            let buffer_length = (buffer_length.to_f64() as usize).next_power_of_two();
+            self.min_delay_clamped = max(self.min_delay, 1.00001 / sample_rate);
+            self.max_delay_clamped = max(self.max_delay, 1.00001 / sample_rate);
+            let buffer_length = ceil(self.max_delay * sample_rate) + 3.0 + SIMD_N as f32;
+            let buffer_length = (buffer_length as usize).next_power_of_two();
             self.buffer.resize(buffer_length, 0.0);
             self.reset();
         }
@@ -232,6 +233,49 @@ where
         }
         self.i = self.i.wrapping_add(1) & mask;
         [output].into()
+    }
+
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        let scalar_mask = self.buffer.len().wrapping_sub(1);
+        let mask = I32x::splat(scalar_mask as i32);
+        let d_vector = I32x::new(core::array::from_fn(|k| (SIMD_N - k) as i32));
+        for i in 0..full_simd_items(size) {
+            for j in 0..SIMD_N {
+                self.buffer[self.i] = input.at_f32(0, (i << SIMD_S) + j);
+                self.i = self.i.wrapping_add(1) & scalar_mask;
+            }
+            let mut out = F32x::ZERO;
+            for tap_i in 1..N::USIZE + 1 {
+                let tap = input
+                    .at(tap_i, i)
+                    .fast_max(F32x::splat(self.min_delay_clamped))
+                    .fast_min(F32x::splat(self.max_delay_clamped))
+                    * self.sample_rate;
+                let tap_floor = tap.fast_trunc_int();
+                let tap_i1 = (self.i as i32 - d_vector - tap_floor) & mask;
+                let tap_i0 = (tap_i1 + 1) & mask;
+                let tap_i2 = (tap_i1 - 1) & mask;
+                let tap_i3 = (tap_i1 - 2) & mask;
+                let tap_d = tap - tap_floor.round_float();
+                out += spline(
+                    F32x::new(core::array::from_fn(|k| {
+                        self.buffer[tap_i0.as_array_ref()[k] as usize]
+                    })),
+                    F32x::new(core::array::from_fn(|k| {
+                        self.buffer[tap_i1.as_array_ref()[k] as usize]
+                    })),
+                    F32x::new(core::array::from_fn(|k| {
+                        self.buffer[tap_i2.as_array_ref()[k] as usize]
+                    })),
+                    F32x::new(core::array::from_fn(|k| {
+                        self.buffer[tap_i3.as_array_ref()[k] as usize]
+                    })),
+                    tap_d,
+                );
+            }
+            output.set(0, i, out);
+        }
+        self.process_remainder(size, input, output);
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -398,8 +442,8 @@ where
         let sample_rate = sample_rate as f32;
         if self.sample_rate != sample_rate {
             self.sample_rate = sample_rate;
-            let buffer_length = ceil(self.max_delay * sample_rate) + 1.0;
-            let buffer_length = (buffer_length.to_f64() as usize).next_power_of_two();
+            let buffer_length = ceil(self.max_delay * sample_rate) + 2.0;
+            let buffer_length = (buffer_length as usize).next_power_of_two();
             self.buffer.resize(buffer_length, 0.0);
             self.reset();
         }
@@ -421,6 +465,41 @@ where
         }
         self.i = self.i.wrapping_add(1) & mask;
         [output].into()
+    }
+
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        let scalar_mask = self.buffer.len().wrapping_sub(1);
+        let mask = I32x::splat(scalar_mask as i32);
+        let d_vector = I32x::new(core::array::from_fn(|k| (SIMD_N - k) as i32));
+        for i in 0..full_simd_items(size) {
+            for j in 0..SIMD_N {
+                self.buffer[self.i] = input.at_f32(0, (i << SIMD_S) + j);
+                self.i = self.i.wrapping_add(1) & scalar_mask;
+            }
+            let mut out = F32x::ZERO;
+            for tap_i in 1..N::USIZE + 1 {
+                let tap = input
+                    .at(tap_i, i)
+                    .fast_max(F32x::splat(self.min_delay))
+                    .fast_min(F32x::splat(self.max_delay))
+                    * self.sample_rate;
+                let tap_floor = tap.fast_trunc_int();
+                let tap_i1 = (self.i as i32 - d_vector - tap_floor) & mask;
+                let tap_i2 = (tap_i1 - 1) & mask;
+                let tap_d = tap - tap_floor.round_float();
+                out += lerp(
+                    F32x::new(core::array::from_fn(|k| {
+                        self.buffer[tap_i1.as_array_ref()[k] as usize]
+                    })),
+                    F32x::new(core::array::from_fn(|k| {
+                        self.buffer[tap_i2.as_array_ref()[k] as usize]
+                    })),
+                    tap_d,
+                );
+            }
+            output.set(0, i, out);
+        }
+        self.process_remainder(size, input, output);
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {

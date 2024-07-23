@@ -31,14 +31,14 @@ fn check_wave(mut node: impl AudioUnit) {
         let tolerance = 1.0e-4;
         if tick_x - tolerance > process_x || tick_x + tolerance < process_x {
             eprintln!(
-                "Left channel index {} tick {} process {}",
+                "channel 0 index {} tick {} process {}",
                 i, tick_x, process_x
             );
         }
         assert!(tick_x - tolerance <= process_x && tick_x + tolerance >= process_x);
         if tick_y - tolerance > process_y || tick_y + tolerance < process_y {
             eprintln!(
-                "Right channel index {} tick {} process {}",
+                "channel 1 index {} tick {} process {}",
                 i, tick_y, process_y
             );
         }
@@ -71,17 +71,23 @@ fn check_wave_big(node: Box<dyn AudioUnit>) {
 /// Also check that the filter is reset properly.
 fn check_wave_filter(input: &Wave, mut node: impl AudioUnit) {
     node.allocate();
-    let wave = input.filter(1.1, &mut node);
+    let wave = input.filter(1.1 * 0.5, &mut node);
     assert!(wave.channels() == 2);
-    assert!(wave.length() == 44100 + 4410);
+    assert!(wave.length() == 22050 + 2205);
     node.reset();
-    for i in 0..44100 {
+    for i in 0..wave.length() {
         let (tick_x, tick_y) = node.filter_stereo(input.at(0, i), input.at(1, i));
         let process_x = wave.at(0, i);
         let process_y = wave.at(1, i);
         let tolerance = 1.0e-4;
-        assert!(tick_x - tolerance <= process_x && tick_x + tolerance >= process_x);
-        assert!(tick_y - tolerance <= process_y && tick_y + tolerance >= process_y);
+        assert!(
+            tick_x - tolerance <= process_x && tick_x + tolerance >= process_x,
+            "channel 0 at index {i} failed: tick {tick_x} process {process_x}"
+        );
+        assert!(
+            tick_y - tolerance <= process_y && tick_y + tolerance >= process_y,
+            "channel 1 at index {i} failed: tick {tick_y} process {process_y}"
+        );
     }
 }
 
@@ -289,6 +295,12 @@ fn test_basic() {
         &input,
         resonator_hz(440.0, 110.0) | resonator_hz(880.0, 110.0),
     );
+    let tap_node = (pass() | lfo(|t| (abs(spline_noise(4, t)), abs(spline_noise(5, t)))))
+        >> multitap::<U2>(0.0, 1.0);
+    check_wave_filter(&input, tap_node.clone() | tap_node.clone());
+    let tap_node = (pass() | lfo(|t| (abs(spline_noise(6, t)), abs(spline_noise(7, t)))))
+        >> multitap_linear::<U2>(0.0, 1.0);
+    check_wave_filter(&input, tap_node.clone() | tap_node.clone());
 
     // Constants.
     let mut d = constant(1.0);

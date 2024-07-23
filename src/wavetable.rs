@@ -170,7 +170,7 @@ impl Wavetable {
         let table: &Vec<f32> = &self.table[i].1;
         let p = F32x::splat(table.len() as f32) * phase;
         let i1 = p.fast_trunc_int();
-        let w = p - F32x::new(core::array::from_fn(|j| i1.as_array_ref()[j] as f32));
+        let w = p - i1.round_float();
         let mask = I32x::splat(table.len() as i32 - 1);
         let i0 = (i1 - 1) & mask;
         let i1 = i1 & mask;
