@@ -3,6 +3,8 @@
 ### Version 0.19 (Next Version)
 
 - Added choice of interpolation algorithm to `AtomicSynth`.
+- New opcode `sine_phase`.
+- Opcodes `delay` and `tap_linear` now support zero sample delays.
 
 ### Version 0.18.2
 

@@ -2350,6 +2350,7 @@ where
     }
 }
 
+/// A pipeline of multiple nodes.
 #[derive(Clone)]
 pub struct Chain<N, X>
 where

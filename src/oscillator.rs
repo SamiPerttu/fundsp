@@ -65,34 +65,25 @@ impl AudioNode for Sine {
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let phase = self.phase;
         self.phase += input[0] * self.sample_duration;
         self.phase -= self.phase.floor();
-        [sin(self.phase * f32::TAU)].into()
+        [sin(phase * f32::TAU)].into()
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         let mut phase = self.phase;
-        for i in 0..size >> SIMD_S {
+        for i in 0..full_simd_items(size) {
             let element: [f32; SIMD_N] = core::array::from_fn(|j| {
+                let tmp = phase;
                 phase += input.at_f32(0, (i << SIMD_S) + j) * self.sample_duration;
-                phase
+                tmp
             });
             output.set(0, i, (F32x::new(element) * f32::TAU).sin());
         }
-        self.phase = phase;
-        self.phase -= self.phase.floor();
+        self.phase = phase - phase.floor();
         self.process_remainder(size, input, output);
     }
-
-    /*
-    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
-        for i in 0..size {
-            self.phase += T::from_f32(input.at_f32(0, i)) * self.sample_duration;
-            output.set_f32(0, i, (self.phase * T::TAU).sin().to_f32());
-        }
-        self.phase -= self.phase.floor();
-    }
-    */
 
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;

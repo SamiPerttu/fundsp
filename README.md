@@ -1177,6 +1177,7 @@ The type parameters in the table refer to the hacker preludes.
 | `shape_fn(f)`          |    1    |    1    | Shape signal with waveshaper function `f`, e.g., `tanh`. |
 | `sine()`               | 1 (frequency) | 1 | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
+| `sine_phase(p)`        | 1 (frequency) | 1 | Sine oscillator with initial phase `p` in 0...1. |
 | `sink()`               |    1    |    -    | Consume signal. |
 | `soft_saw()`           | 1 (frequency) | 1 | Bandlimited soft saw wave oscillator. |
 | `soft_saw_hz(f)`       |    -    |    1    | Bandlimited soft saw wave oscillator at `f` Hz. |

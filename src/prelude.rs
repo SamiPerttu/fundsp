@@ -345,6 +345,13 @@ pub fn sine_hz(f: f32) -> An<Pipe<Constant<U1>, Sine>> {
     constant(f) >> sine()
 }
 
+/// Sine oscillator with initial `phase` in 0...1.
+/// - Input 0: frequency (Hz)
+/// - Output 0: sine wave
+pub fn sine_phase(phase: f32) -> An<Sine> {
+    An(Sine::with_phase(phase))
+}
+
 /// Rossler dynamical system oscillator.
 /// - Input 0: frequency. The Rossler oscillator exhibits peaks at multiples of this frequency.
 /// - Output 0: system output
@@ -874,8 +881,8 @@ pub fn multitick<N: Size<f32>>() -> An<Tick<N>> {
     An(Tick::new())
 }
 
-/// Fixed delay of `t` seconds.
-/// Delay time is rounded to the nearest sample. The minimum delay is one sample.
+/// Fixed delay of `t` seconds (`t` >= 0).
+/// Delay time is rounded to the nearest sample. The minimum possible delay is zero samples.
 /// - Allocates: the delay line.
 /// - Input 0: signal.
 /// - Output 0: delayed signal.
@@ -890,7 +897,8 @@ pub fn delay(t: f64) -> An<Delay> {
 }
 
 /// Tapped delay line with cubic interpolation.
-/// Minimum and maximum delay times are in seconds.
+/// Minimum and maximum delay times are in seconds (`min_delay`, `max_delay` >= 0).
+/// The minimum possible delay is one sample.
 /// - Allocates: the delay line.
 /// - Input 0: signal.
 /// - Input 1: delay time in seconds.
@@ -907,7 +915,8 @@ pub fn tap(min_delay: f32, max_delay: f32) -> An<Tap<U1>> {
 
 /// Tapped delay line with cubic interpolation.
 /// The number of taps is `N`.
-/// Minimum and maximum delay times are in seconds.
+/// Minimum and maximum delay times are in seconds (`min_delay`, `max_delay` >= 0).
+/// The minimum possible delay is one sample.
 /// - Allocates: the delay line.
 /// - Input 0: signal.
 /// - Inputs 1...N: delay time in seconds.

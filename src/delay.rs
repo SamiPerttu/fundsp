@@ -67,24 +67,24 @@ impl<N: Size<f32>> AudioNode for Tick<N> {
 /// - Allocates: the delay line.
 /// - Input 0: input
 /// - Output 0: delayed input
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Delay {
     buffer: Vec<f32>,
     i: usize,
     sample_rate: f64,
-    length: f64,
+    time: f64,
+    time_in_samples: usize,
 }
 
 impl Delay {
-    /// Create a new fixed delay. The `length` of the delay line,
+    /// Create a new fixed delay. The delay `time` (`time` >= 0),
     /// which is specified in seconds, is rounded to the nearest sample.
-    /// The minimum delay is one sample.
-    pub fn new(length: f64) -> Delay {
-        let mut node = Delay {
-            buffer: Vec::new(),
-            i: 0,
-            sample_rate: 0.0,
-            length,
+    /// The minimum possible delay is zero samples.
+    pub fn new(time: f64) -> Self {
+        assert!(time >= 0.0);
+        let mut node = Self {
+            time,
+            ..Self::default()
         };
         node.set_sample_rate(DEFAULT_SR);
         node
@@ -104,20 +104,21 @@ impl AudioNode for Delay {
     fn set_sample_rate(&mut self, sample_rate: f64) {
         if self.sample_rate != sample_rate {
             self.sample_rate = sample_rate;
-            let buffer_length = max(1.0, round(self.length * sample_rate));
-            self.buffer.resize(buffer_length as usize, 0.0);
+            self.time_in_samples = round(self.time * sample_rate) as usize;
+            let buffer_length = self.time_in_samples + 1;
+            self.buffer.resize(buffer_length, 0.0);
             self.reset();
         }
     }
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        let output = self.buffer[self.i];
         self.buffer[self.i] = input[0];
-        self.i += 1;
+        self.i = self.i.wrapping_add(1);
         if self.i >= self.buffer.len() {
             self.i = 0;
         }
+        let output = self.buffer[self.i];
         [output].into()
     }
 
@@ -125,10 +126,10 @@ impl AudioNode for Delay {
         let mut output = SignalFrame::new(self.outputs());
         output.set(
             0,
-            input.at(0).filter(self.buffer.len() as f64, |r| {
+            input.at(0).filter(self.time_in_samples as f64, |r| {
                 r * Complex64::from_polar(
                     1.0,
-                    -f64::TAU * self.buffer.len() as f64 * frequency / self.sample_rate,
+                    -f64::TAU * self.time_in_samples as f64 * frequency / self.sample_rate,
                 )
             }),
         );
@@ -142,7 +143,7 @@ impl AudioNode for Delay {
 /// - Input 0: input
 /// - Inputs 1...N: delay amount in seconds.
 /// - Output 0: delayed input
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Tap<N>
 where
     N: Size<f32> + Add<U1>,
@@ -151,6 +152,8 @@ where
     buffer: Vec<f32>,
     i: usize,
     sample_rate: f32,
+    min_delay_clamped: f32,
+    max_delay_clamped: f32,
     min_delay: f32,
     max_delay: f32,
     _marker: PhantomData<N>,
@@ -161,17 +164,16 @@ where
     N: Size<f32> + Add<U1>,
     <N as Add<U1>>::Output: Size<f32>,
 {
-    /// Create a tapped delay line. Minimum and maximum delays are specified in seconds.
+    /// Create a tapped delay line.
+    /// Minimum and maximum delays are specified in seconds (`min_delay`, `max_delay` >= 0).
+    /// Minimum possible delay is one sample.
     pub fn new(min_delay: f32, max_delay: f32) -> Self {
         assert!(min_delay >= 0.0);
         assert!(min_delay <= max_delay);
         let mut node = Self {
-            buffer: Vec::new(),
-            i: 0,
-            sample_rate: 0.0,
             min_delay,
             max_delay,
-            _marker: PhantomData,
+            ..Self::default()
         };
         node.set_sample_rate(DEFAULT_SR);
         node
@@ -195,9 +197,11 @@ where
     fn set_sample_rate(&mut self, sample_rate: f64) {
         let sample_rate = sample_rate as f32;
         if self.sample_rate != sample_rate {
+            self.sample_rate = sample_rate;
+            self.min_delay_clamped = max(self.min_delay, 1.0 / sample_rate);
+            self.max_delay_clamped = max(self.max_delay, 1.0 / sample_rate);
             let buffer_length = ceil(self.max_delay * sample_rate) + 2.0;
             let buffer_length = (buffer_length.to_f64() as usize).next_power_of_two();
-            self.sample_rate = sample_rate;
             self.buffer.resize(buffer_length, 0.0);
             self.reset();
         }
@@ -205,18 +209,18 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        let mask = self.buffer.len() - 1;
+        let mask = self.buffer.len().wrapping_sub(1);
+        self.buffer[self.i] = input[0];
         let mut output = 0.0;
         for tap_i in 1..N::USIZE + 1 {
-            let tap =
-                clamp(self.min_delay, self.max_delay, convert(input[tap_i])) * self.sample_rate;
+            let tap = clamp(self.min_delay_clamped, self.max_delay_clamped, input[tap_i])
+                * self.sample_rate;
             // Safety: the value has been clamped.
             let tap_floor = unsafe { f32::to_int_unchecked::<usize>(tap.to_f32()) };
-            let tap_i1 = self.i + (self.buffer.len() - tap_floor);
-            let tap_i0 = (tap_i1 + 1) & mask;
-            let tap_i2 = (tap_i1.wrapping_sub(1)) & mask;
-            let tap_i3 = (tap_i1.wrapping_sub(2)) & mask;
-            let tap_i1 = tap_i1 & mask;
+            let tap_i1 = self.i.wrapping_sub(tap_floor) & mask;
+            let tap_i0 = tap_i1.wrapping_add(1) & mask;
+            let tap_i2 = tap_i1.wrapping_sub(1) & mask;
+            let tap_i3 = tap_i1.wrapping_sub(2) & mask;
             let tap_d = tap - tap_floor as f32;
             output += spline(
                 self.buffer[tap_i0],
@@ -226,8 +230,7 @@ where
                 tap_d,
             );
         }
-        self.buffer[self.i] = input[0];
-        self.i = (self.i + 1) & mask;
+        self.i = self.i.wrapping_add(1) & mask;
         [output].into()
     }
 
@@ -360,6 +363,7 @@ where
     <N as Add<U1>>::Output: Size<f32>,
 {
     /// Create a tapped delay line. Minimum and maximum delays are specified in seconds.
+    /// Minimum possible delay is zero samples.
     pub fn new(min_delay: f32, max_delay: f32) -> Self {
         assert!(min_delay >= 0.0);
         assert!(min_delay <= max_delay);
@@ -393,9 +397,9 @@ where
     fn set_sample_rate(&mut self, sample_rate: f64) {
         let sample_rate = sample_rate as f32;
         if self.sample_rate != sample_rate {
-            let buffer_length = ceil(self.max_delay * sample_rate) + 2.0;
-            let buffer_length = (buffer_length.to_f64() as usize).next_power_of_two();
             self.sample_rate = sample_rate;
+            let buffer_length = ceil(self.max_delay * sample_rate) + 1.0;
+            let buffer_length = (buffer_length.to_f64() as usize).next_power_of_two();
             self.buffer.resize(buffer_length, 0.0);
             self.reset();
         }
@@ -403,21 +407,19 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        let mask = self.buffer.len() - 1;
+        let mask = self.buffer.len().wrapping_sub(1);
+        self.buffer[self.i] = input[0];
         let mut output = 0.0;
         for tap_i in 1..N::USIZE + 1 {
-            let tap =
-                clamp(self.min_delay, self.max_delay, convert(input[tap_i])) * self.sample_rate;
+            let tap = clamp(self.min_delay, self.max_delay, input[tap_i]) * self.sample_rate;
             // Safety: the value has been clamped.
             let tap_floor = unsafe { f32::to_int_unchecked::<usize>(tap.to_f32()) };
-            let tap_i1 = self.i + (self.buffer.len() - tap_floor);
-            let tap_i2 = (tap_i1.wrapping_sub(1)) & mask;
-            let tap_i1 = tap_i1 & mask;
+            let tap_i1 = self.i.wrapping_sub(tap_floor) & mask;
+            let tap_i2 = tap_i1.wrapping_sub(1) & mask;
             let tap_d = tap - tap_floor as f32;
             output += lerp(self.buffer[tap_i1], self.buffer[tap_i2], tap_d);
         }
-        self.buffer[self.i] = input[0];
-        self.i = (self.i + 1) & mask;
+        self.i = self.i.wrapping_add(1) & mask;
         [output].into()
     }
 

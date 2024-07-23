@@ -67,9 +67,9 @@ struct Vertex {
     pub unit: Box<dyn AudioUnit>,
     /// Edges connecting into this vertex. The length is equal to the number of inputs.
     pub source: Vec<Edge>,
-    /// Input buffers. The length is equal to the number of inputs.
+    /// Input buffers. The number of channels is equal to the number of inputs.
     pub input: BufferVec,
-    /// Output buffers. The length is equal to the number of outputs.
+    /// Output buffers. The number of channels is equal to the number of outputs.
     pub output: BufferVec,
     /// Input for tick iteration. The length is equal to the number of inputs.
     pub tick_input: Vec<f32>,

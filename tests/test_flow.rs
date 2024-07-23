@@ -94,6 +94,7 @@ fn test_responses() {
     test_response(pinkpass() * dc(2.0));
     test_response(follow(0.0002));
     test_response(follow(0.01));
+    test_response(delay(0.0));
     test_response(delay(0.0001));
     test_response(delay(0.0001) >> delay(0.0002));
     test_response(dcblock());
