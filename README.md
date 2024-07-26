@@ -43,6 +43,9 @@ the [Bevy](https://bevyengine.org/) game engine.
 [midi_fundsp](https://github.com/gjf2a/midi_fundsp) enables the easy creation
 of live synthesizer software using FunDSP for synthesis.
 
+[quartz](https://github.com/tomara-x/quartz)
+is a visual programming and DSP playground with releases for Linux, Mac and Windows.
+
 ## Installation
 
 Add `fundsp` to your `Cargo.toml` as a dependency.
