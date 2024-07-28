@@ -15,9 +15,9 @@ edition = "2021"
 numeric-array = { version = "0.6.1", default-features = false }
 dyn-clone = "1.0.17"
 libm = "0.2.8"
-wide = { version = "0.7.25", default-features = false }
+wide = { version = "0.7.26", default-features = false }
 num-complex = { version = "0.4.6", default-features = false, features = ["libm"] }
-tinyvec = { version = "1.6.0", features = ["alloc"] }
+tinyvec = { version = "1.8.0", features = ["alloc"] }
 hashbrown = "0.14.5"
 microfft = { version = "0.6.0", features = ["size-32768"] }
 funutd = { version = "0.16.0", default-features = false }
@@ -30,7 +30,7 @@ anyhow = "1.0.86"
 criterion = "0.5.1"
 cpal = "0.15.3"
 assert_no_alloc = "1.1.2"
-eframe = "0.27.2"
+eframe = "0.28.1"
 plotters = "0.3.6"
 midi-msg = "0.5.0"
 midir = "0.9.1"

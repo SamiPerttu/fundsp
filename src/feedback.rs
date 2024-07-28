@@ -366,7 +366,7 @@ impl AudioUnit for FeedbackUnit {
             // We have enough feedback samples to process the whole block at once.
             for channel in 0..self.channels {
                 let mut read_i = self.read_index(self.samples);
-                for (b, i) in self.buffer.channel_mut_f32(channel)[0..size]
+                for (b, i) in self.buffer.channel_f32_mut(channel)[0..size]
                     .iter_mut()
                     .zip(input.channel_f32(channel)[0..size].iter())
                 {

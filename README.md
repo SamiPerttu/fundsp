@@ -552,10 +552,13 @@ net.commit();
 // is maintained at commit time.
 net = net >> peak_hz(1000.0, 1.0);
 net.commit();
+/// Nodes can be replaced smoothly with a crossfade to avoid clicks.
+not.crossfade(noise_id, Fade::Smooth, 1.0, Box::new(white()));
+net.commit();
 ```
 
 Using dynamic networks incurs some overhead so it is an especially good idea
-to use block processing, which amortizes it effectively.
+to use block processing, which neutralizes it effectively.
 
 ### Sequencer
 

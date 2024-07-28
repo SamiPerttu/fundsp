@@ -8,6 +8,7 @@ use super::setting::*;
 use super::signal::*;
 use thingbuf::mpsc::{channel, Receiver, Sender};
 
+/// Message from frontend to backend.
 #[derive(Default, Clone)]
 pub(crate) enum NetMessage {
     #[default]
@@ -16,9 +17,18 @@ pub(crate) enum NetMessage {
     Setting(Setting),
 }
 
+/// Message from backend to frontend.
+#[derive(Default, Clone)]
+pub(crate) enum NetReturn {
+    #[default]
+    Null,
+    Net(Net),
+    Unit(Box<dyn AudioUnit>),
+}
+
 pub struct NetBackend {
     /// For sending versions for deallocation back to the frontend.
-    sender: Sender<Net>,
+    sender: Option<Sender<NetReturn>>,
     /// For receiving new versions and settings from the frontend.
     receiver: Receiver<NetMessage>,
     net: Net,
@@ -29,8 +39,8 @@ impl Clone for NetBackend {
         // Allocate a dummy channel.
         let (sender_net, _receiver_net) = channel(1);
         let (_sender_message, receiver_message) = channel(1);
-        NetBackend {
-            sender: sender_net,
+        Self {
+            sender: Some(sender_net),
             receiver: receiver_message,
             net: self.net.clone(),
         }
@@ -39,9 +49,9 @@ impl Clone for NetBackend {
 
 impl NetBackend {
     /// Create new backend.
-    pub(crate) fn new(sender: Sender<Net>, receiver: Receiver<NetMessage>, net: Net) -> Self {
+    pub(crate) fn new(sender: Sender<NetReturn>, receiver: Receiver<NetMessage>, net: Net) -> Self {
         Self {
-            sender,
+            sender: Some(sender),
             receiver,
             net,
         }
@@ -56,9 +66,16 @@ impl NetBackend {
                 Ok(message) => {
                     match message {
                         NetMessage::Net(net) => {
-                            if let Some(net) = latest_net {
+                            if let Some(mut net) = latest_net {
                                 // This is not the latest network, send it back immediately for deallocation.
-                                if self.sender.try_send(net).is_ok() {}
+                                self.net.apply_foreign_edits(&mut net, &self.sender);
+                                if self
+                                    .sender
+                                    .as_ref()
+                                    .unwrap()
+                                    .try_send(NetReturn::Net(net))
+                                    .is_ok()
+                                {}
                             }
                             latest_net = Some(net);
                         }
@@ -75,8 +92,15 @@ impl NetBackend {
             // Migrate existing nodes to the new network.
             self.net.migrate(&mut net);
             core::mem::swap(&mut net, &mut self.net);
+            self.net.apply_edits(&self.sender);
             // Send the previous network back for deallocation.
-            if self.sender.try_send(net).is_ok() {}
+            if self
+                .sender
+                .as_ref()
+                .unwrap()
+                .try_send(NetReturn::Net(net))
+                .is_ok()
+            {}
         }
     }
 }
@@ -102,12 +126,12 @@ impl AudioUnit for NetBackend {
 
     fn tick(&mut self, input: &[f32], output: &mut [f32]) {
         self.handle_messages();
-        self.net.tick(input, output);
+        self.net.tick_2(input, output, &self.sender);
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         self.handle_messages();
-        self.net.process(size, input, output);
+        self.net.process_2(size, input, output, &self.sender);
     }
 
     fn get_id(&self) -> u64 {

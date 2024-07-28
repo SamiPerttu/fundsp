@@ -6,7 +6,7 @@
 //!
 //! The central abstractions are located in the `audionode` and `audiounit` modules.
 //! The `combinator` module defines the graph operators.
-#![cfg_attr(all(not(feature = "std"), not(feature = "test")), no_std)]
+#![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
 #![allow(
     clippy::precedence,
     clippy::type_complexity,
@@ -554,6 +554,7 @@ pub mod snoop;
 pub mod sound;
 pub mod svf;
 pub mod system;
+pub mod vertex;
 pub mod wave;
 pub mod wavetable;
 

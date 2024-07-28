@@ -59,11 +59,11 @@ impl<
     /// - `outer_radius`: outer radius of the helix. The last voice is at the outer radius. For example, 0.2.
     /// - `jitter`: amount of random jitter added to sample points on the helix. For example, 0.0 or 0.01.
     /// - `generator`: the generator function `f(t, b, v, x, y, z)` for grains. `t` is time in seconds
-    /// and `b` is fractional beat number starting from zero. The rest of the parameters are in the range -1...1.
-    /// `v` is a voice indicator and `x`, `y` and `z` are values obtained from our texture.
-    /// The generator function returns the triple (grain length, envelope length, grain graph).
-    /// Lengths are in seconds.
-    /// For example, `|t, b, v, x, y, z| (0.06, 0.03, Box::new(sine_hz(xerp11(20.0, 4000.0, x)) * xerp11(0.0002, 0.02, y) >> pan(v * 0.5)))`.
+    ///    and `b` is fractional beat number starting from zero. The rest of the parameters are in the range -1...1.
+    ///    `v` is a voice indicator and `x`, `y` and `z` are values obtained from our texture.
+    ///    The generator function returns the triple (grain length, envelope length, grain graph).
+    ///    Lengths are in seconds.
+    ///    For example, `|t, b, v, x, y, z| (0.06, 0.03, Box::new(sine_hz(xerp11(20.0, 4000.0, x)) * xerp11(0.0002, 0.02, y) >> pan(v * 0.5)))`.
     pub fn new(
         outputs: usize,
         voices: usize,

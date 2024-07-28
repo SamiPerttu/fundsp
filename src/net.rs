@@ -9,10 +9,12 @@ use super::realnet::*;
 use super::setting::*;
 use super::shared::IdGenerator;
 use super::signal::*;
+use super::vertex::*;
 use super::*;
 use hashbrown::HashMap;
 use thingbuf::mpsc::{channel, Receiver, Sender};
 extern crate alloc;
+use super::sequencer::Fade;
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -21,7 +23,7 @@ pub type NodeIndex = usize;
 pub type PortIndex = usize;
 
 /// Globally unique node ID for a node in a network.
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, Default)]
 pub struct NodeId(u64);
 
 /// This atomic supplies globally unique node IDs.
@@ -33,6 +35,16 @@ impl NodeId {
     pub fn new() -> Self {
         NodeId(GLOBAL_NODE_ID.get_id())
     }
+}
+
+/// Node introduced with a crossfade.
+#[derive(Clone, Default)]
+pub(crate) struct NodeEdit {
+    pub unit: Option<Box<dyn AudioUnit>>,
+    pub id: NodeId,
+    pub index: NodeIndex,
+    pub fade: Fade,
+    pub fade_time: f32,
 }
 
 const ID: u64 = 63;
@@ -60,95 +72,6 @@ pub fn edge(source: Port, target: Port) -> Edge {
     Edge { source, target }
 }
 
-#[derive(Clone)]
-/// Individual AudioUnits are vertices in the graph.
-struct Vertex {
-    /// The unit.
-    pub unit: Box<dyn AudioUnit>,
-    /// Edges connecting into this vertex. The length is equal to the number of inputs.
-    pub source: Vec<Edge>,
-    /// Input buffers. The number of channels is equal to the number of inputs.
-    pub input: BufferVec,
-    /// Output buffers. The number of channels is equal to the number of outputs.
-    pub output: BufferVec,
-    /// Input for tick iteration. The length is equal to the number of inputs.
-    pub tick_input: Vec<f32>,
-    /// Output for tick iteration. The length is equal to the number of outputs.
-    pub tick_output: Vec<f32>,
-    /// Stable, globally unique ID for this vertex.
-    pub id: NodeId,
-    /// This is set if all vertex inputs are sourced from successive outputs of the indicated node.
-    /// We can then omit copying and use the source node outputs directly.
-    pub source_vertex: Option<(NodeIndex, usize)>,
-    /// Network revision in which this vertex was changed last.
-    pub changed: u64,
-}
-
-impl Vertex {
-    pub fn new(id: NodeId, index: NodeIndex, unit: Box<dyn AudioUnit>) -> Self {
-        let inputs = unit.inputs();
-        let outputs = unit.outputs();
-        let mut vertex = Self {
-            unit,
-            source: Vec::new(),
-            input: BufferVec::new(inputs),
-            output: BufferVec::new(outputs),
-            tick_input: vec![0.0; inputs],
-            tick_output: vec![0.0; outputs],
-            id,
-            source_vertex: None,
-            changed: 0,
-        };
-        for i in 0..vertex.inputs() {
-            vertex.source.push(edge(Port::Zero, Port::Local(index, i)));
-        }
-        vertex
-    }
-
-    /// Number of input channels.
-    #[inline]
-    pub fn inputs(&self) -> usize {
-        self.tick_input.len()
-    }
-
-    /// Number of output channels.
-    #[inline]
-    pub fn outputs(&self) -> usize {
-        self.tick_output.len()
-    }
-
-    /// Preallocate everything.
-    pub fn allocate(&mut self) {
-        self.unit.allocate();
-    }
-
-    /// Calculate source vertex and source port.
-    pub fn get_source_vertex(&self) -> Option<(NodeIndex, usize)> {
-        if self.inputs() == 0 {
-            return None;
-        }
-        let mut source_node = 0;
-        let mut source_port = 0;
-        for i in 0..self.inputs() {
-            let source = self.source[i].source;
-            match source {
-                Port::Local(node, port) => {
-                    if i == 0 {
-                        source_node = node;
-                        source_port = port;
-                    } else if source_node != node || source_port + i != port {
-                        return None;
-                    }
-                }
-                _ => {
-                    return None;
-                }
-            }
-        }
-        Some((source_node, source_port))
-    }
-}
-
 /// Network unit. It can contain other units and maintain connections between them.
 /// Outputs of the network are sourced from user specified unit outputs or
 /// global inputs, or are filled with zeros if not connected.
@@ -168,13 +91,15 @@ pub struct Net {
     /// Translation map from node ID to vertex index.
     node_index: HashMap<NodeId, NodeIndex>,
     /// Current sample rate.
-    sample_rate: f64,
+    sample_rate: f32,
     /// Optional frontend.
-    front: Option<(Sender<NetMessage>, Receiver<Net>)>,
+    front: Option<(Sender<NetMessage>, Receiver<NetReturn>)>,
     /// Number of inputs in the backend. This is for checking consistency during commits.
     backend_inputs: usize,
     /// Number of outputs in the backend. This is for checking consistency during commits.
     backend_outputs: usize,
+    /// Queue of smooth edits made to nodes. Applicable to frontends only.
+    edit_queue: Vec<NodeEdit>,
     /// Revision number. This is used by frontends and backends only.
     /// The revision is incremented after each commit.
     revision: u64,
@@ -194,6 +119,7 @@ impl Clone for Net {
             front: None,
             backend_inputs: self.backend_inputs,
             backend_outputs: self.backend_outputs,
+            edit_queue: Vec::new(),
             revision: self.revision,
         }
     }
@@ -219,10 +145,11 @@ impl Net {
             vertex: Vec::new(),
             order: None,
             node_index: HashMap::new(),
-            sample_rate: DEFAULT_SR,
+            sample_rate: DEFAULT_SR as f32,
             front: None,
             backend_inputs: inputs,
             backend_outputs: outputs,
+            edit_queue: Vec::new(),
             revision: 0,
         };
         for channel in 0..outputs {
@@ -245,7 +172,7 @@ impl Net {
     /// net.check();
     /// ```
     pub fn push(&mut self, mut unit: Box<dyn AudioUnit>) -> NodeId {
-        unit.set_sample_rate(self.sample_rate);
+        unit.set_sample_rate(self.sample_rate as f64);
         let index = self.vertex.len();
         let id = NodeId::new();
         let vertex = Vertex::new(id, index, unit);
@@ -392,10 +319,49 @@ impl Net {
         let node_index = self.node_index[&node];
         assert_eq!(unit.inputs(), self.vertex[node_index].inputs());
         assert_eq!(unit.outputs(), self.vertex[node_index].outputs());
-        unit.set_sample_rate(self.sample_rate);
+        unit.set_sample_rate(self.sample_rate as f64);
         core::mem::swap(&mut self.vertex[node_index].unit, &mut unit);
         self.vertex[node_index].changed = self.revision;
         unit
+    }
+
+    /// Replaces the given node in the network smoothly with a crossfade.
+    /// All connections are retained.
+    /// The replacement must have the same number of inputs and outputs
+    /// as the node it is replacing.
+    ///
+    /// ### Example (Replace Saw Wave With Square Wave Via 1 Second Crossfade)
+    /// ```
+    /// use fundsp::hacker32::*;
+    /// let mut net = Net::new(0, 1);
+    /// let id = net.push(Box::new(saw_hz(220.0)));
+    /// net.pipe_output(id);
+    /// net.crossfade(id, Fade::Smooth, 1.0, Box::new(square_hz(220.0)));
+    /// net.check();
+    /// ```
+    pub fn crossfade(
+        &mut self,
+        node: NodeId,
+        fade: Fade,
+        fade_time: f32,
+        mut unit: Box<dyn AudioUnit>,
+    ) {
+        let node_index = self.node_index[&node];
+        assert_eq!(unit.inputs(), self.vertex[node_index].inputs());
+        assert_eq!(unit.outputs(), self.vertex[node_index].outputs());
+        unit.set_sample_rate(self.sample_rate as f64);
+        let mut edit = NodeEdit {
+            unit: Some(unit),
+            id: node,
+            index: node_index,
+            fade,
+            fade_time,
+        };
+        if self.has_backend() {
+            self.edit_queue.push(edit);
+        } else {
+            self.vertex[node_index].enqueue(&mut edit, &None);
+        }
     }
 
     /// Connect the given unit output (`source`, `source_port`)
@@ -668,7 +634,7 @@ impl Net {
     fn determine_order(&mut self) {
         // Update source vertex shortcut.
         for j in 0..self.vertex.len() {
-            self.vertex[j].source_vertex = self.vertex[j].get_source_vertex();
+            self.vertex[j].update_source_vertex();
         }
         let mut order = Vec::new();
         if !self.determine_order_in(&mut order) {
@@ -761,6 +727,19 @@ impl Net {
             net.pipe_output(id);
         }
         net
+    }
+
+    /// Wrap arbitrary unit in a network. Return network and the ID of the unit.
+    pub fn wrap_id(unit: Box<dyn AudioUnit>) -> (Net, NodeId) {
+        let mut net = Net::new(unit.inputs(), unit.outputs());
+        let id = net.push(unit);
+        if net.inputs() > 0 {
+            net.pipe_input(id);
+        }
+        if net.outputs() > 0 {
+            net.pipe_output(id);
+        }
+        (net, id)
     }
 
     /// Create a network that outputs a scalar value on all channels.
@@ -930,6 +909,19 @@ impl Net {
             self.determine_order();
         }
         let mut net = self.clone();
+        // Filter the edit queue while updating unit indices.
+        for edit in self.edit_queue.iter_mut() {
+            if let Some(index) = self.node_index.get(&edit.id) {
+                net.edit_queue.push(NodeEdit {
+                    unit: edit.unit.take(),
+                    id: edit.id,
+                    index: *index,
+                    fade: edit.fade.clone(),
+                    fade_time: edit.fade_time,
+                });
+            }
+        }
+        self.edit_queue.clear();
         // Send over the original nodes to the backend.
         // This is necessary if the nodes contain any backends, which cannot be cloned effectively.
         core::mem::swap(&mut net.vertex, &mut self.vertex);
@@ -937,7 +929,14 @@ impl Net {
         net.allocate();
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all previous versions.
-            while receiver.try_recv().is_ok() {}
+            loop {
+                match receiver.try_recv() {
+                    Ok(NetReturn::Null) => (),
+                    Ok(NetReturn::Net(net)) => drop(net),
+                    Ok(NetReturn::Unit(unit)) => drop(unit),
+                    _ => break,
+                }
+            }
             // Send the new version over.
             if sender.try_send(NetMessage::Net(net)).is_ok() {}
         }
@@ -951,56 +950,20 @@ impl Net {
         }
         if other.has_backend() {
             core::mem::swap(&mut self.front, &mut other.front);
+            core::mem::swap(&mut self.edit_queue, &mut other.edit_queue);
             self.backend_inputs = other.backend_inputs;
             self.backend_outputs = other.backend_outputs;
             self.revision = other.revision;
         }
     }
-}
 
-impl AudioUnit for Net {
-    fn inputs(&self) -> usize {
-        self.input.channels()
-    }
-
-    fn outputs(&self) -> usize {
-        self.output.channels()
-    }
-
-    fn set_sample_rate(&mut self, sample_rate: f64) {
-        if self.sample_rate != sample_rate {
-            self.sample_rate = sample_rate;
-            for vertex in &mut self.vertex {
-                vertex.unit.set_sample_rate(sample_rate);
-                // Sample rate change counts as a change
-                // to be sent to the backend because
-                // we cannot change sample rate in the backend
-                // - it may allocate or do something else inappropriate.
-                vertex.changed = self.revision;
-            }
-            // Take the opportunity to unload some calculations.
-            if !self.is_ordered() {
-                self.determine_order();
-            }
-        }
-    }
-
-    fn reset(&mut self) {
-        for vertex in &mut self.vertex {
-            vertex.unit.reset();
-            // Reseting a unit counts as a change
-            // to be sent to the backend because
-            // we cannot reset in the backend
-            // - it may allocate or do something else inappropriate.
-            vertex.changed = self.revision;
-        }
-        // Take the opportunity to unload some calculations.
-        if !self.is_ordered() {
-            self.determine_order();
-        }
-    }
-
-    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
+    /// Process one sample using the supplied `sender` to deallocate units.
+    pub(crate) fn tick_2(
+        &mut self,
+        input: &[f32],
+        output: &mut [f32],
+        sender: &Option<Sender<NetReturn>>,
+    ) {
         if !self.is_ordered() {
             self.determine_order();
         }
@@ -1017,9 +980,7 @@ impl AudioUnit for Net {
                 }
             }
             let vertex = &mut self.vertex[node_index];
-            vertex
-                .unit
-                .tick(&vertex.tick_input, &mut vertex.tick_output);
+            vertex.tick(self.sample_rate, sender);
         }
 
         // Then we set the global outputs.
@@ -1032,7 +993,14 @@ impl AudioUnit for Net {
         }
     }
 
-    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+    /// Process a block of samples using the supplied `sender` to deallocate units.
+    pub(crate) fn process_2(
+        &mut self,
+        size: usize,
+        input: &BufferRef,
+        output: &mut BufferMut,
+        sender: &Option<Sender<NetReturn>>,
+    ) {
         if !self.is_ordered() {
             self.determine_order();
         }
@@ -1045,10 +1013,11 @@ impl AudioUnit for Net {
                 let vertex = &mut self.vertex[node_index];
                 // Safety: we know there is no aliasing, as self connections are prohibited.
                 unsafe {
-                    vertex.unit.process(
+                    vertex.process(
                         size,
                         &(*ptr).buffer_ref().subset(source_port, vertex.inputs()),
-                        &mut vertex.output.buffer_mut(),
+                        self.sample_rate,
+                        sender,
                     );
                 }
             } else {
@@ -1091,6 +1060,79 @@ impl AudioUnit for Net {
                 Port::Zero => output.channel_mut(channel)[..simd_size].fill(F32x::ZERO),
             }
         }
+    }
+
+    /// Apply all edits into this network.
+    pub(crate) fn apply_edits(&mut self, sender: &Option<Sender<NetReturn>>) {
+        for edit in self.edit_queue.iter_mut() {
+            self.vertex[edit.index].enqueue(edit, sender);
+        }
+        self.edit_queue.clear();
+    }
+
+    /// Apply all edits from another network into this network.
+    pub(crate) fn apply_foreign_edits(
+        &mut self,
+        source: &mut Net,
+        sender: &Option<Sender<NetReturn>>,
+    ) {
+        for edit in source.edit_queue.iter_mut() {
+            if let Some(index) = self.node_index.get(&edit.id) {
+                self.vertex[*index].enqueue(edit, sender);
+            }
+        }
+    }
+}
+
+impl AudioUnit for Net {
+    fn inputs(&self) -> usize {
+        self.input.channels()
+    }
+
+    fn outputs(&self) -> usize {
+        self.output.channels()
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        let sample_rate = sample_rate as f32;
+        if self.sample_rate != sample_rate {
+            self.sample_rate = sample_rate;
+            for vertex in &mut self.vertex {
+                vertex.unit.set_sample_rate(sample_rate as f64);
+                // Sample rate change counts as a change
+                // to be sent to the backend because
+                // we cannot change sample rate in the backend
+                // - it may allocate or do something else inappropriate.
+                vertex.changed = self.revision;
+            }
+            // Take the opportunity to unload some calculations.
+            if !self.is_ordered() {
+                self.determine_order();
+            }
+        }
+    }
+
+    fn reset(&mut self) {
+        for vertex in &mut self.vertex {
+            vertex.unit.reset();
+            // Reseting a unit counts as a change
+            // to be sent to the backend because
+            // we cannot reset in the backend
+            // - it may allocate or do something else inappropriate.
+            vertex.changed = self.revision;
+        }
+        // Take the opportunity to unload some calculations.
+        if !self.is_ordered() {
+            self.determine_order();
+        }
+    }
+
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
+        self.tick_2(input, output, &None);
+    }
+
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        self.process_2(size, input, output, &None);
     }
 
     fn set(&mut self, setting: Setting) {

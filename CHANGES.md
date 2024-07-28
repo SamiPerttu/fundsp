@@ -5,6 +5,7 @@
 - Added choice of interpolation algorithm to `AtomicSynth`.
 - New opcode `sine_phase`.
 - Opcodes `delay` and `tap_linear` now support zero sample delays.
+- New method `Net::crossfade` for replacing a unit with a crossfade.
 
 ### Version 0.18.2
 

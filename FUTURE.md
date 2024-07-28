@@ -18,9 +18,9 @@ This is a list of feature ideas for the future.
 - Expand `README.md` into a book.
 - Time stretching / pitch shifting algorithm.
 - FFT convolution engine and HRTF support.
-- Fading nodes in and out when replacing a node in `Net`.
 - Make a more flexible node replacement method for `Net` where the number of inputs and outputs could be changed.
 - Text-to-speech engine.
 - Resampler with sinc interpolation.
 - Denormal mitigation on `x86` targets. This would mean enabling the flush-denormals-to-zero flag in feedback loops.
 - Ring buffer component for transporting audio data from another thread.
+- Support feedback loops in `Net`.

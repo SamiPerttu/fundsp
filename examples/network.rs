@@ -41,7 +41,9 @@ where
 
     net.set_sample_rate(sample_rate);
 
-    let mut backend = net.backend();
+    let backend = net.backend();
+
+    let mut backend = BlockRateAdapter::new(Box::new(backend));
 
     let mut next_value = move || assert_no_alloc(|| backend.get_stereo());
 
@@ -64,10 +66,10 @@ where
     loop {
         std::thread::sleep(std::time::Duration::from_millis(rnd.u64_in(200, 500)));
 
-        if rnd.bool(0.5) {
-            net.replace(id_noise, Box::new(brown()));
-        } else if rnd.bool(0.5) {
-            net.replace(id_noise, Box::new(pink()));
+        if rnd.bool(0.2) {
+            net.crossfade(id_noise, Fade::Smooth, 1.0, Box::new(brown() * 0.5));
+        } else if rnd.bool(0.2) {
+            net.crossfade(id_noise, Fade::Smooth, 1.0, Box::new(pink() * 0.5));
         }
         if rnd.bool(0.5) {
             net.set(Setting::pan(rnd.f32_in(-0.8, 0.8)).node(id_pan));

@@ -57,14 +57,14 @@ struct State {
     reverb_time: f64,
     /// Reverb diffusion.
     reverb_diffusion: f64,
-    /// Reverb frontend.
-    reverb: Slot,
-    /// Phaser frontend.
-    phaser: Slot,
+    /// Reverb node ID.
+    reverb_id: NodeId,
+    /// Phaser node ID.
+    phaser_id: NodeId,
     /// Phaser state.
     phaser_enabled: bool,
-    /// Flanger frontend.
-    flanger: Slot,
+    /// Flanger node ID.
+    flanger_id: NodeId,
     /// Flanger state.
     flanger_enabled: bool,
     /// Left channel data for the oscilloscope.
@@ -153,21 +153,19 @@ where
     let chorus_amount = shared(1.0);
 
     let mut net = Net::wrap(Box::new(sequencer_backend));
-    let (reverb, reverb_backend) =
-        Slot::new(create_reverb(room_size, reverb_time, reverb_diffusion));
-    let (phaser, phaser_backend) = Slot::new(Box::new(multipass::<U2>()));
-    let (flanger, flanger_backend) = Slot::new(Box::new(multipass::<U2>()));
+    let (reverb, reverb_id) = Net::wrap_id(create_reverb(room_size, reverb_time, reverb_diffusion));
+    let (phaser, phaser_id) = Net::wrap_id(Box::new(multipass::<U2>()));
+    let (flanger, flanger_id) = Net::wrap_id(Box::new(multipass::<U2>()));
     net = net >> pan(0.0);
     // Smooth chorus and reverb amounts to prevent discontinuities.
     net = net
         >> ((1.0 - var(&chorus_amount) >> follow(0.01) >> split()) * multipass()
             & (var(&chorus_amount) >> follow(0.01) >> split())
                 * (chorus(0, 0.0, 0.02, 0.3) | chorus(1, 0.0, 0.02, 0.3)));
-    net = net >> Net::wrap(Box::new(phaser_backend)) >> Net::wrap(Box::new(flanger_backend));
+    net = net >> phaser >> flanger;
     net = net
         >> ((1.0 - var(&reverb_amount) >> follow(0.01) >> split::<U2>()) * multipass()
-            & (var(&reverb_amount) >> follow(0.01) >> split::<U2>())
-                * Net::wrap(Box::new(reverb_backend)))
+            & (var(&reverb_amount) >> follow(0.01) >> split::<U2>()) * reverb)
         >> (snoop_backend0 | snoop_backend1);
 
     net.set_sample_rate(sample_rate);
@@ -207,12 +205,12 @@ where
         chorus_amount,
         reverb_amount,
         room_size: room_size as f64,
-        reverb,
+        reverb_id,
         reverb_time: reverb_time as f64,
         reverb_diffusion: reverb_diffusion as f64,
-        phaser,
+        phaser_id,
         phaser_enabled: false,
-        flanger,
+        flanger_id,
         flanger_enabled: false,
         snoop0,
         snoop1,
@@ -221,7 +219,7 @@ where
     eframe::run_native(
         "Virtual Keyboard Example",
         options,
-        Box::new(|_cc| Box::new(state)),
+        Box::new(|_cc| Ok(Box::new(state))),
     )
     .unwrap();
 
@@ -305,10 +303,14 @@ impl eframe::App for State {
 
             ui.separator();
 
+            let mut commit = false;
+
             if phaser_enabled != self.phaser_enabled {
                 self.phaser_enabled = phaser_enabled;
+                commit = true;
                 if phaser_enabled {
-                    self.phaser.set(
+                    self.net.crossfade(
+                        self.phaser_id,
                         Fade::Smooth,
                         0.1,
                         Box::new(
@@ -317,15 +319,21 @@ impl eframe::App for State {
                         ),
                     );
                 } else {
-                    self.phaser
-                        .set(Fade::Smooth, 0.1, Box::new(multipass::<U2>()));
+                    self.net.crossfade(
+                        self.phaser_id,
+                        Fade::Smooth,
+                        0.1,
+                        Box::new(multipass::<U2>()),
+                    );
                 }
             }
 
             if flanger_enabled != self.flanger_enabled {
                 self.flanger_enabled = flanger_enabled;
+                commit = true;
                 if flanger_enabled {
-                    self.flanger.set(
+                    self.net.crossfade(
+                        self.flanger_id,
                         Fade::Smooth,
                         0.1,
                         Box::new(
@@ -337,8 +345,12 @@ impl eframe::App for State {
                         ),
                     );
                 } else {
-                    self.flanger
-                        .set(Fade::Smooth, 0.1, Box::new(multipass::<U2>()));
+                    self.net.crossfade(
+                        self.flanger_id,
+                        Fade::Smooth,
+                        0.1,
+                        Box::new(multipass::<U2>()),
+                    );
                 }
             }
             ui.separator();
@@ -360,7 +372,9 @@ impl eframe::App for State {
                 || self.reverb_time != reverb_time
                 || self.reverb_diffusion != reverb_diffusion
             {
-                self.reverb.set(
+                commit = true;
+                self.net.crossfade(
+                    self.reverb_id,
                     Fade::Smooth,
                     0.25,
                     create_reverb(
@@ -374,6 +388,10 @@ impl eframe::App for State {
                 self.reverb_diffusion = reverb_diffusion;
             }
             ui.separator();
+
+            if commit {
+                self.net.commit();
+            }
 
             // Draw oscilloscope.
             egui::containers::Frame::canvas(ui.style()).show(ui, |ui| {

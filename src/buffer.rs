@@ -223,42 +223,49 @@ impl BufferVec {
     /// Access value at index `i` (0 <= `i` <= 7) of `channel`.
     #[inline]
     pub fn at(&self, channel: usize, i: usize) -> F32x {
+        debug_assert!(channel < self.channels());
         self.buffer[(channel << SIMD_C) + i]
     }
 
     /// Set `value` at index `i` (0 <= `i` <= 7) of `channel`.
     #[inline]
     pub fn set(&mut self, channel: usize, i: usize, value: F32x) {
+        debug_assert!(channel < self.channels());
         self.buffer[(channel << SIMD_C) + i] = value;
     }
 
     /// Access `f32` value at index `i` (0 <= `i` <= 63) of `channel`.
     #[inline]
     pub fn at_f32(&self, channel: usize, i: usize) -> f32 {
+        debug_assert!(channel < self.channels());
         self.buffer[(channel << SIMD_C) + (i >> SIMD_S)].as_array_ref()[i & SIMD_M]
     }
 
     /// Set `f32` value at index `i` (0 <= `i` <= 63) of `channel`.
     #[inline]
     pub fn set_f32(&mut self, channel: usize, i: usize, value: f32) {
+        debug_assert!(channel < self.channels());
         self.buffer[(channel << SIMD_C) + (i >> SIMD_S)].as_array_mut()[i & SIMD_M] = value;
     }
 
     /// Get channel slice.
     #[inline]
     pub fn channel(&self, channel: usize) -> &[F32x] {
+        debug_assert!(channel < self.channels());
         &self.buffer[(channel << SIMD_C)..(channel + 1) << SIMD_C]
     }
 
     /// Get mutable channel slice.
     #[inline]
     pub fn channel_mut(&mut self, channel: usize) -> &mut [F32x] {
+        debug_assert!(channel < self.channels());
         &mut self.buffer[(channel << SIMD_C)..(channel + 1) << SIMD_C]
     }
 
     /// Get channel as a scalar slice.
     #[inline]
     pub fn channel_f32(&mut self, channel: usize) -> &[f32] {
+        debug_assert!(channel < self.channels());
         let data = self.channel(channel).as_ptr() as *const f32;
         // Safety: we know each channel contains exactly `MAX_BUFFER_SIZE` samples.
         unsafe { core::slice::from_raw_parts(data, MAX_BUFFER_SIZE) }
@@ -266,7 +273,8 @@ impl BufferVec {
 
     /// Get channel as a mutable scalar slice.
     #[inline]
-    pub fn channel_mut_f32(&mut self, channel: usize) -> &mut [f32] {
+    pub fn channel_f32_mut(&mut self, channel: usize) -> &mut [f32] {
+        debug_assert!(channel < self.channels());
         let data = self.channel_mut(channel).as_mut_ptr() as *mut f32;
         // Safety: we know each channel contains exactly `MAX_BUFFER_SIZE` samples.
         unsafe { core::slice::from_raw_parts_mut(data, MAX_BUFFER_SIZE) }
@@ -308,9 +316,15 @@ pub struct BufferArray<N: ArrayLength> {
 }
 
 impl<N: ArrayLength> BufferArray<N> {
-    /// Create new buffer.
+    /// Create new buffer and initialize it with zeros.
     #[inline]
     pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Create new buffer.
+    #[inline]
+    pub fn uninitialized() -> Self {
         // Safety: This is undefined behavior but it seems to work fine. Zero initialization is safe but slower in benchmarks.
         #[allow(clippy::uninit_assumed_init)]
         unsafe {
@@ -322,6 +336,27 @@ impl<N: ArrayLength> BufferArray<N> {
     #[inline]
     pub fn at(&self, channel: usize, i: usize) -> F32x {
         self.array[channel][i]
+    }
+
+    /// Get `f32` value at index `i` (0 <= `i` <= 63) of `channel`.
+    #[inline]
+    pub fn at_f32(&self, channel: usize, i: usize) -> f32 {
+        debug_assert!(channel < self.channels());
+        self.array[channel][i >> SIMD_S].as_array_ref()[i & SIMD_M]
+    }
+
+    /// Set value at index `i` (0 <= `i` <= 7) of `channel`.
+    #[inline]
+    pub fn set(&mut self, channel: usize, i: usize, value: F32x) {
+        debug_assert!(channel < self.channels());
+        self.array[channel][i] = value;
+    }
+
+    /// Get `f32` value at index `i` (0 <= `i` <= 63) of `channel`.
+    #[inline]
+    pub fn set_f32(&mut self, channel: usize, i: usize, value: f32) {
+        debug_assert!(channel < self.channels());
+        self.array[channel][i >> SIMD_S].as_array_mut()[i & SIMD_M] = value;
     }
 
     /// Number of channels in this buffer.
@@ -347,6 +382,44 @@ impl<N: ArrayLength> BufferArray<N> {
     #[inline]
     pub fn clear(&mut self) {
         self.array.fill([F32x::ZERO; SIMD_LEN]);
+    }
+
+    /// Get channel slice.
+    #[inline]
+    pub fn channel(&self, channel: usize) -> &[F32x] {
+        // Safety: we know Frames are contiguous and we know the length statically.
+        unsafe {
+            &core::slice::from_raw_parts(self.array.as_ptr() as *const F32x, N::USIZE << SIMD_C)
+                [(channel << SIMD_C)..(channel + 1) << SIMD_C]
+        }
+    }
+
+    /// Get mutable channel slice.
+    #[inline]
+    pub fn channel_mut(&mut self, channel: usize) -> &mut [F32x] {
+        // Safety: we know Frames are contiguous and we know the length statically.
+        unsafe {
+            &mut core::slice::from_raw_parts_mut(
+                self.array.as_mut_ptr() as *mut F32x,
+                N::USIZE << SIMD_C,
+            )[(channel << SIMD_C)..(channel + 1) << SIMD_C]
+        }
+    }
+
+    /// Get channel as a scalar slice.
+    #[inline]
+    pub fn channel_f32(&mut self, channel: usize) -> &[f32] {
+        let data = self.channel(channel).as_ptr() as *const f32;
+        // Safety: we know each channel contains exactly `MAX_BUFFER_SIZE` samples.
+        unsafe { core::slice::from_raw_parts(data, MAX_BUFFER_SIZE) }
+    }
+
+    /// Get channel as a mutable scalar slice.
+    #[inline]
+    pub fn channel_f32_mut(&mut self, channel: usize) -> &mut [f32] {
+        let data = self.channel_mut(channel).as_mut_ptr() as *mut f32;
+        // Safety: we know each channel contains exactly `MAX_BUFFER_SIZE` samples.
+        unsafe { core::slice::from_raw_parts_mut(data, MAX_BUFFER_SIZE) }
     }
 
     /// Get immutably borrowed buffer.
