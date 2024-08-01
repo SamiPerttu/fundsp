@@ -6,6 +6,9 @@
 - New opcode `sine_phase`.
 - Opcodes `delay` and `tap_linear` now support zero sample delays.
 - New method `Net::crossfade` for replacing a unit with a crossfade.
+- Clarified latency: it only applies to involuntary causal latencies.
+- `AdaptiveTanh` is now generic `Adaptive` distortion with an inner shape.
+  To migrate, try `Adaptive::new(timescale, Tanh(hardness))`.
 
 ### Version 0.18.2
 

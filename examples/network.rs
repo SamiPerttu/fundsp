@@ -36,7 +36,7 @@ where
 
     let mut net = Net::new(0, 2);
 
-    let id_noise = net.chain(Box::new(pink()));
+    let id_noise = net.chain(Box::new(zero()));
     let id_pan = net.chain(Box::new(pan(0.0)));
 
     net.set_sample_rate(sample_rate);
@@ -45,6 +45,7 @@ where
 
     let mut backend = BlockRateAdapter::new(Box::new(backend));
 
+    // Use `assert_no_alloc` to make sure there are no allocations or deallocations in the audio thread.
     let mut next_value = move || assert_no_alloc(|| backend.get_stereo());
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
@@ -66,25 +67,46 @@ where
     loop {
         std::thread::sleep(std::time::Duration::from_millis(rnd.u64_in(200, 500)));
 
-        if rnd.bool(0.2) {
-            net.crossfade(id_noise, Fade::Smooth, 1.0, Box::new(brown() * 0.5));
-        } else if rnd.bool(0.2) {
-            net.crossfade(id_noise, Fade::Smooth, 1.0, Box::new(pink() * 0.5));
+        if rnd.bool(0.5) {
+            // Fade to brown noise.
+            net.crossfade(
+                id_noise,
+                Fade::Smooth,
+                0.2,
+                Box::new(brown() * lfo(|t| 0.5 * exp(-t * 2.0))),
+            );
+        } else if rnd.bool(0.5) {
+            // Fade to pink noise.
+            net.crossfade(
+                id_noise,
+                Fade::Smooth,
+                0.1,
+                Box::new(white() * lfo(|t| 0.5 * exp(-t * 5.0))),
+            );
         }
         if rnd.bool(0.5) {
-            net.set(Setting::pan(rnd.f32_in(-0.8, 0.8)).node(id_pan));
+            // Note: settings are always applied (or sent to the backend) immediately,
+            // without waiting for the next commit.
+            net.set(Setting::pan(rnd.f32_in(-1.0, 1.0)).node(id_pan));
         }
         if !delay_added && rnd.bool(0.1) {
-            let id_delay = net.push(Box::new(pass() & feedback(delay(0.2) * db_amp(-5.0))));
+            // Add a feedback delay.
+            let id_delay = net.push(Box::new(
+                pass() & feedback(delay(0.2) * db_amp(-3.0) >> pinkpass() >> highpole_hz(100.0)),
+            ));
             net.pipe(id_noise, id_delay);
             net.pipe(id_delay, id_pan);
             delay_added = true;
         }
+
         if !filter_added && rnd.bool(0.05) {
+            // We can also use the graph syntax to make changes. Connectivity can be temporarily altered,
+            // as long as the network has the same number of inputs and outputs at commit time.
             net = net >> (peak_hz(1000.0, 2.0) | peak_hz(1000.0, 2.0));
             filter_added = true;
         }
 
+        // We don't know whether we made any changes but an empty commit is harmless.
         net.commit();
     }
 }

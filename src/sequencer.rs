@@ -36,8 +36,11 @@ impl EventId {
 pub enum Fade {
     /// Equal power fade. Results in equal power mixing
     /// when fade out of one event coincides with the fade in of another.
+    /// Equal power mixing is often used with independent phase signals.
     Power,
-    /// Smooth polynomial fade.
+    /// Smooth polynomial fade. Results in equal amplitude mixing
+    /// when fade out of one event coincides with the fade in of another.
+    /// Equal amplitude mixing is often used with coherent phase signals.
     #[default]
     Smooth,
 }
@@ -207,6 +210,7 @@ fn fade_out(
     }
 }
 
+/// Sequencer mixes together scheduled audio events.
 pub struct Sequencer {
     /// Current events, unsorted.
     active: Vec<Event>,

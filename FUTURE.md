@@ -24,3 +24,4 @@ This is a list of feature ideas for the future.
 - Denormal mitigation on `x86` targets. This would mean enabling the flush-denormals-to-zero flag in feedback loops.
 - Ring buffer component for transporting audio data from another thread.
 - Support feedback loops in `Net`.
+- Looping in `Sequencer`.

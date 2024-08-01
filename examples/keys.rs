@@ -353,7 +353,6 @@ impl eframe::App for State {
                     );
                 }
             }
-            ui.separator();
 
             ui.label("Reverb Amount");
             let mut reverb = self.reverb_amount.value() * 100.0;
@@ -376,7 +375,7 @@ impl eframe::App for State {
                 self.net.crossfade(
                     self.reverb_id,
                     Fade::Smooth,
-                    0.25,
+                    0.5,
                     create_reverb(
                         room_size as f32,
                         reverb_time as f32,
@@ -468,10 +467,16 @@ impl eframe::App for State {
                         Waveform::Noise => Net::wrap(Box::new(
                             (noise()
                                 | pitch * 4.0
-                                | lfo(move |t| funutd::math::lerp(100.0, 50.0, clamp01(t * 5.0))))
+                                | lfo(move |t| {
+                                    funutd::math::lerp(
+                                        100.0,
+                                        50.0 + 0.03 * pitch_hz,
+                                        clamp01(t * 5.0),
+                                    )
+                                }))
                                 >> !resonator()
                                 >> resonator()
-                                >> shape(AdaptiveTanh::new(0.02, 0.1)),
+                                >> shape(Adaptive::new(0.01, Tanh(0.1))),
                         )),
                     };
                     let filter = match self.filter {

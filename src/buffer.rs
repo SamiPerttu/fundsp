@@ -324,7 +324,7 @@ impl<N: ArrayLength> BufferArray<N> {
 
     /// Create new buffer.
     #[inline]
-    pub fn uninitialized() -> Self {
+    pub(crate) fn uninitialized() -> Self {
         // Safety: This is undefined behavior but it seems to work fine. Zero initialization is safe but slower in benchmarks.
         #[allow(clippy::uninit_assumed_init)]
         unsafe {

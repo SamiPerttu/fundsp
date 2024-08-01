@@ -55,7 +55,7 @@ impl<N: Size<f32>> AudioNode for Tick<N> {
         for i in 0..self.outputs() {
             output.set(
                 i,
-                input.at(i).filter(1.0, |r| {
+                input.at(i).filter(0.0, |r| {
                     r * Complex64::from_polar(1.0, -f64::TAU * frequency / self.sample_rate)
                 }),
             );
@@ -127,7 +127,7 @@ impl AudioNode for Delay {
         let mut output = SignalFrame::new(self.outputs());
         output.set(
             0,
-            input.at(0).filter(self.time_in_samples as f64, |r| {
+            input.at(0).filter(0.0, |r| {
                 r * Complex64::from_polar(
                     1.0,
                     -f64::TAU * self.time_in_samples as f64 * frequency / self.sample_rate,
@@ -280,12 +280,7 @@ where
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = SignalFrame::new(self.outputs());
-        output.set(
-            0,
-            input
-                .at(0)
-                .distort(self.min_delay.to_f64() * self.sample_rate.to_f64()),
-        );
+        output.set(0, input.at(0).distort(0.0));
         output
     }
 }
@@ -504,12 +499,7 @@ where
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
         let mut output = SignalFrame::new(self.outputs());
-        output.set(
-            0,
-            input
-                .at(0)
-                .distort(self.min_delay.to_f64() * self.sample_rate.to_f64()),
-        );
+        output.set(0, input.at(0).distort(0.0));
         output
     }
 }

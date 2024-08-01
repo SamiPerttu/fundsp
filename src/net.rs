@@ -350,6 +350,7 @@ impl Net {
         assert_eq!(unit.inputs(), self.vertex[node_index].inputs());
         assert_eq!(unit.outputs(), self.vertex[node_index].outputs());
         unit.set_sample_rate(self.sample_rate as f64);
+        unit.allocate();
         let mut edit = NodeEdit {
             unit: Some(unit),
             id: node,
@@ -615,6 +616,7 @@ impl Net {
                 self.pipe_input(id);
             }
         }
+        self.invalidate_order();
         id
     }
 
@@ -844,11 +846,22 @@ impl Net {
         for (id, &index) in self.node_index.iter() {
             if let Some(&new_index) = new.node_index.get(id) {
                 // We may use the existing unit if no changes have been made since our last update.
+                // Note: the new vertices never contain next or latest units as they come from the frontend
+                // where they are not applied.
                 if new.vertex[new_index].changed <= self.revision {
                     core::mem::swap(
                         &mut self.vertex[index].unit,
                         &mut new.vertex[new_index].unit,
                     );
+                    core::mem::swap(
+                        &mut self.vertex[index].next,
+                        &mut new.vertex[new_index].next,
+                    );
+                    core::mem::swap(
+                        &mut self.vertex[index].latest,
+                        &mut new.vertex[new_index].latest,
+                    );
+                    new.vertex[new_index].fade_phase = self.vertex[index].fade_phase;
                 }
             }
         }
@@ -911,11 +924,11 @@ impl Net {
         let mut net = self.clone();
         // Filter the edit queue while updating unit indices.
         for edit in self.edit_queue.iter_mut() {
-            if let Some(index) = self.node_index.get(&edit.id) {
+            if let Some(&index) = self.node_index.get(&edit.id) {
                 net.edit_queue.push(NodeEdit {
                     unit: edit.unit.take(),
                     id: edit.id,
-                    index: *index,
+                    index,
                     fade: edit.fade.clone(),
                     fade_time: edit.fade_time,
                 });
@@ -1041,11 +1054,7 @@ impl Net {
                 let vertex = &mut self.vertex[node_index];
                 // Safety: we know there is no aliasing, as self connections are prohibited.
                 unsafe {
-                    vertex.unit.process(
-                        size,
-                        &(*ptr).buffer_ref(),
-                        &mut vertex.output.buffer_mut(),
-                    );
+                    vertex.process(size, &(*ptr).buffer_ref(), self.sample_rate, sender);
                 }
             }
         }

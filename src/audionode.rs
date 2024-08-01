@@ -283,7 +283,6 @@ pub trait AudioNode: Clone + Sync + Send {
     /// ### Example
     /// ```
     /// use fundsp::hacker::*;
-    /// use num_complex::Complex64;
     /// assert_eq!(pass().response(0, 440.0), Some(Complex64::new(1.0, 0.0)));
     /// ```
     fn response(&mut self, output: usize, frequency: f64) -> Option<Complex64> {
@@ -314,17 +313,19 @@ pub trait AudioNode: Clone + Sync + Send {
         self.response(output, frequency).map(|r| amp_db(r.norm()))
     }
 
-    /// Causal latency in (fractional) samples.
+    /// Causal latency in (fractional) samples, if any.
     /// After a reset, we can discard this many samples from the output to avoid incurring a pre-delay.
     /// The latency may depend on the sample rate.
+    /// Voluntary latencies, such as delays, are not counted as latency.
     ///
     /// ### Example
     /// ```
     /// use fundsp::hacker::*;
     /// assert_eq!(pass().latency(), Some(0.0));
-    /// assert_eq!(tick().latency(), Some(1.0));
+    /// assert_eq!(tick().latency(), Some(0.0));
     /// assert_eq!(sink().latency(), None);
     /// assert_eq!(lowpass_hz(440.0, 1.0).latency(), Some(0.0));
+    /// assert_eq!(limiter(0.01, 0.01).latency(), Some(441.0));
     /// ```
     fn latency(&mut self) -> Option<f64> {
         if self.outputs() == 0 {
@@ -594,7 +595,7 @@ where
     }
 }
 
-/// Join `N` channels into one by averaging. Inverse of `Split<N, T>`.
+/// Join `N` channels into one by averaging. Inverse of `Split<N>`.
 #[derive(Clone)]
 pub struct Join<N> {
     _marker: PhantomData<N>,
@@ -645,7 +646,7 @@ where
 }
 
 /// Average `N` branches of `M` channels into one branch with `M` channels.
-/// The input has `M` * `N` channels. Inverse of `MultiSplit<M, N, T>`.
+/// The input has `M` * `N` channels. Inverse of `MultiSplit<M, N>`.
 #[derive(Clone)]
 pub struct MultiJoin<M, N> {
     _marker: PhantomData<(M, N)>,

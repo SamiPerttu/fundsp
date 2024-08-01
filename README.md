@@ -393,9 +393,6 @@ the output arity of `A` must match the input arity of `B`.
 The whole combination then has the input arity of `A` and the output arity of `B`.
 Pipe is a fundamental operation. It wires units in series.
 
-It is possible to pipe a sink to a generator. This is similar to stacking.
-Processing works as normal and the sink processes its inputs before the generator is run.
-
 The pipe operation is also available as a function: `pipe(A, B)` is equal to `A >> B`.
 
 #### Branch
@@ -1112,8 +1109,8 @@ The type parameters in the table refer to the hacker preludes.
 | `lfo2(f)`              |  1 (x)  |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `envelope2`. |
 | `lfo3(f)`              | 2 (x, y) |  `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x, y\| y * exp(-t * x)`. Synonymous with `envelope3`. |
 | `lfo_in(f)`            |   `f`   |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, i: &Frame<f64, U1>\| exp(-t * i[0])`. Synonymous with `envelope_in`. |
-| `limiter((a, r))`      |    1    |    1    | Look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
-| `limiter_stereo((a, r))`|   2    |    2    | Stereo look-ahead limiter with attack time `a` seconds and release time `r` seconds. |
+| `limiter(a, r)`        |    1    |    1    | Look-ahead limiter with attack time (and latency) `a` seconds and release time `r` seconds. |
+| `limiter_stereo(a, r)` |    2    |    2    | Stereo look-ahead limiter with attack time (and latency) `a` seconds and release time `r` seconds. |
 | `lorenz()`             | 1 (frequency) | 1 | [Lorenz dynamical system](https://en.wikipedia.org/wiki/Lorenz_system) oscillator. |
 | `lowpass()`            | 3 (audio, frequency, Q) | 1 | Lowpass filter (2nd order). |
 | `lowpass_hz(f, q)`     |    1    |    1    | Lowpass filter (2nd order) with cutoff frequency `f` Hz and Q `q`. |

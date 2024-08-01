@@ -88,6 +88,8 @@ impl Shape for Tanh {
 }
 
 /// Apply `atan` distortion with configurable hardness.
+/// The function has been modified to saturate at unity
+/// while maintaining a slope of 1 at origin.
 /// Argument to `atan` is multiplied by the hardness value.
 #[derive(Clone)]
 pub struct Atan(pub f32);
@@ -145,28 +147,34 @@ impl Shape for SoftCrush {
         let y = floor(x);
         (y + smooth9(x - y)) / self.0
     }
+    #[inline]
+    fn simd(&mut self, input: F32x) -> F32x {
+        let x = input * self.0;
+        let y = floor(x);
+        (y + smooth9(x - y)) / self.0
+    }
 }
 
-/// Adaptive normalizing `tanh` distortion with smoothing timescale and hardness as parameters.
+/// Adaptive normalizing distortion with smoothing timescale and hardness as parameters.
 /// Smoothing timescale is specified in seconds.
 /// It is the time it takes for level estimation to move halfway to a new level.
 /// The argument to `tanh` is divided by the RMS level of the signal and multiplied by hardness.
 /// Minimum estimated signal level for adaptive distortion is approximately -60 dB.
 #[derive(Clone)]
-pub struct AdaptiveTanh {
+pub struct Adaptive<S: Shape> {
+    inner: S,
     timescale: f32,
     /// Per-sample smoothing factor.
     smoothing: f32,
-    hardness: f32,
     state: f32,
 }
 
-impl AdaptiveTanh {
-    pub fn new(timescale: f32, hardness: f32) -> Self {
+impl<S: Shape> Adaptive<S> {
+    pub fn new(timescale: f32, inner: S) -> Self {
         let mut adaptive = Self {
+            inner,
             timescale,
             smoothing: 0.0,
-            hardness,
             state: 0.0,
         };
         adaptive.set_sample_rate(DEFAULT_SR);
@@ -174,18 +182,20 @@ impl AdaptiveTanh {
     }
 }
 
-impl Shape for AdaptiveTanh {
+impl<S: Shape> Shape for Adaptive<S> {
     #[inline]
     fn shape(&mut self, input: f32) -> f32 {
         self.state =
             self.smoothing * self.state + (1.0 - self.smoothing) * (1.0e-6 + squared(input));
-        tanh(input * self.hardness / sqrt(self.state))
+        self.inner.shape(input / sqrt(self.state))
     }
     fn reset(&mut self) {
-        self.state = 0.0;
+        self.state = 1.0e-6;
+        self.inner.reset();
     }
     fn set_sample_rate(&mut self, sample_rate: f64) {
         self.smoothing = pow(0.5, 1.0 / (self.timescale.to_f64() * sample_rate)).to_f32();
+        self.inner.set_sample_rate(sample_rate);
     }
 }
 
@@ -222,12 +232,10 @@ impl<S: Shape> AudioNode for Shaper<S> {
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
-        for i in 0..size >> SIMD_S {
+        for i in 0..full_simd_items(size) {
             output.set(0, i, self.shape.simd(input.at(0, i)));
         }
-        for i in size & !SIMD_M..size {
-            output.set_f32(0, i, self.shape.shape(input.at_f32(0, i)));
-        }
+        self.process_remainder(size, input, output);
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {

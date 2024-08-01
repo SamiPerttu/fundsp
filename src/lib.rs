@@ -26,8 +26,11 @@ use core::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 /// Default sample rate is 44.1 kHz.
 pub const DEFAULT_SR: f64 = 44_100.0;
 
+/// Binary logarithm of maximum buffer size.
+pub const MAX_BUFFER_LOG: usize = 6;
+
 /// Maximum buffer size for block processing is 64 samples.
-pub const MAX_BUFFER_SIZE: usize = 64;
+pub const MAX_BUFFER_SIZE: usize = 1 << MAX_BUFFER_LOG;
 
 /// Blocks are explicitly SIMD accelerated. This is the type of a SIMD element
 /// containing successive `f32` samples.
@@ -49,8 +52,7 @@ pub const SIMD_N: usize = 1 << SIMD_S;
 pub const SIMD_M: usize = SIMD_N - 1;
 
 /// Left shift for converting from channel number to SIMD index.
-// Linked to MAX_BUFFER_SIZE = 1 << 6.
-pub const SIMD_C: usize = 6 - SIMD_S;
+pub const SIMD_C: usize = MAX_BUFFER_LOG - SIMD_S;
 
 /// The length of a buffer in SIMD elements.
 pub const SIMD_LEN: usize = MAX_BUFFER_SIZE / SIMD_N;
