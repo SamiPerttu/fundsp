@@ -166,7 +166,7 @@ The `tick` method is for processing single
 sample frames, while the `process` method processes whole blocks.
 
 If maximum speed is important, then
-it is a good idea to use block processing, as it amortizes
+it is a good idea to use block processing, as it reduces
 function calling, processing setup and dynamic network overhead,
 and enables explicit [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) support.
 
