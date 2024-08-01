@@ -1184,7 +1184,7 @@ pub fn shape<S: Shape>(mode: S) -> An<Shaper<S>> {
 /// - Input 0: input signal
 /// - Output 0: clipped signal
 pub fn clip() -> An<Shaper<Clip>> {
-    An(Shaper::new(Clip))
+    An(Shaper::new(Clip(1.0)))
 }
 
 /// Clip signal to `minimum`...`maximum`.

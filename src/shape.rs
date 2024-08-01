@@ -45,16 +45,16 @@ impl<S: Fn(f32) -> f32 + Clone + Sync + Send> Shape for ShapeFn<S> {
 
 /// Clip signal to -1...1.
 #[derive(Clone)]
-pub struct Clip;
+pub struct Clip(pub f32);
 
 impl Shape for Clip {
     #[inline]
     fn shape(&mut self, input: f32) -> f32 {
-        input.clamp(-1.0, 1.0)
+        (input * self.0).clamp(-1.0, 1.0)
     }
     #[inline]
     fn simd(&mut self, input: F32x) -> F32x {
-        input.fast_max(-F32x::ONE).fast_min(F32x::ONE)
+        (input * self.0).fast_max(-F32x::ONE).fast_min(F32x::ONE)
     }
 }
 

@@ -1256,18 +1256,19 @@ let partials = busf::<U20, _, _>(|f| noise() >> resonator_hz(xerp(1_000.0, 2_000
 
 #### Waveshaping Modes
 
-These are arguments to the `shape` opcode.
+These are arguments to the `shape` opcode. Shapes `Atan`, `Clip`, `Softsign` and `Tanh`
+all have a slope of 1 at the origin when hardness is 1 and saturate in the range -1...1.
 
-- `Clip`: Clip signal to -1...1.
-- `ClipTo(minimum, maximum)`: Clip signal between the two arguments.
-- `Tanh(hardness)`: Apply `tanh` distortion with configurable hardness. Argument to `tanh` is multiplied by the hardness value.
+- `Adaptive::new(timescale, inner)`: Apply adaptive normalizing distortion with smoothing `timescale` in seconds.
+Smoothing timescale is the time it takes for level estimation to move halfway to a new value.
+The argument to the `inner` shape is divided by the RMS level of the signal.
 - `Atan(hardness)`: Apply `atan` distortion with configurable hardness, with the output range scaled to -1...1. Argument to `atan` is multiplied by the hardness value.
-- `Softsign(hardness)`: Apply `softsign` distortion with configurable hardness. Argument to `softsign` is multiplied by the hardness value.
+- `Clip(hardness)`: Multiply signal with hardness and then clamp it to -1...1.
+- `ClipTo(minimum, maximum)`: Clip signal between the two arguments.
 - `Crush(levels)`: Apply a staircase function with configurable number of levels per unit.
 - `SoftCrush(levels)`: Apply a smooth staircase function with configurable number of levels per unit.
-- `AdaptiveTanh::new(timescale, hardness)`: Apply adaptive normalizing distortion with smoothing `timescale` in seconds.
-Smoothing timescale is the time it takes for level estimation to move halfway to a new value.
-Argument to `tanh` is multiplied by the hardness value and divided by the RMS level of the signal.
+- `Softsign(hardness)`: Apply `softsign` distortion with configurable hardness. Argument to `softsign` is multiplied by the hardness value.
+- `Tanh(hardness)`: Apply `tanh` distortion with configurable hardness. Argument to `tanh` is multiplied by the hardness value.
 
 #### Metering Modes
 
