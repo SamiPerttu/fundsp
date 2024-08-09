@@ -6,6 +6,7 @@ use alloc::sync::Arc;
 
 pub use super::audionode::*;
 pub use super::audiounit::*;
+pub use super::biquad::*;
 pub use super::buffer::*;
 pub use super::combinator::*;
 pub use super::delay::*;

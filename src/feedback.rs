@@ -126,12 +126,14 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        super::denormal::prevent_denormals();
         let output = self.x.tick(&(input + self.value.clone()));
         self.value = self.feedback.frame(&output);
         output
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        super::denormal::prevent_denormals();
         for i in 0..size {
             let input_frame =
                 Frame::generate(|channel| input.at_f32(channel, i) + self.value[channel]);
@@ -236,12 +238,14 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        super::denormal::prevent_denormals();
         let output = self.x.tick(&(input + self.value.clone()));
         self.value = self.feedback.frame(&self.y.tick(&output));
         output
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        super::denormal::prevent_denormals();
         for i in 0..size {
             let input_frame =
                 Frame::generate(|channel| input.at_f32(channel, i) + self.value[channel]);
@@ -350,6 +354,7 @@ impl AudioUnit for FeedbackUnit {
     }
 
     fn tick(&mut self, input: &[f32], output: &mut [f32]) {
+        super::denormal::prevent_denormals();
         let read_i = self.read_index(self.samples);
         for (channel, (tick, i)) in self.tick_buffer.iter_mut().zip(input.iter()).enumerate() {
             *tick = *i + self.feedback[channel][read_i];
@@ -362,6 +367,7 @@ impl AudioUnit for FeedbackUnit {
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        super::denormal::prevent_denormals();
         if size <= self.samples {
             // We have enough feedback samples to process the whole block at once.
             for channel in 0..self.channels {

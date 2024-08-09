@@ -10,6 +10,8 @@
 - `AdaptiveTanh` is now generic `Adaptive` distortion with an inner shape.
   To migrate, try `Adaptive::new(timescale, Tanh(hardness))`.
 - `Clip` shape now has a hardness parameter. `Clip(1.0)` to migrate.
+- `SvfCoeffs` is now `SvfCoefs`.
+- Implemented denormal prevention for `x86`.
 
 ### Version 0.18.2
 

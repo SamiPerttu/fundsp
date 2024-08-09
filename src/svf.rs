@@ -14,7 +14,7 @@ use numeric_array::typenum::*;
 
 /// State variable filter coefficients, generic formulation.
 #[derive(Clone, Default)]
-pub struct SvfCoeffs<F: Real> {
+pub struct SvfCoefs<F: Real> {
     pub a1: F,
     pub a2: F,
     pub a3: F,
@@ -23,7 +23,7 @@ pub struct SvfCoeffs<F: Real> {
     pub m2: F,
 }
 
-impl<F: Real> SvfCoeffs<F> {
+impl<F: Real> SvfCoefs<F> {
     /// Calculate coefficients for a lowpass filter.
     pub fn lowpass(sample_rate: F, cutoff: F, q: F) -> Self {
         let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate);
@@ -35,7 +35,7 @@ impl<F: Real> SvfCoeffs<F> {
         let m1 = F::zero();
         let m2 = F::one();
 
-        SvfCoeffs {
+        SvfCoefs {
             a1,
             a2,
             a3,
@@ -56,7 +56,7 @@ impl<F: Real> SvfCoeffs<F> {
         let m1 = -k;
         let m2 = -F::one();
 
-        SvfCoeffs {
+        SvfCoefs {
             a1,
             a2,
             a3,
@@ -77,7 +77,7 @@ impl<F: Real> SvfCoeffs<F> {
         let m1 = F::one();
         let m2 = F::zero();
 
-        SvfCoeffs {
+        SvfCoefs {
             a1,
             a2,
             a3,
@@ -98,7 +98,7 @@ impl<F: Real> SvfCoeffs<F> {
         let m1 = -k;
         let m2 = F::zero();
 
-        SvfCoeffs {
+        SvfCoefs {
             a1,
             a2,
             a3,
@@ -119,7 +119,7 @@ impl<F: Real> SvfCoeffs<F> {
         let m1 = -k;
         let m2 = F::new(-2);
 
-        SvfCoeffs {
+        SvfCoefs {
             a1,
             a2,
             a3,
@@ -140,7 +140,7 @@ impl<F: Real> SvfCoeffs<F> {
         let m1 = F::new(-2) * k;
         let m2 = F::zero();
 
-        SvfCoeffs {
+        SvfCoefs {
             a1,
             a2,
             a3,
@@ -163,7 +163,7 @@ impl<F: Real> SvfCoeffs<F> {
         let m1 = k * (a * a - F::one());
         let m2 = F::zero();
 
-        SvfCoeffs {
+        SvfCoefs {
             a1,
             a2,
             a3,
@@ -186,7 +186,7 @@ impl<F: Real> SvfCoeffs<F> {
         let m1 = k * (a - F::one());
         let m2 = a * a - F::one();
 
-        SvfCoeffs {
+        SvfCoefs {
             a1,
             a2,
             a3,
@@ -209,7 +209,7 @@ impl<F: Real> SvfCoeffs<F> {
         let m1 = k * (F::one() - a) * a;
         let m2 = F::one() - a * a;
 
-        SvfCoeffs {
+        SvfCoefs {
             a1,
             a2,
             a3,
@@ -231,30 +231,30 @@ pub trait SvfMode<F: Real>: Clone + Default + Sync + Send {
     type Setting: Sync + Send + Clone + Default;
 
     /// Update coefficients and parameters from settings.
-    fn set(&mut self, setting: Self::Setting, params: &mut SvfParams<F>, coeffs: &mut SvfCoeffs<F>);
+    fn set(&mut self, setting: Self::Setting, params: &mut SvfParams<F>, coefs: &mut SvfCoefs<F>);
 
     /// Update coefficients and state from the full set of parameters.
-    fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>);
+    fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>);
 
     /// Update coefficients and state from sample rate and/or cutoff.
     /// Other parameters are untouched.
-    fn update_frequency(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
+    fn update_frequency(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         // Do a bulk update by default.
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
 
     /// Update coefficients and state from Q.
     /// Other parameters are untouched.
-    fn update_q(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
+    fn update_q(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         // Do a bulk update by default.
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
 
     /// Update coefficients and state from gain. Gain is given as amplitude.
     /// Other parameters are untouched.
     /// Only equalizing modes (bell and shelf) support gain. It is ignored by default.
     #[allow(unused_variables)]
-    fn update_gain(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {}
+    fn update_gain(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {}
 
     /// Update coefficients, parameters and state from input.
     #[allow(unused_variables)]
@@ -262,7 +262,7 @@ pub trait SvfMode<F: Real>: Clone + Default + Sync + Send {
         &mut self,
         input: &Frame<F, Self::Inputs>,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
     }
 
@@ -302,28 +302,28 @@ impl<F: Real> SvfMode<F> for LowpassMode<F> {
         &mut self,
         (cutoff, q): Self::Setting,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         params.cutoff = cutoff;
         params.q = q;
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
-    fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
-        *coeffs = SvfCoeffs::lowpass(params.sample_rate, params.cutoff, params.q);
+    fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
+        *coefs = SvfCoefs::lowpass(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         let cutoff = input[1];
         let q = input[2];
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(params, coeffs);
+            self.update(params, coefs);
         }
     }
 
@@ -361,28 +361,28 @@ impl<F: Real> SvfMode<F> for HighpassMode<F> {
         &mut self,
         (cutoff, q): Self::Setting,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         params.cutoff = cutoff;
         params.q = q;
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
-    fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
-        *coeffs = SvfCoeffs::highpass(params.sample_rate, params.cutoff, params.q);
+    fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
+        *coefs = SvfCoefs::highpass(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         let cutoff = input[1];
         let q = input[2];
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(params, coeffs);
+            self.update(params, coefs);
         }
     }
 
@@ -420,28 +420,28 @@ impl<F: Real> SvfMode<F> for BandpassMode<F> {
         &mut self,
         (cutoff, q): Self::Setting,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         params.cutoff = cutoff;
         params.q = q;
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
-    fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
-        *coeffs = SvfCoeffs::bandpass(params.sample_rate, params.cutoff, params.q);
+    fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
+        *coefs = SvfCoefs::bandpass(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         let cutoff = input[1];
         let q = input[2];
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(params, coeffs);
+            self.update(params, coefs);
         }
     }
 
@@ -479,28 +479,28 @@ impl<F: Real> SvfMode<F> for NotchMode<F> {
         &mut self,
         (cutoff, q): Self::Setting,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         params.cutoff = cutoff;
         params.q = q;
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
-    fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
-        *coeffs = SvfCoeffs::notch(params.sample_rate, params.cutoff, params.q);
+    fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
+        *coefs = SvfCoefs::notch(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         let cutoff = input[1];
         let q = input[2];
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(params, coeffs);
+            self.update(params, coefs);
         }
     }
 
@@ -538,28 +538,28 @@ impl<F: Real> SvfMode<F> for PeakMode<F> {
         &mut self,
         (cutoff, q): Self::Setting,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         params.cutoff = cutoff;
         params.q = q;
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
-    fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
-        *coeffs = SvfCoeffs::peak(params.sample_rate, params.cutoff, params.q);
+    fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
+        *coefs = SvfCoefs::peak(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         let cutoff = input[1];
         let q = input[2];
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(params, coeffs);
+            self.update(params, coefs);
         }
     }
 
@@ -598,28 +598,28 @@ impl<F: Real> SvfMode<F> for AllpassMode<F> {
         &mut self,
         (cutoff, q): Self::Setting,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         params.cutoff = cutoff;
         params.q = q;
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
-    fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
-        *coeffs = SvfCoeffs::allpass(params.sample_rate, params.cutoff, params.q);
+    fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
+        *coefs = SvfCoefs::allpass(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         let cutoff = input[1];
         let q = input[2];
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
-            self.update(params, coeffs);
+            self.update(params, coefs);
         }
     }
 
@@ -658,22 +658,22 @@ impl<F: Real> SvfMode<F> for BellMode<F> {
         &mut self,
         (cutoff, q, gain): Self::Setting,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         params.cutoff = cutoff;
         params.q = q;
         params.gain = gain;
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
-    fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
-        *coeffs = SvfCoeffs::bell(params.sample_rate, params.cutoff, params.q, params.gain);
+    fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
+        *coefs = SvfCoefs::bell(params.sample_rate, params.cutoff, params.q, params.gain);
     }
     #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         let cutoff = input[1];
         let q = input[2];
@@ -682,7 +682,7 @@ impl<F: Real> SvfMode<F> for BellMode<F> {
             params.cutoff = cutoff;
             params.q = q;
             params.gain = gain;
-            self.update(params, coeffs);
+            self.update(params, coefs);
         }
     }
 
@@ -723,22 +723,22 @@ impl<F: Real> SvfMode<F> for LowshelfMode<F> {
         &mut self,
         (cutoff, q, gain): Self::Setting,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         params.cutoff = cutoff;
         params.q = q;
         params.gain = gain;
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
-    fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
-        *coeffs = SvfCoeffs::lowshelf(params.sample_rate, params.cutoff, params.q, params.gain);
+    fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
+        *coefs = SvfCoefs::lowshelf(params.sample_rate, params.cutoff, params.q, params.gain);
     }
     #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         let cutoff = input[1];
         let q = input[2];
@@ -747,7 +747,7 @@ impl<F: Real> SvfMode<F> for LowshelfMode<F> {
             params.cutoff = cutoff;
             params.q = q;
             params.gain = gain;
-            self.update(params, coeffs);
+            self.update(params, coefs);
         }
     }
 
@@ -791,22 +791,22 @@ impl<F: Real> SvfMode<F> for HighshelfMode<F> {
         &mut self,
         (cutoff, q, gain): Self::Setting,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         params.cutoff = cutoff;
         params.q = q;
         params.gain = gain;
-        self.update(params, coeffs);
+        self.update(params, coefs);
     }
-    fn update(&mut self, params: &SvfParams<F>, coeffs: &mut SvfCoeffs<F>) {
-        *coeffs = SvfCoeffs::highshelf(params.sample_rate, params.cutoff, params.q, params.gain);
+    fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
+        *coefs = SvfCoefs::highshelf(params.sample_rate, params.cutoff, params.q, params.gain);
     }
     #[inline]
     fn update_inputs(
         &mut self,
         input: &Frame<F, Self::Inputs>,
         params: &mut SvfParams<F>,
-        coeffs: &mut SvfCoeffs<F>,
+        coefs: &mut SvfCoefs<F>,
     ) {
         let cutoff = input[1];
         let q = input[2];
@@ -815,7 +815,7 @@ impl<F: Real> SvfMode<F> for HighshelfMode<F> {
             params.cutoff = cutoff;
             params.q = q;
             params.gain = gain;
-            self.update(params, coeffs);
+            self.update(params, coefs);
         }
     }
 
@@ -851,7 +851,7 @@ where
 {
     mode: M,
     params: SvfParams<F>,
-    coeffs: SvfCoeffs<F>,
+    coefs: SvfCoefs<F>,
     ic1eq: F,
     ic2eq: F,
 }
@@ -864,13 +864,13 @@ where
 {
     pub fn new(mode: M, params: &SvfParams<F>) -> Self {
         let params = params.clone();
-        let mut coeffs = SvfCoeffs::default();
+        let mut coefs = SvfCoefs::default();
         let mut mode = mode;
-        mode.update(&params, &mut coeffs);
+        mode.update(&params, &mut coefs);
         Svf {
             mode,
             params,
-            coeffs,
+            coefs,
             ic1eq: F::zero(),
             ic2eq: F::zero(),
         }
@@ -920,7 +920,7 @@ where
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
         self.params.sample_rate = convert(sample_rate);
-        self.mode.update_frequency(&self.params, &mut self.coeffs);
+        self.mode.update_frequency(&self.params, &mut self.coefs);
     }
 
     #[inline]
@@ -928,15 +928,15 @@ where
         // Update parameters from input.
         let input = Frame::generate(|i| convert(input[i]));
         self.mode
-            .update_inputs(&input, &mut self.params, &mut self.coeffs);
+            .update_inputs(&input, &mut self.params, &mut self.coefs);
         let v0 = input[0];
         let v3 = v0 - self.ic2eq;
-        let v1 = self.coeffs.a1 * self.ic1eq + self.coeffs.a2 * v3;
-        let v2 = self.ic2eq + self.coeffs.a2 * self.ic1eq + self.coeffs.a3 * v3;
+        let v1 = self.coefs.a1 * self.ic1eq + self.coefs.a2 * v3;
+        let v2 = self.ic2eq + self.coefs.a2 * self.ic1eq + self.coefs.a3 * v3;
         self.ic1eq = F::new(2) * v1 - self.ic1eq;
         self.ic2eq = F::new(2) * v2 - self.ic2eq;
         [convert(
-            self.coeffs.m0 * v0 + self.coeffs.m1 * v1 + self.coeffs.m2 * v2,
+            self.coefs.m0 * v0 + self.coefs.m1 * v1 + self.coefs.m2 * v2,
         )]
         .into()
     }
@@ -965,7 +965,7 @@ where
 {
     mode: M,
     params: SvfParams<F>,
-    coeffs: SvfCoeffs<F>,
+    coefs: SvfCoefs<F>,
     ic1eq: F,
     ic2eq: F,
 }
@@ -977,13 +977,13 @@ where
 {
     pub fn new(mode: M, params: &SvfParams<F>) -> Self {
         let params = params.clone();
-        let mut coeffs = SvfCoeffs::default();
+        let mut coefs = SvfCoefs::default();
         let mut mode = mode;
-        mode.update(&params, &mut coeffs);
+        mode.update(&params, &mut coefs);
         FixedSvf {
             mode,
             params,
-            coeffs,
+            coefs,
             ic1eq: F::zero(),
             ic2eq: F::zero(),
         }
@@ -1019,7 +1019,7 @@ where
     #[inline]
     pub fn set_cutoff(&mut self, cutoff: F) {
         self.params.cutoff = cutoff;
-        self.mode.update_frequency(&self.params, &mut self.coeffs);
+        self.mode.update_frequency(&self.params, &mut self.coefs);
     }
 
     /// Set filter center in Hz. Synonymous with `set_cutoff`.
@@ -1033,7 +1033,7 @@ where
     pub fn set_cutoff_q(&mut self, cutoff: F, q: F) {
         self.params.cutoff = cutoff;
         self.params.q = q;
-        self.mode.update_frequency(&self.params, &mut self.coeffs);
+        self.mode.update_frequency(&self.params, &mut self.coefs);
     }
 
     /// Set filter center in Hz and Q. Synonymous with `set_cutoff_q`.
@@ -1046,14 +1046,14 @@ where
     #[inline]
     pub fn set_q(&mut self, q: F) {
         self.params.q = q;
-        self.mode.update_q(&self.params, &mut self.coeffs);
+        self.mode.update_q(&self.params, &mut self.coefs);
     }
 
     /// Set filter gain. Only equalizing modes support gain. Other modes ignore it.
     #[inline]
     pub fn set_gain(&mut self, gain: F) {
         self.params.gain = gain;
-        self.mode.update_gain(&self.params, &mut self.coeffs);
+        self.mode.update_gain(&self.params, &mut self.coefs);
     }
 
     /// Set filter cutoff in Hz, Q and gain. Synonymous with `set_center_q_gain`.
@@ -1062,7 +1062,7 @@ where
         self.params.cutoff = cutoff;
         self.params.q = q;
         self.params.gain = gain;
-        self.mode.update(&self.params, &mut self.coeffs);
+        self.mode.update(&self.params, &mut self.coefs);
     }
 
     /// Set filter center in Hz, Q and gain. Synonymous with `set_cutoff_q_gain`.
@@ -1088,19 +1088,19 @@ where
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
         self.params.sample_rate = convert(sample_rate);
-        self.mode.update_frequency(&self.params, &mut self.coeffs);
+        self.mode.update_frequency(&self.params, &mut self.coefs);
     }
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let v0 = convert(input[0]);
         let v3 = v0 - self.ic2eq;
-        let v1 = self.coeffs.a1 * self.ic1eq + self.coeffs.a2 * v3;
-        let v2 = self.ic2eq + self.coeffs.a2 * self.ic1eq + self.coeffs.a3 * v3;
+        let v1 = self.coefs.a1 * self.ic1eq + self.coefs.a2 * v3;
+        let v2 = self.ic2eq + self.coefs.a2 * self.ic1eq + self.coefs.a3 * v3;
         self.ic1eq = F::new(2) * v1 - self.ic1eq;
         self.ic2eq = F::new(2) * v2 - self.ic2eq;
         [convert(
-            self.coeffs.m0 * v0 + self.coeffs.m1 * v1 + self.coeffs.m2 * v2,
+            self.coefs.m0 * v0 + self.coefs.m1 * v1 + self.coefs.m2 * v2,
         )]
         .into()
     }

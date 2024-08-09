@@ -6,6 +6,7 @@ use alloc::sync::Arc;
 
 pub use super::audionode::*;
 pub use super::audiounit::*;
+pub use super::biquad::*;
 pub use super::buffer::*;
 pub use super::combinator::*;
 pub use super::delay::*;
@@ -2717,7 +2718,7 @@ pub fn phaser<X: Fn(f32) -> f32 + Clone + Send + Sync>(
 ) -> An<impl AudioNode<Inputs = U1, Outputs = U1>> {
     pass()
         & feedback(
-            (pass() | lfo(move |t| lerp(1.0, 10.0, phase_f(t))))
+            (pass() | lfo(move |t| lerp(2.0, 20.0, clamp01(phase_f(t)))))
                 >> pipei::<U10, _, _>(|_i| (pass() | add(0.05)) >> !allpole::<f32>())
                 >> (mul(feedback_amount) | sink()),
         )

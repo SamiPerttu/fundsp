@@ -137,6 +137,8 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
 where
     T: SizedSample + FromSample<f64>,
 {
+    fundsp::denormal::prevent_denormals();
+
     let sample_rate = config.sample_rate.0 as f64;
     let channels = config.channels as usize;
 
@@ -312,17 +314,17 @@ impl eframe::App for State {
                     self.net.crossfade(
                         self.phaser_id,
                         Fade::Smooth,
-                        0.1,
+                        0.2,
                         Box::new(
-                            phaser(0.9, |t| sin_hz(0.08, t) * 0.5 + 0.5)
-                                | phaser(0.9, |t| sin_hz(0.08, t + 0.1) * 0.5 + 0.5),
+                            phaser(0.8, |t| sin_hz(0.08, t) * 0.5 + 0.5)
+                                | phaser(0.8, |t| sin_hz(0.08, t + 0.1) * 0.5 + 0.5),
                         ),
                     );
                 } else {
                     self.net.crossfade(
                         self.phaser_id,
                         Fade::Smooth,
-                        0.1,
+                        0.2,
                         Box::new(multipass::<U2>()),
                     );
                 }
@@ -335,12 +337,12 @@ impl eframe::App for State {
                     self.net.crossfade(
                         self.flanger_id,
                         Fade::Smooth,
-                        0.1,
+                        0.2,
                         Box::new(
-                            flanger(0.9, 0.005, 0.015, |t| {
-                                lerp11(0.005, 0.015, sin_hz(0.06, t + 0.1))
-                            }) | flanger(0.9, 0.005, 0.015, |t| {
-                                lerp11(0.005, 0.015, sin_hz(0.06, t))
+                            flanger(0.8, 0.005, 0.015, |t| {
+                                lerp11(0.0025, 0.015, sin_hz(0.06, t + 0.1))
+                            }) | flanger(0.8, 0.005, 0.015, |t| {
+                                lerp11(0.0025, 0.015, sin_hz(0.06, t))
                             }),
                         ),
                     );
@@ -348,7 +350,7 @@ impl eframe::App for State {
                     self.net.crossfade(
                         self.flanger_id,
                         Fade::Smooth,
-                        0.1,
+                        0.2,
                         Box::new(multipass::<U2>()),
                     );
                 }
@@ -452,14 +454,14 @@ impl eframe::App for State {
                     });
                     let waveform = match self.waveform {
                         Waveform::Sine => Net::wrap(Box::new(pitch * 2.0 >> sine() * 0.1)),
-                        Waveform::Saw => Net::wrap(Box::new(pitch >> saw() * 0.5)),
-                        Waveform::Square => Net::wrap(Box::new(pitch >> square() * 0.5)),
-                        Waveform::Triangle => Net::wrap(Box::new(pitch >> triangle() * 0.5)),
-                        Waveform::Organ => Net::wrap(Box::new(pitch >> organ() * 0.5)),
-                        Waveform::Hammond => Net::wrap(Box::new(pitch >> hammond() * 0.5)),
+                        Waveform::Saw => Net::wrap(Box::new(pitch >> saw() * 0.25)),
+                        Waveform::Square => Net::wrap(Box::new(pitch >> square() * 0.25)),
+                        Waveform::Triangle => Net::wrap(Box::new(pitch >> triangle() * 0.25)),
+                        Waveform::Organ => Net::wrap(Box::new(pitch >> organ() * 0.25)),
+                        Waveform::Hammond => Net::wrap(Box::new(pitch >> hammond() * 0.25)),
                         Waveform::Pulse => Net::wrap(Box::new(
                             (pitch | lfo(move |t| lerp11(0.01, 0.99, sin_hz(0.1, t))))
-                                >> pulse() * 0.5,
+                                >> pulse() * 0.25,
                         )),
                         Waveform::Pluck => {
                             Net::wrap(Box::new(zero() >> pluck(pitch_hz as f32, 0.5, 0.5) * 0.5))
@@ -469,14 +471,14 @@ impl eframe::App for State {
                                 | pitch * 4.0
                                 | lfo(move |t| {
                                     funutd::math::lerp(
-                                        100.0,
-                                        50.0 + 0.03 * pitch_hz,
-                                        clamp01(t * 5.0),
+                                        200.0,
+                                        50.0 + 0.05 * pitch_hz,
+                                        clamp01(t * 3.0),
                                     )
                                 }))
                                 >> !resonator()
                                 >> resonator()
-                                >> shape(Adaptive::new(0.01, Tanh(0.1))),
+                                >> shape(Adaptive::new(0.1, Atan(0.05))) * 0.5,
                         )),
                     };
                     let filter = match self.filter {
@@ -486,7 +488,7 @@ impl eframe::App for State {
                                 >> moog(),
                         )),
                         Filter::Butterworth => Net::wrap(Box::new(
-                            (pass() | lfo(move |t| max(400.0, 10000.0 * exp(-t * 5.0))))
+                            (pass() | lfo(move |t| max(400.0, 20000.0 * exp(-t * 5.0))))
                                 >> butterpass(),
                         )),
                         Filter::Bandpass => Net::wrap(Box::new(

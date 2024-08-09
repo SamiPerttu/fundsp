@@ -518,9 +518,11 @@ impl Real for f64 {
 pub mod adsr;
 pub mod audionode;
 pub mod audiounit;
+pub mod biquad;
 pub mod buffer;
 pub mod combinator;
 pub mod delay;
+pub mod denormal;
 pub mod dynamics;
 pub mod envelope;
 pub mod feedback;

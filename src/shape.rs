@@ -43,7 +43,7 @@ impl<S: Fn(f32) -> f32 + Clone + Sync + Send> Shape for ShapeFn<S> {
     }
 }
 
-/// Clip signal to -1...1.
+/// Clamp signal multiplied by the hardness parameter to -1...1.
 #[derive(Clone)]
 pub struct Clip(pub f32);
 
@@ -58,7 +58,7 @@ impl Shape for Clip {
     }
 }
 
-/// Clip signal between the two arguments (minimum and maximum).
+/// Clamp signal between the two arguments (minimum and maximum).
 #[derive(Clone)]
 pub struct ClipTo(pub f32, pub f32);
 
@@ -155,17 +155,20 @@ impl Shape for SoftCrush {
     }
 }
 
-/// Adaptive normalizing distortion with smoothing timescale and hardness as parameters.
+/// Adaptive normalizing distortion with smoothing timescale and inner shape as parameters.
 /// Smoothing timescale is specified in seconds.
 /// It is the time it takes for level estimation to move halfway to a new level.
-/// The argument to `tanh` is divided by the RMS level of the signal and multiplied by hardness.
-/// Minimum estimated signal level for adaptive distortion is approximately -60 dB.
+/// Minimum estimated signal level for adaptive distortion is -60 dB.
+/// The argument to the inner shape is divided by the RMS level of the signal.
 #[derive(Clone)]
 pub struct Adaptive<S: Shape> {
+    /// Inner shape.
     inner: S,
+    /// Smoothing timescale in seconds.
     timescale: f32,
     /// Per-sample smoothing factor.
     smoothing: f32,
+    /// Current level estimate.
     state: f32,
 }
 
@@ -190,7 +193,7 @@ impl<S: Shape> Shape for Adaptive<S> {
         self.inner.shape(input / sqrt(self.state))
     }
     fn reset(&mut self) {
-        self.state = 1.0e-6;
+        self.state = 1.0e-3;
         self.inner.reset();
     }
     fn set_sample_rate(&mut self, sample_rate: f64) {
