@@ -22,8 +22,6 @@ pub enum Parameter {
     CenterQ(f32, f32),
     /// Set filter center or cutoff frequency (Hz), Q value and amplitude gain.
     CenterQGain(f32, f32, f32),
-    /// Set filter center frequency (Hz) and bandwidth (Hz).
-    CenterBandwidth(f32, f32),
     /// Set miscellaneous value.
     Value(f32),
     /// Set filter coefficient.
@@ -88,13 +86,6 @@ impl Setting {
     pub fn center_q_gain(center: f32, q: f32, gain: f32) -> Self {
         Self {
             parameter: Parameter::CenterQGain(center, q, gain),
-            address: ArrayVec::new(),
-        }
-    }
-    /// Create setting for center and bandwidth parameters.
-    pub fn center_bandwidth(center: f32, bandwidth: f32) -> Self {
-        Self {
-            parameter: Parameter::CenterBandwidth(center, bandwidth),
             address: ArrayVec::new(),
         }
     }

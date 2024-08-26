@@ -550,7 +550,7 @@ net.commit();
 net = net >> peak_hz(1000.0, 1.0);
 net.commit();
 /// Nodes can be replaced smoothly with a crossfade to avoid clicks.
-not.crossfade(noise_id, Fade::Smooth, 1.0, Box::new(white()));
+net.crossfade(noise_id, Fade::Smooth, 1.0, Box::new(white()));
 net.commit();
 ```
 
@@ -714,7 +714,7 @@ Verified frequency responses are available for all linear filters.
 | `notch`      | notch (2nd order)      | frequency, Q | Simper SVF   | |
 | `peak`       | peaking (2nd order)    | frequency, Q | Simper SVF   | |
 | `pinkpass`   | lowpass (3 dB/octave)  | -            | mixed FIR / 1st order | Turns white noise into pink noise. |
-| `resonator`  | bandpass (2nd order)   | frequency, bandwidth | biquad | Gain stays constant as bandwidth is varied. |
+| `resonator`  | bandpass (2nd order)   | frequency, Q | biquad | Gain stays constant as Q is varied. |
 
 ### Parameter Smoothing Filter
 
@@ -726,16 +726,18 @@ This means the output value is always within input bounds.
 
 ### List of Nonlinear Filters
 
-Unlike linear filters, nonlinear filters may be sensitive to incoming signal level.
+Unlike linear filters, nonlinear filters are sensitive to incoming signal level.
 Due to nonlinearity, we do not attempt to calculate frequency responses for these filters.
 
 ---
 
 | Opcode       | Type                   | Parameters   | Family       | Notes     |
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
-| `bandrez`    | bandpass (2nd order)   | frequency, Q | nested 1st order | Sensitive to input level. |
-| `lowrez`     | lowpass (2nd order)    | frequency, Q | nested 1st order | -..- |
-| `moog`       | lowpass (4th order)    | frequency, Q | Moog ladder  | -..- |
+| `bandrez`    | bandpass (2nd order)   | frequency, Q | nested 1st order |  |
+| `dresonator` | bandpass (2nd order)   | frequency, Q | dirty biquad | Stable when the feedback mapping is nonexpansive. |
+| `fresonator` | bandpass (2nd order)   | frequency, Q | feedback biquad | -..- |
+| `lowrez`     | lowpass (2nd order)    | frequency, Q | nested 1st order | |
+| `moog`       | lowpass (4th order)    | frequency, Q | Moog ladder  | |
 
 ---
 
@@ -899,9 +901,11 @@ The following table summarizes the available settings.
 | `constant`        | `value` to set scalar value on all channels |
 | `dc`              | `value` to set scalar value on all channels |
 | `dcblock_hz`      | `center` |
+| `dresonator_hz`   | `center_q` |
 | `dsf_saw_r`       | `roughness` in 0...1 |
 | `dsf_square_r`    | `roughness` in 0...1 |
 | `follow`          | `time` to set follow time in seconds |
+| `fresonator_hz`   | `center_q` |
 | `highpass_hz`     | `center_q` |
 | `highpole_hz`     | `center` |
 | `highshelf_hz`    | `center_q_gain` |
@@ -913,7 +917,7 @@ The following table summarizes the available settings.
 | `notch_hz`        | `center_q` |
 | `pan`             | `pan` to set pan value in -1...1 |
 | `peak_hz`         | `center_q` |
-| `resonator_hz`    | `center_bandwidth` to set center and bandwidth in Hz |
+| `resonator_hz`    | `center_q` |
 
 If a node responds to `center_q_gain`, then it also responds to `center_q` and `center`.
 If a node responds to `center_q`, then it also responds to `center`.
@@ -1075,6 +1079,8 @@ The type parameters in the table refer to the hacker preludes.
 | `declick()`            |    1    |    1    | Apply 10 ms of fade-in to signal. |
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
+| `dresonator(shape)`    | 3 (audio, frequency, bandwidth) | 1 | Dirty biquad resonator (2nd order) with feedback `shape`, for example, `Tanh(1.0)`. |
+| `dresonator_hz(shape, f, q)` | 1 |    1    | Dirty biquad resonator (2nd order) with feedback `shape`, center `f` Hz and Q `q`. |
 | `dsf_saw()`            | 2 (frequency, roughness) | 1 | Saw-like discrete summation formula oscillator. |
 | `dsf_saw_r(r)`         | 1 (frequency) | 1 | Saw-like discrete summation formula oscillator with roughness `r` in 0...1. |
 | `dsf_square()`         | 2 (frequency, roughness) | 1 | Square-like discrete summation formula oscillator. |
@@ -1091,6 +1097,8 @@ The type parameters in the table refer to the hacker preludes.
 | `fir3(gain)`           |    1    |    1    | Symmetric 3-point FIR calculated from desired `gain` at the Nyquist frequency. |
 | `flanger(fb, min_d, max_d, f)`| 1|    1    | Flanger effect with feedback amount `fb`, minimum delay `min_d` seconds, maximum delay `max_d` seconds and delay function `f`, e.g., `\|t\| lerp11(0.01, 0.02, sin_hz(0.1, t))`. |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
+| `fresonator(shape)`    | 3 (audio, frequency, bandwidth) | 1 | Feedback biquad resonator (2nd order) with feedback `shape`, for example, `Softsign(1.0)`. |
+| `fresonator_hz(shape, f, q)` | 1 |    1    | Feedback biquad resonator (2nd order) with feedback `shape`, center `f` Hz and Q `q`. |
 | `hammond()`            | 1 (frequency) | 1 | Bandlimited Hammond oscillator. Emphasizes first three partials. |
 | `hammond_hz(f)`        |    -    |    1    | Bandlimited Hammond oscillator at `f` Hz. Emphasizes first three partials. |
 | `highpass()`           | 3 (audio, frequency, Q) | 1 | Highpass filter (2nd order). |
@@ -1165,8 +1173,8 @@ The type parameters in the table refer to the hacker preludes.
 | `product(x, y)`        | `x + y` | `x = y` | Multiply nodes `x` and `y`. Same as `x * y`. |
 | `pulse()`              | 2 (frequency, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
 | `resample(node)`       | 1 (speed) | `node` | Resample generator `node` using cubic interpolation at speed obtained from the input, where 1 is the original speed. |
-| `resonator()`          | 3 (audio, frequency, bandwidth) | 1 | Constant-gain bandpass resonator (2nd order). |
-| `resonator_hz(f, bw)`  |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and bandwidth `bw` Hz. |
+| `resonator()`          | 3 (audio, frequency, Q) | 1 | Constant-gain bandpass resonator (2nd order). |
+| `resonator_hz(f, q)`   |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and Q `q`. |
 | `resynth::<I, O, _>(w, f)` | `I` |   `O`   | Frequency domain resynthesis with window length `w` and processing function `f`. |
 | `reverb_stereo(r, t, d)` |  2    |    2    | Stereo reverb (32-channel [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)) with room size `r` meters (10 is average), reverberation time `t` seconds and high frequency damping `d` (in 0...1). |
 | `reverb2_stereo(r, t, d, m, f)` | 2 | 2    | Another stereo reverb (32-channel hybrid [FDN](https://ccrma.stanford.edu/~jos/pasp/Feedback_Delay_Networks_FDN.html)) with room size `r` meters (10-30 meters is supported), reverberation time `t` seconds, diffusion amount `d` (in 0...1), modulation speed `m` (nominal range 0...1, beyond starts being an effect), and loop filter `f`. |
@@ -1257,7 +1265,8 @@ let partials = busf::<U20, _, _>(|f| noise() >> resonator_hz(xerp(1_000.0, 2_000
 #### Waveshaping Modes
 
 These are arguments to the `shape` opcode. Shapes `Atan`, `Clip`, `Softsign` and `Tanh`
-all have a slope of 1 at the origin when hardness is 1 and saturate in the range -1...1.
+all have a slope of 1 at the origin when hardness is 1, saturate in the range -1...1,
+and are nonexpansive up to a hardness of 1.
 
 - `Adaptive::new(timescale, inner)`: Apply adaptive normalizing distortion with smoothing `timescale` in seconds.
 Smoothing timescale is the time it takes for level estimation to move halfway to a new value.

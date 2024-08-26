@@ -304,6 +304,7 @@ impl Net {
     /// All connections are retained.
     /// The replacement must have the same number of inputs and outputs
     /// as the node it is replacing.
+    /// The ID of the node remains the same.
     /// Returns the unit that was replaced.
     ///
     /// ### Example (Replace Saw Wave With Square Wave)
@@ -329,6 +330,7 @@ impl Net {
     /// All connections are retained.
     /// The replacement must have the same number of inputs and outputs
     /// as the node it is replacing.
+    /// The ID of the node remains the same.
     ///
     /// ### Example (Replace Saw Wave With Square Wave Via 1 Second Crossfade)
     /// ```

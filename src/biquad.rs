@@ -7,6 +7,7 @@ use super::shape::*;
 use super::signal::*;
 use super::*;
 use core::marker::PhantomData;
+use numeric_array::typenum::*;
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct BiquadCoefs<F> {
@@ -18,7 +19,7 @@ pub struct BiquadCoefs<F> {
 }
 
 impl<F: Real> BiquadCoefs<F> {
-    /// Returns settings for a Butterworth lowpass filter.
+    /// Return settings for a Butterworth lowpass filter.
     /// Cutoff is the -3 dB point of the filter in Hz.
     pub fn butter_lowpass(sample_rate: F, cutoff: F) -> Self {
         let c = F::from_f64;
@@ -32,13 +33,12 @@ impl<F: Real> BiquadCoefs<F> {
         Self { a1, a2, b0, b1, b2 }
     }
 
-    /// Returns settings for a constant-gain bandpass resonator.
+    /// Return settings for a constant-gain bandpass resonator.
     /// The center frequency is given in Hz.
-    /// Bandwidth is the difference in Hz between -3 dB points of the filter response.
     /// The overall gain of the filter is independent of bandwidth.
-    pub fn resonator(sample_rate: F, center: F, bandwidth: F) -> Self {
+    pub fn resonator(sample_rate: F, center: F, q: F) -> Self {
         let c = F::from_f64;
-        let r: F = exp(-F::PI * bandwidth / sample_rate);
+        let r: F = exp(-F::PI * center / (q * sample_rate));
         let a1: F = c(-2.0) * r * cos(F::TAU * center / sample_rate);
         let a2: F = r * r;
         let b0: F = sqrt(c(1.0) - r * r) * c(0.5);
@@ -240,8 +240,8 @@ impl<F: Real, N: Size<f32>> AudioNode for ButterLowpass<F, N> {
 /// Setting: (center, bandwidth).
 /// Number of inputs is `N`, either `U1` or `U3`.
 /// - Input 0: input signal
-/// - Input 1 (optional): filter center frequency (peak) (Hz)
-/// - Input 2 (optional): filter bandwidth (distance) between -3 dB points (Hz)
+/// - Input 1 (optional): filter center (peak) frequency (Hz)
+/// - Input 2 (optional): filter Q
 /// - Output 0: filtered signal
 #[derive(Clone)]
 pub struct Resonator<F: Real, N: Size<f32>> {
@@ -249,28 +249,28 @@ pub struct Resonator<F: Real, N: Size<f32>> {
     biquad: Biquad<F>,
     sample_rate: F,
     center: F,
-    bandwidth: F,
+    q: F,
 }
 
 impl<F: Real, N: Size<f32>> Resonator<F, N> {
-    /// Create new resonator bandpass. Initial `center` frequency and `bandwidth` are specified in Hz.
-    pub fn new(center: F, bandwidth: F) -> Self {
+    /// Create new resonator bandpass. Initial `center` frequency is specified in Hz.
+    pub fn new(center: F, q: F) -> Self {
         let mut node = Resonator {
             _marker: PhantomData,
             biquad: Biquad::new(),
             sample_rate: F::from_f64(DEFAULT_SR),
             center,
-            bandwidth,
+            q,
         };
         node.biquad.reset();
-        node.set_center_bandwidth(center, bandwidth);
+        node.set_center_q(center, q);
         node
     }
-    pub fn set_center_bandwidth(&mut self, center: F, bandwidth: F) {
+    pub fn set_center_q(&mut self, center: F, q: F) {
         self.biquad
-            .set_coefs(BiquadCoefs::resonator(self.sample_rate, center, bandwidth));
+            .set_coefs(BiquadCoefs::resonator(self.sample_rate, center, q));
         self.center = center;
-        self.bandwidth = bandwidth;
+        self.q = q;
     }
 }
 
@@ -285,34 +285,22 @@ impl<F: Real, N: Size<f32>> AudioNode for Resonator<F, N> {
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
         self.sample_rate = convert(sample_rate);
-        self.set_center_bandwidth(self.center, self.bandwidth);
+        self.set_center_q(self.center, self.q);
     }
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         if N::USIZE >= 3 {
             let center: F = convert(input[1]);
-            let bandwidth: F = convert(input[2]);
-            if center != self.center || bandwidth != self.bandwidth {
+            let q: F = convert(input[2]);
+            if center != self.center || q != self.q {
                 self.biquad
-                    .set_coefs(BiquadCoefs::resonator(self.sample_rate, center, bandwidth));
+                    .set_coefs(BiquadCoefs::resonator(self.sample_rate, center, q));
                 self.center = center;
-                self.bandwidth = bandwidth;
+                self.q = q;
             }
         }
         self.biquad.tick(&[input[0]].into())
-    }
-
-    fn set(&mut self, setting: Setting) {
-        match setting.parameter() {
-            Parameter::Center(center) => {
-                self.set_center_bandwidth(F::from_f32(*center), self.bandwidth)
-            }
-            Parameter::CenterBandwidth(center, bandwidth) => {
-                self.set_center_bandwidth(F::from_f32(*center), F::from_f32(*bandwidth))
-            }
-            _ => (),
-        }
     }
 
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
@@ -330,58 +318,478 @@ impl<F: Real, N: Size<f32>> AudioNode for Resonator<F, N> {
     }
 }
 
+/// Biquad filter common mode parameters. Filter modes use a subset of these.
+#[derive(Clone, Default)]
+pub struct BiquadParams<F: Real> {
+    /// Sample rate in Hz.
+    pub sample_rate: F,
+    /// Center or cutoff in Hz.
+    pub center: F,
+    /// Q value, if applicable.
+    pub q: F,
+    /// Amplitude gain, if applicable.
+    pub gain: F,
+}
+
+/// Operation of a filter mode. Retains any extra state needed
+/// for efficient operation and can update filter coefficients.
+/// The mode uses an optional set of inputs for continuously varying parameters.
+/// - Input 0: audio
+/// - Input 1: center or cutoff frequency in Hz
+/// - Input 2: Q
+/// - Input 3: amplitude gain
+pub trait BiquadMode<F: Real>: Clone + Default + Sync + Send {
+    /// Number of inputs, which includes the audio input.
+    type Inputs: Size<F>;
+
+    /// Update coefficients and state from the full set of parameters.
+    fn update(&mut self, params: &BiquadParams<F>, coefs: &mut BiquadCoefs<F>);
+}
+
+#[derive(Clone, Default)]
+pub struct ResonatorBiquad<F: Real> {
+    _marker: PhantomData<F>,
+}
+
+impl<F: Real> ResonatorBiquad<F> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl<F: Real> BiquadMode<F> for ResonatorBiquad<F> {
+    type Inputs = U3;
+    fn update(&mut self, params: &BiquadParams<F>, coefs: &mut BiquadCoefs<F>) {
+        *coefs = BiquadCoefs::resonator(params.sample_rate, params.center, params.q);
+    }
+}
+
 #[derive(Clone)]
 /// Biquad in transposed direct form II with nonlinear feedback.
-pub struct BiquadFb<F: Real, S: Shape> {
-    shape1: S,
-    shape2: S,
+pub struct FbBiquad<F: Real, M: BiquadMode<F>, S: Shape> {
+    mode: M,
     coefs: BiquadCoefs<F>,
+    params: BiquadParams<F>,
+    shape: S,
     s1: F,
     s2: F,
 }
 
-// Transposed Direct Form II would be:
-//   y0 = b0 * x0 + s1
-//   s1 = s2 + b1 * x0 - a1 * y0
-//   s2 = b2 * x0 - a2 * y0
-
-impl<F: Real, S: Shape> BiquadFb<F, S> {
-    /*
-    inline float process (float x) override
-    {
-        // process input sample, direct form II transposed
-        float y = z[1] + x*b[0];
-        z[1] = z[2] + x*b[1] - saturator (y)*a[1];
-        z[2] = x*b[2] - saturator (y)*a[2];
-
-        return y;
+impl<F: Real, M: BiquadMode<F>, S: Shape> FbBiquad<F, M, S> {
+    /// Create new feedback biquad filter.
+    pub fn new(mode: M, shape: S) -> Self {
+        let mut filter = Self {
+            mode,
+            coefs: BiquadCoefs::default(),
+            params: BiquadParams {
+                sample_rate: F::from_f64(DEFAULT_SR),
+                center: F::new(440),
+                q: F::one(),
+                gain: F::one(),
+            },
+            shape,
+            s1: F::zero(),
+            s2: F::zero(),
+        };
+        filter.set_sample_rate(DEFAULT_SR);
+        filter
     }
-    */
 }
 
-impl<F: Real, S: Shape> AudioNode for BiquadFb<F, S> {
+impl<F: Real, M: BiquadMode<F>, S: Shape> AudioNode for FbBiquad<F, M, S> {
     const ID: u64 = 88;
-    /// Input arity.
-    type Inputs = typenum::U1;
-    /// Output arity.
+    type Inputs = M::Inputs;
+    type Outputs = U1;
+
+    fn reset(&mut self) {
+        self.s1 = F::zero();
+        self.s2 = F::zero();
+        self.shape.reset();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.params.sample_rate = F::from_f64(sample_rate);
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        if M::Inputs::USIZE == 2 {
+            let center = F::from_f32(input[1]);
+            if center != self.params.center {
+                self.params.center = center;
+                self.mode.update(&self.params, &mut self.coefs);
+            }
+        }
+        if M::Inputs::USIZE == 3 {
+            let center = F::from_f32(input[1]);
+            let q = F::from_f32(input[2]);
+            if squared(center - self.params.center) + squared(q - self.params.q) != F::zero() {
+                self.params.center = center;
+                self.params.q = q;
+                self.mode.update(&self.params, &mut self.coefs);
+            }
+        }
+        if M::Inputs::USIZE == 4 {
+            let center = F::from_f32(input[1]);
+            let q = F::from_f32(input[2]);
+            let gain = F::from_f32(input[3]);
+            if squared(center - self.params.center)
+                + squared(q - self.params.q)
+                + squared(gain - self.params.gain)
+                != F::zero()
+            {
+                self.params.center = center;
+                self.params.q = q;
+                self.params.gain = gain;
+                self.mode.update(&self.params, &mut self.coefs);
+            }
+        }
+        // Transposed Direct Form II with nonlinear feedback is:
+        //   y0 = b0 * x0 + s1
+        //   s1 = s2 + b1 * x0 - a1 * shape(y0)
+        //   s2 = b2 * x0 - a2 * shape(y0)
+        let x0 = F::from_f32(input[0]);
+        let y0 = self.coefs.b0 * x0 + self.s1;
+        let fb = F::from_f32(self.shape.shape(y0.to_f32()));
+        self.s1 = self.s2 + self.coefs.b1 * x0 - fb * self.coefs.a1;
+        self.s2 = self.coefs.b2 * x0 - fb * self.coefs.a2;
+        [y0.to_f32()].into()
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Arbitrary(0.0).route(input, self.outputs())
+    }
+}
+
+#[derive(Clone)]
+/// Biquad in transposed direct form II with nonlinear feedback, fixed parameters.
+pub struct FixedFbBiquad<F: Real, M: BiquadMode<F>, S: Shape> {
+    mode: M,
+    coefs: BiquadCoefs<F>,
+    params: BiquadParams<F>,
+    shape: S,
+    s1: F,
+    s2: F,
+}
+
+impl<F: Real, M: BiquadMode<F>, S: Shape> FixedFbBiquad<F, M, S> {
+    /// Create new feedback biquad filter.
+    pub fn new(mode: M, shape: S) -> Self {
+        let mut filter = Self {
+            mode,
+            coefs: BiquadCoefs::default(),
+            params: BiquadParams {
+                sample_rate: F::from_f64(DEFAULT_SR),
+                center: F::new(440),
+                q: F::one(),
+                gain: F::one(),
+            },
+            shape,
+            s1: F::zero(),
+            s2: F::zero(),
+        };
+        filter.set_sample_rate(DEFAULT_SR);
+        filter
+    }
+
+    /// Set filter `center` or cutoff frequency in Hz.
+    pub fn set_center(&mut self, center: F) {
+        self.params.center = center;
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
+    /// Set filter Q.
+    pub fn set_q(&mut self, q: F) {
+        self.params.q = q;
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
+    /// Set filter amplitude `gain`.
+    pub fn set_gain(&mut self, gain: F) {
+        self.params.gain = gain;
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
+    /// Set filter `center` or cutoff frequency in Hz and Q.
+    pub fn set_center_q(&mut self, center: F, q: F) {
+        self.params.center = center;
+        self.params.q = q;
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
+    /// Set filter `center` or cutoff frequency in Hz, Q and amplitude `gain`.
+    pub fn set_center_q_gain(&mut self, center: F, q: F, gain: F) {
+        self.params.center = center;
+        self.params.q = q;
+        self.params.gain = gain;
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+}
+
+impl<F: Real, M: BiquadMode<F>, S: Shape> AudioNode for FixedFbBiquad<F, M, S> {
+    const ID: u64 = 90;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    fn reset(&mut self) {
+        self.s1 = F::zero();
+        self.s2 = F::zero();
+        self.shape.reset();
+    }
+
+    fn set(&mut self, setting: Setting) {
+        match setting.parameter() {
+            Parameter::Center(center) => self.set_center(F::from_f32(*center)),
+            Parameter::CenterQ(center, q) => {
+                self.set_center_q(F::from_f32(*center), F::from_f32(*q))
+            }
+            Parameter::CenterQGain(center, q, gain) => {
+                self.set_center_q_gain(F::from_f32(*center), F::from_f32(*q), F::from_f32(*gain))
+            }
+            _ => (),
+        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.params.sample_rate = F::from_f64(sample_rate);
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let x0 = F::from_f32(input[0]);
+        let y0 = self.coefs.b0 * x0 + self.s1;
+        let fb = F::from_f32(self.shape.shape(y0.to_f32()));
+        self.s1 = self.s2 + self.coefs.b1 * x0 - fb * self.coefs.a1;
+        self.s2 = self.coefs.b2 * x0 - fb * self.coefs.a2;
+        [y0.to_f32()].into()
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Arbitrary(0.0).route(input, self.outputs())
+    }
+}
+
+/// Biquad in transposed direct form II with nonlinear state shaping.
+#[derive(Clone)]
+pub struct DirtyBiquad<F: Real, M: BiquadMode<F>, S: Shape> {
+    mode: M,
+    coefs: BiquadCoefs<F>,
+    params: BiquadParams<F>,
+    shape1: S,
+    shape2: S,
+    s1: F,
+    s2: F,
+}
+
+impl<F: Real, M: BiquadMode<F>, S: Shape> DirtyBiquad<F, M, S> {
+    /// Create new dirty biquad filter.
+    pub fn new(mode: M, shape: S) -> Self {
+        let shape1 = shape;
+        let shape2 = shape1.clone();
+        let mut filter = Self {
+            mode,
+            coefs: BiquadCoefs::default(),
+            params: BiquadParams {
+                sample_rate: F::from_f64(DEFAULT_SR),
+                center: F::new(440),
+                q: F::one(),
+                gain: F::one(),
+            },
+            shape1,
+            shape2,
+            s1: F::zero(),
+            s2: F::zero(),
+        };
+        filter.set_sample_rate(DEFAULT_SR);
+        filter
+    }
+}
+
+impl<F: Real, M: BiquadMode<F>, S: Shape> AudioNode for DirtyBiquad<F, M, S> {
+    const ID: u64 = 89;
+    type Inputs = M::Inputs;
     type Outputs = typenum::U1;
 
+    fn reset(&mut self) {
+        self.s1 = F::zero();
+        self.s2 = F::zero();
+        self.shape1.reset();
+        self.shape2.reset();
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.params.sample_rate = F::from_f64(sample_rate);
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        if M::Inputs::USIZE == 2 {
+            let center = F::from_f32(input[1]);
+            if center != self.params.center {
+                self.params.center = center;
+                self.mode.update(&self.params, &mut self.coefs);
+            }
+        }
+        if M::Inputs::USIZE == 3 {
+            let center = F::from_f32(input[1]);
+            let q = F::from_f32(input[2]);
+            if squared(center - self.params.center) + squared(q - self.params.q) != F::zero() {
+                self.params.center = center;
+                self.params.q = q;
+                self.mode.update(&self.params, &mut self.coefs);
+            }
+        }
+        if M::Inputs::USIZE == 4 {
+            let center = F::from_f32(input[1]);
+            let q = F::from_f32(input[2]);
+            let gain = F::from_f32(input[3]);
+            if squared(center - self.params.center)
+                + squared(q - self.params.q)
+                + squared(gain - self.params.gain)
+                != F::zero()
+            {
+                self.params.center = center;
+                self.params.q = q;
+                self.params.gain = gain;
+                self.mode.update(&self.params, &mut self.coefs);
+            }
+        }
+        // Transposed Direct Form II with nonlinear state shaping is:
+        //   y0 = b0 * x0 + s1
+        //   s1 = shape(s2 + b1 * x0 - a1 * y0)
+        //   s2 = shape(b2 * x0 - a2 * y0)
         let x0 = F::from_f32(input[0]);
         let y0 = self.coefs.b0 * x0 + self.s1;
-        self.s1 = self.s2 + self.coefs.b1 * x0
-            - F::from_f32(self.shape1.shape(y0.to_f32())) * self.coefs.a1;
-        self.s2 = self.coefs.b2 * x0 - F::from_f32(self.shape2.shape(y0.to_f32())) * self.coefs.a2;
+        self.s1 = F::from_f32(
+            self.shape1
+                .shape((self.s2 + self.coefs.b1 * x0 - y0 * self.coefs.a1).to_f32()),
+        );
+        self.s2 = F::from_f32(
+            self.shape2
+                .shape((self.coefs.b2 * x0 - y0 * self.coefs.a2).to_f32()),
+        );
         [y0.to_f32()].into()
     }
 
-    /*
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Arbitrary(0.0).route(input, self.outputs())
+    }
+}
+
+/// Biquad in transposed direct form II with nonlinear state shaping, fixed parameters.
+#[derive(Clone)]
+pub struct FixedDirtyBiquad<F: Real, M: BiquadMode<F>, S: Shape> {
+    mode: M,
+    coefs: BiquadCoefs<F>,
+    params: BiquadParams<F>,
+    shape1: S,
+    shape2: S,
+    s1: F,
+    s2: F,
+}
+
+impl<F: Real, M: BiquadMode<F>, S: Shape> FixedDirtyBiquad<F, M, S> {
+    /// Create new dirty biquad filter.
+    pub fn new(mode: M, shape: S) -> Self {
+        let shape1 = shape;
+        let shape2 = shape1.clone();
+        let mut filter = Self {
+            mode,
+            coefs: BiquadCoefs::default(),
+            params: BiquadParams {
+                sample_rate: F::from_f64(DEFAULT_SR),
+                center: F::new(440),
+                q: F::one(),
+                gain: F::one(),
+            },
+            shape1,
+            shape2,
+            s1: F::zero(),
+            s2: F::zero(),
+        };
+        filter.set_sample_rate(DEFAULT_SR);
+        filter
+    }
+
+    /// Set filter `center` or cutoff frequency in Hz.
+    pub fn set_center(&mut self, center: F) {
+        self.params.center = center;
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
+    /// Set filter Q.
+    pub fn set_q(&mut self, q: F) {
+        self.params.q = q;
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
+    /// Set filter amplitude `gain`.
+    pub fn set_gain(&mut self, gain: F) {
+        self.params.gain = gain;
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
+    /// Set filter `center` or cutoff frequency in Hz and Q.
+    pub fn set_center_q(&mut self, center: F, q: F) {
+        self.params.center = center;
+        self.params.q = q;
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
+    /// Set filter `center` or cutoff frequency in Hz, Q and amplitude `gain`.
+    pub fn set_center_q_gain(&mut self, center: F, q: F, gain: F) {
+        self.params.center = center;
+        self.params.q = q;
+        self.params.gain = gain;
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+}
+
+impl<F: Real, M: BiquadMode<F>, S: Shape> AudioNode for FixedDirtyBiquad<F, M, S> {
+    const ID: u64 = 91;
+    type Inputs = U1;
+    type Outputs = U1;
+
+    fn reset(&mut self) {
+        self.s1 = F::zero();
+        self.s2 = F::zero();
+        self.shape1.reset();
+        self.shape2.reset();
+    }
+
+    fn set(&mut self, setting: Setting) {
+        match setting.parameter() {
+            Parameter::Center(center) => self.set_center(F::from_f32(*center)),
+            Parameter::CenterQ(center, q) => {
+                self.set_center_q(F::from_f32(*center), F::from_f32(*q))
+            }
+            Parameter::CenterQGain(center, q, gain) => {
+                self.set_center_q_gain(F::from_f32(*center), F::from_f32(*q), F::from_f32(*gain))
+            }
+            _ => (),
+        }
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.params.sample_rate = F::from_f64(sample_rate);
+        self.mode.update(&self.params, &mut self.coefs);
+    }
+
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let x0 = F::from_f32(input[0]);
         let y0 = self.coefs.b0 * x0 + self.s1;
-        self.s1 = F::from_f32(self.shape1.shape((self.s2 + self.coefs.b1 * x0 - y0 * self.coefs.a1).to_f32()));
-        self.s2 = F::from_f32(self.shape2.shape((self.coefs.b2 * x0 - y0 * self.coefs.a2).to_f32()));
+        self.s1 = F::from_f32(
+            self.shape1
+                .shape((self.s2 + self.coefs.b1 * x0 - y0 * self.coefs.a1).to_f32()),
+        );
+        self.s2 = F::from_f32(
+            self.shape2
+                .shape((self.coefs.b2 * x0 - y0 * self.coefs.a2).to_f32()),
+        );
         [y0.to_f32()].into()
     }
-    */
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Arbitrary(0.0).route(input, self.outputs())
+    }
 }

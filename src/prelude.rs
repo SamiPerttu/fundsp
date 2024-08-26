@@ -499,29 +499,29 @@ pub fn highpole_hz<F: Real>(cutoff: F) -> An<Highpole<F, U1>> {
 /// Constant-gain bandpass resonator.
 /// - Input 0: audio
 /// - Input 1: center frequency (Hz)
-/// - Input 2: bandwidth (Hz)
+/// - Input 2: Q
 /// - Output 0: filtered audio
 ///
 /// ### Example: Filtered Noise Tone
 /// ```
 /// use fundsp::prelude::*;
-/// (noise() | dc((440.0, 5.0))) >> resonator::<f64>();
+/// (noise() | dc((440.0, 10.0))) >> resonator::<f64>();
 /// ```
 pub fn resonator<F: Real>() -> An<Resonator<F, U3>> {
-    An(Resonator::new(F::new(440), F::new(110)))
+    An(Resonator::new(F::new(440), F::new(1)))
 }
 
-/// Constant-gain bandpass resonator with fixed `center` frequency (Hz) and `bandwidth` (Hz).
+/// Constant-gain bandpass resonator with fixed `center` frequency (Hz) and Q.
 /// - Input 0: audio
 /// - Output 0: filtered audio
 ///
 /// ### Example: Filtered Noise Tone
 /// ```
 /// use fundsp::prelude::*;
-/// noise() >> resonator_hz::<f64>(440.0, 5.0);
+/// noise() >> resonator_hz::<f64>(440.0, 10.0);
 /// ```
-pub fn resonator_hz<F: Real>(center: F, bandwidth: F) -> An<Resonator<F, U1>> {
-    An(Resonator::new(center, bandwidth))
+pub fn resonator_hz<F: Real>(center: F, q: F) -> An<Resonator<F, U1>> {
+    An(Resonator::new(center, q))
 }
 
 /// An arbitrary biquad filter with coefficients in normalized form.
@@ -2855,11 +2855,62 @@ pub fn rotate(angle: f32, gain: f32) -> An<Mixer<U2, U2>> {
     ))
 }
 
-/// Convert `AudioUnit` `unit` to an `AudioNode` with 32-bit sample type `f32`.
-/// The number of inputs and outputs is chosen statically and must match
-/// the `AudioUnit`.
+/// Convert `AudioUnit` `unit` to an `AudioNode`.
+/// The number of inputs and outputs is chosen statically and must match the `AudioUnit`.
 /// - Input(s): from `unit`.
 /// - Output(s): from `unit`.
 pub fn unit<I: Size<f32>, O: Size<f32>>(unit: Box<dyn AudioUnit>) -> An<Unit<I, O>> {
     An(Unit::new(unit))
+}
+
+/// Biquad resonator with nonlinear state shaping using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Input 1: center frequency
+/// - Input 2: Q
+/// - Output 0: filtered audio
+pub fn dresonator<F: Real, S: Shape>(shape: S) -> An<DirtyBiquad<F, ResonatorBiquad<F>, S>> {
+    An(DirtyBiquad::new(ResonatorBiquad::new(), shape))
+}
+
+/// Biquad resonator with nonlinear state shaping with fixed parameters, using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn dresonator_hz<F: Real, S: Shape>(
+    shape: S,
+    center: F,
+    q: F,
+) -> An<FixedDirtyBiquad<F, ResonatorBiquad<F>, S>> {
+    let mut filter = FixedDirtyBiquad::new(ResonatorBiquad::new(), shape);
+    filter.set_center_q(center, q);
+    An(filter)
+}
+
+/// Biquad resonator with nonlinear feedback using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Input 1: center frequency
+/// - Input 2: Q
+/// - Output 0: filtered audio
+pub fn fresonator<F: Real, S: Shape>(shape: S) -> An<FbBiquad<F, ResonatorBiquad<F>, S>> {
+    An(FbBiquad::new(ResonatorBiquad::new(), shape))
+}
+
+/// Biquad resonator with nonlinear feedback with fixed parameters, using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn fresonator_hz<F: Real, S: Shape>(
+    shape: S,
+    center: F,
+    q: F,
+) -> An<FixedFbBiquad<F, ResonatorBiquad<F>, S>> {
+    let mut filter = FixedFbBiquad::new(ResonatorBiquad::new(), shape);
+    filter.set_center_q(center, q);
+    An(filter)
 }

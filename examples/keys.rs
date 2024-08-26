@@ -29,6 +29,7 @@ enum Filter {
     Butterworth,
     Bandpass,
     Peak,
+    FeedbackBiquad,
 }
 
 #[allow(dead_code)]
@@ -137,8 +138,6 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
 where
     T: SizedSample + FromSample<f64>,
 {
-    fundsp::denormal::prevent_denormals();
-
     let sample_rate = config.sample_rate.0 as f64;
     let channels = config.channels as usize;
 
@@ -163,6 +162,7 @@ where
     net = net
         >> ((1.0 - var(&chorus_amount) >> follow(0.01) >> split()) * multipass()
             & (var(&chorus_amount) >> follow(0.01) >> split())
+                * 2.0
                 * (chorus(0, 0.0, 0.02, 0.3) | chorus(1, 0.0, 0.02, 0.3)));
     net = net >> phaser >> flanger;
     net = net
@@ -189,7 +189,7 @@ where
     )?;
     stream.play()?;
 
-    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 520.0));
+    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 530.0));
 
     let options = eframe::NativeOptions {
         viewport,
@@ -197,7 +197,7 @@ where
     };
 
     let state: State = State {
-        rnd: Rnd::from_u64(0), // Rnd::from_time(),
+        rnd: Rnd::from_u64(0),
         id: vec![None; KEYS.len()],
         sequencer,
         net,
@@ -282,7 +282,10 @@ impl eframe::App for State {
                 ui.selectable_value(&mut self.filter, Filter::Moog, "Moog");
                 ui.selectable_value(&mut self.filter, Filter::Butterworth, "Butterworth");
                 ui.selectable_value(&mut self.filter, Filter::Bandpass, "Bandpass");
+            });
+            ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.filter, Filter::Peak, "Peak");
+                ui.selectable_value(&mut self.filter, Filter::FeedbackBiquad, "Feedback Biquad");
             });
             ui.separator();
 
@@ -469,13 +472,7 @@ impl eframe::App for State {
                         Waveform::Noise => Net::wrap(Box::new(
                             (noise()
                                 | pitch * 4.0
-                                | lfo(move |t| {
-                                    funutd::math::lerp(
-                                        200.0,
-                                        50.0 + 0.05 * pitch_hz,
-                                        clamp01(t * 3.0),
-                                    )
-                                }))
+                                | lfo(move |t| funutd::math::lerp(2.0, 20.0, clamp01(t * 3.0))))
                                 >> !resonator()
                                 >> resonator()
                                 >> shape(Adaptive::new(0.1, Atan(0.05))) * 0.5,
@@ -498,6 +495,11 @@ impl eframe::App for State {
                         Filter::Peak => Net::wrap(Box::new(
                             (pass() | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 2.0)))
                                 >> peak(),
+                        )),
+                        Filter::FeedbackBiquad => Net::wrap(Box::new(
+                            (mul(5.0)
+                                | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 5.0)))
+                                >> fresonator(Softsign(1.0)),
                         )),
                     };
                     let mut note = Box::new(waveform >> filter);

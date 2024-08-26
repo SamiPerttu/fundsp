@@ -24,6 +24,7 @@ pub trait Atomic: Float {
 impl Atomic for f32 {
     type Storage = AtomicU32;
 
+    #[inline]
     fn storage(t: Self) -> Self::Storage {
         AtomicU32::from(t.to_bits())
     }
@@ -47,6 +48,7 @@ pub struct Shared {
 }
 
 impl Shared {
+    #[inline]
     pub fn new(value: f32) -> Self {
         Self {
             value: Arc::new(f32::storage(value)),
@@ -85,6 +87,7 @@ pub struct Var {
 }
 
 impl Var {
+    #[inline]
     pub fn new(shared: &Shared) -> Self {
         Self {
             value: Arc::clone(shared.get_shared()),
@@ -92,11 +95,13 @@ impl Var {
     }
 
     /// Set the value of this variable.
+    #[inline]
     pub fn set_value(&self, value: f32) {
         f32::store(&self.value, value)
     }
 
     /// Get the value of this variable.
+    #[inline]
     pub fn value(&self) -> f32 {
         f32::get_stored(&self.value)
     }

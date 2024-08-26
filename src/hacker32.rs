@@ -2410,11 +2410,71 @@ pub fn rotate(angle: f32, gain: f32) -> An<Mixer<U2, U2>> {
     ))
 }
 
-/// Convert `AudioUnit` `unit` to an `AudioNode` with 32-bit sample type `f32`.
+/// Convert `AudioUnit` `unit` to an `AudioNode`.
 /// The number of inputs and outputs is chosen statically and must match
 /// the `AudioUnit`.
 /// - Input(s): from `unit`.
 /// - Output(s): from `unit`.
 pub fn unit<I: Size<f32>, O: Size<f32>>(unit: Box<dyn AudioUnit>) -> An<Unit<I, O>> {
     An(Unit::new(unit))
+}
+
+/// Biquad resonator with nonlinear state shaping using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Input 1: center frequency
+/// - Input 2: Q
+/// - Output 0: filtered audio
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker32::*;
+/// let filter = dresonator(Tanh(1.0));
+/// ```
+pub fn dresonator<S: Shape>(shape: S) -> An<DirtyBiquad<f32, ResonatorBiquad<f32>, S>> {
+    An(DirtyBiquad::new(ResonatorBiquad::new(), shape))
+}
+
+/// Biquad resonator with nonlinear state shaping with fixed parameters, using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn dresonator_hz<S: Shape>(
+    shape: S,
+    center: f32,
+    q: f32,
+) -> An<FixedDirtyBiquad<f32, ResonatorBiquad<f32>, S>> {
+    super::prelude::dresonator_hz(shape, center, q)
+}
+
+/// Biquad resonator with nonlinear feedback using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Input 1: center frequency
+/// - Input 2: Q
+/// - Output 0: filtered audio
+///
+/// ### Example
+/// ```
+/// use fundsp::hacker32::*;
+/// let filter = fresonator(Softsign(1.0));
+/// ```
+pub fn fresonator<S: Shape>(shape: S) -> An<FbBiquad<f32, ResonatorBiquad<f32>, S>> {
+    An(FbBiquad::new(ResonatorBiquad::new(), shape))
+}
+
+/// Biquad resonator with nonlinear feedback with fixed parameters, using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn fresonator_hz<S: Shape>(
+    shape: S,
+    center: f32,
+    q: f32,
+) -> An<FixedFbBiquad<f32, ResonatorBiquad<f32>, S>> {
+    super::prelude::fresonator_hz(shape, center, q)
 }

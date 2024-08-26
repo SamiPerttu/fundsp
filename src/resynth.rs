@@ -77,6 +77,7 @@ impl FftWindow {
 
     /// Time in seconds at the center (peak) of the window.
     /// For time varying effects.
+    /// The first window begins at zero seconds.
     /// The window is Hann squared shaped.
     /// Latency is subtracted from stream time.
     /// Add `latency()` to this if you need stream time.
@@ -87,12 +88,26 @@ impl FftWindow {
 
     /// Time in seconds at sample `i` of the window.
     /// For time varying effects.
+    /// The first window begins at zero seconds.
     /// There are `length()` samples in total.
     /// Latency is subtracted from stream time.
     /// Add `latency()` to this if you need stream time.
     #[inline]
     pub fn time_at(&self, i: usize) -> f64 {
         (self.samples - self.length as u64 + i as u64) as f64 / self.sample_rate as f64
+    }
+
+    /// How many FFT windows there are in a second of audio.
+    /// The window callback is invoked once for each window.
+    #[inline]
+    pub fn windows_per_second(&self) -> f64 {
+        WINDOWS as f64 * self.sample_rate as f64 / self.length as f64
+    }
+
+    /// Time between windows (in seconds) and also the time between two callback calls.
+    #[inline]
+    pub fn delta_time(&self) -> f64 {
+        self.length as f64 / (WINDOWS as f64 * self.sample_rate as f64)
     }
 
     /// Get forward vectors for forward FFT.
@@ -122,6 +137,7 @@ impl FftWindow {
     }
 
     /// Return frequency (in Hz) associated with bin `i`.
+    /// This is a static value that does not take phase into account.
     #[inline]
     pub fn frequency(&self, i: usize) -> f32 {
         self.sample_rate / self.length() as f32 * i as f32
