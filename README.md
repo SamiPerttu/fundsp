@@ -734,8 +734,14 @@ Due to nonlinearity, we do not attempt to calculate frequency responses for thes
 | Opcode       | Type                   | Parameters   | Family       | Notes     |
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
 | `bandrez`    | bandpass (2nd order)   | frequency, Q | nested 1st order |  |
-| `dresonator` | bandpass (2nd order)   | frequency, Q | dirty biquad | Stable when the feedback mapping is nonexpansive. |
-| `fresonator` | bandpass (2nd order)   | frequency, Q | feedback biquad | -..- |
+| `dbell`      | peaking (2nd order)    | frequency, Q, gain | dirty biquad | Biquad with nonlinear state shaping and adjustable amplitude gain. |
+| `dhighpass`  | highpass (2nd order)   | frequency, Q | dirty biquad | |
+| `dlowpass`   | lowpass (2nd order)    | frequency, Q | dirty biquad | |
+| `dresonator` | bandpass (2nd order)   | frequency, Q | dirty biquad | |
+| `fbell`      | peaking (2nd order)    | frequency, Q, gain | feedback biquad | Biquad with nonlinear feedback and adjustable amplitude gain. |
+| `fhighpass`  | highpass (2nd order)   | frequency, Q | feedback biquad | |
+| `flowpass`   | lowpass (2nd order)    | frequency, Q | feedback biquad | |
+| `fresonator` | bandpass (2nd order)   | frequency, Q | feedback biquad | |
 | `lowrez`     | lowpass (2nd order)    | frequency, Q | nested 1st order | |
 | `moog`       | lowpass (4th order)    | frequency, Q | Moog ladder  | |
 
@@ -899,11 +905,17 @@ The following table summarizes the available settings.
 | `biquad`          | `biquad` to set biquad coefficients |
 | `butterpass_hz`   | `center` |
 | `constant`        | `value` to set scalar value on all channels |
+| `dbell_hz`        | `center_q_gain` |
 | `dc`              | `value` to set scalar value on all channels |
 | `dcblock_hz`      | `center` |
+| `dhighpass_hz`    | `center_q` |
+| `dlowpass_hz`     | `center_q` |
 | `dresonator_hz`   | `center_q` |
 | `dsf_saw_r`       | `roughness` in 0...1 |
 | `dsf_square_r`    | `roughness` in 0...1 |
+| `fbell_hz`        | `center_q_gain` |
+| `fhighpass_hz`    | `center_q` |
+| `flowpass_hz`     | `center_q` |
 | `follow`          | `time` to set follow time in seconds |
 | `fresonator_hz`   | `center_q` |
 | `highpass_hz`     | `center_q` |
@@ -1073,13 +1085,19 @@ The type parameters in the table refer to the hacker preludes.
 | `clip()`               |    1    |    1    | Clip signal to -1...1. |
 | `clip_to(min, max)`    |    1    |    1    | Clip signal to min...max. |
 | `constant(x)`          |    -    |   `x`   | Constant signal `x`. Synonymous with `dc`. |
+| `dbell(shape)`         | 4 (audio, frequency, Q, gain) | 1 | Dirty biquad bell equalizer (2nd order) with feedback `shape`, for example, `Tanh(1.0)`. |
+| `dbell_hz(shape, f, q, gain)` | 1 |   1    | Dirty biquad bell equalizer (2nd order) with feedback `shape`, center `f` Hz, Q value `q` and amplitude gain `gain`. |
 | `dc(x)`                |    -    |   `x`   | Constant signal `x`. Synonymous with `constant`. |
 | `dcblock()`            |    1    |    1    | Zero center signal with cutoff frequency 10 Hz. |
 | `dcblock_hz(f)`        |    1    |    1    | Zero center signal with cutoff frequency `f`. |
 | `declick()`            |    1    |    1    | Apply 10 ms of fade-in to signal. |
 | `declick_s(t)`         |    1    |    1    | Apply `t` seconds of fade-in to signal. |
 | `delay(t)`             |    1    |    1    | Delay of `t` seconds. Delay time is rounded to the nearest sample. |
-| `dresonator(shape)`    | 3 (audio, frequency, bandwidth) | 1 | Dirty biquad resonator (2nd order) with feedback `shape`, for example, `Tanh(1.0)`. |
+| `dhighpass(shape)`     | 3 (audio, frequency, Q) | 1 | Dirty biquad highpass (2nd order) with feedback `shape`, for example, `Tanh(1.0)`. |
+| `dhighpass_hz(shape, f, q)` | 1  |    1    | Dirty biquad highpass (2nd order) with feedback `shape`, center `f` Hz and Q `q`. |
+| `dlowpass(shape)`      | 3 (audio, frequency, Q) | 1 | Dirty biquad lowpass (2nd order) with feedback `shape`, for example, `Tanh(1.0)`. |
+| `dlowpass_hz(shape, f, q)` | 1   |    1    | Dirty biquad lowpass (2nd order) with feedback `shape`, center `f` Hz and Q `q`. |
+| `dresonator(shape)`    | 3 (audio, frequency, Q) | 1 | Dirty biquad resonator (2nd order) with feedback `shape`, for example, `Tanh(1.0)`. |
 | `dresonator_hz(shape, f, q)` | 1 |    1    | Dirty biquad resonator (2nd order) with feedback `shape`, center `f` Hz and Q `q`. |
 | `dsf_saw()`            | 2 (frequency, roughness) | 1 | Saw-like discrete summation formula oscillator. |
 | `dsf_saw_r(r)`         | 1 (frequency) | 1 | Saw-like discrete summation formula oscillator with roughness `r` in 0...1. |
@@ -1089,6 +1107,8 @@ The type parameters in the table refer to the hacker preludes.
 | `envelope2(f)`         |  1 (x)  |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `lfo2`. |
 | `envelope3(f)`         | 2 (x, y) |  `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x, y\| y * exp(-t * x)`. Synonymous with `lfo3`. |
 | `envelope_in(f)`       |   `f`   |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, i: &Frame<f64, U1>\| exp(-t * i[0])`. Synonymous with `lfo_in`. |
+| `fbell(shape)`         | 4 (audio, frequency, Q, gain) | 1 | Feedback biquad bell equalizer (2nd order) with feedback `shape`, for example, `Tanh(1.0)`. |
+| `fbell_hz(shape, f, q, gain)` | 1 |   1    | Feedback biquad bell equalizer (2nd order) with feedback `shape`, center `f` Hz, Q value `q` and amplitude gain `gain`. |
 | `fdn(x)`               |   `x`   |   `x`   | Feedback Delay Network: enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive [Hadamard](https://en.wikipedia.org/wiki/Hadamard_matrix) feedback. |
 | `fdn2(x, y)`           | `x`, `y`| `x`, `y`| Feedback Delay Network: enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive Hadamard feedback, with extra feedback loop processing `y`. The feedforward path does not include `y`. |
 | `feedback(x)`          |   `x`   |   `x`   | Enclose (single sample) feedback circuit `x` (with equal number of inputs and outputs). |
@@ -1096,8 +1116,12 @@ The type parameters in the table refer to the hacker preludes.
 | `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))`. |
 | `fir3(gain)`           |    1    |    1    | Symmetric 3-point FIR calculated from desired `gain` at the Nyquist frequency. |
 | `flanger(fb, min_d, max_d, f)`| 1|    1    | Flanger effect with feedback amount `fb`, minimum delay `min_d` seconds, maximum delay `max_d` seconds and delay function `f`, e.g., `\|t\| lerp11(0.01, 0.02, sin_hz(0.1, t))`. |
+| `fhighpass(shape)`     | 3 (audio, frequency, Q) | 1 | Feedback biquad highpass (2nd order) with feedback `shape`, for example, `Softsign(1.0)`. |
+| `fhighpass_hz(shape, f, q)` | 1  |    1    | Feedback biquad highpass (2nd order) with feedback `shape`, center `f` Hz and Q `q`. |
+| `flowpass(shape)`      | 3 (audio, frequency, Q) | 1 | Feedback biquad lowpass (2nd order) with feedback `shape`, for example, `Softsign(1.0)`. |
+| `flowpass_hz(shape, f, q)` | 1   |    1    | Feedback biquad lowpass (2nd order) with feedback `shape`, center `f` Hz and Q `q`. |
 | `follow(t)`            |    1    |    1    | Smoothing filter with halfway response time `t` seconds. |
-| `fresonator(shape)`    | 3 (audio, frequency, bandwidth) | 1 | Feedback biquad resonator (2nd order) with feedback `shape`, for example, `Softsign(1.0)`. |
+| `fresonator(shape)`    | 3 (audio, frequency, Q) | 1 | Feedback biquad resonator (2nd order) with feedback `shape`, for example, `Softsign(1.0)`. |
 | `fresonator_hz(shape, f, q)` | 1 |    1    | Feedback biquad resonator (2nd order) with feedback `shape`, center `f` Hz and Q `q`. |
 | `hammond()`            | 1 (frequency) | 1 | Bandlimited Hammond oscillator. Emphasizes first three partials. |
 | `hammond_hz(f)`        |    -    |    1    | Bandlimited Hammond oscillator at `f` Hz. Emphasizes first three partials. |

@@ -2419,11 +2419,161 @@ pub fn unit<I: Size<f32>, O: Size<f32>>(unit: Box<dyn AudioUnit>) -> An<Unit<I, 
     An(Unit::new(unit))
 }
 
+/// Biquad bell equalizer with nonlinear state shaping using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Input 1: center frequency (Hz)
+/// - Input 2: Q
+/// - Input 3: amplitude gain
+/// - Output 0: filtered audio
+pub fn dbell<S: Shape>(shape: S) -> An<DirtyBiquad<f64, BellBiquad<f64>, S>> {
+    An(DirtyBiquad::new(BellBiquad::new(), shape))
+}
+
+/// Biquad bell equalizer with nonlinear state shaping with fixed parameters, using waveshaper `shape`.
+/// Filter `center` is in Hz and `gain` is amplitude gain.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn dbell_hz<S: Shape>(
+    shape: S,
+    center: f32,
+    q: f32,
+    gain: f32,
+) -> An<FixedDirtyBiquad<f64, BellBiquad<f64>, S>> {
+    super::prelude::dbell_hz(shape, center as f64, q as f64, gain as f64)
+}
+
+/// Biquad bell equalizer with nonlinear feedback using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Input 2: Q
+/// - Input 3: amplitude gain
+/// - Output 0: filtered audio
+pub fn fbell<S: Shape>(shape: S) -> An<FbBiquad<f64, BellBiquad<f64>, S>> {
+    An(FbBiquad::new(BellBiquad::new(), shape))
+}
+
+/// Biquad bell equalizer with nonlinear feedback with fixed parameters, using waveshaper `shape`.
+/// Filter `center` is in Hz and `gain` is amplitude gain.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn fbell_hz<F: Real, S: Shape>(
+    shape: S,
+    center: f32,
+    q: f32,
+    gain: f32,
+) -> An<FixedFbBiquad<f64, BellBiquad<f64>, S>> {
+    super::prelude::fbell_hz(shape, center as f64, q as f64, gain as f64)
+}
+
+/// Biquad highpass with nonlinear state shaping using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Input 2: Q
+/// - Output 0: filtered audio
+pub fn dhighpass<S: Shape>(shape: S) -> An<DirtyBiquad<f64, HighpassBiquad<f64>, S>> {
+    An(DirtyBiquad::new(HighpassBiquad::new(), shape))
+}
+
+/// Biquad highpass with nonlinear state shaping with fixed parameters, using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn dhighpass_hz<S: Shape>(
+    shape: S,
+    cutoff: f32,
+    q: f32,
+) -> An<FixedDirtyBiquad<f64, HighpassBiquad<f64>, S>> {
+    super::prelude::dhighpass_hz(shape, cutoff as f64, q as f64)
+}
+
+/// Biquad highpass with nonlinear feedback using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Input 2: Q
+/// - Output 0: filtered audio
+pub fn fhighpass<S: Shape>(shape: S) -> An<FbBiquad<f64, HighpassBiquad<f64>, S>> {
+    An(FbBiquad::new(HighpassBiquad::new(), shape))
+}
+
+/// Biquad highpass with nonlinear feedback with fixed parameters, using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn fhighpass_hz<S: Shape>(
+    shape: S,
+    cutoff: f32,
+    q: f32,
+) -> An<FixedFbBiquad<f64, HighpassBiquad<f64>, S>> {
+    super::prelude::fhighpass_hz(shape, cutoff as f64, q as f64)
+}
+
+/// Biquad lowpass with nonlinear state shaping using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Input 2: Q
+/// - Output 0: filtered audio
+pub fn dlowpass<S: Shape>(shape: S) -> An<DirtyBiquad<f64, LowpassBiquad<f64>, S>> {
+    An(DirtyBiquad::new(LowpassBiquad::new(), shape))
+}
+
+/// Biquad lowpass with nonlinear state shaping with fixed parameters, using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn dlowpass_hz<S: Shape>(
+    shape: S,
+    cutoff: f32,
+    q: f32,
+) -> An<FixedDirtyBiquad<f64, LowpassBiquad<f64>, S>> {
+    super::prelude::dlowpass_hz(shape, cutoff as f64, q as f64)
+}
+
+/// Biquad lowpass with nonlinear feedback using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Input 1: cutoff frequency (Hz)
+/// - Input 2: Q
+/// - Output 0: filtered audio
+pub fn flowpass<S: Shape>(shape: S) -> An<FbBiquad<f64, LowpassBiquad<f64>, S>> {
+    An(FbBiquad::new(LowpassBiquad::new(), shape))
+}
+
+/// Biquad lowpass with nonlinear feedback with fixed parameters, using waveshaper `shape`.
+/// The filter is stable when `shape` is nonexpansive.
+/// (The usual waveshapes are nonexpansive up to hardness 1.0).
+/// - Input 0: audio
+/// - Output 0: filtered audio
+pub fn flowpass_hz<S: Shape>(
+    shape: S,
+    cutoff: f32,
+    q: f32,
+) -> An<FixedFbBiquad<f64, LowpassBiquad<f64>, S>> {
+    super::prelude::flowpass_hz(shape, cutoff as f64, q as f64)
+}
+
 /// Biquad resonator with nonlinear state shaping using waveshaper `shape`.
 /// The filter is stable when `shape` is nonexpansive.
 /// (The usual waveshapes are nonexpansive up to hardness 1.0).
 /// - Input 0: audio
-/// - Input 1: center frequency
+/// - Input 1: center frequency (Hz)
 /// - Input 2: Q
 /// - Output 0: filtered audio
 ///
@@ -2453,7 +2603,7 @@ pub fn dresonator_hz<S: Shape>(
 /// The filter is stable when `shape` is nonexpansive.
 /// (The usual waveshapes are nonexpansive up to hardness 1.0).
 /// - Input 0: audio
-/// - Input 1: center frequency
+/// - Input 1: center frequency (Hz)
 /// - Input 2: Q
 /// - Output 0: filtered audio
 ///

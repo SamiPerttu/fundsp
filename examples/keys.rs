@@ -29,6 +29,7 @@ enum Filter {
     Butterworth,
     Bandpass,
     Peak,
+    DirtyBiquad,
     FeedbackBiquad,
 }
 
@@ -285,6 +286,7 @@ impl eframe::App for State {
             });
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.filter, Filter::Peak, "Peak");
+                ui.selectable_value(&mut self.filter, Filter::DirtyBiquad, "Dirty Biquad");
                 ui.selectable_value(&mut self.filter, Filter::FeedbackBiquad, "Feedback Biquad");
             });
             ui.separator();
@@ -496,10 +498,14 @@ impl eframe::App for State {
                             (pass() | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 2.0)))
                                 >> peak(),
                         )),
+                        Filter::DirtyBiquad => Net::wrap(Box::new(
+                            (pass() | lfo(move |t| (max(400.0, 20000.0 * exp(-t * 8.0)), 2.0)))
+                                >> dlowpass(Tanh(1.0)),
+                        )),
                         Filter::FeedbackBiquad => Net::wrap(Box::new(
-                            (mul(5.0)
+                            (mul(2.0)
                                 | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 5.0)))
-                                >> fresonator(Softsign(1.0)),
+                                >> fresonator(Softsign(1.01)),
                         )),
                     };
                     let mut note = Box::new(waveform >> filter);

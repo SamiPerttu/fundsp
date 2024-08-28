@@ -1,4 +1,4 @@
-//! Biquad filters with nonlinearities.
+//! Biquad filters with optional nonlinearities.
 
 use super::audionode::*;
 use super::math::*;
@@ -9,6 +9,7 @@ use super::*;
 use core::marker::PhantomData;
 use numeric_array::typenum::*;
 
+/// Biquad coefficients in normalized form.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct BiquadCoefs<F> {
     pub a1: F,
@@ -20,7 +21,9 @@ pub struct BiquadCoefs<F> {
 
 impl<F: Real> BiquadCoefs<F> {
     /// Return settings for a Butterworth lowpass filter.
+    /// Sample rate is in Hz.
     /// Cutoff is the -3 dB point of the filter in Hz.
+    #[inline]
     pub fn butter_lowpass(sample_rate: F, cutoff: F) -> Self {
         let c = F::from_f64;
         let f: F = tan(cutoff * F::PI / sample_rate);
@@ -34,8 +37,9 @@ impl<F: Real> BiquadCoefs<F> {
     }
 
     /// Return settings for a constant-gain bandpass resonator.
-    /// The center frequency is given in Hz.
+    /// Sample rate and center frequency are in Hz.
     /// The overall gain of the filter is independent of bandwidth.
+    #[inline]
     pub fn resonator(sample_rate: F, center: F, q: F) -> Self {
         let c = F::from_f64;
         let r: F = exp(-F::PI * center / (q * sample_rate));
@@ -47,7 +51,61 @@ impl<F: Real> BiquadCoefs<F> {
         Self { a1, a2, b0, b1, b2 }
     }
 
+    /// Return settings for a lowpass filter.
+    /// Sample rate and cutoff frequency are in Hz.
+    #[inline]
+    pub fn lowpass(sample_rate: F, cutoff: F, q: F) -> Self {
+        let c = F::from_f64;
+        let omega = F::TAU * cutoff / sample_rate;
+        let alpha = sin(omega) / (c(2.0) * q);
+        let beta = cos(omega);
+        let a0r = c(1.0) / (c(1.0) + alpha);
+        let a1 = c(-2.0) * beta * a0r;
+        let a2 = (c(1.0) - alpha) * a0r;
+        let b1 = (c(1.0) - beta) * a0r;
+        let b0 = b1 * c(0.5);
+        let b2 = b0;
+        Self { a1, a2, b0, b1, b2 }
+    }
+
+    /// Return settings for a highpass filter.
+    /// Sample rate and cutoff frequency are in Hz.
+    #[inline]
+    pub fn highpass(sample_rate: F, cutoff: F, q: F) -> Self {
+        let c = F::from_f64;
+        let omega = F::TAU * cutoff / sample_rate;
+        let alpha = sin(omega) / (c(2.0) * q);
+        let beta = cos(omega);
+        let a0r = c(1.0) / (c(1.0) + alpha);
+        let a1 = c(-2.0) * beta * a0r;
+        let a2 = (c(1.0) - alpha) * a0r;
+        let b0 = (c(1.0) + beta) * c(0.5) * a0r;
+        let b1 = (c(-1.0) - beta) * a0r;
+        let b2 = b0;
+        Self { a1, a2, b0, b1, b2 }
+    }
+
+    /// Return settings for a bell equalizer filter.
+    /// Sample rate and center frequencies are in Hz.
+    /// Gain is amplitude gain (`gain` > 0).
+    #[inline]
+    pub fn bell(sample_rate: F, center: F, q: F, gain: F) -> Self {
+        let c = F::from_f64;
+        let omega = F::TAU * center / sample_rate;
+        let alpha = sin(omega) / (c(2.0) * q);
+        let beta = cos(omega);
+        let a = sqrt(gain);
+        let a0r = c(1.0) / (c(1.0) + alpha / a);
+        let a1 = c(-2.0) * beta * a0r;
+        let a2 = (c(1.0) - alpha / a) * a0r;
+        let b0 = (c(1.0) + alpha * a) * a0r;
+        let b1 = a1;
+        let b2 = (c(1.0) - alpha * a) * a0r;
+        Self { a1, a2, b0, b1, b2 }
+    }
+
     /// Arbitrary biquad.
+    #[inline]
     pub fn arbitrary(a1: F, a2: F, b0: F, b1: F, b2: F) -> Self {
         Self { a1, a2, b0, b1, b2 }
     }
@@ -346,6 +404,7 @@ pub trait BiquadMode<F: Real>: Clone + Default + Sync + Send {
     fn update(&mut self, params: &BiquadParams<F>, coefs: &mut BiquadCoefs<F>);
 }
 
+/// Resonator biquad mode.
 #[derive(Clone, Default)]
 pub struct ResonatorBiquad<F: Real> {
     _marker: PhantomData<F>,
@@ -359,8 +418,69 @@ impl<F: Real> ResonatorBiquad<F> {
 
 impl<F: Real> BiquadMode<F> for ResonatorBiquad<F> {
     type Inputs = U3;
+    #[inline]
     fn update(&mut self, params: &BiquadParams<F>, coefs: &mut BiquadCoefs<F>) {
         *coefs = BiquadCoefs::resonator(params.sample_rate, params.center, params.q);
+    }
+}
+
+/// Lowpass biquad mode.
+#[derive(Clone, Default)]
+pub struct LowpassBiquad<F: Real> {
+    _marker: PhantomData<F>,
+}
+
+impl<F: Real> LowpassBiquad<F> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl<F: Real> BiquadMode<F> for LowpassBiquad<F> {
+    type Inputs = U3;
+    #[inline]
+    fn update(&mut self, params: &BiquadParams<F>, coefs: &mut BiquadCoefs<F>) {
+        *coefs = BiquadCoefs::lowpass(params.sample_rate, params.center, params.q);
+    }
+}
+
+/// Highpass biquad mode.
+#[derive(Clone, Default)]
+pub struct HighpassBiquad<F: Real> {
+    _marker: PhantomData<F>,
+}
+
+impl<F: Real> HighpassBiquad<F> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl<F: Real> BiquadMode<F> for HighpassBiquad<F> {
+    type Inputs = U3;
+    #[inline]
+    fn update(&mut self, params: &BiquadParams<F>, coefs: &mut BiquadCoefs<F>) {
+        *coefs = BiquadCoefs::highpass(params.sample_rate, params.center, params.q);
+    }
+}
+
+/// Bell biquad mode.
+#[derive(Clone, Default)]
+pub struct BellBiquad<F: Real> {
+    _marker: PhantomData<F>,
+}
+
+impl<F: Real> BellBiquad<F> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl<F: Real> BiquadMode<F> for BellBiquad<F> {
+    type Inputs = U4;
+    #[inline]
+    fn update(&mut self, params: &BiquadParams<F>, coefs: &mut BiquadCoefs<F>) {
+        *coefs = BiquadCoefs::bell(params.sample_rate, params.center, params.q, params.gain);
     }
 }
 
