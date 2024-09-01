@@ -310,6 +310,61 @@ impl Num for F32x {
     }
 }
 
+impl Num for wide::f64x4 {
+    #[inline(always)]
+    fn zero() -> Self {
+        wide::f64x4::ZERO
+    }
+    #[inline(always)]
+    fn one() -> Self {
+        wide::f64x4::ONE
+    }
+    #[inline(always)]
+    fn new(x: i64) -> Self {
+        wide::f64x4::splat(x as f64)
+    }
+    #[inline(always)]
+    fn from_f64(x: f64) -> Self {
+        wide::f64x4::splat(x)
+    }
+    #[inline(always)]
+    fn from_f32(x: f32) -> Self {
+        wide::f64x4::splat(x as f64)
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    #[inline(always)]
+    fn signum(self) -> Self {
+        wide::f64x4::ONE.copysign(self)
+    }
+    #[inline(always)]
+    fn min(self, other: Self) -> Self {
+        self.fast_min(other)
+    }
+    #[inline(always)]
+    fn max(self, other: Self) -> Self {
+        self.fast_max(other)
+    }
+    #[inline(always)]
+    fn pow(self, other: Self) -> Self {
+        self.pow_f64x4(other)
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        (self - 0.4999999).round()
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        (self + 0.4999999).round()
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self.round()
+    }
+}
+
 /// Integer abstraction.
 pub trait Int:
     Num
@@ -519,6 +574,7 @@ pub mod adsr;
 pub mod audionode;
 pub mod audiounit;
 pub mod biquad;
+pub mod biquad_bank;
 pub mod buffer;
 pub mod combinator;
 pub mod delay;
