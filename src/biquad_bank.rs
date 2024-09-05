@@ -16,6 +16,7 @@ pub trait Realx<Size: ArrayLength>: Num + Sized + Neg<Output = Self> {
     fn cos(self) -> Self;
     fn sqrt(self) -> Self;
     fn reduce_add(self) -> f32;
+    fn from_frame(frame: &Frame<f32, Size>) -> Self;
     fn to_frame(self) -> Frame<f32, Size>;
     fn set(&mut self, index: usize, value: f32);
 }
@@ -39,6 +40,10 @@ impl Realx<U8> for f32x8 {
     #[inline(always)]
     fn reduce_add(self) -> f32 {
         f32x8::reduce_add(self)
+    }
+    #[inline(always)]
+    fn from_frame(frame: &Frame<f32, U8>) -> Self {
+        f32x8::new((*frame.as_array()).into())
     }
     #[inline(always)]
     fn to_frame(self) -> Frame<f32, U8> {
@@ -69,6 +74,17 @@ impl Realx<U4> for f64x4 {
     #[inline(always)]
     fn reduce_add(self) -> f32 {
         f64x4::reduce_add(self) as f32
+    }
+    #[inline(always)]
+    fn from_frame(frame: &Frame<f32, U4>) -> Self {
+        let array = frame.as_array();
+        let f64_array = [
+            f64::from(array[0]),
+            f64::from(array[1]),
+            f64::from(array[2]),
+            f64::from(array[3]),
+        ];
+        f64x4::new(f64_array)
     }
     #[inline(always)]
     fn to_frame(self) -> Frame<f32, U4> {
@@ -204,7 +220,7 @@ where
     Size: ArrayLength + Sync + Send,
 {
     const ID: u64 = 15;
-    type Inputs = typenum::U1;
+    type Inputs = Size;
     type Outputs = Size;
 
     fn reset(&mut self) {
@@ -220,7 +236,7 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        let x0 = F::from_f32(input[0]);
+        let x0 = F::from_frame(&input);
         let y0 = self.coefs.b0 * x0 + self.coefs.b1 * self.x1 + self.coefs.b2 * self.x2
             - self.coefs.a1 * self.y1
             - self.coefs.a2 * self.y2;
