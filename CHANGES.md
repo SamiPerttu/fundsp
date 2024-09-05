@@ -1,6 +1,6 @@
 ## Changes
 
-### Version 0.19 (Next Version)
+### Version 0.19
 
 - Added choice of interpolation algorithm to `AtomicSynth`.
 - New opcode `sine_phase`.
