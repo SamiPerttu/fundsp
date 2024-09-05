@@ -17,6 +17,7 @@
 - Feedback biquads and dirty biquads by Jatin Chowdhury.
 - Sine oscillator has now generic inner state. To migrate, use
   `Sine<f32>` if speed is important or `Sine<f64>` if steady maintenance of phase is important.
+- Non-bandlimited ramp node with opcodes `ramp`, `ramp_hz`, `ramp_phase` and `ramp_hz_phase`.
 
 ### Version 0.18.2
 

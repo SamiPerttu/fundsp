@@ -1198,6 +1198,10 @@ The type parameters in the table refer to the hacker preludes.
 | `pluck(f, gain, damping)` | 1 (excitation) | 1 | [Karplus-Strong](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis) plucked string oscillator with frequency `f` Hz, `gain` per second (`gain` <= 1) and high frequency `damping` in 0...1. |
 | `product(x, y)`        | `x + y` | `x = y` | Multiply nodes `x` and `y`. Same as `x * y`. |
 | `pulse()`              | 2 (frequency, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
+| `ramp()`               | 1 (frequency) | 1 | Non-bandlimited ramp (sawtooth) wave in 0...1. |
+| `ramp_hz(f)`           |    0    |    1    | Non-bandlimited ramp (sawtooth) wave in 0...1 with frequency `f` Hz. |
+| `ramp_phase(phase)`    | 1 (frequency) | 1 | Non-bandlimited ramp (sawtooth) wave in 0...1 with initial `phase` in 0...1. |
+| `ramp_hz_phase(f, phase)` | 0    |    1    | Non-bandlimited ramp (sawtooth) wave in 0...1 with frequency `f` Hz and initial `phase` in 0...1. |
 | `resample(node)`       | 1 (speed) | `node` | Resample generator `node` using cubic interpolation at speed obtained from the input, where 1 is the original speed. |
 | `resonator()`          | 3 (audio, frequency, Q) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, q)`   |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and Q `q`. |

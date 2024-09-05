@@ -91,7 +91,7 @@ impl<F: Real> AudioNode for Sine<F> {
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        super::signal::Routing::Generator(0.0).route(input, self.outputs())
+        super::signal::Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 }
 
@@ -190,7 +190,7 @@ impl<N: Size<f32>> AudioNode for Dsf<N> {
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        super::signal::Routing::Generator(0.0).route(input, self.outputs())
+        super::signal::Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 }
 
@@ -293,7 +293,7 @@ impl AudioNode for Pluck {
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        super::signal::Routing::Generator(0.0).route(input, self.outputs())
+        super::signal::Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 
     fn allocate(&mut self) {
@@ -358,7 +358,7 @@ impl AudioNode for Rossler {
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        super::signal::Routing::Generator(0.0).route(input, self.outputs())
+        super::signal::Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 }
 
@@ -417,6 +417,73 @@ impl AudioNode for Lorenz {
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        super::signal::Routing::Generator(0.0).route(input, self.outputs())
+        super::signal::Routing::Arbitrary(0.0).route(input, self.outputs())
+    }
+}
+
+/// Ascending ramp generator with output in 0...1. Not bandlimited.
+/// - Input 0: repetition frequency in Hz.
+/// - Output 0: current phase in 0...1.
+#[derive(Default, Clone)]
+pub struct Ramp<F: Float> {
+    phase: F,
+    sample_duration: F,
+    hash: u64,
+    initial_phase: Option<F>,
+}
+
+impl<F: Float> Ramp<F> {
+    /// Create ramp generator.
+    pub fn new() -> Self {
+        let mut ramp = Self::default();
+        ramp.reset();
+        ramp.set_sample_rate(DEFAULT_SR);
+        ramp
+    }
+    /// Create ramp generator with initial phase in 0...1.
+    pub fn with_phase(initial_phase: f32) -> Self {
+        let mut ramp = Self {
+            phase: F::zero(),
+            sample_duration: F::zero(),
+            hash: 0,
+            initial_phase: Some(F::from_f32(initial_phase)),
+        };
+        ramp.reset();
+        ramp.set_sample_rate(DEFAULT_SR);
+        ramp
+    }
+}
+
+impl<F: Float> AudioNode for Ramp<F> {
+    const ID: u64 = 21;
+    type Inputs = typenum::U1;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self) {
+        self.phase = match self.initial_phase {
+            Some(phase) => phase,
+            None => convert(rnd1(self.hash)),
+        };
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = convert(1.0 / sample_rate);
+    }
+
+    #[inline]
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let phase = self.phase.to_f32();
+        self.phase += F::from_f32(input[0]) * self.sample_duration;
+        self.phase -= self.phase.floor();
+        [phase].into()
+    }
+
+    fn set_hash(&mut self, hash: u64) {
+        self.hash = hash;
+        self.reset();
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        super::signal::Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 }

@@ -226,6 +226,7 @@ fn test_basic() {
         noise() >> fresonator_hz(Atan(0.5), 500.0, 50.0)
             | noise() >> fhighpass_hz(Softsign(0.2), 2000.0, 2.0),
     );
+    check_wave(dc(440.0) >> ramp() | dc(-220.0) >> ramp_phase(0.0));
 
     check_wave_big(Box::new(dc((110.0, 0.5)) >> pulse() * 0.2 >> delay(0.1)));
     check_wave_big(Box::new(envelope(|t| exp(-t * 10.0))));

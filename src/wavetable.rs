@@ -350,7 +350,7 @@ where
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Generator(0.0).route(input, self.outputs())
+        Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 }
 
@@ -423,7 +423,7 @@ impl AudioNode for PhaseSynth {
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
-        Routing::Generator(0.0).route(input, self.outputs())
+        Routing::Arbitrary(0.0).route(input, self.outputs())
     }
 }
 

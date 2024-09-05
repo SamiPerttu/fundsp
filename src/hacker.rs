@@ -353,6 +353,32 @@ pub fn sine_phase(phase: f32) -> An<Sine<f64>> {
     An(Sine::with_phase(phase))
 }
 
+/// Ramp generator with output in 0...1. Not bandlimited.
+/// - Input 0: repetition frequency (Hz)
+/// - Output 0: ramp phase in 0...1
+pub fn ramp() -> An<Ramp<f64>> {
+    An(Ramp::new())
+}
+
+/// Ramp generator with output in 0...1 at fixed frequency `f` Hz.
+/// - Output 0: ramp phase in 0...1
+pub fn ramp_hz(f: f32) -> An<Pipe<Constant<U1>, Ramp<f64>>> {
+    constant(f) >> ramp()
+}
+
+/// Ramp generator with output in 0...1, starting from initial phase `phase` in 0...1.
+/// - Input 0: repetition frequency (Hz)
+/// - Output 0: ramp phase in 0...1
+pub fn ramp_phase(phase: f32) -> An<Ramp<f64>> {
+    An(Ramp::with_phase(phase))
+}
+
+/// Ramp generator with output in 0...1 at fixed frequency `f` Hz.
+/// - Output 0: ramp phase in 0...1
+pub fn ramp_hz_phase(f: f32, phase: f32) -> An<Pipe<Constant<U1>, Ramp<f64>>> {
+    constant(f) >> ramp_phase(phase)
+}
+
 /// Rossler dynamical system oscillator.
 /// - Input 0: frequency. The Rossler oscillator exhibits peaks at multiples of this frequency.
 /// - Output 0: system output
