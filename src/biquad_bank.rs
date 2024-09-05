@@ -1,10 +1,12 @@
 use core::marker::PhantomData;
 use core::ops::Neg;
+use hacker::Parameter;
 use wide::{f32x8, f64x4};
 
 use super::audionode::*;
 use super::prelude::{U4, U8};
 use super::*;
+use crate::setting::Setting;
 use numeric_array::ArrayLength;
 
 pub trait Realx<Size: ArrayLength>: Num + Sized + Neg<Output = Self> {
@@ -15,6 +17,7 @@ pub trait Realx<Size: ArrayLength>: Num + Sized + Neg<Output = Self> {
     fn sqrt(self) -> Self;
     fn reduce_add(self) -> f32;
     fn to_frame(self) -> Frame<f32, Size>;
+    fn set(&mut self, index: usize, value: f32);
 }
 
 impl Realx<U8> for f32x8 {
@@ -40,6 +43,10 @@ impl Realx<U8> for f32x8 {
     #[inline(always)]
     fn to_frame(self) -> Frame<f32, U8> {
         f32x8::to_array(self).into()
+    }
+    #[inline(always)]
+    fn set(&mut self, index: usize, value: f32) {
+        self.as_array_mut()[index] = value;
     }
 }
 
@@ -68,6 +75,10 @@ impl Realx<U4> for f64x4 {
         let array_f64: [f64; 4] = f64x4::to_array(self);
         let array_f32: [f32; 4] = array_f64.map(|x| x as f32);
         array_f32.into()
+    }
+    #[inline(always)]
+    fn set(&mut self, index: usize, value: f32) {
+        self.as_array_mut()[index] = value as f64;
     }
 }
 
@@ -169,6 +180,7 @@ where
             ..Default::default()
         }
     }
+
     pub fn with_coefs(coefs: BiquadCoefsBank<F, Size>) -> Self {
         Self {
             coefs,
@@ -176,9 +188,11 @@ where
             ..Default::default()
         }
     }
+
     pub fn coefs(&self) -> &BiquadCoefsBank<F, Size> {
         &self.coefs
     }
+
     pub fn set_coefs(&mut self, coefs: BiquadCoefsBank<F, Size>) {
         self.coefs = coefs;
     }
@@ -217,11 +231,16 @@ where
         y0.to_frame()
     }
 
-    //fn set(&mut self, setting: Setting) {
-    //    if let Parameter::BiquadBank(a1, a2, b0, b1, b2) = setting.parameter() {
-    //        self.set_coefs(BiquadCoefsBank::arbitrary(*a1, *a2, *b0, *b1, *b2));
-    //    }
-    //}
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::BiquadBank(index, a1, a2, b0, b1, b2) = setting.parameter() {
+            let mut coefs = self.coefs;
+            coefs.a1.set(*index, *a1);
+            coefs.a2.set(*index, *a2);
+            coefs.b0.set(*index, *b0);
+            coefs.b1.set(*index, *b1);
+            coefs.b2.set(*index, *b2);
+        }
+    }
 
     //fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
     //    let mut output = SignalFrame::new(self.outputs());
