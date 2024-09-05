@@ -210,6 +210,23 @@ fn test_basic() {
         dc((440.0, 880.0)) >> multisplit::<U2, U3>() >> multijoin::<U2, U3>() >> (sine() | sine()),
     );
     check_wave((noise() >> split::<U16>() >> join()) | (noise() >> split::<U11>() >> join()));
+    check_wave(
+        noise() >> dbell_hz(Tanh(1.0), 1000.0, 10.0, 2.0)
+            | noise() >> dhighpass_hz(Softsign(1.0), 2000.0, 2.0),
+    );
+    check_wave(
+        noise() >> dresonator_hz(Tanh(0.5), 1000.0, 10.0)
+            | noise() >> dlowpass_hz(Softsign(0.5), 2000.0, 2.0),
+    );
+    check_wave(
+        noise() >> fbell_hz(Atan(1.0), 500.0, 50.0, 0.5)
+            | noise() >> flowpass_hz(Clip(1.0), 2000.0, 2.0),
+    );
+    check_wave(
+        noise() >> fresonator_hz(Atan(0.5), 500.0, 50.0)
+            | noise() >> fhighpass_hz(Softsign(0.2), 2000.0, 2.0),
+    );
+
     check_wave_big(Box::new(dc((110.0, 0.5)) >> pulse() * 0.2 >> delay(0.1)));
     check_wave_big(Box::new(envelope(|t| exp(-t * 10.0))));
 

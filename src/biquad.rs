@@ -1,4 +1,9 @@
-//! Biquad filters with optional nonlinearities.
+//! Biquad filters with optional nonlinearities by Jatin Chowdhury.
+
+// For more information, see:
+// https://github.com/jatinchowdhury18/ComplexNonlinearities entries 4 and 5.
+// For some of the biquad formulae, see the Audio EQ Cookbook:
+// https://www.w3.org/TR/audio-eq-cookbook/
 
 use super::audionode::*;
 use super::math::*;

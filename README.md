@@ -664,6 +664,8 @@ and folding constants. Linear networks are constructed from linear filters, dela
 
 Signal latencies are similarly analyzed from input to output in detail,
 facilitating automatic removal of pre-delay from effects chains.
+The definition of latency is one of involuntary causal kind, so
+voluntarily placed delay elements do not count as latency.
 
 For example,
 [FIR](https://en.wikipedia.org/wiki/Finite_impulse_response) filters
@@ -734,11 +736,11 @@ Due to nonlinearity, we do not attempt to calculate frequency responses for thes
 | Opcode       | Type                   | Parameters   | Family       | Notes     |
 | ------------ | ---------------------- | ------------ | ------------ | --------- |
 | `bandrez`    | bandpass (2nd order)   | frequency, Q | nested 1st order |  |
-| `dbell`      | peaking (2nd order)    | frequency, Q, gain | dirty biquad | Biquad with nonlinear state shaping and adjustable amplitude gain. |
+| `dbell`      | peaking (2nd order)    | frequency, Q, gain | [dirty biquad](https://jatinchowdhury18.medium.com/complex-nonlinearities-episode-4-nonlinear-biquad-filters-ae6b3f23cb0e) | Biquad with nonlinear state shaping and adjustable amplitude gain. |
 | `dhighpass`  | highpass (2nd order)   | frequency, Q | dirty biquad | |
 | `dlowpass`   | lowpass (2nd order)    | frequency, Q | dirty biquad | |
 | `dresonator` | bandpass (2nd order)   | frequency, Q | dirty biquad | |
-| `fbell`      | peaking (2nd order)    | frequency, Q, gain | feedback biquad | Biquad with nonlinear feedback and adjustable amplitude gain. |
+| `fbell`      | peaking (2nd order)    | frequency, Q, gain | [feedback biquad](https://jatinchowdhury18.medium.com/complex-nonlinearities-episode-5-nonlinear-feedback-filters-115e65fc0402) | Biquad with nonlinear feedback and adjustable amplitude gain. |
 | `fhighpass`  | highpass (2nd order)   | frequency, Q | feedback biquad | |
 | `flowpass`   | lowpass (2nd order)    | frequency, Q | feedback biquad | |
 | `fresonator` | bandpass (2nd order)   | frequency, Q | feedback biquad | |

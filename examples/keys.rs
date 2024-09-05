@@ -499,7 +499,9 @@ impl eframe::App for State {
                                 >> peak(),
                         )),
                         Filter::DirtyBiquad => Net::wrap(Box::new(
-                            (pass() | lfo(move |t| (max(400.0, 20000.0 * exp(-t * 8.0)), 2.0)))
+                            (pass() | lfo(move |t| (max(800.0, 20000.0 * exp(-t * 6.0)), 3.0)))
+                                >> !dlowpass(Tanh(1.02))
+                                >> mul((1.0, 0.666, 1.0))
                                 >> dlowpass(Tanh(1.0)),
                         )),
                         Filter::FeedbackBiquad => Net::wrap(Box::new(

@@ -18,14 +18,14 @@ use alloc::vec::Vec;
 /// - Input 0: frequency in Hz.
 /// - Output 0: sine wave.
 #[derive(Default, Clone)]
-pub struct Sine {
-    phase: f32,
-    sample_duration: f32,
+pub struct Sine<F: Real> {
+    phase: F,
+    sample_duration: F,
     hash: u64,
-    initial_phase: Option<f32>,
+    initial_phase: Option<F>,
 }
 
-impl Sine {
+impl<F: Real> Sine<F> {
     /// Create sine oscillator.
     pub fn new() -> Self {
         let mut sine = Sine::default();
@@ -36,10 +36,10 @@ impl Sine {
     /// Create sine oscillator with initial phase in 0...1.
     pub fn with_phase(initial_phase: f32) -> Self {
         let mut sine = Self {
-            phase: 0.0,
-            sample_duration: 0.0,
+            phase: F::zero(),
+            sample_duration: F::zero(),
             hash: 0,
-            initial_phase: Some(initial_phase),
+            initial_phase: Some(F::from_f32(initial_phase)),
         };
         sine.reset();
         sine.set_sample_rate(DEFAULT_SR);
@@ -47,7 +47,7 @@ impl Sine {
     }
 }
 
-impl AudioNode for Sine {
+impl<F: Real> AudioNode for Sine<F> {
     const ID: u64 = 21;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
@@ -55,7 +55,7 @@ impl AudioNode for Sine {
     fn reset(&mut self) {
         self.phase = match self.initial_phase {
             Some(phase) => phase,
-            None => rnd1(self.hash) as f32,
+            None => convert(rnd1(self.hash)),
         };
     }
 
@@ -66,17 +66,17 @@ impl AudioNode for Sine {
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         let phase = self.phase;
-        self.phase += input[0] * self.sample_duration;
+        self.phase += F::from_f32(input[0]) * self.sample_duration;
         self.phase -= self.phase.floor();
-        [sin(phase * f32::TAU)].into()
+        [sin(phase.to_f32() * f32::TAU)].into()
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         let mut phase = self.phase;
         for i in 0..full_simd_items(size) {
             let element: [f32; SIMD_N] = core::array::from_fn(|j| {
-                let tmp = phase;
-                phase += input.at_f32(0, (i << SIMD_S) + j) * self.sample_duration;
+                let tmp = phase.to_f32();
+                phase += F::from_f32(input.at_f32(0, (i << SIMD_S) + j)) * self.sample_duration;
                 tmp
             });
             output.set(0, i, (F32x::new(element) * f32::TAU).sin());

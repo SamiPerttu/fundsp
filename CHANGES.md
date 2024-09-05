@@ -5,7 +5,7 @@
 - Added choice of interpolation algorithm to `AtomicSynth`.
 - New opcode `sine_phase`.
 - Opcodes `delay` and `tap_linear` now support zero sample delays.
-- New method `Net::crossfade` for replacing a unit with a crossfade.
+- New method `Net::crossfade` for replacing a unit with a smooth crossfade.
 - Clarified latency: it only applies to involuntary causal latencies.
 - `AdaptiveTanh` is now generic `Adaptive` distortion with an inner shape.
   To migrate, try `Adaptive::new(timescale, Tanh(hardness))`.
@@ -14,7 +14,9 @@
 - Implemented denormal prevention for `x86` inside feedback loops.
 - The resonator now accepts a Q parameter instead of bandwidth in Hz.
   To migrate, Q = center / bandwidth.
-- Feedback biquads and dirty biquads.
+- Feedback biquads and dirty biquads by Jatin Chowdhury.
+- Sine oscillator has now generic inner state. To migrate, use
+  `Sine<f32>` if speed is important or `Sine<f64>` if steady maintenance of phase is important.
 
 ### Version 0.18.2
 

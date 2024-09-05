@@ -180,7 +180,7 @@ pub type U128 = numeric_array::typenum::U128;
 /// ### Example: Sine Oscillator
 /// ```
 /// use fundsp::prelude::*;
-/// constant(440.0) >> sine();
+/// constant(440.0) >> sine::<f64>();
 /// ```
 pub fn constant<X: ConstantFrame<Sample = f32>>(x: X) -> An<Constant<X::Size>>
 where
@@ -197,7 +197,7 @@ where
 /// ### Example: Dual Sine Oscillator
 /// ```
 /// use fundsp::prelude::*;
-/// dc((220.0, 440.0)) >> (sine() + sine());
+/// dc((220.0, 440.0)) >> (sine::<f32>() + sine::<f32>());
 /// ```
 pub fn dc<X: ConstantFrame<Sample = f32>>(x: X) -> An<Constant<X::Size>>
 where
@@ -328,9 +328,9 @@ pub fn reverse<N: Size<f32>>() -> An<Reverse<N>> {
 /// ### Example: Vibrato
 /// ```
 /// use fundsp::prelude::*;
-/// lfo(|t| 110.0 + lerp11(-2.0, 2.0, sin_hz(t, 5.0))) >> sine();
+/// lfo(|t| 110.0 + lerp11(-2.0, 2.0, sin_hz(t, 5.0))) >> sine::<f64>();
 /// ```
-pub fn sine() -> An<Sine> {
+pub fn sine<F: Real>() -> An<Sine<F>> {
     An(Sine::new())
 }
 
@@ -340,16 +340,16 @@ pub fn sine() -> An<Sine> {
 /// ### Example
 /// ```
 /// use fundsp::prelude::*;
-/// sine_hz(440.0);
+/// sine_hz::<f32>(440.0);
 /// ```
-pub fn sine_hz(f: f32) -> An<Pipe<Constant<U1>, Sine>> {
+pub fn sine_hz<F: Real>(f: f32) -> An<Pipe<Constant<U1>, Sine<F>>> {
     constant(f) >> sine()
 }
 
 /// Sine oscillator with initial `phase` in 0...1.
 /// - Input 0: frequency (Hz)
 /// - Output 0: sine wave
-pub fn sine_phase(phase: f32) -> An<Sine> {
+pub fn sine_phase<F: Real>(phase: f32) -> An<Sine<F>> {
     An(Sine::with_phase(phase))
 }
 
@@ -981,7 +981,7 @@ where
 /// use fundsp::prelude::*;
 /// let f: f32 = 440.0;
 /// let m: f32 = 1.0;
-/// oversample(sine_hz(f) * f * m + f >> sine());
+/// oversample(sine_hz::<f32>(f) * f * m + f >> sine::<f32>());
 /// ```
 pub fn oversample<X>(node: An<X>) -> An<Oversampler<X>>
 where
@@ -1204,7 +1204,7 @@ pub fn clip_to(minimum: f32, maximum: f32) -> An<Shaper<ClipTo>> {
 /// ### Example: Panning Noise
 /// ```
 /// use fundsp::prelude::*;
-/// (noise() | sine_hz(0.5)) >> panner();
+/// (noise() | sine_hz::<f64>(0.5)) >> panner();
 /// ```
 pub fn panner() -> An<Panner<U2>> {
     An(Panner::new(0.0))
@@ -1355,7 +1355,7 @@ where
 /// ### Example (Sine Bundle)
 /// ```
 /// use fundsp::prelude::*;
-/// busi::<U20, _, _>(|i| sine_hz(110.0 * exp(lerp(-0.2, 0.2, rnd2(i) as f32))));
+/// busi::<U20, _, _>(|i| sine_hz::<f32>(110.0 * exp(lerp(-0.2, 0.2, rnd2(i) as f32))));
 /// ```
 pub fn busi<N, X, F>(f: F) -> An<MultiBus<N, X>>
 where

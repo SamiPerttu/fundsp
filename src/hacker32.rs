@@ -330,7 +330,7 @@ pub fn reverse<N: Size<f32>>() -> An<Reverse<N>> {
 /// use fundsp::hacker32::*;
 /// lfo(|t| 110.0 + lerp11(-2.0, 2.0, sin_hz(t, 5.0))) >> sine();
 /// ```
-pub fn sine() -> An<Sine> {
+pub fn sine() -> An<Sine<f32>> {
     An(Sine::new())
 }
 
@@ -342,14 +342,14 @@ pub fn sine() -> An<Sine> {
 /// use fundsp::hacker32::*;
 /// sine_hz(440.0);
 /// ```
-pub fn sine_hz(f: f32) -> An<Pipe<Constant<U1>, Sine>> {
+pub fn sine_hz(f: f32) -> An<Pipe<Constant<U1>, Sine<f32>>> {
     constant(f) >> sine()
 }
 
 /// Sine oscillator with initial `phase` in 0...1.
 /// - Input 0: frequency (Hz)
 /// - Output 0: sine wave
-pub fn sine_phase(phase: f32) -> An<Sine> {
+pub fn sine_phase(phase: f32) -> An<Sine<f32>> {
     An(Sine::with_phase(phase))
 }
 
@@ -2464,7 +2464,7 @@ pub fn fbell<S: Shape>(shape: S) -> An<FbBiquad<f32, BellBiquad<f32>, S>> {
 /// (The usual waveshapes are nonexpansive up to hardness 1.0).
 /// - Input 0: audio
 /// - Output 0: filtered audio
-pub fn fbell_hz<F: Real, S: Shape>(
+pub fn fbell_hz<S: Shape>(
     shape: S,
     center: f32,
     q: f32,
