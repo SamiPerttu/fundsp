@@ -12,6 +12,8 @@ use numeric_array::ArrayLength;
 pub trait Realx<Size: ArrayLength>: Num + Sized + Neg<Output = Self> {
     const PI: Self;
     const TAU: Self;
+    const SQRT_2: Self;
+    fn tan(self) -> Self;
     fn exp(self) -> Self;
     fn cos(self) -> Self;
     fn sqrt(self) -> Self;
@@ -24,7 +26,12 @@ pub trait Realx<Size: ArrayLength>: Num + Sized + Neg<Output = Self> {
 impl Realx<U8> for f32x8 {
     const PI: Self = f32x8::PI;
     const TAU: Self = f32x8::TAU;
+    const SQRT_2: Self = f32x8::SQRT_2;
 
+    #[inline(always)]
+    fn tan(self) -> Self {
+        f32x8::tan(self)
+    }
     #[inline(always)]
     fn exp(self) -> Self {
         f32x8::exp(self)
@@ -58,7 +65,12 @@ impl Realx<U8> for f32x8 {
 impl Realx<U4> for f64x4 {
     const PI: Self = f64x4::PI;
     const TAU: Self = f64x4::TAU;
+    const SQRT_2: Self = f64x4::SQRT_2;
 
+    #[inline(always)]
+    fn tan(self) -> Self {
+        f64x4::tan(self)
+    }
     #[inline(always)]
     fn exp(self) -> Self {
         f64x4::exp(self)
@@ -118,6 +130,30 @@ where
     F: Realx<Size>,
     Size: ArrayLength,
 {
+    /// Return settings for a Butterworth lowpass filter-bank.
+    /// Sample rate is in Hz.
+    /// Cutoff is the -3 dB point of the filter in Hz.
+    #[inline]
+    pub fn butter_lowpass(sample_rate: f32, cutoff: F) -> Self {
+        let c = F::from_f64;
+        let sr = F::from_f32(sample_rate);
+        let f: F = (cutoff * F::PI / sr).tan();
+        let a0r: F = c(1.0) / (c(1.0) + F::SQRT_2 * f + f * f);
+        let a1: F = (c(2.0) * f * f - c(2.0)) * a0r;
+        let a2: F = (c(1.0) - F::SQRT_2 * f + f * f) * a0r;
+        let b0: F = f * f * a0r;
+        let b1: F = c(2.0) * b0;
+        let b2: F = b0;
+        Self {
+            a1,
+            a2,
+            b0,
+            b1,
+            b2,
+            _marker: PhantomData,
+        }
+    }
+
     /// Return settings for a constant-gain bandpass resonator-bank.
     /// Sample rate and center frequency are in Hz.
     /// The overall gain of the filter is independent of bandwidth.
