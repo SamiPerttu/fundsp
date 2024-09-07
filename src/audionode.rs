@@ -10,6 +10,7 @@ use core::marker::PhantomData;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
 use numeric_array::{ArrayLength, NumericArray};
+use wide::f32x8;
 
 /// Type-level integer. These are notated as `U0`, `U1`...
 pub trait Size<T>: ArrayLength + Sync + Send + Clone {}
@@ -19,6 +20,17 @@ impl<T, A: ArrayLength + Sync + Send + Clone> Size<T> for A {}
 /// Frames are arrays with a static size used to transport audio data
 /// between `AudioNode` instances.
 pub type Frame<T, Size> = NumericArray<T, Size>;
+
+pub unsafe fn uninitialized_f32_array() -> [f32; 8] {
+    #[allow(clippy::uninit_assumed_init)]
+    #[allow(invalid_value)]
+    core::mem::MaybeUninit::uninit().assume_init()
+}
+
+pub unsafe fn uninitialized_frame<T, Size: ArrayLength>() -> Frame<T, Size> {
+    #[allow(clippy::uninit_assumed_init)]
+    core::mem::MaybeUninit::uninit().assume_init()
+}
 
 /*
 Order of type arguments in nodes:
@@ -92,18 +104,46 @@ pub trait AudioNode: Clone + Sync + Send {
         debug_assert!(input.channels() == self.inputs());
         debug_assert!(output.channels() == self.outputs());
 
-        // Note. We could build `tick` inputs from `[f32; 8]` or `f32x8` temporary
-        // values to make index arithmetic easier but according to benchmarks
-        // it doesn't make a difference.
-        let mut input_frame: Frame<f32, Self::Inputs> = Frame::default();
-
-        for i in 0..size {
+        // Actually unrolling this seems to improve performance.
+        let mut input_frame0: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame1: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame2: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame3: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame4: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame5: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame6: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame7: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        for i in 0..(size / 8) {
             for channel in 0..self.inputs() {
-                input_frame[channel] = input.at_f32(channel, i);
+                let at = input.at(channel, i).to_array();
+                input_frame0[channel] = at[0];
+                input_frame1[channel] = at[1];
+                input_frame2[channel] = at[2];
+                input_frame3[channel] = at[3];
+                input_frame4[channel] = at[4];
+                input_frame5[channel] = at[5];
+                input_frame6[channel] = at[6];
+                input_frame7[channel] = at[7];
             }
-            let output_frame = self.tick(&input_frame);
+            let output_frame0 = self.tick(&input_frame0);
+            let output_frame1 = self.tick(&input_frame1);
+            let output_frame2 = self.tick(&input_frame2);
+            let output_frame3 = self.tick(&input_frame3);
+            let output_frame4 = self.tick(&input_frame4);
+            let output_frame5 = self.tick(&input_frame5);
+            let output_frame6 = self.tick(&input_frame6);
+            let output_frame7 = self.tick(&input_frame7);
             for channel in 0..self.outputs() {
-                output.set_f32(channel, i, output_frame[channel]);
+                let mut set: [f32; 8] = unsafe { uninitialized_f32_array() };
+                set[0] = output_frame0[channel];
+                set[1] = output_frame1[channel];
+                set[2] = output_frame2[channel];
+                set[3] = output_frame3[channel];
+                set[4] = output_frame4[channel];
+                set[5] = output_frame5[channel];
+                set[6] = output_frame6[channel];
+                set[7] = output_frame7[channel];
+                output.set(channel, i, f32x8::from(set));
             }
         }
     }
@@ -116,7 +156,7 @@ pub trait AudioNode: Clone + Sync + Send {
         debug_assert!(input.channels() == self.inputs());
         debug_assert!(output.channels() == self.outputs());
 
-        let mut input_frame: Frame<f32, Self::Inputs> = Frame::default();
+        let mut input_frame: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
 
         for i in (size & !SIMD_M)..size {
             for channel in 0..self.inputs() {
