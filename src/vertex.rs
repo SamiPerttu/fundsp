@@ -7,6 +7,10 @@ use super::net::*;
 use super::realnet::*;
 use super::sequencer::Fade;
 use thingbuf::mpsc::Sender;
+extern crate alloc;
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
 
 #[derive(Clone)]
 /// Individual AudioUnits are vertices in the graph.

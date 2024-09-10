@@ -4,7 +4,7 @@ description = "Audio processing and synthesis library."
 keywords = ["dsp", "audio", "synthesizer", "sound", "no_std"]
 categories = ["multimedia::audio", "no-std"]
 license = "MIT OR Apache-2.0"
-version = "0.19.0"
+version = "0.19.1"
 authors = ["SamiPerttu <Sami.Perttu@gmail.com>"]
 homepage = "https://github.com/SamiPerttu/fundsp"
 repository = "https://github.com/SamiPerttu/fundsp"
@@ -26,12 +26,12 @@ once_cell = { version = "1.19.0", default-features = false, features = ["race", 
 symphonia = { version = "0.5.4", optional = true, features = ["all"] }
 
 [dev-dependencies]
-anyhow = "1.0.86"
+anyhow = "1.0.87"
 criterion = "0.5.1"
 cpal = "0.15.3"
 assert_no_alloc = "1.1.2"
 eframe = "0.28.1"
-plotters = "0.3.6"
+plotters = "0.3.7"
 midi-msg = "0.5.0"
 midir = "0.9.1"
 read_input = "0.8.6"

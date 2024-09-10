@@ -20,6 +20,17 @@ impl<T, A: ArrayLength + Sync + Send + Clone> Size<T> for A {}
 /// between `AudioNode` instances.
 pub type Frame<T, Size> = NumericArray<T, Size>;
 
+unsafe fn uninitialized_f32_array() -> [f32; 8] {
+    #[allow(clippy::uninit_assumed_init)]
+    #[allow(invalid_value)]
+    core::mem::MaybeUninit::uninit().assume_init()
+}
+
+unsafe fn uninitialized_frame<T, Size: ArrayLength>() -> Frame<T, Size> {
+    #[allow(clippy::uninit_assumed_init)]
+    core::mem::MaybeUninit::uninit().assume_init()
+}
+
 /*
 Order of type arguments in nodes:
 1. Basic input and output arities excepting filter input selector arities.
@@ -84,6 +95,7 @@ pub trait AudioNode: Clone + Sync + Send {
     /// ```
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs>;
 
+    /*
     /// Process up to 64 (`MAX_BUFFER_SIZE`) samples.
     /// If `size` is zero then this is a no-op, which is permitted.
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
@@ -106,6 +118,61 @@ pub trait AudioNode: Clone + Sync + Send {
                 output.set_f32(channel, i, output_frame[channel]);
             }
         }
+    }
+    */
+
+    /// Process up to 64 (`MAX_BUFFER_SIZE`) samples.
+    /// If `size` is zero then this is a no-op, which is permitted.
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        // The default implementation is a fallback that calls into `tick`.
+        debug_assert!(size <= MAX_BUFFER_SIZE);
+        debug_assert!(input.channels() == self.inputs());
+        debug_assert!(output.channels() == self.outputs());
+
+        // Actually unrolling this seems to improve performance.
+        let mut input_frame0: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame1: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame2: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame3: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame4: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame5: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame6: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        let mut input_frame7: Frame<f32, Self::Inputs> = unsafe { uninitialized_frame() };
+        for i in 0..full_simd_items(size) {
+            for channel in 0..self.inputs() {
+                let at = input.at(channel, i).to_array();
+                input_frame0[channel] = at[0];
+                input_frame1[channel] = at[1];
+                input_frame2[channel] = at[2];
+                input_frame3[channel] = at[3];
+                input_frame4[channel] = at[4];
+                input_frame5[channel] = at[5];
+                input_frame6[channel] = at[6];
+                input_frame7[channel] = at[7];
+            }
+            let output_frame0 = self.tick(&input_frame0);
+            let output_frame1 = self.tick(&input_frame1);
+            let output_frame2 = self.tick(&input_frame2);
+            let output_frame3 = self.tick(&input_frame3);
+            let output_frame4 = self.tick(&input_frame4);
+            let output_frame5 = self.tick(&input_frame5);
+            let output_frame6 = self.tick(&input_frame6);
+            let output_frame7 = self.tick(&input_frame7);
+            for channel in 0..self.outputs() {
+                let mut set: [f32; 8] = unsafe { uninitialized_f32_array() };
+                set[0] = output_frame0[channel];
+                set[1] = output_frame1[channel];
+                set[2] = output_frame2[channel];
+                set[3] = output_frame3[channel];
+                set[4] = output_frame4[channel];
+                set[5] = output_frame5[channel];
+                set[6] = output_frame6[channel];
+                set[7] = output_frame7[channel];
+                output.set(channel, i, F32x::from(set));
+            }
+        }
+
+        self.process_remainder(size, input, output);
     }
 
     /// Process samples left over using `tick` after processing all full SIMD items.

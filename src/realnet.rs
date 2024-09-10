@@ -7,6 +7,8 @@ use super::net::*;
 use super::setting::*;
 use super::signal::*;
 use thingbuf::mpsc::{channel, Receiver, Sender};
+extern crate alloc;
+use alloc::boxed::Box;
 
 /// Message from frontend to backend.
 #[derive(Default, Clone)]

@@ -1,5 +1,9 @@
 ## Changes
 
+### Version 0.19.1
+
+- Fixed `no_std` support.
+
 ### Version 0.19
 
 - Added choice of interpolation algorithm to `AtomicSynth`.

@@ -272,7 +272,7 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        let x0 = F::from_frame(&input);
+        let x0 = F::from_frame(input);
         let y0 = self.coefs.b0 * x0 + self.coefs.b1 * self.x1 + self.coefs.b2 * self.x2
             - self.coefs.a1 * self.y1
             - self.coefs.a2 * self.y2;
