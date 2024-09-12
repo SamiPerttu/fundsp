@@ -44,6 +44,10 @@ pub(crate) struct Vertex {
     pub source_vertex: Option<(NodeIndex, usize)>,
     /// Network revision in which this vertex was changed last.
     pub changed: u64,
+    /// Used during order determination: number of unaccounted for outputs.
+    pub unplugged: usize,
+    /// Used during order determination: has this vertex been ordered yet.
+    pub ordered: bool,
 }
 
 impl Vertex {
@@ -65,6 +69,8 @@ impl Vertex {
             latest: NodeEdit::default(),
             source_vertex: None,
             changed: 0,
+            unplugged: 0,
+            ordered: false,
         };
         for i in 0..vertex.inputs() {
             vertex.source.push(edge(Port::Zero, Port::Local(index, i)));

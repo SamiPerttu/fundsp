@@ -16,7 +16,6 @@ use thingbuf::mpsc::{channel, Receiver, Sender};
 extern crate alloc;
 use super::sequencer::Fade;
 use alloc::boxed::Box;
-use alloc::vec;
 use alloc::vec::Vec;
 
 pub type NodeIndex = usize;
@@ -640,7 +639,10 @@ impl Net {
         for j in 0..self.vertex.len() {
             self.vertex[j].update_source_vertex();
         }
-        let mut order = Vec::new();
+        let mut order = match self.order.take() {
+            Some(v) => v,
+            None => Vec::with_capacity(self.vertex.len()),
+        };
         if !self.determine_order_in(&mut order) {
             panic!("Cycle detected");
         }
@@ -649,65 +651,53 @@ impl Net {
 
     /// Determine node order in the supplied vector. Returns true if successful, false
     /// if a cycle was detected.
-    fn determine_order_in(&self, order: &mut Vec<NodeIndex>) -> bool {
-        let mut vertices_left = self.vertex.len();
-        let mut vertex_left = vec![true; self.vertex.len()];
-        // Note about contents of the edge vector.
-        // Each node input appears there exactly once.
-        // Sources, however, are not unique or guaranteed to appear.
-        let mut all_edges: Vec<Edge> = Vec::new();
-        for vertex in self.vertex.iter() {
-            for edge in &vertex.source {
-                all_edges.push(*edge);
+    fn determine_order_in(&mut self, order: &mut Vec<NodeIndex>) -> bool {
+        // We calculate an inverse order here and then reverse it,
+        // as that is efficient with the data we have at hand.
+        // A downside of this algorithm is that vertices that are not
+        // connected to outputs at all still get included in the ordering.
+        order.clear();
+
+        for i in 0..self.vertex.len() {
+            self.vertex[i].unplugged = 0;
+            self.vertex[i].ordered = false;
+        }
+
+        for i in 0..self.vertex.len() {
+            for channel in 0..self.vertex[i].inputs() {
+                if let Port::Local(j, _) = self.vertex[i].source[channel].source {
+                    self.vertex[j].unplugged += 1;
+                }
             }
         }
 
-        let mut inputs_left = vec![0; self.vertex.len()];
-        for i in 0..inputs_left.len() {
-            inputs_left[i] = self.vertex[i].unit.inputs();
-            if inputs_left[i] == 0 {
-                vertex_left[i] = false;
+        fn propagate(net: &mut Net, i: usize, order: &mut Vec<NodeIndex>) {
+            for channel in 0..net.vertex[i].inputs() {
+                if let Port::Local(j, _) = net.vertex[i].source[channel].source {
+                    net.vertex[j].unplugged -= 1;
+                    if net.vertex[j].unplugged == 0 {
+                        net.vertex[j].ordered = true;
+                        order.push(j);
+                        propagate(net, j, order);
+                    }
+                }
+            }
+        }
+
+        for i in 0..self.vertex.len() {
+            if self.vertex[i].ordered {
+                continue;
+            }
+            if self.vertex[i].unplugged == 0 {
+                self.vertex[i].ordered = true;
                 order.push(i);
-                vertices_left -= 1;
+                propagate(self, i, order);
             }
         }
 
-        // Start from network inputs.
-        for edge in all_edges.iter() {
-            if let (Port::Global(_) | Port::Zero, Port::Local(vertex, _)) =
-                (edge.source, edge.target)
-            {
-                if vertex_left[vertex] {
-                    inputs_left[vertex] -= 1;
-                    if inputs_left[vertex] == 0 {
-                        vertex_left[vertex] = false;
-                        order.push(vertex);
-                        vertices_left -= 1;
-                    }
-                }
-            }
-        }
-        while vertices_left > 0 {
-            let mut progress = false;
-            for edge in all_edges.iter() {
-                if let (Port::Local(source, _), Port::Local(target, _)) = (edge.source, edge.target)
-                {
-                    if !vertex_left[source] && vertex_left[target] {
-                        progress = true;
-                        inputs_left[target] -= 1;
-                        if inputs_left[target] == 0 {
-                            vertex_left[target] = false;
-                            order.push(target);
-                            vertices_left -= 1;
-                        }
-                    }
-                }
-            }
-            if !progress {
-                return false;
-            }
-        }
-        true
+        order.reverse();
+
+        order.len() == self.vertex.len()
     }
 
     /// Wrap arbitrary unit in a network.
