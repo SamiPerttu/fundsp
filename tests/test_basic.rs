@@ -287,6 +287,13 @@ fn test_basic() {
     net.check();
     check_wave(net);
 
+    let mut net = Net::wrap(Box::new(sine_hz(42.)));
+    net = net.clone() | net;
+    let verb = Net::wrap(Box::new(reverb_stereo(10., 5., 0.5)));
+    net.chain(Box::new(verb));
+    net.check();
+    check_wave(net);
+
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
     check_wave(impulse::<U2>());
 

@@ -1079,7 +1079,7 @@ The type parameters in the table refer to the hacker preludes.
 | `branchi::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from indexed generator `f`. |
 | `branchf::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))`. |
 | `bus(x, y)`            | `x = y` | `x = y` | Bus `x` and `y`. Identical with `x & y`. |
-| `busi::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f64 + 1.0) >> sine()`. |
+| `busi::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f32 + 1.0) >> sine()`. |
 | `busf::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from fractional generator `f`. |
 | `butterpass()`         | 2 (audio, frequency) | 1 | Butterworth lowpass filter (2nd order). |
 | `butterpass_hz(f)`     |    1    |    1    | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
@@ -1108,7 +1108,7 @@ The type parameters in the table refer to the hacker preludes.
 | `envelope(f)`          |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `lfo`. |
 | `envelope2(f)`         |  1 (x)  |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `lfo2`. |
 | `envelope3(f)`         | 2 (x, y) |  `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x, y\| y * exp(-t * x)`. Synonymous with `lfo3`. |
-| `envelope_in(f)`       |   `f`   |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, i: &Frame<f64, U1>\| exp(-t * i[0])`. Synonymous with `lfo_in`. |
+| `envelope_in(f)`       |   `f`   |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, i: &Frame<f32, U1>\| exp(-t * i[0])`. Synonymous with `lfo_in`. |
 | `fbell(shape)`         | 4 (audio, frequency, Q, gain) | 1 | Feedback biquad bell equalizer (2nd order) with feedback `shape`, for example, `Tanh(1.0)`. |
 | `fbell_hz(shape, f, q, gain)` | 1 |   1    | Feedback biquad bell equalizer (2nd order) with feedback `shape`, center `f` Hz, Q value `q` and amplitude gain `gain`. |
 | `fdn(x)`               |   `x`   |   `x`   | Feedback Delay Network: enclose feedback circuit `x` (with equal number of inputs and outputs) using diffusive [Hadamard](https://en.wikipedia.org/wiki/Hadamard_matrix) feedback. |
@@ -1142,7 +1142,7 @@ The type parameters in the table refer to the hacker preludes.
 | `lfo(f)`               |    -    |   `f`   | Time-varying control `f` with scalar or tuple output, e.g., `\|t\| exp(-t)`. Synonymous with `envelope`. |
 | `lfo2(f)`              |  1 (x)  |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x\| exp(-t * x)`. Synonymous with `envelope2`. |
 | `lfo3(f)`              | 2 (x, y) |  `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, x, y\| y * exp(-t * x)`. Synonymous with `envelope3`. |
-| `lfo_in(f)`            |   `f`   |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, i: &Frame<f64, U1>\| exp(-t * i[0])`. Synonymous with `envelope_in`. |
+| `lfo_in(f)`            |   `f`   |   `f`   | Time-varying, input dependent control `f` with scalar or tuple output, e.g., `\|t, i: &Frame<f32, U1>\| exp(-t * i[0])`. Synonymous with `envelope_in`. |
 | `limiter(a, r)`        |    1    |    1    | Look-ahead limiter with attack time (and latency) `a` seconds and release time `r` seconds. |
 | `limiter_stereo(a, r)` |    2    |    2    | Stereo look-ahead limiter with attack time (and latency) `a` seconds and release time `r` seconds. |
 | `lorenz()`             | 1 (frequency) | 1 | [Lorenz dynamical system](https://en.wikipedia.org/wiki/Lorenz_system) oscillator. |
@@ -1157,7 +1157,7 @@ The type parameters in the table refer to the hacker preludes.
 | `lowshelf()`           | 4 (audio, frequency, Q, gain) | 1 | Low shelf filter (2nd order) with adjustable amplitude gain. |
 | `lowshelf_hz(f, q, gain)`|  1    |    1    | Low shelf filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `lowshelf_q(q, gain)`  | 2 (audio, frequency) | 1 | Low shelf filter (2nd order) with Q `q` and amplitude gain `gain`. |
-| `map(f)`               |   `f`   |   `f`   | Map channels freely, e.g., `map(\|i: &Frame<f64, U2>\| max(i[0], i[1]))`. |
+| `map(f)`               |   `f`   |   `f`   | Map channels freely, e.g., `map(\|i: &Frame<f32, U2>\| max(i[0], i[1]))`. |
 | `meter(mode)`          |    1    | 1 (meter) | Analyze input and output a summary according to the metering mode. |
 | `mls()`                |    -    |    1    | White [MLS noise](https://en.wikipedia.org/wiki/Maximum_length_sequence) source. |
 | `mls_bits(n)`          |    -    |    1    | White MLS noise source from `n`-bit MLS sequence (1 <= `n` <= 31). |

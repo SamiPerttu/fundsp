@@ -588,9 +588,11 @@ impl Net {
         self.vertex.len()
     }
 
-    /// Assuming this network is a chain of processing units ordered by insertion order,
-    /// add a new unit to the chain. Global outputs will be assigned to the outputs of the unit
-    /// if possible. The number of inputs to the unit must match the number of outputs of the
+    /// Assuming this network is a chain of processing units,
+    /// add a new unit to the chain. Global outputs will be assigned to the outputs of the unit.
+    /// If there are more global outputs than there are outputs in the unit, then a modulo
+    /// is taken to plug all of them. The previous global output sources become inputs to the unit.
+    /// The number of inputs to the unit must match the number of outputs of the
     /// previous unit, or the number of network inputs if there is no previous unit.
     /// Returns the ID of the new unit.
     ///
@@ -607,16 +609,21 @@ impl Net {
         let unit_outputs = unit.outputs();
         let id = self.push(unit);
         let index = self.node_index[&id];
-        if self.outputs() == unit_outputs {
-            self.pipe_output(id);
-        }
-        if unit_inputs > 0 {
-            if self.size() > 1 {
-                self.pipe(self.vertex[index - 1].id, id);
-            } else {
+
+        if self.size() == 1 {
+            if self.inputs() > 0 {
                 self.pipe_input(id);
             }
+        } else {
+            for i in 0..unit_inputs {
+                self.vertex[index].source[i].source = self.output_edge[i % self.outputs()].source;
+            }
         }
+
+        for i in 0..self.outputs() {
+            self.output_edge[i].source = Port::Local(index, i % unit_outputs);
+        }
+
         self.invalidate_order();
         id
     }
@@ -963,6 +970,7 @@ impl Net {
     }
 
     /// Process one sample using the supplied `sender` to deallocate units.
+    #[inline]
     pub(crate) fn tick_2(
         &mut self,
         input: &[f32],
@@ -999,6 +1007,7 @@ impl Net {
     }
 
     /// Process a block of samples using the supplied `sender` to deallocate units.
+    #[inline]
     pub(crate) fn process_2(
         &mut self,
         size: usize,
