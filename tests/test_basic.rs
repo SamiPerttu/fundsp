@@ -426,7 +426,7 @@ fn test_basic() {
     assert!(id0 != idd && id0 != id1 && idd != id1);
     add_net.remove(idd);
     add_net.pipe_input(id0);
-    add_net.pipe(id0, id1);
+    add_net.pipe_all(id0, id1);
     add_net.pipe_output(id1);
     assert!(is_equal_unit(&mut rnd, &mut add_2_3, &mut add_net));
     add_net.check();

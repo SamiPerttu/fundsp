@@ -21,13 +21,18 @@ use core::fmt::Write;
 pub trait AudioUnit: Send + Sync + DynClone {
     /// Reset the input state of the unit to an initial state where it has not processed any data.
     /// In other words, reset time to zero.
-    fn reset(&mut self);
+    fn reset(&mut self) {
+        // The default implementation does nothing.
+    }
 
     /// Set the sample rate of the unit.
     /// The default sample rate is 44100 Hz.
     /// The unit is allowed to reset itself here in response to sample rate changes.
     /// If the sample rate stays unchanged, then the goal is to maintain current state.
-    fn set_sample_rate(&mut self, sample_rate: f64);
+    #[allow(unused_variables)]
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        // The default implementation does nothing.
+    }
 
     /// Process one sample.
     /// The length of `input` and `output` must be equal to `inputs` and `outputs`, respectively.
@@ -642,5 +647,58 @@ impl AudioUnit for BlockRateAdapter {
     }
     fn allocate(&mut self) {
         self.unit.allocate();
+    }
+}
+
+/// A dummy unit with zero output. It has an arbitrary number of inputs and outputs.
+/// `Net` uses this unit.
+#[derive(Clone)]
+pub struct DummyUnit {
+    inputs: usize,
+    outputs: usize,
+}
+
+impl DummyUnit {
+    /// Create new dummy unit.
+    pub fn new(inputs: usize, outputs: usize) -> Self {
+        Self { inputs, outputs }
+    }
+}
+
+impl AudioUnit for DummyUnit {
+    #[inline]
+    fn tick(&mut self, _input: &[f32], output: &mut [f32]) {
+        for x in output.iter_mut() {
+            *x = 0.0;
+        }
+    }
+
+    fn process(&mut self, size: usize, _input: &BufferRef, output: &mut BufferMut) {
+        for channel in 0..self.outputs {
+            output.channel_f32_mut(channel)[0..simd_items(size)].fill(0.0);
+        }
+    }
+
+    fn inputs(&self) -> usize {
+        self.inputs
+    }
+
+    fn outputs(&self) -> usize {
+        self.outputs
+    }
+
+    fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        let mut signal = SignalFrame::new(self.outputs);
+        signal.fill(Signal::Value(0.0));
+        signal
+    }
+
+    fn get_id(&self) -> u64 {
+        const ID: u64 = 93;
+        ID
+    }
+
+    fn footprint(&self) -> usize {
+        core::mem::size_of::<Self>()
     }
 }

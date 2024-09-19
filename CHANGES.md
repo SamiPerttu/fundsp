@@ -1,5 +1,19 @@
 ## Changes
 
+### Version 0.20 (Next Version)
+
+- `Net::chain` is more robust now.
+- Ring buffer component in the module `ring`.
+- New method `Net::fade_in` for adding a node with a fade-in.
+- `Net::pipe` is now `Net::pipe_all` and can no longer panic.
+- `Net::pipe_op` is now `Net::pipe`, `Net::bus_op` is `Net::bus`, `Net::bin_op` is `Net::binary`,
+  `Net::stack_op` is `Net::stack`, `Net::branch_op` is `Net::branch`, and `Net::thru_op` is `Net::thru`.
+- New methods `Net::can_pipe`, `Net::can_bus`, `Net::can_binary`, `Net::can_stack`, `Net::can_branch`, `Net::can_thru`,
+  `Net::can_sum` and `Net::can_product`.
+- New methods `Net::sum` and `Net::product`.
+- `Net::pipe_input` and `Net::pipe_output` can no longer panic.
+- New method `Net::ids` for iterating over contained node IDs.
+
 ### Version 0.19.1
 
 - Fixed `no_std` support.

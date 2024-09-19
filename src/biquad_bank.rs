@@ -1,3 +1,5 @@
+//! Bank of parallel biquad filters with SIMD acceleration.
+
 use core::marker::PhantomData;
 use core::ops::Neg;
 use hacker::Parameter;
@@ -203,7 +205,7 @@ where
     //}
 }
 
-/// 2nd order IIR filter-bank implemented in normalized Direct Form I and SIMD.
+/// 2nd order IIR filter bank implemented in normalized Direct Form I and SIMD.
 /// - Setting: coefficients as tuple Parameter::BiquadBank(a1, a2, b0, b1, b2).
 /// - Input 0: input signal.
 /// - Output 0: filtered signal.

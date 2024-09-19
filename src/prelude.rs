@@ -29,6 +29,7 @@ pub use super::resample::*;
 pub use super::resynth::*;
 pub use super::reverb::*;
 pub use super::rez::*;
+pub use super::ring::*;
 pub use super::sequencer::*;
 pub use super::setting::*;
 pub use super::shape::*;

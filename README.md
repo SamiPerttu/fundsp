@@ -317,13 +317,13 @@ inner buffers needed for block processing.
 
 | Operator Form | Function Form   | Multiple Combination Forms |
 | ------------- | --------------- | -------------------------- |
-| `!A`          | `thru(A)`       | - |
-| `A * B`       | `product(A, B)` | - |
-| `A + B`       | `sum(A, B)`     | `sumi, sumf` |
-| `A >> B`      | `pipe(A, B)`    | `pipei, pipef` |
-| `A & B`       | `bus(A, B)`     | `busi, busf` |
-| `A ^ B`       | `branch(A, B)`  | `branchi, branchf` |
-| `A \| B`      | `stack(A, B)`   | `stacki, stackf` |
+| `!A`          | `thru(A)`       | -                          |
+| `A * B`       | `product(A, B)` | -                          |
+| `A + B`       | `sum(A, B)`     | `sumi, sumf`               |
+| `A >> B`      | `pipe(A, B)`    | `pipei, pipef`             |
+| `A & B`       | `bus(A, B)`     | `busi, busf`               |
+| `A ^ B`       | `branch(A, B)`  | `branchi, branchf`         |
+| `A \| B`      | `stack(A, B)`   | `stacki, stackf`           |
 
 ---
 
@@ -502,7 +502,7 @@ let mut net = Net::new(0, 1);
 let dc_id = net.push(Box::new(dc(220.0)));
 let sine_id = net.push(Box::new(sine()));
 // Connect nodes.
-net.pipe(dc_id, sine_id);
+net.pipe_all(dc_id, sine_id);
 net.pipe_output(sine_id);
 ```
 

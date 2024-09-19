@@ -604,6 +604,7 @@ pub mod resample;
 pub mod resynth;
 pub mod reverb;
 pub mod rez;
+pub mod ring;
 pub mod sequencer;
 pub mod setting;
 pub mod shape;

@@ -94,8 +94,8 @@ where
             let id_delay = net.push(Box::new(
                 pass() & feedback(delay(0.2) * db_amp(-3.0) >> pinkpass() >> highpole_hz(100.0)),
             ));
-            net.pipe(id_noise, id_delay);
-            net.pipe(id_delay, id_pan);
+            net.pipe_all(id_noise, id_delay);
+            net.pipe_all(id_delay, id_pan);
             delay_added = true;
         }
 

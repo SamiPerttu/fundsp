@@ -11,7 +11,7 @@ use super::shared::IdGenerator;
 use super::signal::*;
 use super::vertex::*;
 use super::*;
-use hashbrown::HashMap;
+use hashbrown::{hash_map::Keys, HashMap};
 use thingbuf::mpsc::{channel, Receiver, Sender};
 extern crate alloc;
 use super::sequencer::Fade;
@@ -177,11 +177,22 @@ impl Net {
         let vertex = Vertex::new(id, index, unit);
         self.vertex.push(vertex);
         self.node_index.insert(id, index);
-        // Note. We have designed the hash to depend on vertices but not edges.
-        let hash = self.ping(true, AttoHash::new(ID));
-        self.ping(false, hash);
         self.invalidate_order();
         id
+    }
+
+    /// Add a new unit to the network with a fade-in. Return its ID handle.
+    /// Unit inputs are initially set to zero.
+    pub fn fade_in(&mut self, fade: Fade, fade_time: f32, unit: Box<dyn AudioUnit>) -> NodeId {
+        let dummy = DummyUnit::new(unit.inputs(), unit.outputs());
+        let id = self.push(Box::new(dummy));
+        self.crossfade(id, fade, fade_time, unit);
+        id
+    }
+
+    /// Return an iterator over the node IDs of the network.
+    pub fn ids(&self) -> Keys<'_, net::NodeId, usize> {
+        self.node_index.keys()
     }
 
     /// Whether we have calculated the order vector.
@@ -464,7 +475,8 @@ impl Net {
     }
 
     /// Pipe global input to node `target`.
-    /// Number of node inputs must match the number of network inputs.
+    /// If there are fewer global inputs than inputs in `target`, then the rest are set to zero.
+    /// If there are more global inputs than inputs in `target`, then only the first ones are used.
     ///
     /// ### Example (Stereo Filter)
     /// ```
@@ -477,10 +489,14 @@ impl Net {
     /// ```
     pub fn pipe_input(&mut self, target: NodeId) {
         let target_index = self.node_index[&target];
-        assert_eq!(self.vertex[target_index].inputs(), self.inputs());
-        for i in 0..self.inputs() {
-            self.vertex[target_index].source[i] =
-                edge(Port::Global(i), Port::Local(target_index, i));
+        for channel in 0..self.vertex[target_index].inputs() {
+            if channel < self.inputs() {
+                self.vertex[target_index].source[channel] =
+                    edge(Port::Global(channel), Port::Local(target_index, channel));
+            } else {
+                self.vertex[target_index].source[channel] =
+                    edge(Port::Zero, Port::Local(target_index, channel));
+            }
         }
         self.invalidate_order();
     }
@@ -517,8 +533,9 @@ impl Net {
         self.invalidate_order();
     }
 
-    /// Pipe node outputs to global outputs.
-    /// Number of outputs must match the number of network outputs.
+    /// Pipe `source` outputs to global outputs.
+    /// If there are fewer global outputs than `source` outputs, then only the first ones will be used.
+    /// If there are more global outputs than `source` outputs, then the rest will be set zero.
     ///
     /// ### Example (Stereo Reverb)
     /// ```
@@ -531,10 +548,13 @@ impl Net {
     /// ```
     pub fn pipe_output(&mut self, source: NodeId) {
         let source_index = self.node_index[&source];
-        assert!(self.vertex[source_index].outputs() == self.outputs());
         for channel in 0..self.outputs() {
-            self.output_edge[channel] =
-                edge(Port::Local(source_index, channel), Port::Global(channel));
+            if channel < self.vertex[source_index].outputs() {
+                self.output_edge[channel] =
+                    edge(Port::Local(source_index, channel), Port::Global(channel));
+            } else {
+                self.output_edge[channel] = edge(Port::Zero, Port::Global(channel));
+            }
         }
         self.invalidate_order();
     }
@@ -555,7 +575,8 @@ impl Net {
     }
 
     /// Connect `source` node outputs to `target` node inputs.
-    /// The number of outputs in `source` and number of inputs in `target` must match.
+    /// If there are more `source` outputs than `target` inputs, then some of the outputs will be unused.
+    /// If there are fewer `source` outputs than `target` inputs, then the extra inputs are fed zeros.
     ///
     /// ### Example (Panned Sine Wave)
     /// ```
@@ -563,22 +584,24 @@ impl Net {
     /// let mut net = Net::new(0, 2);
     /// let id1 = net.push(Box::new(sine_hz(440.0)));
     /// let id2 = net.push(Box::new(pan(0.0)));
-    /// net.pipe(id1, id2);
+    /// net.pipe_all(id1, id2);
     /// net.pipe_output(id2);
     /// net.check();
     /// ```
-    pub fn pipe(&mut self, source: NodeId, target: NodeId) {
+    pub fn pipe_all(&mut self, source: NodeId, target: NodeId) {
         let source_index = self.node_index[&source];
         let target_index = self.node_index[&target];
-        assert_eq!(
-            self.vertex[source_index].outputs(),
-            self.vertex[target_index].inputs()
-        );
+        let outputs = self.vertex[source_index].outputs();
         for channel in 0..self.vertex[target_index].inputs() {
-            self.vertex[target_index].source[channel] = edge(
-                Port::Local(source_index, channel),
-                Port::Local(target_index, channel),
-            );
+            if channel < outputs {
+                self.vertex[target_index].source[channel] = edge(
+                    Port::Local(source_index, channel),
+                    Port::Local(target_index, channel),
+                );
+            } else {
+                self.vertex[target_index].source[channel] =
+                    edge(Port::Zero, Port::Local(target_index, channel));
+            }
         }
         self.invalidate_order();
     }
@@ -589,7 +612,8 @@ impl Net {
     }
 
     /// Assuming this network is a chain of processing units,
-    /// add a new unit to the chain. Global outputs will be assigned to the outputs of the unit.
+    /// add a new unit to the end of the chain.
+    /// Global outputs will be assigned to the outputs of the unit.
     /// If there are more global outputs than there are outputs in the unit, then a modulo
     /// is taken to plug all of them. The previous global output sources become inputs to the unit.
     /// The number of inputs to the unit must match the number of outputs of the
@@ -646,6 +670,9 @@ impl Net {
         for j in 0..self.vertex.len() {
             self.vertex[j].update_source_vertex();
         }
+        // Update net hash. We have designed the hash to depend on vertices but not edges.
+        let hash = self.ping(true, AttoHash::new(ID));
+        self.ping(false, hash);
         let mut order = match self.order.take() {
             Some(v) => v,
             None => Vec::with_capacity(self.vertex.len()),
@@ -661,8 +688,9 @@ impl Net {
     fn determine_order_in(&mut self, order: &mut Vec<NodeIndex>) -> bool {
         // We calculate an inverse order here and then reverse it,
         // as that is efficient with the data we have at hand.
-        // A downside of this algorithm is that vertices that are not
-        // connected to outputs at all still get included in the ordering.
+        // A feature of this algorithm is that vertices that are not
+        // connected to outputs at all still get included in the ordering,
+        // which is probably what we want.
         order.clear();
 
         for i in 0..self.vertex.len() {
@@ -730,7 +758,7 @@ impl Net {
         net
     }
 
-    /// Wrap arbitrary unit in a network. Return network and the ID of the unit.
+    /// Wrap arbitrary `unit` in a network. Return network and the ID of the unit.
     pub fn wrap_id(unit: Box<dyn AudioUnit>) -> (Net, NodeId) {
         let mut net = Net::new(unit.inputs(), unit.outputs());
         let id = net.push(unit);
@@ -1216,8 +1244,14 @@ impl AudioUnit for Net {
 }
 
 impl Net {
-    /// Given net A, create and return net !A.
-    pub fn thru_op(mut net: Net) -> Net {
+    /// Return whether `Net::thru(net)` is valid. This returns true always.
+    #[allow(unused_variables)]
+    pub fn can_thru(net: &Net) -> bool {
+        true
+    }
+
+    /// Given `net`, create and return network `!net`.
+    pub fn thru(mut net: Net) -> Net {
         let outputs = net.outputs();
         net.output.resize(net.inputs());
         net.output_edge
@@ -1225,13 +1259,17 @@ impl Net {
         for i in outputs..net.inputs() {
             net.output_edge[i] = edge(Port::Global(i), Port::Global(i));
         }
-        let hash = net.ping(true, AttoHash::default());
-        net.ping(false, hash);
+        net.invalidate_order();
         net
     }
 
-    /// Given nets A and B, create and return net A ^ B.
-    pub fn branch_op(mut net1: Net, mut net2: Net) -> Net {
+    /// Return whether `Net::branch(net1, net2)` is valid.
+    pub fn can_branch(net1: &Net, net2: &Net) -> bool {
+        net1.inputs() == net2.inputs()
+    }
+
+    /// Given nets `net1` and `net2`, create and return net `net1 ^ net2`.
+    pub fn branch(mut net1: Net, mut net2: Net) -> Net {
         if net1.inputs() != net2.inputs() {
             panic!(
                 "Branch: mismatched inputs ({} versus {}).",
@@ -1284,13 +1322,17 @@ impl Net {
         }
         net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
-        let hash = net1.ping(true, AttoHash::default());
-        net1.ping(false, hash);
         net1
     }
 
-    /// Given nets A and B, create and return net A | B.
-    pub fn stack_op(mut net1: Net, mut net2: Net) -> Net {
+    /// Return whether `Net::stack(net1, net2)` is valid. This returns true always.
+    #[allow(unused_variables)]
+    pub fn can_stack(net1: &Net, net2: &Net) -> bool {
+        true
+    }
+
+    /// Given nets `net1` and `net2`, create and return net `net1 | net2`.
+    pub fn stack(mut net1: Net, mut net2: Net) -> Net {
         net2.disambiguate_ids(&net1);
         let offset = net1.vertex.len();
         let output_offset = net1.outputs();
@@ -1342,13 +1384,16 @@ impl Net {
         }
         net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
-        let hash = net1.ping(true, AttoHash::default());
-        net1.ping(false, hash);
         net1
     }
 
-    /// Given nets A and B and binary operator op, create and return net A op B.
-    pub fn bin_op<B: FrameBinop<super::hacker32::U1> + Sync + Send + 'static>(
+    /// Return whether `Net::binary(net1, net2, ...)` is valid.
+    pub fn can_binary(net1: &Net, net2: &Net) -> bool {
+        net1.outputs() == net2.outputs()
+    }
+
+    /// Given nets `net1` and `net2` and binary operator `op`, create and return network `net1 op net2`.
+    pub fn binary<B: FrameBinop<super::typenum::U1> + Sync + Send + 'static>(
         mut net1: Net,
         mut net2: Net,
         op: B,
@@ -1423,13 +1468,36 @@ impl Net {
         }
         net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
-        let hash = net1.ping(true, AttoHash::default());
-        net1.ping(false, hash);
         net1
     }
 
-    /// Given nets A and B, create and return net A & B.
-    pub fn bus_op(mut net1: Net, mut net2: Net) -> Net {
+    /// Return whether `Net::sum(net1, net2)` is valid.
+    pub fn can_sum(net1: &Net, net2: &Net) -> bool {
+        Net::can_binary(net1, net2)
+    }
+
+    /// Given nets `net1` and `net2`, create and return net `net1 + net2`.
+    pub fn sum(net1: Net, net2: Net) -> Net {
+        Net::binary(net1, net2, FrameAdd::new())
+    }
+
+    /// Return whether `Net::sum(net1, net2)` is valid.
+    pub fn can_product(net1: &Net, net2: &Net) -> bool {
+        Net::can_binary(net1, net2)
+    }
+
+    /// Given nets `net1` and `net2`, create and return net `net1 * net2`.
+    pub fn product(net1: Net, net2: Net) -> Net {
+        Net::binary(net1, net2, FrameMul::new())
+    }
+
+    /// Return whether `Net::bus(net1, net2)` is valid.
+    pub fn can_bus(net1: &Net, net2: &Net) -> bool {
+        net1.inputs() == net2.inputs() && net1.outputs() == net2.outputs()
+    }
+
+    /// Given nets `net1` and `net2`, create and return network `net1 & net2`.
+    pub fn bus(mut net1: Net, mut net2: Net) -> Net {
         if net1.inputs() != net2.inputs() {
             panic!(
                 "Bus: mismatched inputs ({} versus {}).",
@@ -1502,13 +1570,16 @@ impl Net {
         }
         net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
-        let hash = net1.ping(true, AttoHash::default());
-        net1.ping(false, hash);
         net1
     }
 
-    /// Given nets A and B, create and return net A >> B.
-    pub fn pipe_op(mut net1: Net, mut net2: Net) -> Net {
+    /// Return whether `Net::pipe(net1, net2)` is valid.
+    pub fn can_pipe(net1: &Net, net2: &Net) -> bool {
+        net1.outputs() == net2.inputs()
+    }
+
+    /// Given nets `net1` and `net2`, create and return net `net1 >> net2`.
+    pub fn pipe(mut net1: Net, mut net2: Net) -> Net {
         if net1.outputs() != net2.inputs() {
             panic!(
                 "Pipe: mismatched connectivity ({} outputs versus {} inputs).",
@@ -1563,8 +1634,6 @@ impl Net {
         }
         net1.invalidate_order();
         net1.resolve_frontend(&mut net2);
-        let hash = net1.ping(true, AttoHash::default());
-        net1.ping(false, hash);
         net1
     }
 }
@@ -1573,7 +1642,7 @@ impl core::ops::Not for Net {
     type Output = Net;
     #[inline]
     fn not(self) -> Self::Output {
-        Net::thru_op(self)
+        Net::thru(self)
     }
 }
 
@@ -1591,7 +1660,7 @@ impl core::ops::Shr<Net> for Net {
     type Output = Net;
     #[inline]
     fn shr(self, y: Net) -> Self::Output {
-        Net::pipe_op(self, y)
+        Net::pipe(self, y)
     }
 }
 
@@ -1602,7 +1671,7 @@ where
     type Output = Net;
     #[inline]
     fn shr(self, y: An<X>) -> Self::Output {
-        Net::pipe_op(self, Net::wrap(Box::new(y)))
+        Net::pipe(self, Net::wrap(Box::new(y)))
     }
 }
 
@@ -1613,7 +1682,7 @@ where
     type Output = Net;
     #[inline]
     fn shr(self, y: Net) -> Self::Output {
-        Net::pipe_op(Net::wrap(Box::new(self)), y)
+        Net::pipe(Net::wrap(Box::new(self)), y)
     }
 }
 
@@ -1621,7 +1690,7 @@ impl core::ops::BitAnd<Net> for Net {
     type Output = Net;
     #[inline]
     fn bitand(self, y: Net) -> Self::Output {
-        Net::bus_op(self, y)
+        Net::bus(self, y)
     }
 }
 
@@ -1632,7 +1701,7 @@ where
     type Output = Net;
     #[inline]
     fn bitand(self, y: An<X>) -> Self::Output {
-        Net::bus_op(self, Net::wrap(Box::new(y)))
+        Net::bus(self, Net::wrap(Box::new(y)))
     }
 }
 
@@ -1643,7 +1712,7 @@ where
     type Output = Net;
     #[inline]
     fn bitand(self, y: Net) -> Self::Output {
-        Net::bus_op(Net::wrap(Box::new(self)), y)
+        Net::bus(Net::wrap(Box::new(self)), y)
     }
 }
 
@@ -1651,7 +1720,7 @@ impl core::ops::BitOr<Net> for Net {
     type Output = Net;
     #[inline]
     fn bitor(self, y: Net) -> Self::Output {
-        Net::stack_op(self, y)
+        Net::stack(self, y)
     }
 }
 
@@ -1662,7 +1731,7 @@ where
     type Output = Net;
     #[inline]
     fn bitor(self, y: An<X>) -> Self::Output {
-        Net::stack_op(self, Net::wrap(Box::new(y)))
+        Net::stack(self, Net::wrap(Box::new(y)))
     }
 }
 
@@ -1673,7 +1742,7 @@ where
     type Output = Net;
     #[inline]
     fn bitor(self, y: Net) -> Self::Output {
-        Net::stack_op(Net::wrap(Box::new(self)), y)
+        Net::stack(Net::wrap(Box::new(self)), y)
     }
 }
 
@@ -1681,7 +1750,7 @@ impl core::ops::BitXor<Net> for Net {
     type Output = Net;
     #[inline]
     fn bitxor(self, y: Net) -> Self::Output {
-        Net::branch_op(self, y)
+        Net::branch(self, y)
     }
 }
 
@@ -1692,7 +1761,7 @@ where
     type Output = Net;
     #[inline]
     fn bitxor(self, y: An<X>) -> Self::Output {
-        Net::branch_op(self, Net::wrap(Box::new(y)))
+        Net::branch(self, Net::wrap(Box::new(y)))
     }
 }
 
@@ -1703,7 +1772,7 @@ where
     type Output = Net;
     #[inline]
     fn bitxor(self, y: Net) -> Self::Output {
-        Net::branch_op(Net::wrap(Box::new(self)), y)
+        Net::branch(Net::wrap(Box::new(self)), y)
     }
 }
 
@@ -1711,7 +1780,7 @@ impl core::ops::Add<Net> for Net {
     type Output = Net;
     #[inline]
     fn add(self, y: Net) -> Self::Output {
-        Net::bin_op(self, y, FrameAdd::new())
+        Net::binary(self, y, FrameAdd::new())
     }
 }
 
@@ -1722,7 +1791,7 @@ where
     type Output = Net;
     #[inline]
     fn add(self, y: An<X>) -> Self::Output {
-        Net::bin_op(self, Net::wrap(Box::new(y)), FrameAdd::new())
+        Net::binary(self, Net::wrap(Box::new(y)), FrameAdd::new())
     }
 }
 
@@ -1733,7 +1802,7 @@ where
     type Output = Net;
     #[inline]
     fn add(self, y: Net) -> Self::Output {
-        Net::bin_op(Net::wrap(Box::new(self)), y, FrameAdd::new())
+        Net::binary(Net::wrap(Box::new(self)), y, FrameAdd::new())
     }
 }
 
@@ -1741,7 +1810,7 @@ impl core::ops::Sub<Net> for Net {
     type Output = Net;
     #[inline]
     fn sub(self, y: Net) -> Self::Output {
-        Net::bin_op(self, y, FrameSub::new())
+        Net::binary(self, y, FrameSub::new())
     }
 }
 
@@ -1752,7 +1821,7 @@ where
     type Output = Net;
     #[inline]
     fn sub(self, y: An<X>) -> Self::Output {
-        Net::bin_op(self, Net::wrap(Box::new(y)), FrameSub::new())
+        Net::binary(self, Net::wrap(Box::new(y)), FrameSub::new())
     }
 }
 
@@ -1763,7 +1832,7 @@ where
     type Output = Net;
     #[inline]
     fn sub(self, y: Net) -> Self::Output {
-        Net::bin_op(Net::wrap(Box::new(self)), y, FrameSub::new())
+        Net::binary(Net::wrap(Box::new(self)), y, FrameSub::new())
     }
 }
 
@@ -1771,7 +1840,7 @@ impl core::ops::Mul<Net> for Net {
     type Output = Net;
     #[inline]
     fn mul(self, y: Net) -> Self::Output {
-        Net::bin_op(self, y, FrameMul::new())
+        Net::binary(self, y, FrameMul::new())
     }
 }
 
@@ -1782,7 +1851,7 @@ where
     type Output = Net;
     #[inline]
     fn mul(self, y: An<X>) -> Self::Output {
-        Net::bin_op(self, Net::wrap(Box::new(y)), FrameMul::new())
+        Net::binary(self, Net::wrap(Box::new(y)), FrameMul::new())
     }
 }
 
@@ -1793,7 +1862,7 @@ where
     type Output = Net;
     #[inline]
     fn mul(self, y: Net) -> Self::Output {
-        Net::bin_op(Net::wrap(Box::new(self)), y, FrameMul::new())
+        Net::binary(Net::wrap(Box::new(self)), y, FrameMul::new())
     }
 }
 
