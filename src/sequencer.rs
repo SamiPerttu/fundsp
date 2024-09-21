@@ -266,6 +266,8 @@ impl Clone for Sequencer {
     }
 }
 
+const DEFAULT_CAPACITY: usize = 16384;
+
 impl Sequencer {
     /// Create a new sequencer. The sequencer has zero inputs.
     /// The number of outputs is decided by the user.
@@ -273,13 +275,15 @@ impl Sequencer {
     /// and played back after a reset.
     /// If false, then all events will be cleared on reset.
     pub fn new(replay_events: bool, outputs: usize) -> Self {
+        // when adding new dynamically sized fields, 
+        // don't forget to update [AudioUnit::allocate] implementation
         Self {
-            active: Vec::with_capacity(16384),
-            active_map: HashMap::with_capacity(16384),
+            active: Vec::with_capacity(DEFAULT_CAPACITY),
+            active_map: HashMap::with_capacity(DEFAULT_CAPACITY),
             active_threshold: -f64::INFINITY,
-            ready: BinaryHeap::with_capacity(16384),
-            past: Vec::with_capacity(16384),
-            edit_map: HashMap::with_capacity(16384),
+            ready: BinaryHeap::with_capacity(DEFAULT_CAPACITY),
+            past: Vec::with_capacity(DEFAULT_CAPACITY),
+            edit_map: HashMap::with_capacity(DEFAULT_CAPACITY),
             outputs,
             time: 0.0,
             sample_rate: DEFAULT_SR,
@@ -797,6 +801,14 @@ impl AudioUnit for Sequencer {
 
     fn footprint(&self) -> usize {
         core::mem::size_of::<Self>()
+    }
+
+    fn allocate(&mut self) {
+        self.active.reserve(DEFAULT_CAPACITY);
+        self.active_map.reserve(DEFAULT_CAPACITY);
+        self.ready.reserve(DEFAULT_CAPACITY);
+        self.past.reserve(DEFAULT_CAPACITY);
+        self.edit_map.reserve(DEFAULT_CAPACITY);
     }
 }
 
