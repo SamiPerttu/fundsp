@@ -474,7 +474,7 @@ impl eframe::App for State {
                         Waveform::Noise => Net::wrap(Box::new(
                             (noise()
                                 | pitch * 4.0
-                                | lfo(move |t| funutd::math::lerp(2.0, 20.0, clamp01(t * 3.0))))
+                                | lfo(|t| funutd::math::lerp(2.0, 20.0, clamp01(t * 3.0))))
                                 >> !resonator()
                                 >> resonator()
                                 >> shape(Adaptive::new(0.1, Atan(0.05))) * 0.5,

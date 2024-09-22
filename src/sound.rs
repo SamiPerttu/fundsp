@@ -14,7 +14,7 @@ pub fn risset_glissando(up: bool) -> An<impl AudioNode<Inputs = U0, Outputs = U2
             let a = smooth3(sin_hz(0.5, phase)) / a_weight(f);
             (a, f)
         }) >> pass() * sine()
-    }) >> sumf::<U40, _, _>(|x| pan(lerp(-0.5, 0.5, x)))
+    }) >> sumf::<U40, _, _>(|x| pan(lerp(-0.5, 0.5, x))) * 0.1
 }
 
 /// Sound 002. Dynamical system example that harmonizes a chaotic set of pitches.
@@ -59,7 +59,7 @@ pub fn pebbles(speed: f32, seed: u64) -> An<impl AudioNode<Inputs = U0, Outputs 
                 }
             }
         },
-    ) >> pinkpass()
+    ) >> pinkpass() * 0.1
 }
 
 /// Sound 003. An 808 style bass drum, mono. `sharpness` in 0...1 is the sharpness of the click (for example, 0.2).

@@ -13,6 +13,7 @@
 - New methods `Net::sum` and `Net::product`.
 - `Net::pipe_input` and `Net::pipe_output` can no longer panic.
 - New method `Net::ids` for iterating over contained node IDs.
+- New method `Net::contains` for checking existence of a node.
 
 ### Version 0.19.1
 

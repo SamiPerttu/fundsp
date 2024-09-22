@@ -74,7 +74,6 @@ pub fn edge(source: Port, target: Port) -> Edge {
 /// Network unit. It can contain other units and maintain connections between them.
 /// Outputs of the network are sourced from user specified unit outputs or
 /// global inputs, or are filled with zeros if not connected.
-/// Similarly, each input to a contained unit is unique, and can be sourced similarly.
 #[derive(Default)]
 pub struct Net {
     /// Global input buffers.
@@ -475,9 +474,10 @@ impl Net {
     }
 
     /// Pipe global input to node `target`.
-    /// If there are fewer global inputs than inputs in `target`, then the rest are set to zero.
+    /// If there are fewer global inputs than inputs in `target`,
+    /// then a modulo operation is taken to obtain the global input.
     /// If there are more global inputs than inputs in `target`, then only the first ones are used.
-    ///
+    /// If there are no global inputs at all, then zeros are supplied.
     /// ### Example (Stereo Filter)
     /// ```
     /// use fundsp::hacker::*;
@@ -489,10 +489,13 @@ impl Net {
     /// ```
     pub fn pipe_input(&mut self, target: NodeId) {
         let target_index = self.node_index[&target];
+        let global_inputs = self.inputs();
         for channel in 0..self.vertex[target_index].inputs() {
-            if channel < self.inputs() {
-                self.vertex[target_index].source[channel] =
-                    edge(Port::Global(channel), Port::Local(target_index, channel));
+            if global_inputs > 0 {
+                self.vertex[target_index].source[channel] = edge(
+                    Port::Global(channel % global_inputs),
+                    Port::Local(target_index, channel),
+                );
             } else {
                 self.vertex[target_index].source[channel] =
                     edge(Port::Zero, Port::Local(target_index, channel));
@@ -535,7 +538,9 @@ impl Net {
 
     /// Pipe `source` outputs to global outputs.
     /// If there are fewer global outputs than `source` outputs, then only the first ones will be used.
-    /// If there are more global outputs than `source` outputs, then the rest will be set zero.
+    /// If there are more global outputs than `source` outputs,
+    /// then a modulo operation is taken to obtain the `source` output.
+    /// If there are no outputs in `source` at all, then zeros are supplied.
     ///
     /// ### Example (Stereo Reverb)
     /// ```
@@ -548,10 +553,13 @@ impl Net {
     /// ```
     pub fn pipe_output(&mut self, source: NodeId) {
         let source_index = self.node_index[&source];
+        let node_outputs = self.vertex[source_index].outputs();
         for channel in 0..self.outputs() {
-            if channel < self.vertex[source_index].outputs() {
-                self.output_edge[channel] =
-                    edge(Port::Local(source_index, channel), Port::Global(channel));
+            if node_outputs > 0 {
+                self.output_edge[channel] = edge(
+                    Port::Local(source_index, channel % node_outputs),
+                    Port::Global(channel),
+                );
             } else {
                 self.output_edge[channel] = edge(Port::Zero, Port::Global(channel));
             }
@@ -576,7 +584,10 @@ impl Net {
 
     /// Connect `source` node outputs to `target` node inputs.
     /// If there are more `source` outputs than `target` inputs, then some of the outputs will be unused.
-    /// If there are fewer `source` outputs than `target` inputs, then the extra inputs are fed zeros.
+    /// If there are fewer `source` outputs than `target` inputs, then a modulo operation is taken
+    /// to obtain a `source` output.
+    /// If there are no `source` outputs at all, then `target` inputs are filled with zeros.
+    /// For example, mono output and stereo input results in the same output being sent to both channels.
     ///
     /// ### Example (Panned Sine Wave)
     /// ```
@@ -593,9 +604,9 @@ impl Net {
         let target_index = self.node_index[&target];
         let outputs = self.vertex[source_index].outputs();
         for channel in 0..self.vertex[target_index].inputs() {
-            if channel < outputs {
+            if outputs > 0 {
                 self.vertex[target_index].source[channel] = edge(
-                    Port::Local(source_index, channel),
+                    Port::Local(source_index, channel % outputs),
                     Port::Local(target_index, channel),
                 );
             } else {
@@ -615,9 +626,8 @@ impl Net {
     /// add a new unit to the end of the chain.
     /// Global outputs will be assigned to the outputs of the unit.
     /// If there are more global outputs than there are outputs in the unit, then a modulo
-    /// is taken to plug all of them. The previous global output sources become inputs to the unit.
-    /// The number of inputs to the unit must match the number of outputs of the
-    /// previous unit, or the number of network inputs if there is no previous unit.
+    /// is taken to plug all of them.
+    /// The previous global output sources become inputs to the unit.
     /// Returns the ID of the new unit.
     ///
     /// ### Example (Lowpass And Highpass Filters In Series)
@@ -630,7 +640,6 @@ impl Net {
     /// ```
     pub fn chain(&mut self, unit: Box<dyn AudioUnit>) -> NodeId {
         let unit_inputs = unit.inputs();
-        let unit_outputs = unit.outputs();
         let id = self.push(unit);
         let index = self.node_index[&id];
 
@@ -639,25 +648,34 @@ impl Net {
                 self.pipe_input(id);
             }
         } else {
+            let global_outputs = self.outputs();
             for i in 0..unit_inputs {
-                self.vertex[index].source[i].source = self.output_edge[i % self.outputs()].source;
+                if global_outputs > 0 {
+                    self.vertex[index].source[i].source =
+                        self.output_edge[i % global_outputs].source;
+                } else {
+                    self.vertex[index].source[i].source = Port::Zero;
+                }
             }
         }
 
-        for i in 0..self.outputs() {
-            self.output_edge[i].source = Port::Local(index, i % unit_outputs);
-        }
-
+        self.pipe_output(id);
         self.invalidate_order();
         id
     }
 
-    /// Access node.
+    /// Return whether the given `node` is contained in the network.
+    pub fn contains(&self, node: NodeId) -> bool {
+        self.node_index.contains_key(&node)
+    }
+
+    /// Access `node`. Note that if this network is a frontend,
+    /// then the nodes accessible here are clones.
     pub fn node(&self, node: NodeId) -> &dyn AudioUnit {
         &*self.vertex[self.node_index[&node]].unit
     }
 
-    /// Access mutable node. Note that any changes made via this method
+    /// Access mutable `node`. Note that any changes made via this method
     /// are not accounted in the backend. This can be used to, e.g.,
     /// query for frequency responses.
     pub fn node_mut(&mut self, node: NodeId) -> &mut dyn AudioUnit {
@@ -690,7 +708,7 @@ impl Net {
         // as that is efficient with the data we have at hand.
         // A feature of this algorithm is that vertices that are not
         // connected to outputs at all still get included in the ordering,
-        // which is probably what we want.
+        // which is what we want: running nodes may have side effects.
         order.clear();
 
         for i in 0..self.vertex.len() {
@@ -1272,7 +1290,7 @@ impl Net {
     pub fn branch(mut net1: Net, mut net2: Net) -> Net {
         if net1.inputs() != net2.inputs() {
             panic!(
-                "Branch: mismatched inputs ({} versus {}).",
+                "Net::branch: mismatched inputs ({} versus {}).",
                 net1.inputs(),
                 net2.inputs()
             );
@@ -1400,7 +1418,7 @@ impl Net {
     ) -> Net {
         if net1.outputs() != net2.outputs() {
             panic!(
-                "Binary operation: mismatched outputs ({} versus {}).",
+                "Net::binary: mismatched outputs ({} versus {}).",
                 net1.outputs(),
                 net2.outputs()
             );
@@ -1500,14 +1518,14 @@ impl Net {
     pub fn bus(mut net1: Net, mut net2: Net) -> Net {
         if net1.inputs() != net2.inputs() {
             panic!(
-                "Bus: mismatched inputs ({} versus {}).",
+                "Net::bus: mismatched inputs ({} versus {}).",
                 net1.outputs(),
                 net2.outputs()
             );
         }
         if net1.outputs() != net2.outputs() {
             panic!(
-                "Bus: mismatched outputs ({} versus {}).",
+                "Net::bus: mismatched outputs ({} versus {}).",
                 net1.outputs(),
                 net2.outputs()
             );
@@ -1582,7 +1600,7 @@ impl Net {
     pub fn pipe(mut net1: Net, mut net2: Net) -> Net {
         if net1.outputs() != net2.inputs() {
             panic!(
-                "Pipe: mismatched connectivity ({} outputs versus {} inputs).",
+                "Net::pipe: mismatched connectivity ({} outputs versus {} inputs).",
                 net1.outputs(),
                 net2.inputs()
             );

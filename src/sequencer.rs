@@ -275,7 +275,7 @@ impl Sequencer {
     /// and played back after a reset.
     /// If false, then all events will be cleared on reset.
     pub fn new(replay_events: bool, outputs: usize) -> Self {
-        // when adding new dynamically sized fields, 
+        // when adding new dynamically sized fields,
         // don't forget to update [AudioUnit::allocate] implementation
         Self {
             active: Vec::with_capacity(DEFAULT_CAPACITY),
