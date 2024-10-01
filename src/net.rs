@@ -11,12 +11,32 @@ use super::shared::IdGenerator;
 use super::signal::*;
 use super::vertex::*;
 use super::*;
-use hashbrown::{hash_map::Keys, HashMap};
+use hashbrown::HashMap;
 use thingbuf::mpsc::{channel, Receiver, Sender};
 extern crate alloc;
 use super::sequencer::Fade;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+
+// Iterator type returned from `Net::ids`.
+pub use hashbrown::hash_map::Keys;
+
+/// Network errors. These are accessible via `Net::error`.
+/// The only error so far is a connection cycle.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NetError {
+    /// A connection cycle was detected.
+    Cycle,
+}
+
+impl core::fmt::Display for NetError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Net has one or more cycles")
+    }
+}
+
+// This should be implemented at some point.
+//impl core::error::Error for NetError {}
 
 pub type NodeIndex = usize;
 pub type PortIndex = usize;
@@ -34,6 +54,11 @@ impl NodeId {
     pub fn new() -> Self {
         NodeId(GLOBAL_NODE_ID.get_id())
     }
+    /// Return the raw value of the ID.
+    /// This is provided in case the user wishes to use the same ID for another purpose.
+    pub fn value(&self) -> u64 {
+        self.0
+    }
 }
 
 /// Node introduced with a crossfade.
@@ -46,11 +71,12 @@ pub(crate) struct NodeEdit {
     pub fade_time: f32,
 }
 
+// Net type ID for pseudorandom phase.
 const ID: u64 = 63;
 
 /// Input or output port.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum Port {
+pub(crate) enum Port {
     /// Node input or output.
     Local(NodeIndex, PortIndex),
     /// Network input or output.
@@ -60,14 +86,30 @@ pub enum Port {
     Zero,
 }
 
+/// Source for an input or source for a global output.
+/// The complete graph consists of nodes with their input edges and global output edges.
+/// This is a user facing structure.
+/// Source can be a contained node output (`Source::Local`), a network input (`Source::Global`)
+/// or zeros (`Source::Zero`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Source {
+    /// Node output.
+    Local(NodeId, PortIndex),
+    /// Network input.
+    Global(PortIndex),
+    /// Unconnected input or global output.
+    #[default]
+    Zero,
+}
+
 #[derive(Clone, Copy, Debug, Default)]
-pub struct Edge {
+pub(crate) struct Edge {
     pub source: Port,
     pub target: Port,
 }
 
 /// Create an edge from source to target.
-pub fn edge(source: Port, target: Port) -> Edge {
+pub(crate) fn edge(source: Port, target: Port) -> Edge {
     Edge { source, target }
 }
 
@@ -101,6 +143,8 @@ pub struct Net {
     /// Revision number. This is used by frontends and backends only.
     /// The revision is incremented after each commit.
     revision: u64,
+    /// Current error, if any.
+    error: Option<NetError>,
 }
 
 impl Clone for Net {
@@ -117,8 +161,10 @@ impl Clone for Net {
             front: None,
             backend_inputs: self.backend_inputs,
             backend_outputs: self.backend_outputs,
+            // Edit queue belongs to the frontend and is never cloned.
             edit_queue: Vec::new(),
             revision: self.revision,
+            error: self.error.clone(),
         }
     }
 }
@@ -139,7 +185,7 @@ impl Net {
         let mut net = Self {
             input: BufferVec::new(inputs),
             output: BufferVec::new(outputs),
-            output_edge: Vec::new(),
+            output_edge: Vec::with_capacity(outputs),
             vertex: Vec::new(),
             order: None,
             node_index: HashMap::new(),
@@ -149,6 +195,7 @@ impl Net {
             backend_outputs: outputs,
             edit_queue: Vec::new(),
             revision: 0,
+            error: None,
         };
         for channel in 0..outputs {
             net.output_edge
@@ -157,8 +204,20 @@ impl Net {
         net
     }
 
+    /// Return current error condition, if any.
+    /// The only possible error so far is a connection cycle.
+    /// If all cycles are removed, then the error will be cleared.
+    /// This call computes network topology to detect cycles.
+    pub fn error(&mut self) -> &Option<NetError> {
+        if !self.is_ordered() {
+            self.determine_order();
+        }
+        &self.error
+    }
+
     /// Add a new unit to the network. Return its ID handle.
     /// Unit inputs are initially set to zero.
+    /// `Net::fade_in` is a smooth version of this method.
     ///
     /// ### Example (Sine Oscillator)
     /// ```
@@ -190,22 +249,94 @@ impl Net {
     }
 
     /// Return an iterator over the node IDs of the network.
-    pub fn ids(&self) -> Keys<'_, net::NodeId, usize> {
+    /// The nodes are iterated in an arbitrary order.
+    pub fn ids(&self) -> Keys<'_, NodeId, usize> {
         self.node_index.keys()
     }
 
+    /// Get the signal source for `node` input `channel`.
+    /// Sources can be network inputs (`Source::Global`), node outputs (`Source::Local`) or zeros (`Source::Zero`).
+    /// The complete graph consists of contained nodes and edges from here and the ones from `output_source`.
+    pub fn source(&self, node: NodeId, channel: usize) -> Source {
+        let index = self.node_index[&node];
+        assert!(channel < self.vertex[index].inputs());
+        match self.vertex[index].source[channel].source {
+            Port::Global(i) => Source::Global(i),
+            Port::Local(i, j) => Source::Local(self.vertex[i].id, j),
+            Port::Zero => Source::Zero,
+        }
+    }
+
+    /// Set the signal source for `node` input `channel`.
+    /// Self connections are prohibited. Creating cycles will result in a recoverable error condition (see `Net::error)`.
+    /// Sources can be network inputs (`Source::Global`), node outputs (`Source::Local`) or zeros (`Source::Zero`).
+    /// The complete graph consists of contained nodes and edges from here and the ones from `set_output_source`.
+    pub fn set_source(&mut self, node: NodeId, channel: usize, source: Source) {
+        let index = self.node_index[&node];
+        assert!(channel < self.vertex[index].inputs());
+        self.vertex[index].source[channel].source = match source {
+            Source::Global(i) => {
+                assert!(i < self.inputs());
+                Port::Global(i)
+            }
+            Source::Local(id, j) => {
+                assert!(id != node);
+                let i = self.node_index[&id];
+                assert!(j < self.vertex[i].outputs());
+                Port::Local(i, j)
+            }
+            Source::Zero => Port::Zero,
+        };
+        self.invalidate_order();
+    }
+
+    /// Get the signal source for network output `channel`.
+    /// Sources can be network inputs (`Source::Global`), node outputs (`Source::Local`) or zeros (`Source::Zero`).
+    /// The complete graph consists of contained nodes and edges from here and the ones from `source`.
+    pub fn output_source(&self, channel: usize) -> Source {
+        assert!(channel < self.outputs());
+        match self.output_edge[channel].source {
+            Port::Global(i) => Source::Global(i),
+            Port::Local(i, j) => Source::Local(self.vertex[i].id, j),
+            Port::Zero => Source::Zero,
+        }
+    }
+
+    /// Set the signal source for network output `channel`.
+    /// Sources can be network inputs (`Source::Global`), node outputs (`Source::Local`) or zeros (`Source::Zero`).
+    /// The complete graph consists of contained nodes and edges from here and the ones from `set_source`.
+    pub fn set_output_source(&mut self, channel: usize, source: Source) {
+        assert!(channel < self.outputs());
+        self.output_edge[channel].source = match source {
+            Source::Global(i) => {
+                assert!(i < self.inputs());
+                Port::Global(i)
+            }
+            Source::Local(id, j) => {
+                let i = self.node_index[&id];
+                assert!(j < self.vertex[i].outputs());
+                Port::Local(i, j)
+            }
+            Source::Zero => Port::Zero,
+        };
+        self.invalidate_order();
+    }
+
     /// Whether we have calculated the order vector.
+    #[inline]
     fn is_ordered(&self) -> bool {
         self.order.is_some()
     }
 
     /// Invalidate any previously calculated order.
+    #[inline]
     fn invalidate_order(&mut self) {
         self.order = None;
     }
 
     /// Remove `node` from network. Returns the unit that was removed.
     /// All connections from the unit are replaced with zeros.
+    /// If this is a frontend, then the returned unit is a clone.
     ///
     /// ### Example (Sine Oscillator)
     /// ```
@@ -226,6 +357,7 @@ impl Net {
     /// Remove `node` from network. Returns the unit that was removed.
     /// Connections from the unit are replaced with pass-through connections.
     /// The unit must have an equal number of inputs and outputs.
+    /// If this is a frontend, then the returned unit is a clone.
     ///
     /// ### Example
     /// ```
@@ -315,6 +447,8 @@ impl Net {
     /// as the node it is replacing.
     /// The ID of the node remains the same.
     /// Returns the unit that was replaced.
+    /// If this network is a frontend, then the returned unit is a clone.
+    /// `Net::crossfade` is a smooth version of this method.
     ///
     /// ### Example (Replace Saw Wave With Square Wave)
     /// ```
@@ -600,6 +734,10 @@ impl Net {
     /// net.check();
     /// ```
     pub fn pipe_all(&mut self, source: NodeId, target: NodeId) {
+        // We should never panic here so just return if `source` is the same as `target`.
+        if source == target {
+            return;
+        }
         let source_index = self.node_index[&source];
         let target_index = self.node_index[&target];
         let outputs = self.vertex[source_index].outputs();
@@ -669,6 +807,16 @@ impl Net {
         self.node_index.contains_key(&node)
     }
 
+    /// Return number of inputs in contained `node`.
+    pub fn inputs_in(&self, node: NodeId) -> usize {
+        self.vertex[self.node_index[&node]].inputs()
+    }
+
+    /// Return number of outputs in contained `node`.
+    pub fn outputs_in(&self, node: NodeId) -> usize {
+        self.vertex[self.node_index[&node]].outputs()
+    }
+
     /// Access `node`. Note that if this network is a frontend,
     /// then the nodes accessible here are clones.
     pub fn node(&self, node: NodeId) -> &dyn AudioUnit {
@@ -695,8 +843,10 @@ impl Net {
             Some(v) => v,
             None => Vec::with_capacity(self.vertex.len()),
         };
-        if !self.determine_order_in(&mut order) {
-            panic!("Cycle detected");
+        if self.determine_order_in(&mut order) {
+            self.error = None;
+        } else {
+            self.error = Some(NetError::Cycle);
         }
         self.order = Some(order);
     }
@@ -748,9 +898,21 @@ impl Net {
             }
         }
 
-        order.reverse();
-
-        order.len() == self.vertex.len()
+        if order.len() < self.vertex.len() {
+            // We missed some nodes, which means there must be one or more cycles.
+            // Add the rest of the nodes anyway. The worst that can happen
+            // is that we use old buffer data.
+            for i in 0..self.vertex.len() {
+                if !self.vertex[i].ordered {
+                    order.push(i);
+                }
+            }
+            order.reverse();
+            false
+        } else {
+            order.reverse();
+            true
+        }
     }
 
     /// Wrap arbitrary unit in a network.

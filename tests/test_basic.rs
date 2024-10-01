@@ -327,6 +327,16 @@ fn test_basic() {
         >> multitap_linear::<U2>(0.0, 1.0);
     check_wave_filter(&input, tap_node.clone() | tap_node.clone());
 
+    // Check cycle.
+    let mut cycle = Net::new(1, 1);
+    let id1 = cycle.chain(Box::new(join::<U2>()));
+    let id2 = cycle.chain(Box::new(pass()));
+    assert_eq!(cycle.error(), &None);
+    cycle.set_source(id1, 1, Source::Local(id2, 0));
+    assert_eq!(cycle.error(), &Some(NetError::Cycle));
+    cycle.set_source(id1, 1, Source::Global(0));
+    assert_eq!(cycle.error(), &None);
+
     // Constants.
     let mut d = constant(1.0);
     assert!(d.inputs() == 0 && d.outputs() == 1);

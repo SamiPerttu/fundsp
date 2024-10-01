@@ -14,6 +14,11 @@
 - `Net::pipe_input` and `Net::pipe_output` can no longer panic.
 - New method `Net::ids` for iterating over contained node IDs.
 - New method `Net::contains` for checking existence of a node.
+- New methods `Net::source` and `Net::output_source` for retrieving network edge information.
+- New methods `Net::inputs_in` and `Net::outputs_in` for querying contained node arity.
+- New methods `Net::set_source` and `Net::set_output_source` for setting network edges.
+- New type `net::NetError` and method `Net::error` for detecting errors.
+  Cycles no longer cause a panic, but trigger an error condition instead.
 
 ### Version 0.19.1
 
