@@ -1,6 +1,6 @@
 ## Changes
 
-### Version 0.20 (Next Version)
+### Version 0.20
 
 - `Net::chain` is more robust now.
 - Ring buffer component in the module `ring`.
