@@ -21,6 +21,5 @@ This is a list of feature ideas for the future.
 - Make a more flexible node replacement method for `Net` where the number of inputs and outputs could be changed.
 - Text-to-speech engine.
 - Resampler with sinc interpolation.
-- Ring buffer component for transporting audio data from another thread.
 - Support feedback loops in `Net`.
 - Looping in `Sequencer`.
