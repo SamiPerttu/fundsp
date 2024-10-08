@@ -2655,3 +2655,29 @@ pub fn fresonator_hz<S: Shape>(
 ) -> An<FixedFbBiquad<f64, ResonatorBiquad<f64>, S>> {
     super::prelude::fresonator_hz(shape, center as f64, q as f64)
 }
+
+/// PolyBLEP saw wave oscillator. A fast bandlimited saw wave algorithm.
+/// - Input 0: frequency (Hz)
+/// - Output 0: saw wave
+pub fn poly_saw() -> An<PolySaw<f64>> {
+    An(PolySaw::new())
+}
+
+/// PolyBLEP saw wave oscillator at `f` Hz. A fast bandlimited saw wave algorithm.
+/// - Output 0: saw wave
+pub fn poly_saw_hz(f: f32) -> An<Pipe<Constant<U1>, PolySaw<f64>>> {
+    dc(f) >> poly_saw()
+}
+
+/// PolyBLEP square wave oscillator. A fast bandlimited square wave algorithm.
+/// - Input 0: frequency (Hz)
+/// - Output 0: square wave
+pub fn poly_square() -> An<PolySquare<f64>> {
+    An(PolySquare::new())
+}
+
+/// PolyBLEP square wave oscillator at `f` Hz. A fast bandlimited square wave algorithm.
+/// - Output 0: square wave
+pub fn poly_square_hz(f: f32) -> An<Pipe<Constant<U1>, PolySquare<f64>>> {
+    dc(f) >> poly_square()
+}

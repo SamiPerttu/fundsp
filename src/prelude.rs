@@ -3103,3 +3103,29 @@ pub fn fresonator_hz<F: Real, S: Shape>(
     filter.set_center_q(center, q);
     An(filter)
 }
+
+/// PolyBLEP saw wave oscillator. A fast bandlimited saw wave algorithm.
+/// - Input 0: frequency (Hz)
+/// - Output 0: saw wave
+pub fn poly_saw<F: Float>() -> An<PolySaw<F>> {
+    An(PolySaw::new())
+}
+
+/// PolyBLEP saw wave oscillator at `f` Hz. A fast bandlimited saw wave algorithm.
+/// - Output 0: saw wave
+pub fn poly_saw_hz<F: Float>(f: f32) -> An<Pipe<Constant<U1>, PolySaw<F>>> {
+    dc(f) >> poly_saw()
+}
+
+/// PolyBLEP square wave oscillator. A fast bandlimited square wave algorithm.
+/// - Input 0: frequency (Hz)
+/// - Output 0: square wave
+pub fn poly_square<F: Float>() -> An<PolySquare<F>> {
+    An(PolySquare::new())
+}
+
+/// PolyBLEP square wave oscillator at `f` Hz. A fast bandlimited square wave algorithm.
+/// - Output 0: square wave
+pub fn poly_square_hz<F: Float>(f: f32) -> An<Pipe<Constant<U1>, PolySquare<F>>> {
+    dc(f) >> poly_square()
+}

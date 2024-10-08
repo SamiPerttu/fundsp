@@ -40,6 +40,8 @@ To discuss FunDSP and other topics, come hang out with us at the
 [bevy_fundsp](https://github.com/harudagondi/bevy_fundsp) integrates FunDSP into
 the [Bevy](https://bevyengine.org/) game engine.
 
+[lapis](https://github.com/tomara-x/lapis) is an interpreter for FunDSP expressions.
+
 [midi_fundsp](https://github.com/gjf2a/midi_fundsp) enables the easy creation
 of live synthesizer software using FunDSP for synthesis.
 
@@ -1196,6 +1198,10 @@ The type parameters in the table refer to the hacker preludes.
 | `pipei::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from fractional generator `f`. |
 | `pluck(f, gain, damping)` | 1 (excitation) | 1 | [Karplus-Strong](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis) plucked string oscillator with frequency `f` Hz, `gain` per second (`gain` <= 1) and high frequency `damping` in 0...1. |
+| `poly_saw()`           | 1 (frequency) | 1 | Bandlimited saw wave oscillator. |
+| `poly_saw_hz(f)`       |    -    |    1    | Bandlimited saw wave oscillator with frequency `f` Hz. |
+| `poly_square()`        | 1 (frequency) | 1 | Bandlimited square wave oscillator. |
+| `poly_square_hz(f)`    |    -    |    1    | Bandlimited square wave oscillator with frequency `f` Hz. |
 | `product(x, y)`        | `x + y` | `x = y` | Multiply nodes `x` and `y`. Same as `x * y`. |
 | `pulse()`              | 2 (frequency, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
 | `ramp()`               | 1 (frequency) | 1 | Non-bandlimited ramp (sawtooth) wave in 0...1. |

@@ -14,7 +14,6 @@ This is a list of feature ideas for the future.
 - Improve or replace the drum sounds in the `sound` module.
 - Real-time safe sound server that uses `cpal`. It could have a static set of read/write channels for rendering audio, including hardware channels.
 - Conversion of graphs into a graphical form. Format associative operator chains appropriately.
-- Interpreter for simple FunDSP expressions.
 - Expand `README.md` into a book.
 - Time stretching / pitch shifting algorithm.
 - FFT convolution engine and HRTF support.

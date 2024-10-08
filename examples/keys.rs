@@ -20,6 +20,8 @@ enum Waveform {
     Pulse,
     Pluck,
     Noise,
+    PolySaw,
+    PolySquare,
 }
 
 #[derive(Debug, PartialEq)]
@@ -262,12 +264,14 @@ impl eframe::App for State {
                 ui.selectable_value(&mut self.waveform, Waveform::Square, "Square");
                 ui.selectable_value(&mut self.waveform, Waveform::Triangle, "Triangle");
                 ui.selectable_value(&mut self.waveform, Waveform::Organ, "Organ");
+                ui.selectable_value(&mut self.waveform, Waveform::Hammond, "Hammond");
             });
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.waveform, Waveform::Hammond, "Hammond");
                 ui.selectable_value(&mut self.waveform, Waveform::Pulse, "Pulse");
                 ui.selectable_value(&mut self.waveform, Waveform::Pluck, "Pluck");
                 ui.selectable_value(&mut self.waveform, Waveform::Noise, "Noise");
+                ui.selectable_value(&mut self.waveform, Waveform::PolySaw, "PolySaw");
+                ui.selectable_value(&mut self.waveform, Waveform::PolySquare, "PolySquare");
             });
             ui.separator();
 
@@ -479,6 +483,8 @@ impl eframe::App for State {
                                 >> resonator()
                                 >> shape(Adaptive::new(0.1, Atan(0.05))) * 0.5,
                         )),
+                        Waveform::PolySaw => Net::wrap(Box::new(pitch >> poly_saw() * 0.06)),
+                        Waveform::PolySquare => Net::wrap(Box::new(pitch >> poly_square() * 0.06)),
                     };
                     let filter = match self.filter {
                         Filter::None => Net::wrap(Box::new(pass())),

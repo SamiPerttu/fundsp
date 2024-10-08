@@ -455,7 +455,7 @@ impl<F: Float> Ramp<F> {
 }
 
 impl<F: Float> AudioNode for Ramp<F> {
-    const ID: u64 = 21;
+    const ID: u64 = 94;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
 
@@ -476,6 +476,163 @@ impl<F: Float> AudioNode for Ramp<F> {
         self.phase += F::from_f32(input[0]) * self.sample_duration;
         self.phase -= self.phase.floor();
         [phase].into()
+    }
+
+    fn set_hash(&mut self, hash: u64) {
+        self.hash = hash;
+        self.reset();
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        super::signal::Routing::Arbitrary(0.0).route(input, self.outputs())
+    }
+}
+
+/// PolyBLEP function with phase `t` in 0...1 and phase increment `dt`.
+fn polyblep<F: Float>(t: F, dt: F) -> F {
+    if t < dt {
+        let z = t / dt;
+        z + z - z * z - F::one()
+    } else if t > F::one() - dt {
+        let z = (t - F::one()) / dt;
+        z + z + z * z + F::one()
+    } else {
+        F::zero()
+    }
+}
+
+/// PolyBLEP saw oscillator. A fast bandlimited algorithm for a saw wave.
+/// - Input 0: frequency (Hz).
+/// - Output 0: saw waveform in -1...1.
+#[derive(Default, Clone)]
+pub struct PolySaw<F: Float> {
+    phase: F,
+    sample_duration: F,
+    hash: u64,
+    initial_phase: Option<F>,
+}
+
+impl<F: Float> PolySaw<F> {
+    /// Create oscillator.
+    pub fn new() -> Self {
+        let mut osc = Self::default();
+        osc.reset();
+        osc.set_sample_rate(DEFAULT_SR);
+        osc
+    }
+    /// Create oscillator with initial phase in 0...1.
+    pub fn with_phase(initial_phase: f32) -> Self {
+        let mut osc = Self {
+            phase: F::zero(),
+            sample_duration: F::zero(),
+            hash: 0,
+            initial_phase: Some(F::from_f32(initial_phase)),
+        };
+        osc.reset();
+        osc.set_sample_rate(DEFAULT_SR);
+        osc
+    }
+}
+
+impl<F: Float> AudioNode for PolySaw<F> {
+    const ID: u64 = 95;
+    type Inputs = typenum::U1;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self) {
+        self.phase = match self.initial_phase {
+            Some(phase) => phase,
+            None => convert(rnd1(self.hash)),
+        };
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = convert(1.0 / sample_rate);
+    }
+
+    #[inline]
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let phase = self.phase;
+        let delta = F::from_f32(input[0]) * self.sample_duration;
+        self.phase += delta;
+        self.phase -= self.phase.floor();
+        let value = F::new(2) * phase - F::one() - polyblep(phase, delta);
+        [value.to_f32()].into()
+    }
+
+    fn set_hash(&mut self, hash: u64) {
+        self.hash = hash;
+        self.reset();
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        super::signal::Routing::Arbitrary(0.0).route(input, self.outputs())
+    }
+}
+
+/// PolyBLEP square oscillator. A fast bandlimited algorithm for a square wave.
+/// - Input 0: frequency (Hz).
+/// - Output 0: saw waveform in -1...1.
+#[derive(Default, Clone)]
+pub struct PolySquare<F: Float> {
+    phase: F,
+    sample_duration: F,
+    hash: u64,
+    initial_phase: Option<F>,
+}
+
+impl<F: Float> PolySquare<F> {
+    /// Create oscillator.
+    pub fn new() -> Self {
+        let mut osc = Self::default();
+        osc.reset();
+        osc.set_sample_rate(DEFAULT_SR);
+        osc
+    }
+    /// Create oscillator with initial phase in 0...1.
+    pub fn with_phase(initial_phase: f32) -> Self {
+        let mut osc = Self {
+            phase: F::zero(),
+            sample_duration: F::zero(),
+            hash: 0,
+            initial_phase: Some(F::from_f32(initial_phase)),
+        };
+        osc.reset();
+        osc.set_sample_rate(DEFAULT_SR);
+        osc
+    }
+}
+
+impl<F: Float> AudioNode for PolySquare<F> {
+    const ID: u64 = 96;
+    type Inputs = typenum::U1;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self) {
+        self.phase = match self.initial_phase {
+            Some(phase) => phase,
+            None => convert(rnd1(self.hash)),
+        };
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = convert(1.0 / sample_rate);
+    }
+
+    #[inline]
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let phase = self.phase;
+        let delta = F::from_f32(input[0]) * self.sample_duration;
+        self.phase += delta;
+        self.phase -= self.phase.floor();
+        let square = if phase < F::from_f32(0.5) {
+            F::one()
+        } else {
+            -F::one()
+        };
+        let half = phase + F::from_f32(0.5);
+        let value = square + polyblep(phase, delta) - polyblep(half - half.floor(), delta);
+        [value.to_f32()].into()
     }
 
     fn set_hash(&mut self, hash: u64) {

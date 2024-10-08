@@ -296,6 +296,7 @@ fn test_basic() {
 
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
     check_wave(impulse::<U2>());
+    check_wave(poly_saw_hz(440.0) | poly_square_hz(4400.0));
 
     let dc42 = Net::wrap(Box::new(dc(42.)));
     let dcs = dc42.clone() | dc42;
