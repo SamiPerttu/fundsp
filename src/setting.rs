@@ -45,6 +45,8 @@ pub enum Parameter {
     Pan(f32),
     /// Set attack and release times in seconds.
     AttackRelease(f32, f32),
+    /// Oscillator initial phase in 0...1.
+    Phase(f32),
 }
 
 /// Address specifies location to apply setting in a graph.
@@ -147,6 +149,13 @@ impl Setting {
     pub fn attack_release(attack: f32, release: f32) -> Self {
         Self {
             parameter: Parameter::AttackRelease(attack, release),
+            address: ArrayVec::new(),
+        }
+    }
+    /// Create setting for oscillator initial phase in 0...1.
+    pub fn phase(phase: f32) -> Self {
+        Self {
+            parameter: Parameter::Phase(phase),
             address: ArrayVec::new(),
         }
     }

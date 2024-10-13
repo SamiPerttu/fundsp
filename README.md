@@ -271,18 +271,9 @@ The aims of the environments are:
 - Minimize the number of characters needed to type to express an idiom.
 - Keep the syntax clean so that a subset of the hacker environment
   can be parsed straightforwardly as a high-level DSL for quick prototyping.
+  This has been done in the [lapis](https://github.com/tomara-x/lapis) project.
+
 - Make the syntax usable even to people with no prior exposure to programming.
-
-### Deterministic Pseudorandom Phase
-
-FunDSP uses a deterministic pseudorandom phase system for audio generators.
-Generator phases are seeded from network structure and node location.
-
-Thus, two identical networks sound identical separately but different when combined.
-This means that `noise() | noise()` is a stereo noise source, for example.
-
-Pseudorandom phase is an attempt to decorrelate different channels of audio.
-It is also used to pick sample points for envelopes, contributing to a "warmer" sound.
 
 ## Operators
 
@@ -509,7 +500,8 @@ net.pipe_output(sine_id);
 ```
 
 The overhead of `Net` is the overhead of calling into `Box<dyn AudioUnit>`
-objects. Beyond that, the dynamic versions are roughly as efficient
+objects. Static graphs can get optimized more effectively as well by the compiler.
+Beyond that, the dynamic versions are roughly as efficient
 as the static ones.
 
 The graph syntax is also available for combining `Net` instances.
@@ -559,6 +551,11 @@ net.commit();
 Using dynamic networks incurs some overhead so it is an especially good idea
 to use block processing, which neutralizes it effectively.
 
+It is possible to create cycles with `Net` methods.
+If that happens an error is raised, which can be checked with `Net::error`.
+If the cycle is removed, the error is cleared.
+All nodes get processed anyway.
+
 ### Sequencer
 
 The `Sequencer` component mixes together generator nodes dynamically.
@@ -604,11 +601,55 @@ Some signals found flowing in audio networks.
 | Modality       | Preferred Units/Range  | Notes                                      |
 | -------------- | ---------------------- | ------------------------------------------ |
 | frequency      | Hz                     | |
-| phase          | 0...1                  | The wavetable oscillator uses this range. |
+| phase          | 0...1                  | All oscillators use this range. |
 | time           | s                      | |
 | audio data     | -1...1                 | Inner processing may use any range that is convenient. However, only special output formats can store audio data outside this range. |
 | stereo pan     | -1...1 (left to right) | For ergonomy, consider clamping any pan input to this range. |
+| pulse width    | 0...1                  | |
 | control amount | 0...1                  | If there is no natural interpretation of the parameter. |
+
+## Deterministic Pseudorandom Phase
+
+FunDSP uses a deterministic pseudorandom phase system for audio generators.
+Generator phases are seeded from network structure and node location.
+
+Thus, two identical networks sound identical separately but different when combined.
+This means that `noise() | noise()` is a stereo noise source, for example.
+
+Pseudorandom phase is an attempt to decorrelate different channels of audio.
+It is also used to pick sample points for envelopes, contributing to a "warmer" sound.
+
+## Oscillators
+
+To override pseudorandom phase in an oscillator with an initial phase of your own (in 0...1),
+use the `phase` builder method. For example, in `let mut A = sine_hz(220.0).phase(0.0)`
+the (220 Hz) sine wave starts from zero phase (where the value is zero, too).
+
+To change the initial phase later, use the `phase` setting, for example,
+`A.set(Setting::phase(0.5))`. The setting takes effect during the next reset.
+
+The following table lists the oscillator opcodes.
+
+| Opcode         | Type                   | Waveform                                   |
+| -------------- | ---------------------- | ------------------------------------------ |
+| `dsf_saw`      | DSF                    | saw-like
+| `dsf_square`   | DSF                    | square-like
+| `hammond`      | wavetable              | Hammond-y waveform, which emphasizes first three partials |
+| `organ`        | wavetable              | organ-y waveform, which emphasizes octave partials |
+| `poly_pulse`   | PolyBLEP               | pulse |
+| `poly_saw`     | PolyBLEP               | saw |
+| `poly_square`  | PolyBLEP               | square |
+| `pulse`        | wavetable              | pulse |
+| `saw`          | wavetable              | saw |
+| `sine`         | sine                   | sine |
+| `soft_saw`     | wavetable              | soft saw, which falls off like a triangle wave |
+| `square`       | wavetable              | square |
+| `triangle`     | wavetable              | triangle |
+
+The wavetable oscillator is bandlimited with pristine quality.
+However, unlike the other types it allocates memory in the form of static wavetables.
+The DSF oscillator has similar quality but is somewhat expensive to evaluate.
+The PolyBLEP oscillator is a fast approximation with fair quality.
 
 ## Working With Waves
 
@@ -1078,11 +1119,11 @@ The type parameters in the table refer to the hacker preludes.
 | `biquad(a1, a2, b0, b1, b2)` | 1 |    1    | Arbitrary [biquad filter](https://en.wikipedia.org/wiki/Digital_biquad_filter) with coefficients in normalized form. |
 | `brown()`              |    -    |    1    | [Brown](https://en.wikipedia.org/wiki/Brownian_noise) noise. |
 | `branch(x, y)`         | `x = y` | `x + y` | Branch into `x` and `y`. Identical with `x ^ y`. |
-| `branchi::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from indexed generator `f`. |
 | `branchf::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))`. |
+| `branchi::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from indexed generator `f`. |
 | `bus(x, y)`            | `x = y` | `x = y` | Bus `x` and `y`. Identical with `x & y`. |
-| `busi::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f32 + 1.0) >> sine()`. |
 | `busf::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from fractional generator `f`. |
+| `busi::<U, _, _>(f)`   |   `f`   |   `f`   | Bus together `U` nodes from indexed generator `f`, e.g., `\| i \| mul(i as f32 + 1.0) >> sine()`. |
 | `butterpass()`         | 2 (audio, frequency) | 1 | Butterworth lowpass filter (2nd order). |
 | `butterpass_hz(f)`     |    1    |    1    | Butterworth lowpass filter (2nd order) with cutoff frequency `f` Hz. |
 | `chorus(seed, sep, var, mod)` | 1 | 1 | Chorus effect with LFO seed `seed`, voice separation `sep` seconds, delay variation `var` seconds and LFO modulation frequency `mod` Hz. |
@@ -1118,7 +1159,7 @@ The type parameters in the table refer to the hacker preludes.
 | `feedback(x)`          |   `x`   |   `x`   | Enclose (single sample) feedback circuit `x` (with equal number of inputs and outputs). |
 | `feedback2(x, y)`      | `x`, `y`| `x`, `y`| Enclose (single sample) feedback circuit `x` (with equal number of inputs and outputs) with extra feedback loop processing `y`. The feedforward path does not include `y`. |
 | `fir(weights)`         |    1    |    1    | FIR filter with the specified weights, for example, `fir((0.5, 0.5))`. |
-| `fir3(gain)`           |    1    |    1    | Symmetric 3-point FIR calculated from desired `gain` at the Nyquist frequency. |
+| `fir3(gain)`           |    1    |    1    | Symmetric 3-point FIR calculated from desired amplitude `gain` at the Nyquist frequency (a monotonic lowpass when `gain` < 1). |
 | `flanger(fb, min_d, max_d, f)`| 1|    1    | Flanger effect with feedback amount `fb`, minimum delay `min_d` seconds, maximum delay `max_d` seconds and delay function `f`, e.g., `\|t\| lerp11(0.01, 0.02, sin_hz(0.1, t))`. |
 | `fhighpass(shape)`     | 3 (audio, frequency, Q) | 1 | Feedback biquad highpass (2nd order) with feedback `shape`, for example, `Softsign(1.0)`. |
 | `fhighpass_hz(shape, f, q)` | 1  |    1    | Feedback biquad highpass (2nd order) with feedback `shape`, center `f` Hz and Q `q`. |
@@ -1195,19 +1236,19 @@ The type parameters in the table refer to the hacker preludes.
 | `pink()`               |    -    |    1    | [Pink noise](https://en.wikipedia.org/wiki/Pink_noise) source. |
 | `pinkpass()`           |    1    |    1    | Pinking filter (3 dB/octave lowpass). |
 | `pipe(x, y)`           |   `x`   |   `y`   | Pipe `x` to `y`. Identical with `x >> y`. |
-| `pipei::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from fractional generator `f`. |
+| `pipei::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |
 | `pluck(f, gain, damping)` | 1 (excitation) | 1 | [Karplus-Strong](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis) plucked string oscillator with frequency `f` Hz, `gain` per second (`gain` <= 1) and high frequency `damping` in 0...1. |
-| `poly_saw()`           | 1 (frequency) | 1 | Bandlimited saw wave oscillator. |
-| `poly_saw_hz(f)`       |    -    |    1    | Bandlimited saw wave oscillator with frequency `f` Hz. |
-| `poly_square()`        | 1 (frequency) | 1 | Bandlimited square wave oscillator. |
-| `poly_square_hz(f)`    |    -    |    1    | Bandlimited square wave oscillator with frequency `f` Hz. |
+| `poly_pulse()`         | 2 (frequency, pulse width) | 1 | Somewhat bandlimited pulse wave oscillator. |
+| `poly_pulse_hz(f, w)`  |    -    |    1    | Somewhat bandlimited pulse wave oscillator with frequency `f` Hz and pulse width `w` in 0...1. |
+| `poly_saw()`           | 1 (frequency) | 1 | Somewhat bandlimited saw wave oscillator. |
+| `poly_saw_hz(f)`       |    -    |    1    | Somewhat bandlimited saw wave oscillator with frequency `f` Hz. |
+| `poly_square()`        | 1 (frequency) | 1 | Somewhat bandlimited square wave oscillator. |
+| `poly_square_hz(f)`    |    -    |    1    | Somewhat bandlimited square wave oscillator with frequency `f` Hz. |
 | `product(x, y)`        | `x + y` | `x = y` | Multiply nodes `x` and `y`. Same as `x * y`. |
-| `pulse()`              | 2 (frequency, duty cycle) | 1 | Bandlimited pulse wave with duty cycle in 0...1. |
+| `pulse()`              | 2 (frequency, pulse width) | 1 | Bandlimited pulse wave with pulse width in 0...1. |
 | `ramp()`               | 1 (frequency) | 1 | Non-bandlimited ramp (sawtooth) wave in 0...1. |
 | `ramp_hz(f)`           |    0    |    1    | Non-bandlimited ramp (sawtooth) wave in 0...1 with frequency `f` Hz. |
-| `ramp_phase(phase)`    | 1 (frequency) | 1 | Non-bandlimited ramp (sawtooth) wave in 0...1 with initial `phase` in 0...1. |
-| `ramp_hz_phase(f, phase)` | 0    |    1    | Non-bandlimited ramp (sawtooth) wave in 0...1 with frequency `f` Hz and initial `phase` in 0...1. |
 | `resample(node)`       | 1 (speed) | `node` | Resample generator `node` using cubic interpolation at speed obtained from the input, where 1 is the original speed. |
 | `resonator()`          | 3 (audio, frequency, Q) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, q)`   |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and Q `q`. |
@@ -1224,7 +1265,6 @@ The type parameters in the table refer to the hacker preludes.
 | `shape_fn(f)`          |    1    |    1    | Shape signal with waveshaper function `f`, e.g., `tanh`. |
 | `sine()`               | 1 (frequency) | 1 | Sine oscillator. |
 | `sine_hz(f)`           |    -    |    1    | Sine oscillator at `f` Hz. |
-| `sine_phase(p)`        | 1 (frequency) | 1 | Sine oscillator with initial phase `p` in 0...1. |
 | `sink()`               |    1    |    -    | Consume signal. |
 | `soft_saw()`           | 1 (frequency) | 1 | Bandlimited soft saw wave oscillator. |
 | `soft_saw_hz(f)`       |    -    |    1    | Bandlimited soft saw wave oscillator at `f` Hz. |
@@ -1232,12 +1272,12 @@ The type parameters in the table refer to the hacker preludes.
 | `square()`             | 1 (frequency) | 1 | Bandlimited square wave oscillator. |
 | `square_hz(f)`         |    -    |    1    | Bandlimited square wave oscillator at frequency `f` Hz. |
 | `stack(x, y)`          | `x + y` | `x + y` | Stack `x` and `y`. Identical with `x \| y`. |
-| `stacki::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from indexed generator `f`. |
 | `stackf::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
+| `stacki::<U, _, _>(f)` | `U * f` | `U * f` | Stack `U` nodes from indexed generator `f`. |
 | `sub(x)`               |   `x`   |   `x`   | Subtract constant `x` from signal. |
 | `sum(x, y)`            | `x + y` | `x = y` | Add nodes `x` and `y`. Same as `x + y`. |
-| `sumi::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `sumf::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from fractional generator `f`, e.g., `\| x \| delay(xerp(0.1, 0.2, x))`. |
+| `sumi::<U, _, _>(f)`   | `U * f` |   `f`   | Sum `U` nodes from indexed generator `f`. |
 | `tap(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with cubic interpolation. All times are in seconds. |
 | `tap_linear(min_delay, max_delay)` | 2 (audio, delay) | 1 | Tapped delay line with linear interpolation. All times are in seconds. |
 | `thru(x)`              |   `x`   | `x` inputs | Pass through missing outputs. Same as `!x`. |

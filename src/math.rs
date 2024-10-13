@@ -669,13 +669,13 @@ where
 /// Each integer cell is an interpolation segment.
 /// Easing function `ease` (for example, `smooth3`) can be asymmetric:
 /// `(r, f)` employs `r` for rising and `f` for falling segments.
-pub fn ease_noise<T: Float>(ease: impl SegmentInterpolator<T>, seed: i64, x: T) -> T {
+pub fn ease_noise<T: Float>(ease: impl SegmentInterpolator<T>, seed: u64, x: T) -> T {
     let fx = floor(x);
     let dx = x - fx;
     let ix = fx.to_i64();
 
-    fn get_point<T: Float>(seed: i64, i: i64) -> T {
-        AttoHash::new(seed as u64).hash(i as u64).hash11()
+    fn get_point<T: Float>(seed: u64, i: i64) -> T {
+        AttoHash::new(seed).hash(i as u64).hash11()
     }
 
     let y1 = get_point(seed, ix);
@@ -713,13 +713,13 @@ pub fn spline_noise<T: Float>(seed: u64, x: T) -> T {
 /// Sums octaves (`octaves` > 0) of spline noise.
 /// The lowest frequency of the noise is 1, with each successive octave doubling in frequency.
 /// Roughness (`roughness` > 0) is the multiplicative weighting of successive octaves. For example, 0.5.
-pub fn fractal_noise<T: Float>(seed: i64, octaves: i64, roughness: T, x: T) -> T {
+pub fn fractal_noise<T: Float>(seed: u64, octaves: i64, roughness: T, x: T) -> T {
     assert!(octaves > 0);
     let mut octave_weight = T::one();
     let mut total_weight = T::zero();
     let mut frequency = T::one();
     let mut result = T::zero();
-    let mut rnd = funutd::Rnd::from_u64(seed as u64);
+    let mut rnd = funutd::Rnd::from_u64(seed);
     for _octave in 0..octaves {
         // Employ a pseudorandom offset for each octave.
         let octave_x = x * frequency + T::from_f32(rnd.f32());
@@ -737,7 +737,7 @@ pub fn fractal_noise<T: Float>(seed: i64, octaves: i64, roughness: T, x: T) -> T
 /// Roughness (`roughness` > 0) is the multiplicative weighting of successive octaves. For example, 0.5.
 pub fn fractal_ease_noise<T: Float>(
     ease: impl SegmentInterpolator<T>,
-    seed: i64,
+    seed: u64,
     octaves: i64,
     roughness: T,
     x: T,
@@ -747,11 +747,11 @@ pub fn fractal_ease_noise<T: Float>(
     let mut total_weight = T::zero();
     let mut frequency = T::one();
     let mut result = T::zero();
-    let mut rnd = funutd::Rnd::from_u64(seed as u64);
+    let mut rnd = funutd::Rnd::from_u64(seed);
     for _octave in 0..octaves {
         // Employ a pseudorandom offset for each octave.
         let octave_x = x * frequency + T::from_f32(rnd.f32());
-        result += octave_weight * ease_noise(ease.clone(), rnd.i64(), octave_x);
+        result += octave_weight * ease_noise(ease.clone(), rnd.u64(), octave_x);
         total_weight += octave_weight;
         octave_weight *= roughness;
         frequency *= T::new(2);

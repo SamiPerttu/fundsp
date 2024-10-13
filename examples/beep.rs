@@ -45,8 +45,8 @@ where
     // Pulse wave.
     //let c = lfo(|t| {
     //    let pitch = 220.0;
-    //    let duty = lerp11(0.01, 0.99, sin_hz(0.05, t));
-    //    (pitch, duty)
+    //    let width = lerp11(0.01, 0.99, sin_hz(0.05, t));
+    //    (pitch, width)
     //}) >> pulse();
 
     //let c = zero() >> pluck(220.0, 0.8, 0.8);

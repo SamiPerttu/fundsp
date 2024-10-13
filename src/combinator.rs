@@ -6,6 +6,7 @@
 use super::audionode::*;
 use super::buffer::*;
 use super::math::*;
+use super::setting::*;
 use super::signal::*;
 use super::*;
 use core::ops::{Add, BitAnd, BitOr, BitXor, Mul, Neg, Shr, Sub};
@@ -211,6 +212,10 @@ impl<X: AudioNode> An<X> {
         self.0.process(size, input, output);
     }
     #[inline]
+    pub fn set(&mut self, setting: Setting) {
+        self.0.set(setting);
+    }
+    #[inline]
     pub fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.0.route(input, frequency)
     }
@@ -245,6 +250,20 @@ impl<X: AudioNode> An<X> {
     #[inline]
     pub fn filter_stereo(&mut self, x: f32, y: f32) -> (f32, f32) {
         self.0.filter_stereo(x, y)
+    }
+
+    /// This builder method sets oscillator initial phase in 0...1,
+    /// overriding pseudorandom phase.
+    ///
+    /// ### Example (Square Wave At 110 Hz With Initial Phase 0.5)
+    /// ```
+    /// use fundsp::hacker::*;
+    /// let oscillator = square_hz(110.0).phase(0.5);
+    /// ```
+    pub fn phase(mut self, phase: f32) -> Self {
+        self.set(Setting::phase(phase));
+        self.reset();
+        self
     }
 }
 

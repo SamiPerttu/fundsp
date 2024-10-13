@@ -347,13 +347,6 @@ pub fn sine_hz(f: f32) -> An<Pipe<Constant<U1>, Sine<f64>>> {
     constant(f) >> sine()
 }
 
-/// Sine oscillator with initial `phase` in 0...1.
-/// - Input 0: frequency (Hz)
-/// - Output 0: sine wave
-pub fn sine_phase(phase: f32) -> An<Sine<f64>> {
-    An(Sine::with_phase(phase))
-}
-
 /// Ramp generator with output in 0...1. Not bandlimited.
 /// - Input 0: repetition frequency (Hz)
 /// - Output 0: ramp phase in 0...1
@@ -365,19 +358,6 @@ pub fn ramp() -> An<Ramp<f64>> {
 /// - Output 0: ramp phase in 0...1
 pub fn ramp_hz(f: f32) -> An<Pipe<Constant<U1>, Ramp<f64>>> {
     constant(f) >> ramp()
-}
-
-/// Ramp generator with output in 0...1, starting from initial phase `phase` in 0...1.
-/// - Input 0: repetition frequency (Hz)
-/// - Output 0: ramp phase in 0...1
-pub fn ramp_phase(phase: f32) -> An<Ramp<f64>> {
-    An(Ramp::with_phase(phase))
-}
-
-/// Ramp generator with output in 0...1 at fixed frequency `f` Hz.
-/// - Output 0: ramp phase in 0...1
-pub fn ramp_hz_phase(f: f32, phase: f32) -> An<Pipe<Constant<U1>, Ramp<f64>>> {
-    constant(f) >> ramp_phase(phase)
 }
 
 /// Rossler dynamical system oscillator.
@@ -2194,7 +2174,7 @@ pub fn bandrez_q(q: f32) -> An<Pipe<Stack<MultiPass<U2>, Constant<U1>>, Rez<f64,
 
 /// Pulse wave oscillator.
 /// - Input 0: frequency in Hz
-/// - Input 1: pulse duty cycle in 0...1
+/// - Input 1: pulse width in 0...1
 /// - Output 0: pulse wave
 pub fn pulse() -> An<PulseWave> {
     super::prelude::pulse()
@@ -2656,28 +2636,48 @@ pub fn fresonator_hz<S: Shape>(
     super::prelude::fresonator_hz(shape, center as f64, q as f64)
 }
 
-/// PolyBLEP saw wave oscillator. A fast bandlimited saw wave algorithm.
+/// PolyBLEP saw wave oscillator.
+/// A fast, fairly bandlimited saw wave algorithm.
 /// - Input 0: frequency (Hz)
 /// - Output 0: saw wave
 pub fn poly_saw() -> An<PolySaw<f64>> {
     An(PolySaw::new())
 }
 
-/// PolyBLEP saw wave oscillator at `f` Hz. A fast bandlimited saw wave algorithm.
+/// PolyBLEP saw wave oscillator at `f` Hz.
+/// A fast, fairly bandlimited saw wave algorithm.
 /// - Output 0: saw wave
 pub fn poly_saw_hz(f: f32) -> An<Pipe<Constant<U1>, PolySaw<f64>>> {
     dc(f) >> poly_saw()
 }
 
-/// PolyBLEP square wave oscillator. A fast bandlimited square wave algorithm.
+/// PolyBLEP square wave oscillator.
+/// A fast, fairly bandlimited square wave algorithm.
 /// - Input 0: frequency (Hz)
 /// - Output 0: square wave
 pub fn poly_square() -> An<PolySquare<f64>> {
     An(PolySquare::new())
 }
 
-/// PolyBLEP square wave oscillator at `f` Hz. A fast bandlimited square wave algorithm.
+/// PolyBLEP square wave oscillator at `f` Hz.
+/// A fast, fairly bandlimited square wave algorithm.
 /// - Output 0: square wave
 pub fn poly_square_hz(f: f32) -> An<Pipe<Constant<U1>, PolySquare<f64>>> {
     dc(f) >> poly_square()
+}
+
+/// PolyBLEP pulse wave oscillator.
+/// A fast, fairly bandlimited pulse wave algorithm.
+/// - Input 0: frequency (Hz)
+/// - Input 1: pulse width in 0...1
+/// - Output 0: pulse wave
+pub fn poly_pulse() -> An<PolyPulse<f64>> {
+    An(PolyPulse::new())
+}
+
+/// PolyBLEP pulse wave oscillator at `f` Hz with pulse `width` in 0...1.
+/// A fast, fairly bandlimited pulse wave algorithm.
+/// - Output 0: pulse wave
+pub fn poly_pulse_hz(f: f32, width: f32) -> An<Pipe<Constant<U2>, PolyPulse<f64>>> {
+    dc((f, width)) >> poly_pulse()
 }

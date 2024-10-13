@@ -347,13 +347,6 @@ pub fn sine_hz<F: Real>(f: f32) -> An<Pipe<Constant<U1>, Sine<F>>> {
     constant(f) >> sine()
 }
 
-/// Sine oscillator with initial `phase` in 0...1.
-/// - Input 0: frequency (Hz)
-/// - Output 0: sine wave
-pub fn sine_phase<F: Real>(phase: f32) -> An<Sine<F>> {
-    An(Sine::with_phase(phase))
-}
-
 /// Ramp generator with output in 0...1. Not bandlimited.
 /// - Input 0: repetition frequency (Hz)
 /// - Output 0: ramp phase in 0...1
@@ -365,19 +358,6 @@ pub fn ramp<F: Float>() -> An<Ramp<F>> {
 /// - Output 0: ramp phase in 0...1
 pub fn ramp_hz<F: Float>(f: f32) -> An<Pipe<Constant<U1>, Ramp<F>>> {
     constant(f) >> ramp()
-}
-
-/// Ramp generator with output in 0...1, starting from initial phase `phase` in 0...1.
-/// - Input 0: repetition frequency (Hz)
-/// - Output 0: ramp phase in 0...1
-pub fn ramp_phase<F: Float>(phase: f32) -> An<Ramp<F>> {
-    An(Ramp::with_phase(phase))
-}
-
-/// Ramp generator with output in 0...1 at fixed frequency `f` Hz.
-/// - Output 0: ramp phase in 0...1
-pub fn ramp_hz_phase<F: Float>(f: f32, phase: f32) -> An<Pipe<Constant<U1>, Ramp<F>>> {
-    constant(f) >> ramp_phase(phase)
 }
 
 /// Rossler dynamical system oscillator.
@@ -2602,7 +2582,7 @@ pub fn bandrez_q<F: Real>(q: F) -> An<Pipe<Stack<MultiPass<U2>, Constant<U1>>, R
 
 /// Pulse wave oscillator.
 /// - Input 0: frequency in Hz
-/// - Input 1: pulse duty cycle in 0...1
+/// - Input 1: pulse width in 0...1
 /// - Output 0: pulse wave
 pub fn pulse() -> An<PulseWave> {
     An(PulseWave::new())
@@ -2655,9 +2635,9 @@ pub fn wavech_at(
 
 /// Mono chorus, 5 voices. For stereo, stack two of these using different seed values.
 /// `seed`: LFO seed.
-/// `separation`: base voice separation in seconds (for example, 0.015).
-/// `variation`: delay variation in seconds (for example, 0.005).
-/// `mod_frequency`: delay modulation frequency (for example, 0.2).
+/// `separation`: base voice separation in seconds (for example, 0.0).
+/// `variation`: delay variation in seconds (for example, 0.02).
+/// `mod_frequency`: delay modulation frequency (for example, 0.3).
 /// - Input 0: audio.
 /// - Output 0: chorused audio, including original signal.
 ///
@@ -2674,30 +2654,30 @@ pub fn chorus(
 ) -> An<impl AudioNode<Inputs = U1, Outputs = U1>> {
     (pass()
         & (pass()
-            | lfo(move |t| {
+            | An(Envelope::new(0.01, move |t| {
                 (
                     lerp11(
                         separation,
                         separation + variation,
-                        spline_noise(seed, t * mod_frequency),
+                        fractal_noise(seed, 8, 0.45, t * mod_frequency),
                     ),
                     lerp11(
                         separation * 2.0,
                         separation * 2.0 + variation,
-                        spline_noise(hash1(seed), t * (mod_frequency + 0.02)),
+                        fractal_noise(hash1(seed), 8, 0.45, t * (mod_frequency + 0.02)),
                     ),
                     lerp11(
                         separation * 3.0,
                         separation * 3.0 + variation,
-                        spline_noise(hash2(seed), t * (mod_frequency + 0.04)),
+                        fractal_noise(hash2(seed), 8, 0.45, t * (mod_frequency + 0.04)),
                     ),
                     lerp11(
                         separation * 4.0,
                         separation * 4.0 + variation,
-                        spline_noise(hash1(seed ^ 0xfedcba), t * (mod_frequency + 0.06)),
+                        fractal_noise(hash1(seed ^ 0xfedcba), 8, 0.45, t * (mod_frequency + 0.06)),
                     ),
                 )
-            }))
+            })))
             >> multitap::<U4>(separation, separation * 4.0 + variation))
         * dc(0.2)
 }
@@ -2724,7 +2704,7 @@ pub fn flanger<X: Fn(f32) -> f32 + Clone + Send + Sync>(
     pass()
         & feedback2(
             (pass() | lfo(delay_f)) >> tap(minimum_delay, maximum_delay),
-            shape(Tanh(feedback_amount.to_f32())),
+            shape(Tanh(feedback_amount)),
         )
 }
 
@@ -2746,7 +2726,7 @@ pub fn phaser<X: Fn(f32) -> f32 + Clone + Send + Sync>(
     pass()
         & feedback(
             (pass() | lfo(move |t| lerp(2.0, 20.0, clamp01(phase_f(t)))))
-                >> pipei::<U10, _, _>(|_i| (pass() | add(0.05)) >> !allpole::<f32>())
+                >> pipei::<U10, _, _>(|_i| add((0.0, 0.1)) >> !allpole::<f32>())
                 >> (mul(feedback_amount) | sink()),
         )
 }
@@ -3104,28 +3084,48 @@ pub fn fresonator_hz<F: Real, S: Shape>(
     An(filter)
 }
 
-/// PolyBLEP saw wave oscillator. A fast bandlimited saw wave algorithm.
+/// PolyBLEP saw wave oscillator.
+/// A fast, fairly bandlimited saw wave algorithm.
 /// - Input 0: frequency (Hz)
 /// - Output 0: saw wave
 pub fn poly_saw<F: Float>() -> An<PolySaw<F>> {
     An(PolySaw::new())
 }
 
-/// PolyBLEP saw wave oscillator at `f` Hz. A fast bandlimited saw wave algorithm.
+/// PolyBLEP saw wave oscillator at `f` Hz.
+/// A fast, fairly bandlimited saw wave algorithm.
 /// - Output 0: saw wave
 pub fn poly_saw_hz<F: Float>(f: f32) -> An<Pipe<Constant<U1>, PolySaw<F>>> {
     dc(f) >> poly_saw()
 }
 
-/// PolyBLEP square wave oscillator. A fast bandlimited square wave algorithm.
+/// PolyBLEP square wave oscillator.
+/// A fast, fairly bandlimited square wave algorithm.
 /// - Input 0: frequency (Hz)
 /// - Output 0: square wave
 pub fn poly_square<F: Float>() -> An<PolySquare<F>> {
     An(PolySquare::new())
 }
 
-/// PolyBLEP square wave oscillator at `f` Hz. A fast bandlimited square wave algorithm.
+/// PolyBLEP square wave oscillator at `f` Hz.
+/// A fast, fairly bandlimited square wave algorithm.
 /// - Output 0: square wave
 pub fn poly_square_hz<F: Float>(f: f32) -> An<Pipe<Constant<U1>, PolySquare<F>>> {
     dc(f) >> poly_square()
+}
+
+/// PolyBLEP pulse wave oscillator.
+/// A fast, fairly bandlimited pulse wave algorithm.
+/// - Input 0: frequency (Hz)
+/// - Input 1: pulse width in 0...1
+/// - Output 0: pulse wave
+pub fn poly_pulse<F: Float>() -> An<PolyPulse<F>> {
+    An(PolyPulse::new())
+}
+
+/// PolyBLEP pulse wave oscillator at `f` Hz with pulse `width` in 0...1.
+/// A fast, fairly bandlimited pulse wave algorithm.
+/// - Output 0: pulse wave
+pub fn poly_pulse_hz<F: Float>(f: f32, width: f32) -> An<Pipe<Constant<U2>, PolyPulse<F>>> {
+    dc((f, width)) >> poly_pulse()
 }

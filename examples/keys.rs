@@ -22,6 +22,7 @@ enum Waveform {
     Noise,
     PolySaw,
     PolySquare,
+    PolyPulse,
 }
 
 #[derive(Debug, PartialEq)]
@@ -206,7 +207,7 @@ where
         net,
         waveform: Waveform::Saw,
         filter: Filter::None,
-        vibrato_amount: 0.5,
+        vibrato_amount: 0.25,
         chorus_amount,
         reverb_amount,
         room_size: room_size as f64,
@@ -272,6 +273,7 @@ impl eframe::App for State {
                 ui.selectable_value(&mut self.waveform, Waveform::Noise, "Noise");
                 ui.selectable_value(&mut self.waveform, Waveform::PolySaw, "PolySaw");
                 ui.selectable_value(&mut self.waveform, Waveform::PolySquare, "PolySquare");
+                ui.selectable_value(&mut self.waveform, Waveform::PolyPulse, "PolyPulse");
             });
             ui.separator();
 
@@ -485,6 +487,10 @@ impl eframe::App for State {
                         )),
                         Waveform::PolySaw => Net::wrap(Box::new(pitch >> poly_saw() * 0.06)),
                         Waveform::PolySquare => Net::wrap(Box::new(pitch >> poly_square() * 0.06)),
+                        Waveform::PolyPulse => Net::wrap(Box::new(
+                            (pitch | lfo(move |t| lerp11(0.01, 0.99, sin_hz(0.1, t))))
+                                >> poly_pulse() * 0.06,
+                        )),
                     };
                     let filter = match self.filter {
                         Filter::None => Net::wrap(Box::new(pass())),
@@ -516,7 +522,7 @@ impl eframe::App for State {
                                 >> fresonator(Softsign(1.01)),
                         )),
                     };
-                    let mut note = Box::new(waveform >> filter);
+                    let mut note = Box::new(waveform >> filter >> dcblock());
                     // Give the note its own random seed.
                     note.ping(false, AttoHash::new(self.rnd.u64()));
                     // Insert new note. We set the end time to infinity initially,

@@ -5,6 +5,7 @@ use super::buffer::*;
 use super::combinator::*;
 use super::math::*;
 use super::prelude::pass;
+use super::setting::*;
 use super::signal::*;
 use super::typenum::*;
 use super::*;
@@ -89,8 +90,8 @@ impl Wavetable {
     /// Create new wavetable. `min_pitch` and `max_pitch` are the minimum
     /// and maximum base frequencies in Hz (for example, 20.0 and 20_000.0).
     /// `tables_per_octave` is the number of wavetables per octave
-    /// (for example, 4.0). `phase(i)` is the phase of the `i`th partial.
-    /// `amplitude(p, i)` is the amplitude of the `i`th partial with base frequency `p`.
+    /// (for example, 4.0). `phase(i)` is the phase of the `i`th partial in 0...1.
+    /// `amplitude(p, i)` is the (relative) amplitude of the `i`th partial with base frequency `p`.
     pub fn new<P, A>(
         min_pitch: f64,
         max_pitch: f64,
@@ -258,10 +259,11 @@ where
     N: Size<f32>,
 {
     table: Arc<Wavetable>,
-    /// Phase in 0...1.
+    /// Current phase in 0...1.
     phase: f32,
-    /// Initial phase in 0...1, seeded via pseudorandom phase system.
-    initial_phase: f32,
+    hash: u64,
+    /// Optional initial phase in 0...1 that overrides pseudorandom phase.
+    initial_phase: Option<f32>,
     /// Previously used transposition table.
     table_hint: usize,
     sample_rate: f32,
@@ -277,7 +279,8 @@ where
         WaveSynth {
             table,
             phase: 0.0,
-            initial_phase: 0.0,
+            hash: 0,
+            initial_phase: None,
             table_hint: 0,
             sample_rate: DEFAULT_SR as f32,
             sample_duration: 1.0 / DEFAULT_SR as f32,
@@ -295,7 +298,10 @@ where
     type Outputs = N;
 
     fn reset(&mut self) {
-        self.phase = self.initial_phase;
+        self.phase = match self.initial_phase {
+            Some(phase) => phase,
+            None => convert(rnd1(self.hash)),
+        };
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
@@ -304,8 +310,8 @@ where
     }
 
     fn set_hash(&mut self, hash: u64) {
-        self.initial_phase = super::math::rnd1(hash) as f32;
-        self.phase = self.initial_phase;
+        self.hash = hash;
+        self.reset();
     }
 
     #[inline]
@@ -347,6 +353,12 @@ where
         self.phase = phase - floor(phase);
         self.table_hint = table_hint;
         self.process_remainder(size, input, output);
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Phase(phase) = setting.parameter() {
+            self.initial_phase = Some(*phase);
+        }
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -429,7 +441,7 @@ impl AudioNode for PhaseSynth {
 
 /// Pulse wave oscillator.
 /// - Input 0: frequency in Hz
-/// - Input 1: pulse duty cycle in 0...1
+/// - Input 1: pulse width in 0...1
 /// - Output 0: pulse wave
 #[derive(Clone)]
 pub struct PulseWave {
@@ -471,6 +483,9 @@ impl AudioNode for PulseWave {
     }
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         self.pulse.process(size, input, output);
+    }
+    fn set(&mut self, setting: Setting) {
+        self.pulse.left_mut().left_mut().left_mut().set(setting);
     }
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.pulse.route(input, frequency)

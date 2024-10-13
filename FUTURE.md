@@ -5,7 +5,6 @@ This is a list of feature ideas for the future.
 - What is the best approach to making `Granular` real-time safe.
 - `AudioUnit` versions of `oversample` and `resample` that accept an inner `AudioUnit`.
 - Compressor without lookahead.
-- Adaptive normalizer without lookahead.
 - Exponential follower (`follow` is linear).
 - More physical models. Karplus-Strong exists already; figure out if it could be improved somehow.
 - Dynamic bypass wrapper that bypasses a node when input and output levels drop low enough.

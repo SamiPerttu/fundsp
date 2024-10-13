@@ -181,7 +181,9 @@ fn test_basic() {
     );
     check_wave(dc((110.0, 220.0)) >> multipass() >> -stackf::<U2, _, _>(|f| (f - 0.5) * sine()));
     check_wave(
-        dc((110.0, 220.0, 440.0, 880.0)) >> multipass() >> (sink() | -sine() | sink() | sine()),
+        dc((110.0, 220.0, 440.0, 880.0))
+            >> multipass()
+            >> (sink() | -sine().phase(0.0) | sink() | sine()),
     );
     check_wave(dc((110.0, 220.0)) >> declick_s(0.1) + pass() >> (saw() ^ dsf_square_r(0.9)));
     check_wave(
@@ -199,12 +201,14 @@ fn test_basic() {
             | ((mls() | dc(880.0)) >> !lowshelf_q(1.0, 0.5) >> highshelf_q(2.0, 2.0)),
     );
     check_wave(
-        (noise() | dc(440.0)) >> pipei::<U4, _, _>(|_| !lowpass_q(1.0)) >> highpass_q(1.0)
+        (square_hz(110.0).phase(0.25) | dc(440.0))
+            >> pipei::<U4, _, _>(|_| !lowpass_q(1.0))
+            >> highpass_q(1.0)
             | ((mls() | dc(880.0)) >> !bandpass_q(1.0) >> notch_q(2.0)),
     );
     check_wave(
         dc((440.0, 880.0)) >> multisplit::<U2, U5>() >> sumi::<U10, _, _>(|_| saw() * 0.2)
-            | noise(),
+            | saw_hz(220.0).phase(0.5),
     );
     check_wave(
         dc((440.0, 880.0)) >> multisplit::<U2, U3>() >> multijoin::<U2, U3>() >> (sine() | sine()),
@@ -226,7 +230,7 @@ fn test_basic() {
         noise() >> fresonator_hz(Atan(0.5), 500.0, 50.0)
             | noise() >> fhighpass_hz(Softsign(0.2), 2000.0, 2.0),
     );
-    check_wave(dc(440.0) >> ramp() | dc(-220.0) >> ramp_phase(0.0));
+    check_wave(dc(440.0) >> ramp() | ramp_hz(-220.0).phase(0.5));
 
     check_wave_big(Box::new(dc((110.0, 0.5)) >> pulse() * 0.2 >> delay(0.1)));
     check_wave_big(Box::new(envelope(|t| exp(-t * 10.0))));
@@ -297,6 +301,10 @@ fn test_basic() {
     check_wave((noise() | envelope(|t| spline_noise(1, t * 10.0))) >> panner());
     check_wave(impulse::<U2>());
     check_wave(poly_saw_hz(440.0) | poly_square_hz(4400.0));
+    check_wave(poly_saw_hz(550.0).phase(0.75) | poly_square_hz(5500.0).phase(0.5));
+    check_wave(
+        dc((660.0, 0.1)) >> poly_pulse().phase(0.75) | poly_pulse_hz(6600.0, 0.9).phase(0.9),
+    );
 
     let dc42 = Net::wrap(Box::new(dc(42.)));
     let dcs = dc42.clone() | dc42;

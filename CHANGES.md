@@ -1,5 +1,13 @@
 ## Changes
 
+### Version 0.21 (Next Version)
+
+- New PolyBLEP oscillator opcodes `poly_saw`, `poly_saw_hz`,
+  `poly_square`, `poly_square_hz`, `poly_pulse` and `poly_pulse_hz`.
+- Noise functions now accept seed as `u64` instead of `i64`.
+- `sine_phase`, `ramp_phase` and `ramp_hz_phase` opcodes were removed:
+  there is a new builder notation for setting the initial phase, for example, `sine().phase(0.0)`.
+
 ### Version 0.20
 
 - `Net::chain` is more robust now.

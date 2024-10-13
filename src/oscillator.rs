@@ -85,6 +85,12 @@ impl<F: Real> AudioNode for Sine<F> {
         self.process_remainder(size, input, output);
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Phase(phase) = setting.parameter() {
+            self.initial_phase = Some(F::from_f32(*phase));
+        }
+    }
+
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.reset();
@@ -117,6 +123,7 @@ pub struct Dsf<N: Size<f32>> {
     harmonic_spacing: f32,
     sample_duration: f32,
     hash: u64,
+    initial_phase: Option<f32>,
     _marker: PhantomData<N>,
 }
 
@@ -128,6 +135,7 @@ impl<N: Size<f32>> Dsf<N> {
             harmonic_spacing,
             sample_duration: 0.0,
             hash: 0,
+            initial_phase: None,
             _marker: PhantomData,
         };
         node.reset();
@@ -155,7 +163,10 @@ impl<N: Size<f32>> AudioNode for Dsf<N> {
     type Outputs = typenum::U1;
 
     fn reset(&mut self) {
-        self.phase = rnd1(self.hash) as f32;
+        self.phase = match self.initial_phase {
+            Some(phase) => phase,
+            None => convert(rnd1(self.hash)),
+        };
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
@@ -179,8 +190,10 @@ impl<N: Size<f32>> AudioNode for Dsf<N> {
     }
 
     fn set(&mut self, setting: Setting) {
-        if let Parameter::Roughness(roughness) = setting.parameter() {
-            self.set_roughness(*roughness);
+        match setting.parameter() {
+            Parameter::Roughness(roughness) => self.set_roughness(*roughness),
+            Parameter::Phase(phase) => self.initial_phase = Some(*phase),
+            _ => (),
         }
     }
 
@@ -478,6 +491,12 @@ impl<F: Float> AudioNode for Ramp<F> {
         [phase].into()
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Phase(phase) = setting.parameter() {
+            self.initial_phase = Some(F::from_f32(*phase));
+        }
+    }
+
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.reset();
@@ -489,6 +508,7 @@ impl<F: Float> AudioNode for Ramp<F> {
 }
 
 /// PolyBLEP function with phase `t` in 0...1 and phase increment `dt`.
+#[inline]
 fn polyblep<F: Float>(t: F, dt: F) -> F {
     if t < dt {
         let z = t / dt;
@@ -501,7 +521,8 @@ fn polyblep<F: Float>(t: F, dt: F) -> F {
     }
 }
 
-/// PolyBLEP saw oscillator. A fast bandlimited algorithm for a saw wave.
+/// PolyBLEP saw oscillator.
+/// A fast, fairly bandlimited algorithm for a saw wave.
 /// - Input 0: frequency (Hz).
 /// - Output 0: saw waveform in -1...1.
 #[derive(Default, Clone)]
@@ -560,6 +581,12 @@ impl<F: Float> AudioNode for PolySaw<F> {
         [value.to_f32()].into()
     }
 
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Phase(phase) = setting.parameter() {
+            self.initial_phase = Some(F::from_f32(*phase));
+        }
+    }
+
     fn set_hash(&mut self, hash: u64) {
         self.hash = hash;
         self.reset();
@@ -570,9 +597,10 @@ impl<F: Float> AudioNode for PolySaw<F> {
     }
 }
 
-/// PolyBLEP square oscillator. A fast bandlimited algorithm for a square wave.
+/// PolyBLEP square oscillator.
+/// A fast, fairly bandlimited algorithm for a square wave.
 /// - Input 0: frequency (Hz).
-/// - Output 0: saw waveform in -1...1.
+/// - Output 0: square waveform in -1...1.
 #[derive(Default, Clone)]
 pub struct PolySquare<F: Float> {
     phase: F,
@@ -630,9 +658,95 @@ impl<F: Float> AudioNode for PolySquare<F> {
         } else {
             -F::one()
         };
-        let half = phase + F::from_f32(0.5);
+        let half = phase - F::from_f32(0.5);
         let value = square + polyblep(phase, delta) - polyblep(half - half.floor(), delta);
         [value.to_f32()].into()
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Phase(phase) = setting.parameter() {
+            self.initial_phase = Some(F::from_f32(*phase));
+        }
+    }
+
+    fn set_hash(&mut self, hash: u64) {
+        self.hash = hash;
+        self.reset();
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        super::signal::Routing::Arbitrary(0.0).route(input, self.outputs())
+    }
+}
+
+/// PolyBLEP pulse oscillator.
+/// A fast, fairly bandlimited algorithm for a pulse wave.
+/// - Input 0: frequency (Hz).
+/// - Input 1: pulse width in 0...1.
+/// - Output 0: pulse waveform in -1...1.
+#[derive(Default, Clone)]
+pub struct PolyPulse<F: Float> {
+    phase: F,
+    sample_duration: F,
+    hash: u64,
+    initial_phase: Option<F>,
+}
+
+impl<F: Float> PolyPulse<F> {
+    /// Create oscillator.
+    pub fn new() -> Self {
+        let mut osc = Self::default();
+        osc.reset();
+        osc.set_sample_rate(DEFAULT_SR);
+        osc
+    }
+    /// Create oscillator with initial phase in 0...1.
+    pub fn with_phase(initial_phase: f32) -> Self {
+        let mut osc = Self {
+            phase: F::zero(),
+            sample_duration: F::zero(),
+            hash: 0,
+            initial_phase: Some(F::from_f32(initial_phase)),
+        };
+        osc.reset();
+        osc.set_sample_rate(DEFAULT_SR);
+        osc
+    }
+}
+
+impl<F: Float> AudioNode for PolyPulse<F> {
+    const ID: u64 = 97;
+    type Inputs = typenum::U2;
+    type Outputs = typenum::U1;
+
+    fn reset(&mut self) {
+        self.phase = match self.initial_phase {
+            Some(phase) => phase,
+            None => convert(rnd1(self.hash)),
+        };
+    }
+
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = convert(1.0 / sample_rate);
+    }
+
+    #[inline]
+    fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let phase = self.phase;
+        let delta = F::from_f32(input[0]) * self.sample_duration;
+        let width = F::from_f32(input[1]);
+        self.phase += delta;
+        self.phase -= self.phase.floor();
+        let square = if phase < width { F::one() } else { -F::one() };
+        let half = phase - width;
+        let value = square + polyblep(phase, delta) - polyblep(half - half.floor(), delta);
+        [value.to_f32()].into()
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Phase(phase) = setting.parameter() {
+            self.initial_phase = Some(F::from_f32(*phase));
+        }
     }
 
     fn set_hash(&mut self, hash: u64) {
