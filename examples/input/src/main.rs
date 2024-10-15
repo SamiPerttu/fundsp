@@ -105,8 +105,8 @@ where
     let channels = config.channels as usize;
 
     let input = An(InputNode::new(receiver));
-    let reverb = reverb2_stereo(20.0, 3.0, 1.0, 1.0, highshelf_hz(1000.0, 1.0, db_amp(-1.0)));
-    let chorus = chorus(0, 0.0, 0.02, 0.3) | chorus(1, 0.0, 0.02, 0.3);
+    let reverb = reverb2_stereo(20.0, 3.0, 1.0, 0.2, highshelf_hz(1000.0, 1.0, db_amp(-1.0)));
+    let chorus = chorus(0, 0.0, 0.03, 0.2) | chorus(1, 0.0, 0.03, 0.2);
     // Here is the final input-to-output processing chain.
     let graph = input >> chorus >> (0.8 * reverb & 0.2 * multipass());
     let mut graph = BlockRateAdapter::new(Box::new(graph));

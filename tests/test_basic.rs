@@ -168,8 +168,8 @@ fn test_basic() {
 
     // Wave rendering, tick vs. process rendering, node reseting.
     check_wave(noise() >> declick() | noise() + noise());
-    check_wave(noise() * noise() | busi::<U4, _, _>(|i| mls_bits(10 + i)));
-    check_wave(noise() & noise() | sine_hz(440.0) & -noise());
+    check_wave(noise().seed(1) * noise() | busi::<U4, _, _>(|i| mls_bits(10 + i)));
+    check_wave(pink().seed(2) & noise() | sine_hz(440.0) & -noise());
     check_wave(
         lfo(|t| xerp(110.0, 220.0, clamp01(t))) >> sine()
             | (envelope(|t| xerp(220.0, 440.0, clamp01(t))) >> pass() >> sine()) & mls(),
@@ -197,7 +197,7 @@ fn test_basic() {
             | ((mls() | dc(880.0)) >> !butterpass() >> butterpass()),
     );
     check_wave(
-        (noise() | dc(440.0)) >> pipei::<U4, _, _>(|_| !peak_q(1.0)) >> bell_q(1.0, 2.0)
+        (brown().seed(2) | dc(440.0)) >> pipei::<U4, _, _>(|_| !peak_q(1.0)) >> bell_q(1.0, 2.0)
             | ((mls() | dc(880.0)) >> !lowshelf_q(1.0, 0.5) >> highshelf_q(2.0, 2.0)),
     );
     check_wave(
@@ -449,6 +449,18 @@ fn test_basic() {
     add_net.pipe_output(id1);
     assert!(is_equal_unit(&mut rnd, &mut add_2_3, &mut add_net));
     add_net.check();
+
+    let mut front_net = Net::new(0, 1);
+    let dc_id = front_net.chain(Box::new(dc(1.0)));
+    front_net.set_sample_rate(48000.0);
+    let mut back_net = front_net.backend();
+    assert_eq!(back_net.get_mono(), 1.0);
+    front_net.set(Setting::value(2.0).node(dc_id));
+    assert_eq!(back_net.get_mono(), 2.0);
+    front_net.replace(dc_id, Box::new(dc(3.0)));
+    assert_eq!(back_net.get_mono(), 2.0);
+    front_net.commit();
+    assert_eq!(back_net.get_mono(), 3.0);
 
     // Test multichannel constants vs. stacked constants.
     assert!(is_equal(

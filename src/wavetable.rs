@@ -41,7 +41,7 @@ fn optimal4x44<T: Num>(a0: T, a1: T, a2: T, a3: T, x: T) -> T {
 /// Assume sample rate is at least 44.1 kHz.
 /// `phase(i)` is phase in 0...1 for partial `i` (1, 2, ...).
 /// `amplitude(p, i)` is amplitude for fundamental `p` Hz partial `i` (with frequency `p * i`).
-pub fn make_wave<P, A>(pitch: f64, phase: &P, amplitude: &A) -> Vec<f32>
+fn make_wave<P, A>(pitch: f64, phase: &P, amplitude: &A) -> Vec<f32>
 where
     P: Fn(u32) -> f64,
     A: Fn(f64, u32) -> f64,

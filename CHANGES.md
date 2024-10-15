@@ -7,6 +7,7 @@
 - Noise functions now accept seed as `u64` instead of `i64`.
 - `sine_phase`, `ramp_phase` and `ramp_hz_phase` opcodes were removed:
   there is a new builder notation for setting the initial phase, for example, `sine().phase(0.0)`.
+- New builder notation for setting noise generator seed, for example, `noise().seed(1)`.
 
 ### Version 0.20
 

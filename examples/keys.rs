@@ -167,7 +167,7 @@ where
         >> ((1.0 - var(&chorus_amount) >> follow(0.01) >> split()) * multipass()
             & (var(&chorus_amount) >> follow(0.01) >> split())
                 * 2.0
-                * (chorus(0, 0.0, 0.02, 0.3) | chorus(1, 0.0, 0.02, 0.3)));
+                * (chorus(0, 0.0, 0.03, 0.2) | chorus(1, 0.0, 0.03, 0.2)));
     net = net >> phaser >> flanger;
     net = net
         >> ((1.0 - var(&reverb_amount) >> follow(0.01) >> split::<U2>()) * multipass()

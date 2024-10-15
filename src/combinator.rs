@@ -265,6 +265,15 @@ impl<X: AudioNode> An<X> {
         self.reset();
         self
     }
+
+    /// This builder method sets noise generator seed,
+    /// overriding pseudorandom phase.
+    /// Works with opcodes `mls`, `noise`, `white`, `pink` and `brown`.
+    pub fn seed(mut self, seed: u64) -> Self {
+        self.set(Setting::seed(seed).left());
+        self.reset();
+        self
+    }
 }
 
 impl<X> Neg for An<X>

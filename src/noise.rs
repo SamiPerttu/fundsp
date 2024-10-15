@@ -100,12 +100,17 @@ impl MlsState {
 #[derive(Clone)]
 pub struct Mls {
     mls: MlsState,
+    seed: Option<u64>,
     hash: u64,
 }
 
 impl Mls {
     pub fn new(mls: MlsState) -> Self {
-        Self { mls, hash: 0 }
+        Self {
+            mls,
+            seed: None,
+            hash: 0,
+        }
     }
 }
 
@@ -115,7 +120,8 @@ impl AudioNode for Mls {
     type Outputs = typenum::U1;
 
     fn reset(&mut self) {
-        self.mls = MlsState::new_with_seed(self.mls.n, (self.hash >> 32) as u32);
+        let hash = self.seed.unwrap_or(self.hash);
+        self.mls = MlsState::new_with_seed(self.mls.n, (hash ^ (hash >> 32)) as u32);
     }
 
     #[inline]
@@ -123,6 +129,12 @@ impl AudioNode for Mls {
         let value = self.mls.value() as f32;
         self.mls = self.mls.next();
         [value * 2.0 - 1.0].into()
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Seed(seed) = setting.parameter() {
+            self.seed = Some(*seed);
+        }
     }
 
     fn set_hash(&mut self, hash: u64) {
@@ -160,6 +172,7 @@ fn hash32x_simd(x: U32x) -> U32x {
 #[derive(Default, Clone)]
 pub struct Noise {
     state: u32,
+    seed: Option<u64>,
     hash: u64,
 }
 
@@ -177,7 +190,8 @@ impl AudioNode for Noise {
     type Outputs = typenum::U1;
 
     fn reset(&mut self) {
-        self.state = self.hash as u32;
+        let hash = self.seed.unwrap_or(self.hash);
+        self.state = (hash ^ (hash >> 32)) as u32;
     }
 
     #[inline]
@@ -201,6 +215,12 @@ impl AudioNode for Noise {
             state += U32x::splat(SIMD_N as u32);
         }
         self.state = self.state.wrapping_add(size as u32);
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Seed(seed) = setting.parameter() {
+            self.seed = Some(*seed);
+        }
     }
 
     fn set_hash(&mut self, hash: u64) {

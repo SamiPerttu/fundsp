@@ -47,6 +47,8 @@ pub enum Parameter {
     AttackRelease(f32, f32),
     /// Oscillator initial phase in 0...1.
     Phase(f32),
+    /// Generator seed.
+    Seed(u64),
 }
 
 /// Address specifies location to apply setting in a graph.
@@ -156,6 +158,13 @@ impl Setting {
     pub fn phase(phase: f32) -> Self {
         Self {
             parameter: Parameter::Phase(phase),
+            address: ArrayVec::new(),
+        }
+    }
+    /// Create setting for generator seed.
+    pub fn seed(seed: u64) -> Self {
+        Self {
+            parameter: Parameter::Seed(seed),
             address: ArrayVec::new(),
         }
     }

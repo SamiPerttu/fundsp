@@ -244,7 +244,7 @@ impl Wave {
         self.length() as f64 / self.sample_rate()
     }
 
-    /// Resizes the wave in-place. Any new samples are set to zero.
+    /// Resizes the wave in-place to `length` samples. Any new samples are set to zero.
     /// The wave must have a non-zero number of channels.
     ///
     /// ### Example

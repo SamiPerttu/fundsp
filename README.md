@@ -619,7 +619,10 @@ This means that `noise() | noise()` is a stereo noise source, for example.
 Pseudorandom phase is an attempt to decorrelate different channels of audio.
 It is also used to pick sample points for envelopes, contributing to a "warmer" sound.
 
-## Oscillators
+To override pseudorandom phase in a noise component (`brown`, `mls`, `noise`, `pink` and `white` opcodes),
+use the `seed` builder method. For example, `noise().seed(1)`.
+
+### Oscillators
 
 To override pseudorandom phase in an oscillator with an initial phase of your own (in 0...1),
 use the `phase` builder method. For example, in `let mut A = sine_hz(220.0).phase(0.0)`
@@ -632,21 +635,22 @@ The following table lists the oscillator opcodes.
 
 | Opcode         | Type                   | Waveform                                   |
 | -------------- | ---------------------- | ------------------------------------------ |
-| `dsf_saw`      | DSF                    | saw-like
-| `dsf_square`   | DSF                    | square-like
+| `dsf_saw`      | DSF                    | [saw](https://en.wikipedia.org/wiki/Sawtooth_wave)-like
+| `dsf_square`   | DSF                    | [square](https://en.wikipedia.org/wiki/Square_wave)-like
 | `hammond`      | wavetable              | Hammond-y waveform, which emphasizes first three partials |
 | `organ`        | wavetable              | organ-y waveform, which emphasizes octave partials |
-| `poly_pulse`   | PolyBLEP               | pulse |
+| `poly_pulse`   | PolyBLEP               | [pulse](https://en.wikipedia.org/wiki/Pulse_wave) |
 | `poly_saw`     | PolyBLEP               | saw |
 | `poly_square`  | PolyBLEP               | square |
 | `pulse`        | wavetable              | pulse |
 | `saw`          | wavetable              | saw |
-| `sine`         | sine                   | sine |
+| `sine`         | sine                   | [sine](https://en.wikipedia.org/wiki/Sine_wave) |
 | `soft_saw`     | wavetable              | soft saw, which falls off like a triangle wave |
 | `square`       | wavetable              | square |
-| `triangle`     | wavetable              | triangle |
+| `triangle`     | wavetable              | [triangle](https://en.wikipedia.org/wiki/Triangle_wave) |
 
-The wavetable oscillator is bandlimited with pristine quality.
+The wavetable oscillator is [bandlimited](https://en.wikipedia.org/wiki/Bandlimiting)
+with pristine quality.
 However, unlike the other types it allocates memory in the form of static wavetables.
 The DSF oscillator has similar quality but is somewhat expensive to evaluate.
 The PolyBLEP oscillator is a fast approximation with fair quality.
