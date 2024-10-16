@@ -24,13 +24,13 @@ pub struct BiquadCoefs<F> {
     pub b2: F,
 }
 
-impl<F: Real> BiquadCoefs<F> {
+impl<F: Float> BiquadCoefs<F> {
     /// Return settings for a Butterworth lowpass filter.
     /// Sample rate is in Hz.
     /// Cutoff is the -3 dB point of the filter in Hz.
     #[inline]
     pub fn butter_lowpass(sample_rate: F, cutoff: F) -> Self {
-        let c = F::from_f64;
+        let c = F::from_f32;
         let f: F = tan(cutoff * F::PI / sample_rate);
         let a0r: F = c(1.0) / (c(1.0) + F::SQRT_2 * f + f * f);
         let a1: F = (c(2.0) * f * f - c(2.0)) * a0r;
@@ -46,7 +46,7 @@ impl<F: Real> BiquadCoefs<F> {
     /// The overall gain of the filter is independent of bandwidth.
     #[inline]
     pub fn resonator(sample_rate: F, center: F, q: F) -> Self {
-        let c = F::from_f64;
+        let c = F::from_f32;
         let r: F = exp(-F::PI * center / (q * sample_rate));
         let a1: F = c(-2.0) * r * cos(F::TAU * center / sample_rate);
         let a2: F = r * r;
@@ -60,7 +60,7 @@ impl<F: Real> BiquadCoefs<F> {
     /// Sample rate and cutoff frequency are in Hz.
     #[inline]
     pub fn lowpass(sample_rate: F, cutoff: F, q: F) -> Self {
-        let c = F::from_f64;
+        let c = F::from_f32;
         let omega = F::TAU * cutoff / sample_rate;
         let alpha = sin(omega) / (c(2.0) * q);
         let beta = cos(omega);
@@ -77,7 +77,7 @@ impl<F: Real> BiquadCoefs<F> {
     /// Sample rate and cutoff frequency are in Hz.
     #[inline]
     pub fn highpass(sample_rate: F, cutoff: F, q: F) -> Self {
-        let c = F::from_f64;
+        let c = F::from_f32;
         let omega = F::TAU * cutoff / sample_rate;
         let alpha = sin(omega) / (c(2.0) * q);
         let beta = cos(omega);
@@ -95,7 +95,7 @@ impl<F: Real> BiquadCoefs<F> {
     /// Gain is amplitude gain (`gain` > 0).
     #[inline]
     pub fn bell(sample_rate: F, center: F, q: F, gain: F) -> Self {
-        let c = F::from_f64;
+        let c = F::from_f32;
         let omega = F::TAU * center / sample_rate;
         let alpha = sin(omega) / (c(2.0) * q);
         let beta = cos(omega);
@@ -129,7 +129,7 @@ impl<F: Real> BiquadCoefs<F> {
 }
 
 /// 2nd order IIR filter implemented in normalized Direct Form I.
-/// - Setting: coefficients as tuple Parameter::Biquad(a1, a2, b0, b1, b2).
+/// - Setting: coefficients as tuple `Setting::biquad(a1, a2, b0, b1, b2)`.
 /// - Input 0: input signal.
 /// - Output 0: filtered signal.
 #[derive(Default, Clone)]
@@ -142,7 +142,7 @@ pub struct Biquad<F> {
     sample_rate: f64,
 }
 
-impl<F: Real> Biquad<F> {
+impl<F: Float> Biquad<F> {
     pub fn new() -> Self {
         Self {
             sample_rate: DEFAULT_SR,
@@ -164,7 +164,7 @@ impl<F: Real> Biquad<F> {
     }
 }
 
-impl<F: Real> AudioNode for Biquad<F> {
+impl<F: Float> AudioNode for Biquad<F> {
     const ID: u64 = 15;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;

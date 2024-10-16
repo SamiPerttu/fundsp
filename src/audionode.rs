@@ -9,16 +9,6 @@ use super::*;
 use core::marker::PhantomData;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
-use numeric_array::{ArrayLength, NumericArray};
-
-/// Type-level integer. These are notated as `U0`, `U1`...
-pub trait Size<T>: ArrayLength + Sync + Send + Clone {}
-
-impl<T, A: ArrayLength + Sync + Send + Clone> Size<T> for A {}
-
-/// Frames are arrays with a static size used to transport audio data
-/// between `AudioNode` instances.
-pub type Frame<T, Size> = NumericArray<T, Size>;
 
 /*
 Order of type arguments in nodes:

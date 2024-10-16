@@ -509,7 +509,7 @@ impl<F: Float> AudioNode for Ramp<F> {
 
 /// PolyBLEP function with phase `t` in 0...1 and phase increment `dt`.
 #[inline]
-fn polyblep<F: Float>(t: F, dt: F) -> F {
+fn polyblep<F: Real>(t: F, dt: F) -> F {
     if t < dt {
         let z = t / dt;
         z + z - z * z - F::one()
@@ -526,14 +526,14 @@ fn polyblep<F: Float>(t: F, dt: F) -> F {
 /// - Input 0: frequency (Hz).
 /// - Output 0: saw waveform in -1...1.
 #[derive(Default, Clone)]
-pub struct PolySaw<F: Float> {
+pub struct PolySaw<F: Real> {
     phase: F,
     sample_duration: F,
     hash: u64,
     initial_phase: Option<F>,
 }
 
-impl<F: Float> PolySaw<F> {
+impl<F: Real> PolySaw<F> {
     /// Create oscillator.
     pub fn new() -> Self {
         let mut osc = Self::default();
@@ -555,7 +555,7 @@ impl<F: Float> PolySaw<F> {
     }
 }
 
-impl<F: Float> AudioNode for PolySaw<F> {
+impl<F: Real> AudioNode for PolySaw<F> {
     const ID: u64 = 95;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
@@ -602,14 +602,14 @@ impl<F: Float> AudioNode for PolySaw<F> {
 /// - Input 0: frequency (Hz).
 /// - Output 0: square waveform in -1...1.
 #[derive(Default, Clone)]
-pub struct PolySquare<F: Float> {
+pub struct PolySquare<F: Real> {
     phase: F,
     sample_duration: F,
     hash: u64,
     initial_phase: Option<F>,
 }
 
-impl<F: Float> PolySquare<F> {
+impl<F: Real> PolySquare<F> {
     /// Create oscillator.
     pub fn new() -> Self {
         let mut osc = Self::default();
@@ -631,7 +631,7 @@ impl<F: Float> PolySquare<F> {
     }
 }
 
-impl<F: Float> AudioNode for PolySquare<F> {
+impl<F: Real> AudioNode for PolySquare<F> {
     const ID: u64 = 96;
     type Inputs = typenum::U1;
     type Outputs = typenum::U1;
@@ -685,14 +685,14 @@ impl<F: Float> AudioNode for PolySquare<F> {
 /// - Input 1: pulse width in 0...1.
 /// - Output 0: pulse waveform in -1...1.
 #[derive(Default, Clone)]
-pub struct PolyPulse<F: Float> {
+pub struct PolyPulse<F: Real> {
     phase: F,
     sample_duration: F,
     hash: u64,
     initial_phase: Option<F>,
 }
 
-impl<F: Float> PolyPulse<F> {
+impl<F: Real> PolyPulse<F> {
     /// Create oscillator.
     pub fn new() -> Self {
         let mut osc = Self::default();
@@ -714,7 +714,7 @@ impl<F: Float> PolyPulse<F> {
     }
 }
 
-impl<F: Float> AudioNode for PolyPulse<F> {
+impl<F: Real> AudioNode for PolyPulse<F> {
     const ID: u64 = 97;
     type Inputs = typenum::U2;
     type Outputs = typenum::U1;

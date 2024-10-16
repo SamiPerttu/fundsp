@@ -19,9 +19,24 @@
     clippy::comparison_chain
 )]
 
+use numeric_array::{ArrayLength, NumericArray};
+use typenum::{U1, U4, U8};
+
 use core::cmp::PartialEq;
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use core::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
+use std::marker::{Send, Sync};
+
+use wide::{f32x8, f64x4, i32x8, u32x8};
+
+/// Type-level integer. These are notated as `U0`, `U1`...
+pub trait Size<T>: ArrayLength + Sync + Send + Clone {}
+
+impl<T, A: ArrayLength + Sync + Send + Clone> Size<T> for A {}
+
+/// Frames are arrays with a static size used to transport audio data
+/// between `AudioNode` instances.
+pub type Frame<T, Size> = NumericArray<T, Size>;
 
 /// Default sample rate is 44.1 kHz.
 pub const DEFAULT_SR: f64 = 44_100.0;
@@ -34,13 +49,13 @@ pub const MAX_BUFFER_SIZE: usize = 1 << MAX_BUFFER_LOG;
 
 /// Blocks are explicitly SIMD accelerated. This is the type of a SIMD element
 /// containing successive `f32` samples.
-pub type F32x = wide::f32x8;
+pub type F32x = f32x8;
 
 /// The 32-bit unsigned integer SIMD element corresponding to `F32x`.
-pub type U32x = wide::u32x8;
+pub type U32x = u32x8;
 
 /// The 32-bit signed integer SIMD element corresponding to `F32x`.
-pub type I32x = wide::i32x8;
+pub type I32x = i32x8;
 
 /// Right shift for converting from samples to SIMD elements.
 pub const SIMD_S: usize = 3;
@@ -69,7 +84,7 @@ pub fn full_simd_items(samples: usize) -> usize {
     samples >> SIMD_S
 }
 
-/// Number abstraction.
+/// Number abstraction that is also defined for SIMD items.
 pub trait Num:
     Copy
     + Default
@@ -86,6 +101,9 @@ pub trait Num:
     + DivAssign
     + PartialEq
 {
+    // The number of elements in the number.
+    type Size: ArrayLength + Send + Sync;
+
     fn zero() -> Self;
     fn one() -> Self;
     fn new(x: i64) -> Self;
@@ -106,6 +124,7 @@ pub trait Num:
 macro_rules! impl_signed_num {
     ( $($t:ty),* ) => {
     $( impl Num for $t {
+        type Size = U1;
         #[inline(always)] fn zero() -> Self { 0 }
         #[inline(always)] fn one() -> Self { 1 }
         #[inline(always)] fn new(x: i64) -> Self { x as Self }
@@ -127,6 +146,7 @@ impl_signed_num! { i8, i16, i32, i64, i128, isize }
 macro_rules! impl_unsigned_num {
     ( $($t:ty),* ) => {
     $( impl Num for $t {
+        type Size = U1;
         #[inline(always)] fn zero() -> Self { 0 }
         #[inline(always)] fn one() -> Self { 1 }
         #[inline(always)] fn new(x: i64) -> Self { x as Self }
@@ -146,6 +166,8 @@ macro_rules! impl_unsigned_num {
 impl_unsigned_num! { u8, u16, u32, u64, u128, usize }
 
 impl Num for f32 {
+    type Size = U1;
+
     #[inline(always)]
     fn zero() -> Self {
         0.0
@@ -201,6 +223,8 @@ impl Num for f32 {
 }
 
 impl Num for f64 {
+    type Size = U1;
+
     #[inline(always)]
     fn zero() -> Self {
         0.0
@@ -256,6 +280,8 @@ impl Num for f64 {
 }
 
 impl Num for F32x {
+    type Size = U8;
+
     #[inline(always)]
     fn zero() -> Self {
         F32x::ZERO
@@ -310,7 +336,9 @@ impl Num for F32x {
     }
 }
 
-impl Num for wide::f64x4 {
+impl Num for f64x4 {
+    type Size = U4;
+
     #[inline(always)]
     fn zero() -> Self {
         wide::f64x4::ZERO
@@ -392,8 +420,8 @@ macro_rules! impl_int {
 }
 impl_int! { i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize }
 
-/// Float abstraction.
-pub trait Float: Num + PartialOrd + Neg<Output = Self> {
+/// Float abstraction that also applies to SIMD items.
+pub trait Float: Num + Neg<Output = Self> {
     const PI: Self;
     const TAU: Self;
     const SQRT_2: Self;
@@ -401,6 +429,16 @@ pub trait Float: Num + PartialOrd + Neg<Output = Self> {
     fn to_f64(self) -> f64;
     fn to_f32(self) -> f32;
     fn to_i64(self) -> i64;
+    fn tan(self) -> Self;
+    fn exp(self) -> Self;
+    fn sin(self) -> Self;
+    fn cos(self) -> Self;
+    fn sqrt(self) -> Self;
+    fn reduce_add(self) -> f32;
+    fn from_frame(frame: &Frame<f32, Self::Size>) -> Self;
+    fn to_frame(self) -> Frame<f32, Self::Size>;
+    fn set(&mut self, index: usize, value: f32);
+    fn get(&self, index: usize) -> f32;
 }
 
 impl Float for f32 {
@@ -426,6 +464,56 @@ impl Float for f32 {
     #[inline(always)]
     fn to_i64(self) -> i64 {
         self as i64
+    }
+
+    #[inline(always)]
+    fn tan(self) -> Self {
+        self.tan()
+    }
+
+    #[inline(always)]
+    fn exp(self) -> Self {
+        self.exp()
+    }
+
+    #[inline(always)]
+    fn sin(self) -> Self {
+        self.sin()
+    }
+
+    #[inline(always)]
+    fn cos(self) -> Self {
+        self.cos()
+    }
+
+    #[inline(always)]
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+
+    #[inline(always)]
+    fn reduce_add(self) -> f32 {
+        self
+    }
+
+    #[inline(always)]
+    fn from_frame(frame: &Frame<f32, Self::Size>) -> Self {
+        frame[0]
+    }
+
+    #[inline(always)]
+    fn to_frame(self) -> Frame<f32, Self::Size> {
+        [self].into()
+    }
+
+    #[inline(always)]
+    fn set(&mut self, _index: usize, value: f32) {
+        *self = value;
+    }
+
+    #[inline(always)]
+    fn get(&self, _index: usize) -> f32 {
+        *self
     }
 }
 
@@ -453,6 +541,217 @@ impl Float for f64 {
     fn to_i64(self) -> i64 {
         self as i64
     }
+
+    #[inline(always)]
+    fn tan(self) -> Self {
+        self.tan()
+    }
+
+    #[inline(always)]
+    fn exp(self) -> Self {
+        self.exp()
+    }
+
+    #[inline(always)]
+    fn sin(self) -> Self {
+        self.sin()
+    }
+
+    #[inline(always)]
+    fn cos(self) -> Self {
+        self.cos()
+    }
+
+    #[inline(always)]
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+
+    #[inline(always)]
+    fn reduce_add(self) -> f32 {
+        self as f32
+    }
+
+    #[inline(always)]
+    fn from_frame(frame: &Frame<f32, Self::Size>) -> Self {
+        frame[0] as f64
+    }
+
+    #[inline(always)]
+    fn to_frame(self) -> Frame<f32, Self::Size> {
+        [self as f32].into()
+    }
+
+    #[inline(always)]
+    fn set(&mut self, _index: usize, value: f32) {
+        *self = value as f64;
+    }
+
+    #[inline(always)]
+    fn get(&self, _index: usize) -> f32 {
+        *self as f32
+    }
+}
+
+impl Float for f32x8 {
+    const PI: Self = f32x8::PI;
+    const TAU: Self = f32x8::TAU;
+    const SQRT_2: Self = f32x8::SQRT_2;
+
+    #[inline(always)]
+    fn from_float<T: Float>(x: T) -> Self {
+        Self::splat(x.to_f32())
+    }
+
+    #[inline(always)]
+    fn to_f64(self) -> f64 {
+        0.0
+    }
+
+    #[inline(always)]
+    fn to_f32(self) -> f32 {
+        0.0
+    }
+
+    #[inline(always)]
+    fn to_i64(self) -> i64 {
+        0
+    }
+
+    #[inline(always)]
+    fn tan(self) -> Self {
+        f32x8::tan(self)
+    }
+
+    #[inline(always)]
+    fn exp(self) -> Self {
+        f32x8::exp(self)
+    }
+
+    #[inline(always)]
+    fn sin(self) -> Self {
+        f32x8::sin(self)
+    }
+
+    #[inline(always)]
+    fn cos(self) -> Self {
+        f32x8::cos(self)
+    }
+
+    #[inline(always)]
+    fn sqrt(self) -> Self {
+        f32x8::sqrt(self)
+    }
+
+    #[inline(always)]
+    fn reduce_add(self) -> f32 {
+        f32x8::reduce_add(self)
+    }
+
+    #[inline(always)]
+    fn from_frame(frame: &Frame<f32, U8>) -> Self {
+        f32x8::new((*frame.as_array()).into())
+    }
+
+    #[inline(always)]
+    fn to_frame(self) -> Frame<f32, U8> {
+        f32x8::to_array(self).into()
+    }
+
+    #[inline(always)]
+    fn set(&mut self, index: usize, value: f32) {
+        self.as_array_mut()[index] = value;
+    }
+
+    #[inline(always)]
+    fn get(&self, index: usize) -> f32 {
+        self.as_array_ref()[index]
+    }
+}
+
+impl Float for f64x4 {
+    const PI: Self = f64x4::PI;
+    const TAU: Self = f64x4::TAU;
+    const SQRT_2: Self = f64x4::SQRT_2;
+
+    #[inline(always)]
+    fn from_float<T: Float>(x: T) -> Self {
+        Self::splat(x.to_f64())
+    }
+
+    #[inline(always)]
+    fn to_f64(self) -> f64 {
+        0.0
+    }
+
+    #[inline(always)]
+    fn to_f32(self) -> f32 {
+        0.0
+    }
+
+    #[inline(always)]
+    fn to_i64(self) -> i64 {
+        0
+    }
+
+    #[inline(always)]
+    fn tan(self) -> Self {
+        f64x4::tan(self)
+    }
+
+    #[inline(always)]
+    fn exp(self) -> Self {
+        f64x4::exp(self)
+    }
+
+    #[inline(always)]
+    fn sin(self) -> Self {
+        f64x4::sin(self)
+    }
+
+    #[inline(always)]
+    fn cos(self) -> Self {
+        f64x4::cos(self)
+    }
+
+    #[inline(always)]
+    fn sqrt(self) -> Self {
+        f64x4::sqrt(self)
+    }
+
+    #[inline(always)]
+    fn reduce_add(self) -> f32 {
+        f64x4::reduce_add(self) as f32
+    }
+
+    #[inline(always)]
+    fn from_frame(frame: &Frame<f32, U4>) -> Self {
+        let array = frame.as_array();
+        let f64_array = [
+            f64::from(array[0]),
+            f64::from(array[1]),
+            f64::from(array[2]),
+            f64::from(array[3]),
+        ];
+        f64x4::new(f64_array)
+    }
+
+    #[inline(always)]
+    fn to_frame(self) -> Frame<f32, U4> {
+        let array_f64: [f64; 4] = f64x4::to_array(self);
+        let array_f32: [f32; 4] = array_f64.map(|x| x as f32);
+        array_f32.into()
+    }
+
+    #[inline(always)]
+    fn set(&mut self, index: usize, value: f32) {
+        self.as_array_mut()[index] = value as f64;
+    }
+
+    #[inline(always)]
+    fn get(&self, index: usize) -> f32 {
+        self.as_array_ref()[index] as f32
+    }
 }
 
 /// Generic floating point conversion function.
@@ -461,30 +760,17 @@ pub fn convert<T: Float, U: Float>(x: T) -> U {
     U::from_float(x)
 }
 
-/// Refined float abstraction.
-pub trait Real: Float {
-    fn sqrt(self) -> Self;
-    fn exp(self) -> Self;
+/// Refined float abstraction for scalars.
+pub trait Real: Float + PartialOrd {
     fn exp2(self) -> Self;
     fn log(self) -> Self;
     fn log2(self) -> Self;
     fn log10(self) -> Self;
-    fn sin(self) -> Self;
-    fn cos(self) -> Self;
-    fn tan(self) -> Self;
     fn tanh(self) -> Self;
     fn atan(self) -> Self;
 }
 
 impl Real for f32 {
-    #[inline(always)]
-    fn sqrt(self) -> Self {
-        libm::sqrtf(self)
-    }
-    #[inline(always)]
-    fn exp(self) -> Self {
-        libm::expf(self)
-    }
     #[inline(always)]
     fn exp2(self) -> Self {
         libm::exp2f(self)
@@ -502,18 +788,6 @@ impl Real for f32 {
         libm::log10f(self)
     }
     #[inline(always)]
-    fn sin(self) -> Self {
-        libm::sinf(self)
-    }
-    #[inline(always)]
-    fn cos(self) -> Self {
-        libm::cosf(self)
-    }
-    #[inline(always)]
-    fn tan(self) -> Self {
-        libm::tanf(self)
-    }
-    #[inline(always)]
     fn tanh(self) -> Self {
         libm::tanhf(self)
     }
@@ -524,14 +798,6 @@ impl Real for f32 {
 }
 
 impl Real for f64 {
-    #[inline(always)]
-    fn sqrt(self) -> Self {
-        libm::sqrt(self)
-    }
-    #[inline(always)]
-    fn exp(self) -> Self {
-        libm::exp(self)
-    }
     #[inline(always)]
     fn exp2(self) -> Self {
         libm::exp2(self)
@@ -547,18 +813,6 @@ impl Real for f64 {
     #[inline(always)]
     fn log10(self) -> Self {
         libm::log10(self)
-    }
-    #[inline(always)]
-    fn sin(self) -> Self {
-        libm::sin(self)
-    }
-    #[inline(always)]
-    fn cos(self) -> Self {
-        libm::cos(self)
-    }
-    #[inline(always)]
-    fn tan(self) -> Self {
-        libm::tan(self)
     }
     #[inline(always)]
     fn tanh(self) -> Self {

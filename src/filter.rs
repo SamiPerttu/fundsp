@@ -274,7 +274,7 @@ pub struct Allpole<F: Float, N: Size<f32>> {
     sample_rate: F,
 }
 
-impl<F: Float, N: Size<f32>> Allpole<F, N> {
+impl<F: Real, N: Size<f32>> Allpole<F, N> {
     /// Create new allpass filter. Initial `delay` is specified in samples.
     pub fn new(delay: F) -> Self {
         assert!(delay > F::zero());
@@ -296,7 +296,7 @@ impl<F: Float, N: Size<f32>> Allpole<F, N> {
     }
 }
 
-impl<F: Float, N: Size<f32>> AudioNode for Allpole<F, N> {
+impl<F: Real, N: Size<f32>> AudioNode for Allpole<F, N> {
     const ID: u64 = 46;
     type Inputs = N;
     type Outputs = typenum::U1;

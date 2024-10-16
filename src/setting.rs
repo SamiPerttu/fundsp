@@ -6,6 +6,7 @@ use super::combinator::*;
 use super::math::*;
 use super::net::NodeId;
 use super::signal::*;
+use super::*;
 pub use thingbuf::mpsc::errors::TrySendError;
 use thingbuf::mpsc::{channel, Receiver, Sender};
 use tinyvec::ArrayVec;
@@ -28,11 +29,6 @@ pub enum Parameter {
     Coefficient(f32),
     /// Set biquad parameters `(a1, a2, b0, b1, b2)`.
     Biquad(f32, f32, f32, f32, f32),
-    /// Set biquadbank parameters `(index, a1, a2, b0, b1, b2)`.
-    /// `index` range:
-    /// - 0-3 for a f64x4 based BiquadBank
-    /// - 0-7 for a f32x8 based BiquadBank
-    BiquadBank(usize, f32, f32, f32, f32, f32),
     /// Set delay.
     Delay(f32),
     /// Set response time.

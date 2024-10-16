@@ -8,6 +8,8 @@
 - `sine_phase`, `ramp_phase` and `ramp_hz_phase` opcodes were removed:
   there is a new builder notation for setting the initial phase, for example, `sine().phase(0.0)`.
 - New builder notation for setting noise generator seed, for example, `noise().seed(1)`.
+- New opcode `biquad_bank()`.
+- `BiquadBank` parameters for channel `i` are now set with the syntax `Setting::biquad(...).index(i)`.
 
 ### Version 0.20
 

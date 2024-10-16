@@ -651,8 +651,8 @@ The following table lists the oscillator opcodes.
 
 The wavetable oscillator is [bandlimited](https://en.wikipedia.org/wiki/Bandlimiting)
 with pristine quality.
-However, unlike the other types it allocates memory in the form of static wavetables.
-The DSF oscillator has similar quality but is somewhat expensive to evaluate.
+However, unlike the other types it allocates memory in the form of global wavetables.
+The [DSF](https://ccrma.stanford.edu/files/papers/stanm5.pdf) oscillator has similar quality but is somewhat expensive to evaluate.
 The PolyBLEP oscillator is a fast approximation with fair quality.
 
 ## Working With Waves
@@ -952,6 +952,7 @@ The following table summarizes the available settings.
 | `bandpass_hz`     | `center_q` |
 | `bell_hz`         | `center_q_gain` |
 | `biquad`          | `biquad` to set biquad coefficients |
+| `biquad_bank`     | `biquad(a1, a2, b0, b1, b2).index(i)` to set channel `i` coefficients |
 | `butterpass_hz`   | `center` |
 | `constant`        | `value` to set scalar value on all channels |
 | `dbell_hz`        | `center_q_gain` |
@@ -1121,6 +1122,7 @@ The type parameters in the table refer to the hacker preludes.
 | `bell_hz(f, q, gain)`  |    1    |    1    | Peaking filter (2nd order) centered at `f` Hz with Q `q` and amplitude gain `gain`. |
 | `bell_q(q, gain)`      | 2 (audio, frequency) | 1 | Peaking filter (2nd order) with Q `q` and amplitude gain `gain`. |
 | `biquad(a1, a2, b0, b1, b2)` | 1 |    1    | Arbitrary [biquad filter](https://en.wikipedia.org/wiki/Digital_biquad_filter) with coefficients in normalized form. |
+| `biquad_bank()`        |   4/8   |   4/8   | Bank of SIMD accelerated biquad filters with 4 channels in double precision or 8 channels in single precision. |
 | `brown()`              |    -    |    1    | [Brown](https://en.wikipedia.org/wiki/Brownian_noise) noise. |
 | `branch(x, y)`         | `x = y` | `x + y` | Branch into `x` and `y`. Identical with `x ^ y`. |
 | `branchf::<U, _, _>(f)`|   `f`   | `U * f` | Branch into `U` nodes from fractional generator `f`, e.g., `\| x \| resonator_hz(xerp(20.0, 20_000.0, x), xerp(5.0, 5_000.0, x))`. |

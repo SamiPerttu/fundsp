@@ -306,6 +306,11 @@ fn test_basic() {
         dc((660.0, 0.1)) >> poly_pulse().phase(0.75) | poly_pulse_hz(6600.0, 0.9).phase(0.9),
     );
 
+    let mut biq = biquad_bank();
+    biq.set(Setting::biquad(0.0, 0.0, 0.2, 0.2, 0.2).index(0));
+    biq.set(Setting::biquad(0.2, 0.2, 0.1, 0.3, 0.5).index(1));
+    check_wave((noise() | noise() | zero() | zero()) >> biq >> (pass() | pass() | sink() | sink()));
+
     let dc42 = Net::wrap(Box::new(dc(42.)));
     let dcs = dc42.clone() | dc42;
     let reverb = Net::wrap(Box::new(reverb_stereo(40., 5., 1.)));

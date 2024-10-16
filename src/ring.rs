@@ -4,6 +4,7 @@ use super::audionode::*;
 use super::combinator::An;
 use super::signal::*;
 use super::typenum::*;
+use super::*;
 use thingbuf::mpsc::{channel, Receiver, Sender};
 
 pub struct Ring<N: Size<f32>> {

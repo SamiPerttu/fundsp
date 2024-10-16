@@ -15,7 +15,7 @@ use numeric_array::*;
 #[derive(Default, Clone)]
 pub struct Envelope<F, E, R>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -48,7 +48,7 @@ where
 
 impl<F, E, R> Envelope<F, E, R>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -101,7 +101,7 @@ where
 
 impl<F, E, R> AudioNode for Envelope<F, E, R>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -177,7 +177,7 @@ where
 #[derive(Default, Clone)]
 pub struct EnvelopeIn<F, E, I, R>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F, &Frame<f32, I>) -> R + Clone + Send + Sync,
     I: Size<f32>,
     R: ConstantFrame<Sample = F>,
@@ -212,7 +212,7 @@ where
 
 impl<F, E, I, R> EnvelopeIn<F, E, I, R>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F, &Frame<f32, I>) -> R + Clone + Send + Sync,
     I: Size<f32>,
     R: ConstantFrame<Sample = F>,
@@ -273,7 +273,7 @@ where
 
 impl<F, E, I, R> AudioNode for EnvelopeIn<F, E, I, R>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F, &Frame<f32, I>) -> R + Clone + Send + Sync,
     I: Size<f32>,
     R: ConstantFrame<Sample = F>,

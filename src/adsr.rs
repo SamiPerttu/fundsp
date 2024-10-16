@@ -16,7 +16,7 @@
 //! an `adsr_live()` envelope.
 
 use super::prelude::{clamp01, delerp, envelope2, lerp, shared, var, An, EnvelopeIn, Frame, U1};
-use super::Float;
+use super::Real;
 
 pub fn adsr_live(
     attack: f32,
@@ -51,7 +51,7 @@ pub fn adsr_live(
     })
 }
 
-fn ads<F: Float>(attack: F, decay: F, sustain: F, time: F) -> F {
+fn ads<F: Real>(attack: F, decay: F, sustain: F, time: F) -> F {
     if time < attack {
         lerp(F::from_f64(0.0), F::from_f64(1.0), time / attack)
     } else {

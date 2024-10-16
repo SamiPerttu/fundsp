@@ -7,6 +7,7 @@ use alloc::sync::Arc;
 pub use super::audionode::*;
 pub use super::audiounit::*;
 pub use super::biquad::*;
+pub use super::biquad_bank::*;
 pub use super::buffer::*;
 pub use super::combinator::*;
 pub use super::delay::*;
@@ -2680,4 +2681,12 @@ pub fn poly_pulse() -> An<PolyPulse<f64>> {
 /// - Output 0: pulse wave
 pub fn poly_pulse_hz(f: f32, width: f32) -> An<Pipe<Constant<U2>, PolyPulse<f64>>> {
     dc((f, width)) >> poly_pulse()
+}
+
+/// 4-channel SIMD accelerated biquad filter with independent settings for each channel.
+/// - Setting channel `i` coefficients: `Setting::biquad(a1, a2, b0, b1, b2).index(i)`.
+/// - Inputs 0-3: input signals.
+/// - Outputs 0-3: filtered signals.
+pub fn biquad_bank() -> An<BiquadBank<f64x4>> {
+    An(BiquadBank::new())
 }

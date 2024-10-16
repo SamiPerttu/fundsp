@@ -55,13 +55,13 @@ pub fn round<T: Num>(x: T) -> T {
 
 /// Square root function.
 #[inline]
-pub fn sqrt<T: Real>(x: T) -> T {
+pub fn sqrt<T: Float>(x: T) -> T {
     x.sqrt()
 }
 
 /// Exponential function.
 #[inline]
-pub fn exp<T: Real>(x: T) -> T {
+pub fn exp<T: Float>(x: T) -> T {
     x.exp()
 }
 
@@ -97,19 +97,19 @@ pub fn log10<T: Real>(x: T) -> T {
 
 /// Sine function.
 #[inline]
-pub fn sin<T: Real>(x: T) -> T {
+pub fn sin<T: Float>(x: T) -> T {
     x.sin()
 }
 
 #[inline]
 /// Cosine function.
-pub fn cos<T: Real>(x: T) -> T {
+pub fn cos<T: Float>(x: T) -> T {
     x.cos()
 }
 
 /// Tangent function.
 #[inline]
-pub fn tan<T: Real>(x: T) -> T {
+pub fn tan<T: Float>(x: T) -> T {
     x.tan()
 }
 
@@ -481,7 +481,7 @@ pub fn cos_hz<T: Real>(hz: T, t: T) -> T {
 /// assert_eq!(sqr_hz(1.0, 1.0), 1.0);
 /// ```
 #[inline]
-pub fn sqr_hz<T: Float>(hz: T, t: T) -> T {
+pub fn sqr_hz<T: Real>(hz: T, t: T) -> T {
     let x = t * hz;
     let x = x - x.floor();
     if x < T::from_f32(0.5) {
@@ -647,7 +647,7 @@ where
     }
 }
 
-impl<T: Float, X, Y> SegmentInterpolator<T> for (X, Y)
+impl<T: Real, X, Y> SegmentInterpolator<T> for (X, Y)
 where
     X: SegmentInterpolator<T>,
     Y: SegmentInterpolator<T>,

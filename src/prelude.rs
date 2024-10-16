@@ -477,14 +477,14 @@ pub fn lowpole_hz<F: Real>(cutoff: F) -> An<Lowpole<F, U1>> {
 /// - Input 0: audio
 /// - Input 1: delay in samples
 /// - Output 0: filtered audio
-pub fn allpole<F: Float>() -> An<Allpole<F, U2>> {
+pub fn allpole<F: Real>() -> An<Allpole<F, U2>> {
     An(Allpole::new(F::new(1)))
 }
 
 /// Allpass filter (1st order) with `delay` (`delay` > 0) in samples at DC.
 /// - Input 0: audio
 /// - Output 0: filtered audio
-pub fn allpole_delay<F: Float>(delay: F) -> An<Allpole<F, U1>> {
+pub fn allpole_delay<F: Real>(delay: F) -> An<Allpole<F, U1>> {
     An(Allpole::new(delay))
 }
 
@@ -576,7 +576,7 @@ pub fn moog_hz<F: Real>(frequency: F, q: F) -> An<Moog<F, U1>> {
 /// ```
 pub fn envelope<F, E, R>(f: E) -> An<Envelope<F, E, R>>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -600,7 +600,7 @@ where
 /// ```
 pub fn lfo<F, E, R>(f: E) -> An<Envelope<F, E, R>>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -624,7 +624,7 @@ pub fn envelope2<F, E, R>(
     mut f: E,
 ) -> An<EnvelopeIn<F, impl FnMut(F, &Frame<f32, U1>) -> R + Clone, U1, R>>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F, F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -651,7 +651,7 @@ pub fn lfo2<F, E, R>(
     mut f: E,
 ) -> An<EnvelopeIn<F, impl FnMut(F, &Frame<f32, U1>) -> R + Clone, U1, R>>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F, F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -672,7 +672,7 @@ pub fn envelope3<F, E, R>(
     mut f: E,
 ) -> An<EnvelopeIn<F, impl FnMut(F, &Frame<f32, U2>) -> R + Clone, U2, R>>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F, F, F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -702,7 +702,7 @@ pub fn lfo3<F, E, R>(
     mut f: E,
 ) -> An<EnvelopeIn<F, impl FnMut(F, &Frame<f32, U2>) -> R + Clone, U2, R>>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F, F, F) -> R + Clone + Send + Sync,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -721,7 +721,7 @@ where
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 pub fn envelope_in<F, E, I, R>(f: E) -> An<EnvelopeIn<F, E, I, R>>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F, &Frame<f32, I>) -> R + Clone + Send + Sync,
     I: Size<f32>,
     R: ConstantFrame<Sample = F>,
@@ -738,7 +738,7 @@ where
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 pub fn lfo_in<F, E, I, R>(f: E) -> An<EnvelopeIn<F, E, I, R>>
 where
-    F: Float,
+    F: Real,
     E: FnMut(F, &Frame<f32, I>) -> R + Clone + Send + Sync,
     I: Size<f32>,
     R: ConstantFrame<Sample = F>,
@@ -3088,14 +3088,14 @@ pub fn fresonator_hz<F: Real, S: Shape>(
 /// A fast, fairly bandlimited saw wave algorithm.
 /// - Input 0: frequency (Hz)
 /// - Output 0: saw wave
-pub fn poly_saw<F: Float>() -> An<PolySaw<F>> {
+pub fn poly_saw<F: Real>() -> An<PolySaw<F>> {
     An(PolySaw::new())
 }
 
 /// PolyBLEP saw wave oscillator at `f` Hz.
 /// A fast, fairly bandlimited saw wave algorithm.
 /// - Output 0: saw wave
-pub fn poly_saw_hz<F: Float>(f: f32) -> An<Pipe<Constant<U1>, PolySaw<F>>> {
+pub fn poly_saw_hz<F: Real>(f: f32) -> An<Pipe<Constant<U1>, PolySaw<F>>> {
     dc(f) >> poly_saw()
 }
 
@@ -3103,14 +3103,14 @@ pub fn poly_saw_hz<F: Float>(f: f32) -> An<Pipe<Constant<U1>, PolySaw<F>>> {
 /// A fast, fairly bandlimited square wave algorithm.
 /// - Input 0: frequency (Hz)
 /// - Output 0: square wave
-pub fn poly_square<F: Float>() -> An<PolySquare<F>> {
+pub fn poly_square<F: Real>() -> An<PolySquare<F>> {
     An(PolySquare::new())
 }
 
 /// PolyBLEP square wave oscillator at `f` Hz.
 /// A fast, fairly bandlimited square wave algorithm.
 /// - Output 0: square wave
-pub fn poly_square_hz<F: Float>(f: f32) -> An<Pipe<Constant<U1>, PolySquare<F>>> {
+pub fn poly_square_hz<F: Real>(f: f32) -> An<Pipe<Constant<U1>, PolySquare<F>>> {
     dc(f) >> poly_square()
 }
 
@@ -3119,13 +3119,13 @@ pub fn poly_square_hz<F: Float>(f: f32) -> An<Pipe<Constant<U1>, PolySquare<F>>>
 /// - Input 0: frequency (Hz)
 /// - Input 1: pulse width in 0...1
 /// - Output 0: pulse wave
-pub fn poly_pulse<F: Float>() -> An<PolyPulse<F>> {
+pub fn poly_pulse<F: Real>() -> An<PolyPulse<F>> {
     An(PolyPulse::new())
 }
 
 /// PolyBLEP pulse wave oscillator at `f` Hz with pulse `width` in 0...1.
 /// A fast, fairly bandlimited pulse wave algorithm.
 /// - Output 0: pulse wave
-pub fn poly_pulse_hz<F: Float>(f: f32, width: f32) -> An<Pipe<Constant<U2>, PolyPulse<F>>> {
+pub fn poly_pulse_hz<F: Real>(f: f32, width: f32) -> An<Pipe<Constant<U2>, PolyPulse<F>>> {
     dc((f, width)) >> poly_pulse()
 }

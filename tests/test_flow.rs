@@ -167,6 +167,14 @@ fn test_responses() {
     test_response((pass() | dc(1.0)) >> rotate(0.5, 1.0) >> (pass() | sink()));
     test_response((dc(2.0) | pass()) >> rotate(-0.1, 0.5) >> (pass() | sink()));
 
+    let mut biq = biquad_bank();
+    biq.set(Setting::biquad(0.05, 0.1, 0.3, 0.1, 0.15).index(3));
+    test_response(
+        (multizero::<U3>() | pass() | multizero::<U4>())
+            >> biq
+            >> (multisink::<U3>() | pass() | multisink::<U4>()),
+    );
+
     let mut net1 = Net::new(1, 1);
     net1.chain(Box::new(lowpole_hz(1500.0)));
     test_response(net1);

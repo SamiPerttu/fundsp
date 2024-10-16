@@ -1,6 +1,5 @@
 //! SIMD accelerated audio buffers for block processing.
 
-use super::audionode::*;
 use super::*;
 extern crate alloc;
 use alloc::vec::Vec;
