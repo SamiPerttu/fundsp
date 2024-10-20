@@ -253,7 +253,7 @@ impl<X: AudioNode> An<X> {
     }
 
     /// This builder method sets oscillator initial phase in 0...1,
-    /// overriding pseudorandom phase.
+    /// overriding pseudorandom phase. The setting takes effect immediately.
     ///
     /// ### Example (Square Wave At 110 Hz With Initial Phase 0.5)
     /// ```
@@ -267,11 +267,20 @@ impl<X: AudioNode> An<X> {
     }
 
     /// This builder method sets noise generator seed,
-    /// overriding pseudorandom phase.
+    /// overriding pseudorandom phase. The setting takes effect immediately.
     /// Works with opcodes `mls`, `noise`, `white`, `pink` and `brown`.
     pub fn seed(mut self, seed: u64) -> Self {
         self.set(Setting::seed(seed).left());
         self.reset();
+        self
+    }
+
+    /// This builder method sets the average interval (in seconds)
+    /// between samples in envelopes. The setting takes effect immediately.
+    /// Works with opcodes `envelope`, `envelope2`, `envelope3`, `envelope_in`,
+    /// `lfo`, `lfo2`, `lfo3` and `lfo_in`.
+    pub fn interval(mut self, time: f32) -> Self {
+        self.set(Setting::interval(time));
         self
     }
 }

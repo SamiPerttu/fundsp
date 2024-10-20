@@ -4,6 +4,7 @@ use super::audionode::*;
 use super::buffer::*;
 use super::combinator::*;
 use super::math::*;
+use super::setting::*;
 use super::signal::*;
 use super::*;
 use core::marker::PhantomData;
@@ -158,6 +159,12 @@ where
             if loop_samples == segment_samples_left {
                 self.next_segment();
             }
+        }
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Interval(time) = setting.parameter() {
+            self.interval = F::from_f32(*time);
         }
     }
 
@@ -331,6 +338,12 @@ where
             if loop_samples == segment_samples_left && i < size {
                 self.next_segment(&Frame::generate(|j| input.at_f32(j, i)));
             }
+        }
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Interval(time) = setting.parameter() {
+            self.interval = F::from_f32(*time);
         }
     }
 

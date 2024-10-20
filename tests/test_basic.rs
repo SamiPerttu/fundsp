@@ -342,7 +342,7 @@ fn test_basic() {
     check_wave_filter(&input, tap_node.clone() | tap_node.clone());
 
     // Check cycle.
-    let mut cycle = Net::new(1, 1);
+    let mut cycle = Net::new(2, 1);
     let id1 = cycle.chain(Box::new(join::<U2>()));
     let id2 = cycle.chain(Box::new(pass()));
     assert_eq!(cycle.error(), &None);

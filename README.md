@@ -1316,6 +1316,9 @@ The return type of the function - scalar or tuple - determines the number of out
 The samples are spaced at an average of 2 ms apart, jittered by noise derived from pseudorandom phase.
 The values in between are linearly interpolated.
 
+To set a different sampling interval, use the `interval` builder method.
+For example, `envelope(|t| clamp01(sqr_hz(10.0, t))).interval(0.01)` samples the envelope at 10 ms intervals.
+
 `lfo` (Low Frequency Oscillator) is another name for `envelope`.
 
 #### Indexed And Fractional Generator Functions

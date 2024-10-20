@@ -765,7 +765,8 @@ impl Net {
     /// Global outputs will be assigned to the outputs of the unit.
     /// If there are more global outputs than there are outputs in the unit, then a modulo
     /// is taken to plug all of them.
-    /// The previous global output sources become inputs to the unit.
+    /// If this is the first unit in the net, then global inputs are assigned to inputs of the unit;
+    /// if the net was not empty then the previous global output sources become inputs to the unit.
     /// Returns the ID of the new unit.
     ///
     /// ### Example (Lowpass And Highpass Filters In Series)

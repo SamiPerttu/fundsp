@@ -21,3 +21,4 @@ This is a list of feature ideas for the future.
 - Resampler with sinc interpolation.
 - Support feedback loops in `Net`.
 - Looping in `Sequencer`.
+- Delay component that crossfades between taps.

@@ -107,6 +107,7 @@ impl Wave {
     }
 
     /// The sample rate of the wave.
+    #[inline]
     pub fn sample_rate(&self) -> f64 {
         self.sample_rate
     }
@@ -157,6 +158,15 @@ impl Wave {
         self.vec.insert(channel, samples.into());
     }
 
+    /// Mix from a vector of `samples` to an existing channel here starting from index `offset`.
+    /// The offset may be negative, in which case the first items from `samples` will be ignored.
+    /// Does not resize this wave - ignores samples that spill over from either end.
+    pub fn mix_channel(&mut self, channel: usize, offset: isize, samples: &[f32]) {
+        for i in max(offset, 0)..min(offset + samples.len() as isize, self.len() as isize) {
+            self.mix(channel, i as usize, samples[(i - offset) as usize]);
+        }
+    }
+
     /// Remove channel `channel` from this wave. Returns the removed channel.
     pub fn remove_channel(&mut self, channel: usize) -> Vec<f32> {
         assert!(channel < self.channels());
@@ -169,10 +179,16 @@ impl Wave {
         self.vec[channel][index]
     }
 
-    /// Set sample to value.
+    /// Set sample to `value`.
     #[inline]
     pub fn set(&mut self, channel: usize, index: usize, value: f32) {
         self.vec[channel][index] = value;
+    }
+
+    /// Add `value` to sample.
+    #[inline]
+    pub fn mix(&mut self, channel: usize, index: usize, value: f32) {
+        self.vec[channel][index] += value;
     }
 
     /// Insert a new frame of samples to the end of the wave.
@@ -271,7 +287,7 @@ impl Wave {
     /// use fundsp::hacker::*;
     /// let mut wave = Wave::render(44100.0, 1.0, &mut (sine_hz(60.0)));
     /// let amplitude = wave.amplitude();
-    /// assert!(amplitude > 1.0 - 1.0e-5 && amplitude <= 1.0);
+    /// assert!(amplitude >= 1.0 - 1.0e-5 && amplitude <= 1.0);
     /// ```
     pub fn amplitude(&self) -> f32 {
         let mut peak = 0.0;
@@ -305,8 +321,8 @@ impl Wave {
         }
     }
 
-    /// Applies a fade-in envelope to the wave with a duration of `time` seconds.
-    /// The duration may not exceed the duration of the wave.
+    /// Applies a smooth fade-in envelope to the wave with a duration of `time` seconds.
+    /// If `time` is greater than the duration of the wave, then it will be set to the duration of the wave.
     ///
     /// ### Example
     ///
@@ -316,7 +332,7 @@ impl Wave {
     /// wave.fade_in(1.0);
     /// ```
     pub fn fade_in(&mut self, time: f64) {
-        assert!(time <= self.duration());
+        let time = min(time, self.duration());
         let fade_n = round(time * self.sample_rate());
         for i in 0..fade_n as usize {
             let a = smooth5((i + 1) as f64 / (fade_n + 1.0)) as f32;
@@ -326,8 +342,8 @@ impl Wave {
         }
     }
 
-    /// Applies a fade-out envelope to the wave with a duration of `time` seconds.
-    /// The duration may not exceed the duration of the wave.
+    /// Applies a smooth fade-out envelope to the wave with a duration of `time` seconds.
+    /// If `time` is greater than the duration of the wave, then it will be set to the duration of the wave.
     ///
     /// ### Example
     ///
@@ -337,7 +353,7 @@ impl Wave {
     /// wave.fade_out(5.0);
     /// ```
     pub fn fade_out(&mut self, time: f64) {
-        assert!(time <= self.duration());
+        let time = min(time, self.duration());
         let fade_n = round(time * self.sample_rate());
         let fade_i = fade_n as usize;
         for i in 0..fade_i {
@@ -350,7 +366,7 @@ impl Wave {
     }
 
     /// Applies both fade-in and fade-out to the wave with a duration of `time` seconds.
-    /// The duration may not exceed the duration of the wave.
+    /// If `time` is greater than the duration of the wave, then it will be set to the duration of the wave.
     ///
     /// ### Example
     ///

@@ -10,6 +10,8 @@
 - New builder notation for setting noise generator seed, for example, `noise().seed(1)`.
 - New opcode `biquad_bank()`.
 - `BiquadBank` parameters for channel `i` are now set with the syntax `Setting::biquad(...).index(i)`.
+- New `Wave` methods `mix` and `mix_channel`.
+- New builder notation for setting envelope sampling interval, for example, `lfo(|t| exp(-t)).interval(0.01)`.
 
 ### Version 0.20
 

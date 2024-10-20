@@ -2654,7 +2654,7 @@ pub fn chorus(
 ) -> An<impl AudioNode<Inputs = U1, Outputs = U1>> {
     (pass()
         & (pass()
-            | An(Envelope::new(0.01, move |t| {
+            | lfo(move |t| {
                 (
                     lerp11(
                         separation,
@@ -2677,7 +2677,8 @@ pub fn chorus(
                         fractal_noise(hash1(seed ^ 0xfedcba), 8, 0.45, t * (mod_frequency + 0.06)),
                     ),
                 )
-            })))
+            })
+            .interval(0.01))
             >> multitap::<U4>(separation, separation * 4.0 + variation))
         * dc(0.2)
 }

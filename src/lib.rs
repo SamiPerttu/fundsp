@@ -23,9 +23,9 @@ use numeric_array::{ArrayLength, NumericArray};
 use typenum::{U1, U4, U8};
 
 use core::cmp::PartialEq;
+use core::marker::{Send, Sync};
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use core::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
-use std::marker::{Send, Sync};
 
 use wide::{f32x8, f64x4, i32x8, u32x8};
 

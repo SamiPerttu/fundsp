@@ -45,6 +45,8 @@ pub enum Parameter {
     Phase(f32),
     /// Generator seed.
     Seed(u64),
+    /// Average sampling interval in seconds for envelopes.
+    Interval(f32),
 }
 
 /// Address specifies location to apply setting in a graph.
@@ -161,6 +163,13 @@ impl Setting {
     pub fn seed(seed: u64) -> Self {
         Self {
             parameter: Parameter::Seed(seed),
+            address: ArrayVec::new(),
+        }
+    }
+    /// Create setting for envelope sampling interval in seconds.
+    pub fn interval(time: f32) -> Self {
+        Self {
+            parameter: Parameter::Interval(time),
             address: ArrayVec::new(),
         }
     }
