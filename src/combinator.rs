@@ -261,7 +261,7 @@ impl<X: AudioNode> An<X> {
     /// let oscillator = square_hz(110.0).phase(0.5);
     /// ```
     pub fn phase(mut self, phase: f32) -> Self {
-        self.set(Setting::phase(phase));
+        self.set(Setting::phase(phase).right());
         self.reset();
         self
     }
