@@ -990,8 +990,8 @@ where
 
 /// Resample enclosed generator `node` using cubic interpolation
 /// at speed obtained from input 0, where 1 is the original speed.
-/// Input 0: Sampling speed.
-/// Output(s): Resampled outputs of contained generator.
+/// - Input 0: Sampling speed.
+/// - Output(s): Resampled outputs of contained generator.
 ///
 /// ### Example: Resampled Pink Noise
 /// ```
