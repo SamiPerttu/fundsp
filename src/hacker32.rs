@@ -990,8 +990,8 @@ where
 
 /// Resample enclosed generator `node` using cubic interpolation
 /// at speed obtained from input 0, where 1 is the original speed.
-/// Input 0: Sampling speed.
-/// Output(s): Resampled outputs of contained generator.
+/// - Input 0: Sampling speed.
+/// - Output(s): Resampled outputs of contained generator.
 ///
 /// ### Example: Resampled Pink Noise
 /// ```
@@ -1494,8 +1494,8 @@ where
 }
 
 /// Multiply outputs of `x` and `y` channelwise. Identical with `x * y`.
-/// -Input(s): Inputs of `x` followed with inputs of `y`.
-/// -Output(s): Product of `x` and `y`.
+/// - Input(s): Inputs of `x` followed with inputs of `y`.
+/// - Output(s): Product of `x` and `y`.
 pub fn product<X, Y>(x: An<X>, y: An<Y>) -> An<Binop<FrameMul<X::Outputs>, X, Y>>
 where
     X: AudioNode,
@@ -1507,8 +1507,8 @@ where
 }
 
 /// Add outputs of `x` and `y` together. Identical with `x + y`.
-/// -Input(s): Inputs of `x` followed with inputs of `y`.
-/// -Output(s): From `x` and `y`.
+/// - Input(s): Inputs of `x` followed with inputs of `y`.
+/// - Output(s): From `x` and `y`.
 pub fn sum<X, Y>(x: An<X>, y: An<Y>) -> An<Binop<FrameAdd<X::Outputs>, X, Y>>
 where
     X: AudioNode,
