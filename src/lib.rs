@@ -468,27 +468,27 @@ impl Float for f32 {
 
     #[inline(always)]
     fn tan(self) -> Self {
-        self.tan()
+        libm::tanf(self)
     }
 
     #[inline(always)]
     fn exp(self) -> Self {
-        self.exp()
+        libm::expf(self)
     }
 
     #[inline(always)]
     fn sin(self) -> Self {
-        self.sin()
+        libm::sinf(self)
     }
 
     #[inline(always)]
     fn cos(self) -> Self {
-        self.cos()
+        libm::cosf(self)
     }
 
     #[inline(always)]
     fn sqrt(self) -> Self {
-        self.sqrt()
+        libm::sqrtf(self)
     }
 
     #[inline(always)]
@@ -544,27 +544,27 @@ impl Float for f64 {
 
     #[inline(always)]
     fn tan(self) -> Self {
-        self.tan()
+        libm::tan(self)
     }
 
     #[inline(always)]
     fn exp(self) -> Self {
-        self.exp()
+        libm::exp(self)
     }
 
     #[inline(always)]
     fn sin(self) -> Self {
-        self.sin()
+        libm::sin(self)
     }
 
     #[inline(always)]
     fn cos(self) -> Self {
-        self.cos()
+        libm::cos(self)
     }
 
     #[inline(always)]
     fn sqrt(self) -> Self {
-        self.sqrt()
+        libm::sqrt(self)
     }
 
     #[inline(always)]
