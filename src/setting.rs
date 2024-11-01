@@ -47,6 +47,9 @@ pub enum Parameter {
     Seed(u64),
     /// Average sampling interval in seconds for envelopes.
     Interval(f32),
+    /// Subsampling period of non-audio inputs (frequency, Q and gain) in filters:
+    /// the non-audio inputs are read every this many samples.
+    Subsample(u32),
 }
 
 /// Address specifies location to apply setting in a graph.
@@ -170,6 +173,14 @@ impl Setting {
     pub fn interval(time: f32) -> Self {
         Self {
             parameter: Parameter::Interval(time),
+            address: ArrayVec::new(),
+        }
+    }
+    /// Create setting for subsampling `period` of non-audio inputs (frequency, Q and gain) for filters.
+    /// Non-audio inputs are read every `period` samples.
+    pub fn subsample(period: u32) -> Self {
+        Self {
+            parameter: Parameter::Subsample(period),
             address: ArrayVec::new(),
         }
     }

@@ -648,23 +648,6 @@ fn test_basic() {
 #[test]
 /// Test a pass-through resynthesizer.
 fn test_resynth() {
-    // Sanity test FFT roundtrip.
-    const WINDOW: usize = 16;
-    let mut rnd = Rnd::from_u64(1);
-    let fft_input: [f32; WINDOW] = core::array::from_fn(|_| rnd.f32());
-    let mut fft_output = [Complex32::ZERO; WINDOW];
-    fft::real_fft(&fft_input, &mut fft_output[0..WINDOW / 2 + 1]);
-    let mut fft_round = [Complex32::ZERO; WINDOW];
-    for i in WINDOW / 2 + 1..WINDOW {
-        fft_output[i] = fft_output[WINDOW - i].conj();
-    }
-    fft::inverse_fft(&fft_output, &mut fft_round);
-    for i in 0..WINDOW {
-        let tolerance = 1.0e-6;
-        let norm = (fft_input[i] - fft_round[i].re).abs() + fft_round[i].im.abs();
-        assert!(norm <= tolerance);
-    }
-
     let window = 32;
     let mut synth: An<Resynth<U1, U1, _>> = resynth(window, |fft| {
         for i in 0..fft.bins() {

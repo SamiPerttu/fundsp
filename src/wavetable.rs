@@ -57,7 +57,7 @@ where
 
     let length = clamp(32, 8192, target_len.next_power_of_two());
 
-    let mut a = vec![Complex32::new(0.0, 0.0); length];
+    let mut a = vec![Complex32::ZERO; length];
 
     for i in 1..=harmonics {
         let f = pitch * i as f64;
@@ -72,12 +72,11 @@ where
         }
     }
 
-    let mut b = vec![Complex32::new(0.0, 0.0); length];
-    super::fft::inverse_fft(&a, &mut b);
+    super::fft::inverse_fft(&mut a);
 
     let z = sqrt(length as f32);
 
-    b.iter().map(|x| x.im * z).collect()
+    a.iter().map(|x| x.im * z).collect()
 }
 
 #[derive(Clone)]
@@ -124,14 +123,16 @@ impl Wavetable {
         Wavetable { table }
     }
 
-    /// Create new wavetable from a single cycle wave. `min_pitch` and `max_pitch` are the minimum
+    /// Create new wavetable from a single cycle wave.
+    /// The length of `wave` must be a power of two between 2 and 32768.
+    /// `min_pitch` and `max_pitch` are the minimum
     /// and maximum base frequencies in Hz (for example, 20.0 and 20_000.0).
     /// `tables_per_octave` is the number of wavetables per octave
     /// (for example, 4.0). The overall scale of numbers in `wave` is ignored;
     /// the wavetable is normalized to -1...1.
     pub fn from_wave(min_pitch: f64, max_pitch: f64, tables_per_octave: f64, wave: &[f32]) -> Self {
-        let mut spectrum = vec![Complex32::new(0.0, 0.0); wave.len() / 2 + 1];
-        super::fft::real_fft(wave, &mut spectrum);
+        let mut data = Vec::from(wave);
+        let spectrum = super::fft::real_fft(&mut data);
         let phase = |i: u32| {
             if (i as usize) < spectrum.len() {
                 spectrum[i as usize].arg() as f64 / f64::TAU
@@ -139,7 +140,7 @@ impl Wavetable {
                 0.0
             }
         };
-        let amplitude = |_p: f64, i: u32| {
+        let amplitude = |_pitch: f64, i: u32| {
             if (i as usize) < spectrum.len() {
                 spectrum[i as usize].norm() as f64
             } else {

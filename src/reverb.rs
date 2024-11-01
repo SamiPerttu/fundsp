@@ -37,9 +37,6 @@ pub fn reverb_fitness(reverb: An<impl AudioNode<Inputs = U2, Outputs = U2>>) -> 
 
     let mut fitness = 0.0;
 
-    let mut spectrum = Vec::<Complex32>::new();
-    spectrum.resize(response.length() / 2 + 1, Complex32::new(0.0, 0.0));
-
     // Deal with left, right and center signals.
     for channel in 0..=1 {
         if channel == 0 || channel == 1 {
@@ -65,7 +62,7 @@ pub fn reverb_fitness(reverb: An<impl AudioNode<Inputs = U2, Outputs = U2>>) -> 
                     );
             response.set(channel, i, response.at(channel, i) * w);
         }
-        let data = match channel {
+        let mut data = match channel {
             0 | 1 => response.channel(channel).clone(),
             _ => {
                 let mut stereo = response.channel(0).clone();
@@ -75,7 +72,7 @@ pub fn reverb_fitness(reverb: An<impl AudioNode<Inputs = U2, Outputs = U2>>) -> 
                 stereo
             }
         };
-        super::fft::real_fft(&data, &mut spectrum);
+        let spectrum = super::fft::real_fft(&mut data);
         /*
         let spectral_weight = 0.001;
         let flatness_weight = 1.0;

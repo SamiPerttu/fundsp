@@ -1,145 +1,100 @@
 //! Interface to microfft.
-use core::array::from_fn;
 use microfft::inverse::*;
 use microfft::real::*;
 use num_complex::Complex32;
 
-/// Perform real-valued FFT. The length of `input` must be a power of two between 2 and 32768.
-/// The length of `output` must be half that of `input` plus one.
-pub fn real_fft(input: &[f32], output: &mut [Complex32]) {
-    assert!(input.len() == (output.len() - 1) * 2);
-    match input.len() {
-        2 => {
-            let mut tmp: [f32; 2] = from_fn(|i| input[i]);
-            output[..1].copy_from_slice(rfft_2(&mut tmp));
-        }
-        4 => {
-            let mut tmp: [f32; 4] = from_fn(|i| input[i]);
-            output[..2].copy_from_slice(rfft_4(&mut tmp));
-        }
-        8 => {
-            let mut tmp: [f32; 8] = from_fn(|i| input[i]);
-            output[..4].copy_from_slice(rfft_8(&mut tmp));
-        }
-        16 => {
-            let mut tmp: [f32; 16] = from_fn(|i| input[i]);
-            output[..8].copy_from_slice(rfft_16(&mut tmp));
-        }
-        32 => {
-            let mut tmp: [f32; 32] = from_fn(|i| input[i]);
-            output[..16].copy_from_slice(rfft_32(&mut tmp));
-        }
-        64 => {
-            let mut tmp: [f32; 64] = from_fn(|i| input[i]);
-            output[..32].copy_from_slice(rfft_64(&mut tmp));
-        }
-        128 => {
-            let mut tmp: [f32; 128] = from_fn(|i| input[i]);
-            output[..64].copy_from_slice(rfft_128(&mut tmp));
-        }
-        256 => {
-            let mut tmp: [f32; 256] = from_fn(|i| input[i]);
-            output[..128].copy_from_slice(rfft_256(&mut tmp));
-        }
-        512 => {
-            let mut tmp: [f32; 512] = from_fn(|i| input[i]);
-            output[..256].copy_from_slice(rfft_512(&mut tmp));
-        }
-        1024 => {
-            let mut tmp: [f32; 1024] = from_fn(|i| input[i]);
-            output[..512].copy_from_slice(rfft_1024(&mut tmp));
-        }
-        2048 => {
-            let mut tmp: [f32; 2048] = from_fn(|i| input[i]);
-            output[..1024].copy_from_slice(rfft_2048(&mut tmp));
-        }
-        4096 => {
-            let mut tmp: [f32; 4096] = from_fn(|i| input[i]);
-            output[..2048].copy_from_slice(rfft_4096(&mut tmp));
-        }
-        8192 => {
-            let mut tmp: [f32; 8192] = from_fn(|i| input[i]);
-            output[..4096].copy_from_slice(rfft_8192(&mut tmp));
-        }
-        16384 => {
-            let mut tmp: [f32; 16384] = from_fn(|i| input[i]);
-            output[..8192].copy_from_slice(rfft_16384(&mut tmp));
-        }
-        32768 => {
-            let mut tmp: [f32; 32768] = from_fn(|i| input[i]);
-            output[..16384].copy_from_slice(rfft_32768(&mut tmp));
-        }
-        _ => panic!("Unsupported FFT length."),
+/// Perform real-valued FFT in-place.
+/// The length of `data` must be a power of two between 2 and 32768.
+/// The Nyquist frequency will be packed into the imaginary part of DC (the first element).
+/// Returns the slice transmuted into a slice of `Complex32`.
+pub fn real_fft(data: &mut [f32]) -> &mut [Complex32] {
+    match data.len() {
+        2 => rfft_2(data.try_into().unwrap()).as_mut_slice(),
+        4 => rfft_4(data.try_into().unwrap()).as_mut_slice(),
+        8 => rfft_8(data.try_into().unwrap()).as_mut_slice(),
+        16 => rfft_16(data.try_into().unwrap()).as_mut_slice(),
+        32 => rfft_32(data.try_into().unwrap()).as_mut_slice(),
+        64 => rfft_64(data.try_into().unwrap()).as_mut_slice(),
+        128 => rfft_128(data.try_into().unwrap()).as_mut_slice(),
+        256 => rfft_256(data.try_into().unwrap()).as_mut_slice(),
+        512 => rfft_512(data.try_into().unwrap()).as_mut_slice(),
+        1024 => rfft_1024(data.try_into().unwrap()).as_mut_slice(),
+        2048 => rfft_2048(data.try_into().unwrap()).as_mut_slice(),
+        4096 => rfft_4096(data.try_into().unwrap()).as_mut_slice(),
+        8192 => rfft_8192(data.try_into().unwrap()).as_mut_slice(),
+        16384 => rfft_16384(data.try_into().unwrap()).as_mut_slice(),
+        32768 => rfft_32768(data.try_into().unwrap()).as_mut_slice(),
+        _ => panic!("invalid FFT length {}", data.len()),
     }
-    output[output.len() - 1] = Complex32::new(output[0].im, 0.0);
-    output[0] = Complex32::new(output[0].re, 0.0);
 }
 
-/// Perform inverse FFT. The length of `input` must be a power of two between 2 and 32768.
-/// The length of `output` must be equal to that of `input`.
-pub fn inverse_fft(input: &[Complex32], output: &mut [Complex32]) {
-    assert!(input.len() == output.len());
-    match input.len() {
+/// Move Nyquist frequency to its proper place from the imaginary part of DC (the first element).
+/// The length of `data` must be 2 plus a power of two between 2 and 32768.
+pub fn fix_nyquist(data: &mut [f32]) {
+    let length = data.len();
+    data[length - 2] = data[1];
+    data[length - 1] = 0.0;
+    data[1] = 0.0;
+}
+
+/// Fix negative frequencies in the power-of-two array to make the inverse FFT real-valued.
+pub fn fix_negative(data: &mut [Complex32]) {
+    let length = data.len();
+    for i in length / 2 + 1..length {
+        data[i] = data[length - i].conj();
+    }
+}
+
+/// Perform inverse FFT in-place.
+/// The length of `data` must be a power of two between 2 and 32768.
+#[allow(unused_must_use)]
+pub fn inverse_fft(data: &mut [Complex32]) {
+    match data.len() {
         2 => {
-            let mut tmp: [Complex32; 2] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_2(&mut tmp));
+            ifft_2(data.try_into().unwrap());
         }
         4 => {
-            let mut tmp: [Complex32; 4] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_4(&mut tmp));
+            ifft_4(data.try_into().unwrap());
         }
         8 => {
-            let mut tmp: [Complex32; 8] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_8(&mut tmp));
+            ifft_8(data.try_into().unwrap());
         }
         16 => {
-            let mut tmp: [Complex32; 16] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_16(&mut tmp));
+            ifft_16(data.try_into().unwrap());
         }
         32 => {
-            let mut tmp: [Complex32; 32] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_32(&mut tmp));
+            ifft_32(data.try_into().unwrap());
         }
         64 => {
-            let mut tmp: [Complex32; 64] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_64(&mut tmp));
+            ifft_64(data.try_into().unwrap());
         }
         128 => {
-            let mut tmp: [Complex32; 128] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_128(&mut tmp));
+            ifft_128(data.try_into().unwrap());
         }
         256 => {
-            let mut tmp: [Complex32; 256] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_256(&mut tmp));
+            ifft_256(data.try_into().unwrap());
         }
         512 => {
-            let mut tmp: [Complex32; 512] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_512(&mut tmp));
+            ifft_512(data.try_into().unwrap());
         }
         1024 => {
-            let mut tmp: [Complex32; 1024] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_1024(&mut tmp));
+            ifft_1024(data.try_into().unwrap());
         }
         2048 => {
-            let mut tmp: [Complex32; 2048] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_2048(&mut tmp));
+            ifft_2048(data.try_into().unwrap());
         }
         4096 => {
-            let mut tmp: [Complex32; 4096] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_4096(&mut tmp));
+            ifft_4096(data.try_into().unwrap());
         }
         8192 => {
-            let mut tmp: [Complex32; 8192] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_8192(&mut tmp));
+            ifft_8192(data.try_into().unwrap());
         }
         16384 => {
-            let mut tmp: [Complex32; 16384] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_16384(&mut tmp));
+            ifft_16384(data.try_into().unwrap());
         }
         32768 => {
-            let mut tmp: [Complex32; 32768] = from_fn(|i| input[i]);
-            output.copy_from_slice(ifft_32768(&mut tmp));
+            ifft_32768(data.try_into().unwrap());
         }
-        _ => panic!("Unsupported FFT length."),
+        _ => panic!("invalid FFT length {}", data.len()),
     }
 }

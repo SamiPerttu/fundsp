@@ -151,7 +151,7 @@ impl<F: Real> SvfCoefs<F> {
     }
 
     /// Calculate coefficients for a bell filter.
-    /// Gain is amplitude gain (gain > 0).
+    /// Gain is amplitude gain (`gain` > 0).
     pub fn bell(sample_rate: F, cutoff: F, q: F, gain: F) -> Self {
         let a = sqrt(gain);
         let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate);
@@ -174,7 +174,7 @@ impl<F: Real> SvfCoefs<F> {
     }
 
     /// Calculate coefficients for a low shelf filter.
-    /// Gain is amplitude gain (gain > 0).
+    /// Gain is amplitude gain (`gain` > 0).
     pub fn lowshelf(sample_rate: F, cutoff: F, q: F, gain: F) -> Self {
         let a = sqrt(gain);
         let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate) / sqrt(a);
@@ -197,7 +197,7 @@ impl<F: Real> SvfCoefs<F> {
     }
 
     /// Calculate coefficients for a high shelf filter.
-    /// Gain is amplitude gain (gain > 0).
+    /// Gain is amplitude gain (`gain` > 0).
     pub fn highshelf(sample_rate: F, cutoff: F, q: F, gain: F) -> Self {
         let a = sqrt(gain);
         let g = tan(F::from_f64(f64::PI) * cutoff / sample_rate) * sqrt(a);
@@ -227,11 +227,6 @@ impl<F: Real> SvfCoefs<F> {
 pub trait SvfMode<F: Real>: Clone + Default + Sync + Send {
     /// Number of inputs, which includes the audio input. Equal to the number of continuous parameters plus one.
     type Inputs: Size<F>;
-    /// Format of settings for this mode.
-    type Setting: Sync + Send + Clone + Default;
-
-    /// Update coefficients and parameters from settings.
-    fn set(&mut self, setting: Self::Setting, params: &mut SvfParams<F>, coefs: &mut SvfCoefs<F>);
 
     /// Update coefficients and state from the full set of parameters.
     fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>);
@@ -260,11 +255,10 @@ pub trait SvfMode<F: Real>: Clone + Default + Sync + Send {
     #[allow(unused_variables)]
     fn update_inputs(
         &mut self,
-        input: &Frame<F, Self::Inputs>,
+        input: &Frame<f32, Self::Inputs>,
         params: &mut SvfParams<F>,
         coefs: &mut SvfCoefs<F>,
-    ) {
-    }
+    );
 
     /// Response function.
     fn response(&self, params: &SvfParams<F>, frequency: f64) -> Complex64;
@@ -296,31 +290,22 @@ impl<F: Real> LowpassMode<F> {
 
 impl<F: Real> SvfMode<F> for LowpassMode<F> {
     type Inputs = U3;
-    type Setting = (F, F);
 
-    fn set(
-        &mut self,
-        (cutoff, q): Self::Setting,
-        params: &mut SvfParams<F>,
-        coefs: &mut SvfCoefs<F>,
-    ) {
-        params.cutoff = cutoff;
-        params.q = q;
-        self.update(params, coefs);
-    }
+    #[inline]
     fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         *coefs = SvfCoefs::lowpass(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
-        input: &Frame<F, Self::Inputs>,
+        input: &Frame<f32, Self::Inputs>,
         params: &mut SvfParams<F>,
         coefs: &mut SvfCoefs<F>,
     ) {
-        let cutoff = input[1];
-        let q = input[2];
+        let cutoff = F::from_f32(input[1]);
+        let q = F::from_f32(input[2]);
         if cutoff != params.cutoff || q != params.q {
+            //if squared(cutoff - params.cutoff) + squared(q - params.q) > F::zero() {
             params.cutoff = cutoff;
             params.q = q;
             self.update(params, coefs);
@@ -355,30 +340,20 @@ impl<F: Real> HighpassMode<F> {
 
 impl<F: Real> SvfMode<F> for HighpassMode<F> {
     type Inputs = U3;
-    type Setting = (F, F);
 
-    fn set(
-        &mut self,
-        (cutoff, q): Self::Setting,
-        params: &mut SvfParams<F>,
-        coefs: &mut SvfCoefs<F>,
-    ) {
-        params.cutoff = cutoff;
-        params.q = q;
-        self.update(params, coefs);
-    }
+    #[inline]
     fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         *coefs = SvfCoefs::highpass(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
-        input: &Frame<F, Self::Inputs>,
+        input: &Frame<f32, Self::Inputs>,
         params: &mut SvfParams<F>,
         coefs: &mut SvfCoefs<F>,
     ) {
-        let cutoff = input[1];
-        let q = input[2];
+        let cutoff = F::from_f32(input[1]);
+        let q = F::from_f32(input[2]);
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
@@ -414,30 +389,20 @@ impl<F: Real> BandpassMode<F> {
 
 impl<F: Real> SvfMode<F> for BandpassMode<F> {
     type Inputs = U3;
-    type Setting = (F, F);
 
-    fn set(
-        &mut self,
-        (cutoff, q): Self::Setting,
-        params: &mut SvfParams<F>,
-        coefs: &mut SvfCoefs<F>,
-    ) {
-        params.cutoff = cutoff;
-        params.q = q;
-        self.update(params, coefs);
-    }
+    #[inline]
     fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         *coefs = SvfCoefs::bandpass(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
-        input: &Frame<F, Self::Inputs>,
+        input: &Frame<f32, Self::Inputs>,
         params: &mut SvfParams<F>,
         coefs: &mut SvfCoefs<F>,
     ) {
-        let cutoff = input[1];
-        let q = input[2];
+        let cutoff = F::from_f32(input[1]);
+        let q = F::from_f32(input[2]);
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
@@ -473,30 +438,20 @@ impl<F: Real> NotchMode<F> {
 
 impl<F: Real> SvfMode<F> for NotchMode<F> {
     type Inputs = U3;
-    type Setting = (F, F);
 
-    fn set(
-        &mut self,
-        (cutoff, q): Self::Setting,
-        params: &mut SvfParams<F>,
-        coefs: &mut SvfCoefs<F>,
-    ) {
-        params.cutoff = cutoff;
-        params.q = q;
-        self.update(params, coefs);
-    }
+    #[inline]
     fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         *coefs = SvfCoefs::notch(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
-        input: &Frame<F, Self::Inputs>,
+        input: &Frame<f32, Self::Inputs>,
         params: &mut SvfParams<F>,
         coefs: &mut SvfCoefs<F>,
     ) {
-        let cutoff = input[1];
-        let q = input[2];
+        let cutoff = F::from_f32(input[1]);
+        let q = F::from_f32(input[2]);
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
@@ -532,30 +487,20 @@ impl<F: Real> PeakMode<F> {
 
 impl<F: Real> SvfMode<F> for PeakMode<F> {
     type Inputs = U3;
-    type Setting = (F, F);
 
-    fn set(
-        &mut self,
-        (cutoff, q): Self::Setting,
-        params: &mut SvfParams<F>,
-        coefs: &mut SvfCoefs<F>,
-    ) {
-        params.cutoff = cutoff;
-        params.q = q;
-        self.update(params, coefs);
-    }
+    #[inline]
     fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         *coefs = SvfCoefs::peak(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
-        input: &Frame<F, Self::Inputs>,
+        input: &Frame<f32, Self::Inputs>,
         params: &mut SvfParams<F>,
         coefs: &mut SvfCoefs<F>,
     ) {
-        let cutoff = input[1];
-        let q = input[2];
+        let cutoff = F::from_f32(input[1]);
+        let q = F::from_f32(input[2]);
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
@@ -592,30 +537,20 @@ impl<F: Real> AllpassMode<F> {
 
 impl<F: Real> SvfMode<F> for AllpassMode<F> {
     type Inputs = U3;
-    type Setting = (F, F);
 
-    fn set(
-        &mut self,
-        (cutoff, q): Self::Setting,
-        params: &mut SvfParams<F>,
-        coefs: &mut SvfCoefs<F>,
-    ) {
-        params.cutoff = cutoff;
-        params.q = q;
-        self.update(params, coefs);
-    }
+    #[inline]
     fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         *coefs = SvfCoefs::allpass(params.sample_rate, params.cutoff, params.q);
     }
     #[inline]
     fn update_inputs(
         &mut self,
-        input: &Frame<F, Self::Inputs>,
+        input: &Frame<f32, Self::Inputs>,
         params: &mut SvfParams<F>,
         coefs: &mut SvfCoefs<F>,
     ) {
-        let cutoff = input[1];
-        let q = input[2];
+        let cutoff = F::from_f32(input[1]);
+        let q = F::from_f32(input[2]);
         if cutoff != params.cutoff || q != params.q {
             params.cutoff = cutoff;
             params.q = q;
@@ -652,32 +587,21 @@ impl<F: Real> BellMode<F> {
 
 impl<F: Real> SvfMode<F> for BellMode<F> {
     type Inputs = U4;
-    type Setting = (F, F, F);
 
-    fn set(
-        &mut self,
-        (cutoff, q, gain): Self::Setting,
-        params: &mut SvfParams<F>,
-        coefs: &mut SvfCoefs<F>,
-    ) {
-        params.cutoff = cutoff;
-        params.q = q;
-        params.gain = gain;
-        self.update(params, coefs);
-    }
+    #[inline]
     fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         *coefs = SvfCoefs::bell(params.sample_rate, params.cutoff, params.q, params.gain);
     }
     #[inline]
     fn update_inputs(
         &mut self,
-        input: &Frame<F, Self::Inputs>,
+        input: &Frame<f32, Self::Inputs>,
         params: &mut SvfParams<F>,
         coefs: &mut SvfCoefs<F>,
     ) {
-        let cutoff = input[1];
-        let q = input[2];
-        let gain = input[3];
+        let cutoff = F::from_f32(input[1]);
+        let q = F::from_f32(input[2]);
+        let gain = F::from_f32(input[3]);
         if cutoff != params.cutoff || q != params.q || gain != params.gain {
             params.cutoff = cutoff;
             params.q = q;
@@ -717,32 +641,21 @@ impl<F: Real> LowshelfMode<F> {
 
 impl<F: Real> SvfMode<F> for LowshelfMode<F> {
     type Inputs = U4;
-    type Setting = (F, F, F);
 
-    fn set(
-        &mut self,
-        (cutoff, q, gain): Self::Setting,
-        params: &mut SvfParams<F>,
-        coefs: &mut SvfCoefs<F>,
-    ) {
-        params.cutoff = cutoff;
-        params.q = q;
-        params.gain = gain;
-        self.update(params, coefs);
-    }
+    #[inline]
     fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         *coefs = SvfCoefs::lowshelf(params.sample_rate, params.cutoff, params.q, params.gain);
     }
     #[inline]
     fn update_inputs(
         &mut self,
-        input: &Frame<F, Self::Inputs>,
+        input: &Frame<f32, Self::Inputs>,
         params: &mut SvfParams<F>,
         coefs: &mut SvfCoefs<F>,
     ) {
-        let cutoff = input[1];
-        let q = input[2];
-        let gain = input[3];
+        let cutoff = F::from_f32(input[1]);
+        let q = F::from_f32(input[2]);
+        let gain = F::from_f32(input[3]);
         if cutoff != params.cutoff || q != params.q || gain != params.gain {
             params.cutoff = cutoff;
             params.q = q;
@@ -785,32 +698,21 @@ impl<F: Real> HighshelfMode<F> {
 
 impl<F: Real> SvfMode<F> for HighshelfMode<F> {
     type Inputs = U4;
-    type Setting = (F, F, F);
 
-    fn set(
-        &mut self,
-        (cutoff, q, gain): Self::Setting,
-        params: &mut SvfParams<F>,
-        coefs: &mut SvfCoefs<F>,
-    ) {
-        params.cutoff = cutoff;
-        params.q = q;
-        params.gain = gain;
-        self.update(params, coefs);
-    }
+    #[inline]
     fn update(&mut self, params: &SvfParams<F>, coefs: &mut SvfCoefs<F>) {
         *coefs = SvfCoefs::highshelf(params.sample_rate, params.cutoff, params.q, params.gain);
     }
     #[inline]
     fn update_inputs(
         &mut self,
-        input: &Frame<F, Self::Inputs>,
+        input: &Frame<f32, Self::Inputs>,
         params: &mut SvfParams<F>,
         coefs: &mut SvfCoefs<F>,
     ) {
-        let cutoff = input[1];
-        let q = input[2];
-        let gain = input[3];
+        let cutoff = F::from_f32(input[1]);
+        let q = F::from_f32(input[2]);
+        let gain = F::from_f32(input[3]);
         if cutoff != params.cutoff || q != params.q || gain != params.gain {
             params.cutoff = cutoff;
             params.q = q;
@@ -854,6 +756,8 @@ where
     coefs: SvfCoefs<F>,
     ic1eq: F,
     ic2eq: F,
+    period: u32,
+    counter: u32,
 }
 
 impl<F, M> Svf<F, M>
@@ -873,6 +777,8 @@ where
             coefs,
             ic1eq: F::zero(),
             ic2eq: F::zero(),
+            period: 1,
+            counter: 0,
         }
     }
 
@@ -916,6 +822,7 @@ where
     fn reset(&mut self) {
         self.ic1eq = F::zero();
         self.ic2eq = F::zero();
+        self.counter = 0;
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
@@ -925,11 +832,14 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        // Update parameters from input.
-        let input = Frame::generate(|i| convert(input[i]));
-        self.mode
-            .update_inputs(&input, &mut self.params, &mut self.coefs);
-        let v0 = input[0];
+        self.counter += 1;
+        if self.counter >= self.period {
+            self.counter = 0;
+            // Update parameters from input.
+            self.mode
+                .update_inputs(input, &mut self.params, &mut self.coefs);
+        }
+        let v0 = F::from_f32(input[0]);
         let v3 = v0 - self.ic2eq;
         let v1 = self.coefs.a1 * self.ic1eq + self.coefs.a2 * v3;
         let v2 = self.ic2eq + self.coefs.a2 * self.ic1eq + self.coefs.a3 * v3;
@@ -939,6 +849,13 @@ where
             self.coefs.m0 * v0 + self.coefs.m1 * v1 + self.coefs.m2 * v2,
         )]
         .into()
+    }
+
+    fn set(&mut self, setting: Setting) {
+        if let Parameter::Subsample(period) = setting.parameter() {
+            self.period = max(1, *period);
+            self.counter = 0;
+        }
     }
 
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
@@ -954,7 +871,6 @@ where
 }
 
 /// Simper SVF with fixed parameters.
-/// Setting: (center, Q, gain) for low shelf, high shelf and bell modes, otherwise (center, Q).
 /// - Input 0: audio
 /// - Output 0: filtered audio
 #[derive(Default, Clone)]

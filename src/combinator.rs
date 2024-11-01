@@ -179,81 +179,81 @@ pub struct An<X: AudioNode>(pub X);
 
 impl<X: AudioNode> core::ops::Deref for An<X> {
     type Target = X;
-    #[inline]
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
 impl<X: AudioNode> core::ops::DerefMut for An<X> {
-    #[inline]
+    #[inline(always)]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-// We relay some calls preferentially to the underlying AudioNode
-// - otherwise the AudioUnit implementation would be picked.
+// We relay some calls preferentially to the underlying `AudioNode`
+// - otherwise the `AudioUnit` implementation would be picked.
 impl<X: AudioNode> An<X> {
-    #[inline]
+    #[inline(always)]
     pub fn reset(&mut self) {
         self.0.reset();
     }
-    #[inline]
+    #[inline(always)]
     pub fn set_sample_rate(&mut self, sample_rate: f64) {
         self.0.set_sample_rate(sample_rate);
     }
-    #[inline]
+    #[inline(always)]
     pub fn tick(&mut self, input: &Frame<f32, X::Inputs>) -> Frame<f32, X::Outputs> {
         self.0.tick(input)
     }
-    #[inline]
+    #[inline(always)]
     pub fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         self.0.process(size, input, output);
     }
-    #[inline]
+    #[inline(always)]
     pub fn set(&mut self, setting: Setting) {
         self.0.set(setting);
     }
-    #[inline]
+    #[inline(always)]
     pub fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.0.route(input, frequency)
     }
-    #[inline]
+    #[inline(always)]
     pub fn inputs(&self) -> usize {
         self.0.inputs()
     }
-    #[inline]
+    #[inline(always)]
     pub fn outputs(&self) -> usize {
         self.0.outputs()
     }
-    #[inline]
+    #[inline(always)]
     pub fn set_hash(&mut self, hash: u64) {
         self.0.set_hash(hash);
     }
-    #[inline]
+    #[inline(always)]
     pub fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
         self.0.ping(probe, hash)
     }
-    #[inline]
+    #[inline(always)]
     pub fn get_mono(&mut self) -> f32 {
         self.0.get_mono()
     }
-    #[inline]
+    #[inline(always)]
     pub fn get_stereo(&mut self) -> (f32, f32) {
         self.0.get_stereo()
     }
-    #[inline]
+    #[inline(always)]
     pub fn filter_mono(&mut self, x: f32) -> f32 {
         self.0.filter_mono(x)
     }
-    #[inline]
+    #[inline(always)]
     pub fn filter_stereo(&mut self, x: f32, y: f32) -> (f32, f32) {
         self.0.filter_stereo(x, y)
     }
 
     /// This builder method sets oscillator initial phase in 0...1,
-    /// overriding pseudorandom phase. The setting takes effect immediately.
+    /// overriding pseudorandom phase. The setting takes effect immediately (the node is reset).
     ///
     /// ### Example (Square Wave At 110 Hz With Initial Phase 0.5)
     /// ```
@@ -267,8 +267,8 @@ impl<X: AudioNode> An<X> {
     }
 
     /// This builder method sets noise generator seed,
-    /// overriding pseudorandom phase. The setting takes effect immediately.
-    /// Works with opcodes `mls`, `noise`, `white`, `pink` and `brown`.
+    /// overriding pseudorandom phase. The setting takes effect immediately (the node is reset).
+    /// Works with opcodes `mls`, `mls_bits`, `noise`, `white`, `pink` and `brown`.
     pub fn seed(mut self, seed: u64) -> Self {
         self.set(Setting::seed(seed).left());
         self.reset();
@@ -277,10 +277,23 @@ impl<X: AudioNode> An<X> {
 
     /// This builder method sets the average interval (in seconds)
     /// between samples in envelopes. The setting takes effect immediately.
+    /// The default interval is 2 ms.
     /// Works with opcodes `envelope`, `envelope2`, `envelope3`, `envelope_in`,
     /// `lfo`, `lfo2`, `lfo3` and `lfo_in`.
     pub fn interval(mut self, time: f32) -> Self {
         self.set(Setting::interval(time));
+        self
+    }
+
+    /// This builder method sets the subsampling `period`
+    /// between reads of non-audio inputs (frequency, Q and gain) in filters.
+    /// The non-audio inputs are read every `period` samples.
+    /// The setting has no effect on filters that do not have non-audio inputs (for example, `bell_hz`).
+    /// The default period is 1 (that is, no subsampling).
+    /// Works with opcodes `lowpass`, `highpass`, `bandpass`, `notch`, `peak`,
+    /// `allpass`, `bell`, `lowshelf` and `highshelf`.
+    pub fn subsample(mut self, period: u32) -> Self {
+        self.set(Setting::subsample(period));
         self
     }
 }

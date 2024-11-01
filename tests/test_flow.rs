@@ -37,28 +37,29 @@ where
     filter.set_sample_rate(sample_rate);
 
     let mut input = 1.0;
-    let mut in_buffer = Vec::with_capacity(length);
+    let mut buffer = Vec::with_capacity(length);
     // Try to remove effect of DC by warming up the filter.
     for _i in 0..length / 2 {
         filter.filter_mono(0.0);
     }
     for _i in 0..length {
         let x = filter.filter_mono(input);
-        in_buffer.push(x);
+        buffer.push(x);
         input = 0.0;
     }
 
-    let mut buffer = vec![Complex32::ZERO; length / 2 + 1];
-
-    real_fft(&in_buffer, &mut buffer);
+    let spectrum = real_fft(&mut buffer);
 
     let mut f = 10.0;
     while f <= 22_000.0 {
         let i = round(f * length as f64 / sample_rate) as usize;
+        if i >= spectrum.len() {
+            break;
+        }
         let f_i = i as f64 / length as f64 * sample_rate;
         let reported = filter.response(0, f_i).unwrap();
         let reported = Complex32::new(reported.re as f32, reported.im as f32);
-        let response = buffer[i];
+        let response = spectrum[i];
         if !is_equal_response(reported, response) {
             eprintln!(
                 "{} Hz reported ({}, {}) measured ({}, {})",
@@ -250,7 +251,6 @@ fn test_responses() {
 #[test]
 fn test_allpass() {
     let length = 0x8000;
-    let mut spectrum = vec![Complex32::ZERO; length / 2 + 1];
 
     let allpasses: [Box<dyn AudioUnit>; 12] = [
         Box::new(pass()),
@@ -270,8 +270,9 @@ fn test_allpass() {
     let impulse = Wave::render(DEFAULT_SR, 1.0 / DEFAULT_SR, &mut (impulse::<U1>()));
 
     for mut node in allpasses {
-        let response = impulse.filter(length as f64 / DEFAULT_SR, &mut *node);
-        real_fft(response.channel(0), &mut spectrum);
+        let mut response = impulse.filter(length as f64 / DEFAULT_SR, &mut *node);
+        let mut data = response.remove_channel(0);
+        let spectrum = real_fft(&mut data);
         // This tolerance has been tuned to a minimum value that allows the tests to pass.
         let tolerance = 1.0e-5;
         for s in &spectrum[1..] {

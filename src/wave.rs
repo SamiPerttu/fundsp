@@ -170,6 +170,10 @@ impl Wave {
     /// Remove channel `channel` from this wave. Returns the removed channel.
     pub fn remove_channel(&mut self, channel: usize) -> Vec<f32> {
         assert!(channel < self.channels());
+        if self.channels() == 1 {
+            // This is the last channel, set length to zero.
+            self.len = 0;
+        }
         self.vec.remove(channel)
     }
 

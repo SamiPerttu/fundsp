@@ -571,7 +571,7 @@ let mut sequencer = Sequencer::new(false, 2);
 ```
 
 Adding new events, their start and stop times as well as fade-in and fade-out envelopes
-can be set. The sequencer returns an `ID` that can be used for later edits to the events.
+can be set. The sequencer returns an `EventId` that can be used for later edits to the event.
 
 ```rust
 // Add a new event with start time 1.0 seconds and end time 2.0 seconds.
@@ -619,7 +619,7 @@ This means that `noise() | noise()` is a stereo noise source, for example.
 Pseudorandom phase is an attempt to decorrelate different channels of audio.
 It is also used to pick sample points for envelopes, contributing to a "warmer" sound.
 
-To override pseudorandom phase in a noise component (`brown`, `mls`, `noise`, `pink` and `white` opcodes),
+To override pseudorandom phase in a noise component (`brown`, `mls`, `mls_bits`, `noise`, `pink` and `white` opcodes),
 use the `seed` builder method. For example, `noise().seed(1)`.
 
 ### Oscillators
