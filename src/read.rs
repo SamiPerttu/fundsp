@@ -26,14 +26,17 @@ impl Wave {
 
     /// Load first track of audio from the given slice.
     /// Supported formats are anything that Symphonia can read.
-    pub fn load_slice(slice: &'static [u8]) -> WaveResult<Wave> {
+    pub fn load_slice<S: AsRef<[u8]> + Send + Sync + 'static>(slice: S) -> WaveResult<Wave> {
         Wave::load_slice_track(slice, None)
     }
 
     /// Load audio from the given slice. Track can be optionally selected.
     /// If not selected, the first track with a known codec will be loaded.
     /// Supported formats are anything that Symphonia can read.
-    pub fn load_slice_track(slice: &'static [u8], track: Option<usize>) -> WaveResult<Wave> {
+    pub fn load_slice_track<S: AsRef<[u8]> + Send + Sync + 'static>(
+        slice: S,
+        track: Option<usize>,
+    ) -> WaveResult<Wave> {
         let hint = Hint::new();
         let source: Box<dyn MediaSource> = Box::new(Cursor::new(slice));
         Wave::decode(source, track, hint)
