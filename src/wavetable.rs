@@ -74,8 +74,7 @@ where
 
     super::fft::inverse_fft(&mut a);
 
-    let z = sqrt(length as f32);
-
+    let z = length as f32;
     a.iter().map(|x| x.im * z).collect()
 }
 

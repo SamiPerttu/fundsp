@@ -465,14 +465,14 @@ impl eframe::App for State {
                     });
                     let waveform = match self.waveform {
                         Waveform::Sine => Net::wrap(Box::new(pitch * 2.0 >> sine() * 0.1)),
-                        Waveform::Saw => Net::wrap(Box::new(pitch >> saw() * 0.25)),
-                        Waveform::Square => Net::wrap(Box::new(pitch >> square() * 0.25)),
-                        Waveform::Triangle => Net::wrap(Box::new(pitch >> triangle() * 0.25)),
-                        Waveform::Organ => Net::wrap(Box::new(pitch >> organ() * 0.25)),
-                        Waveform::Hammond => Net::wrap(Box::new(pitch >> hammond() * 0.25)),
+                        Waveform::Saw => Net::wrap(Box::new(pitch >> saw() * 0.2)),
+                        Waveform::Square => Net::wrap(Box::new(pitch >> square() * 0.2)),
+                        Waveform::Triangle => Net::wrap(Box::new(pitch >> triangle() * 0.2)),
+                        Waveform::Organ => Net::wrap(Box::new(pitch >> organ() * 0.2)),
+                        Waveform::Hammond => Net::wrap(Box::new(pitch >> hammond() * 0.2)),
                         Waveform::Pulse => Net::wrap(Box::new(
                             (pitch | lfo(move |t| lerp11(0.01, 0.99, sin_hz(0.1, t))))
-                                >> pulse() * 0.25,
+                                >> pulse() * 0.2,
                         )),
                         Waveform::Pluck => {
                             Net::wrap(Box::new(zero() >> pluck(pitch_hz as f32, 0.5, 0.5) * 0.5))
@@ -485,11 +485,11 @@ impl eframe::App for State {
                                 >> resonator()
                                 >> shape(Adaptive::new(0.1, Atan(0.05))) * 0.5,
                         )),
-                        Waveform::PolySaw => Net::wrap(Box::new(pitch >> poly_saw() * 0.06)),
-                        Waveform::PolySquare => Net::wrap(Box::new(pitch >> poly_square() * 0.06)),
+                        Waveform::PolySaw => Net::wrap(Box::new(pitch >> poly_saw() * 0.2)),
+                        Waveform::PolySquare => Net::wrap(Box::new(pitch >> poly_square() * 0.2)),
                         Waveform::PolyPulse => Net::wrap(Box::new(
                             (pitch | lfo(move |t| lerp11(0.01, 0.99, sin_hz(0.1, t))))
-                                >> poly_pulse() * 0.06,
+                                >> poly_pulse() * 0.2,
                         )),
                     };
                     let filter = match self.filter {

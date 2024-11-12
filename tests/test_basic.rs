@@ -187,7 +187,7 @@ fn test_basic() {
     );
     check_wave(dc((110.0, 220.0)) >> declick_s(0.1) + pass() >> (saw() ^ dsf_square_r(0.9)));
     check_wave(
-        dc((20.0, 40.0)) >> reverse() >> pass() * pass() >> (dsf_saw_r(0.999) ^ square() * 0.2),
+        dc((20.0, 40.0)) >> reverse() >> pass() * pass() >> (dsf_saw_r(0.999) ^ square() * 0.1),
     );
     check_wave(
         dc((880.0, 440.0)) >> pass() - pass() >> branchf::<U2, _, _>(|f| (f - 0.5) * triangle()),
@@ -207,8 +207,8 @@ fn test_basic() {
             | ((mls() | dc(880.0)) >> !bandpass_q(1.0) >> notch_q(2.0)),
     );
     check_wave(
-        dc((440.0, 880.0)) >> multisplit::<U2, U5>() >> sumi::<U10, _, _>(|_| saw() * 0.2)
-            | saw_hz(220.0).phase(0.5),
+        dc((440.0, 880.0)) >> multisplit::<U2, U5>() >> sumi::<U10, _, _>(|_| saw() * 0.1)
+            | saw_hz(220.0).phase(0.5) * 0.1,
     );
     check_wave(
         dc((440.0, 880.0)) >> multisplit::<U2, U3>() >> multijoin::<U2, U3>() >> (sine() | sine()),
