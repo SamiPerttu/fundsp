@@ -147,6 +147,13 @@ impl FftWindow {
         self.output[channel][i] = value;
     }
 
+    /// Forward `input` channel to `output` channel unchanged.
+    pub fn forward(&mut self, input: usize, output: usize) {
+        for i in 0..self.bins() {
+            self.set(output, i, self.at(input, i));
+        }
+    }
+
     /// Create new window.
     pub fn new(length: usize, index: usize, inputs: usize, outputs: usize) -> Self {
         Self {
@@ -219,7 +226,7 @@ impl FftWindow {
 
 /// Frequency domain resynthesizer. Processes windows of input samples with an overlap of four.
 /// Each window is Fourier transformed and then processed into output spectra
-/// by the user supplied processing function.
+/// by the user supplied processing function. The window output starts from an all zeros state.
 /// The output windows are finally inverse transformed into the outputs.
 /// The latency is equal to the window length.
 /// If any output is a copy of an input, then the input will be reconstructed exactly once
