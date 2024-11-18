@@ -14,10 +14,12 @@ extern crate alloc;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
-/// Multichannel wave in 32-bit float precision. Requires memory allocation via `Vec`.
+/// Multichannel wave in 32-bit float precision.
+/// Requires memory allocation via `Vec`.
+/// Each channel is stored in its own vector of samples.
 #[derive(Clone)]
 pub struct Wave {
-    /// Vector of channels. Each channel is stored in its own vector.
+    /// Vector of channels.
     vec: Vec<Vec<f32>>,
     /// Sample rate of the wave.
     sample_rate: f64,
@@ -149,6 +151,8 @@ impl Wave {
 
     /// Insert a channel to the wave at channel `channel` from a vector of `samples`.
     /// The length of the wave and the number of samples must match.
+    /// If there are no channels yet, then the length of the wave
+    /// will become the length of the slice.
     pub fn insert_channel(&mut self, channel: usize, samples: &[f32]) {
         assert!(self.channels() == 0 || self.len() == samples.len());
         assert!(channel <= self.channels());
@@ -175,6 +179,19 @@ impl Wave {
             self.len = 0;
         }
         self.vec.remove(channel)
+    }
+
+    /// Append the contents of the `source` wave to the end of this wave.
+    /// The number of channels in `source` and this wave must match.
+    /// Any sample rate differences are ignored.
+    /// The `source` wave is left unchanged.
+    pub fn append(&mut self, source: &Wave) {
+        assert!(self.channels() == source.channels());
+        let offset = self.length();
+        self.resize(self.length() + source.length());
+        for i in 0..self.channels() {
+            self.mix_channel(i, offset as isize, source.channel(i));
+        }
     }
 
     /// Sample accessor.
@@ -284,6 +301,22 @@ impl Wave {
         self.len = length;
     }
 
+    /// Retain in this wave only samples in `start .. start + length` and discard the rest.
+    /// Only the part of the span overlapping the wave is considered.
+    /// That is, the offset may be negative and the end of the span may lie beyond the end of the wave.
+    pub fn retain(&mut self, start: isize, length: usize) {
+        let i0 = max(start, 0) as usize;
+        let i1 = min(self.length(), max(0, start + length as isize) as usize);
+        if i0 > 0 {
+            for channel in 0..self.channels() {
+                for i in i0..i1 {
+                    self.set(channel, i - i0, self.at(channel, i));
+                }
+            }
+        }
+        self.resize(i1 - i0);
+    }
+
     /// Peak amplitude of the wave. An empty wave has zero amplitude.
     ///
     /// ### Example
@@ -301,6 +334,15 @@ impl Wave {
             }
         }
         peak
+    }
+
+    /// Multiply all samples with `amplitude`.
+    pub fn amplify(&mut self, amplitude: f32) {
+        for channel in 0..self.channels() {
+            for i in 0..self.length() {
+                self.set(channel, i, self.at(channel, i) * amplitude);
+            }
+        }
     }
 
     /// Scales the wave to the range -1..1. Does nothing if the wave is empty.

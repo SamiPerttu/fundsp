@@ -12,6 +12,7 @@
 - `BiquadBank` parameters for channel `i` are now set with the syntax `Setting::biquad(...).index(i)`.
 - New `Wave` methods `mix` and `mix_channel`.
 - New builder notation for setting envelope sampling interval, for example, `lfo(|t| exp(-t)).interval(0.01)`.
+- New `Wave` methods `append`, `amplify` and `retain`.
 
 ### Version 0.20
 

@@ -514,12 +514,12 @@ impl eframe::App for State {
                             (pass() | lfo(move |t| (max(800.0, 20000.0 * exp(-t * 6.0)), 3.0)))
                                 >> !dlowpass(Tanh(1.02))
                                 >> mul((1.0, 0.666, 1.0))
-                                >> dlowpass(Tanh(1.0)),
+                                >> dlowpass(Tanh(1.02)),
                         )),
                         Filter::FeedbackBiquad => Net::wrap(Box::new(
                             (mul(2.0)
                                 | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 5.0)))
-                                >> fresonator(Softsign(1.01)),
+                                >> fresonator(Softsign(1.10)),
                         )),
                     };
                     let mut note = Box::new(waveform >> filter >> dcblock());
