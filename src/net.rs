@@ -1682,8 +1682,8 @@ impl Net {
         if net1.inputs() != net2.inputs() {
             panic!(
                 "Net::bus: mismatched inputs ({} versus {}).",
-                net1.outputs(),
-                net2.outputs()
+                net1.inputs(),
+                net2.inputs()
             );
         }
         if net1.outputs() != net2.outputs() {
