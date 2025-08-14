@@ -26,16 +26,21 @@ pub fn adsr_live(
 ) -> An<EnvelopeIn<f32, impl FnMut(f32, &Frame<f32, U1>) -> f32 + Clone, U1, f32>> {
     let neg1 = -1.0;
     let zero = 0.0;
+    let mut attacked = false;
     let a = shared(zero);
     let b = shared(neg1);
     let attack_start = var(&a);
     let release_start = var(&b);
     envelope2(move |time, control| {
         if release_start.value() >= zero && control > zero {
+            attacked = true;
             attack_start.set_value(time);
             release_start.set_value(neg1);
         } else if release_start.value() < zero && control <= zero {
             release_start.set_value(time);
+        }
+        if !attacked {
+            return 0.0;
         }
         let ads_value = ads(attack, decay, sustain, time - attack_start.value());
         if release_start.value() < zero {
