@@ -2136,7 +2136,7 @@ where
     <X::Inputs as Mul<N>>::Output: Size<f32>,
     B: FrameBinop<X::Outputs>,
 {
-    const ID: u64 = 32;
+    const ID: u64 = 31;
     type Inputs = Prod<X::Inputs, N>;
     type Outputs = X::Outputs;
 

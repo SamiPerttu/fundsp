@@ -424,7 +424,7 @@ where
     N: Size<f32> + Add<U1>,
     <N as Add<U1>>::Output: Size<f32>,
 {
-    const ID: u64 = 50;
+    const ID: u64 = 54;
     type Inputs = Sum<N, U1>;
     type Outputs = U1;
 
