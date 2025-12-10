@@ -296,9 +296,13 @@ impl Sequencer {
     }
 
     /// Current time in seconds.
-    /// This method is not applicable to frontends, which do not process audio.
-    pub fn time(&self) -> f64 {
-        self.time
+    /// Returns `None` if this sequencer has a backend.
+    pub fn time(&self) -> Option<f64> {
+        if self.has_backend() {
+            None
+        } else {
+            Some(self.time)
+        }
     }
 
     /// Add an event. All times are specified in seconds.
