@@ -675,7 +675,7 @@ impl AudioUnit for DummyUnit {
 
     fn process(&mut self, size: usize, _input: &BufferRef, output: &mut BufferMut) {
         for channel in 0..self.outputs {
-            output.channel_f32_mut(channel)[0..simd_items(size)].fill(0.0);
+            output.channel_mut(channel)[0..simd_items(size)].fill(F32x::ZERO);
         }
     }
 
