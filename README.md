@@ -54,7 +54,7 @@ Add `fundsp` to your `Cargo.toml` as a dependency.
 
 ```rust
 [dependencies]
-fundsp = "0.20.0"
+fundsp = "0.21.0"
 ```
 
 The `files` feature is enabled by default. It adds support for
@@ -71,7 +71,7 @@ Audio file reading and writing is not available in `no_std`.
 
 ```rust
 [dependencies]
-fundsp = { version = "0.20.0", default-features = false }
+fundsp = { version = "0.21.0", default-features = false }
 ```
 
 ## Graph Notation
@@ -511,7 +511,7 @@ Networks can also be combined inline with components from the preludes.
 The components are first converted to `Net`.
 
 When we need dynamic processing, we can start it with `Net::wrap`,
-which converts any unit into a network. Also, we can control when
+which converts any unit into a network. Moreover, we can control when
 to cross from the static realm into the dynamic by the placement of `Net::wrap`.
 
 ```rust

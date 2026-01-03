@@ -1,6 +1,6 @@
 ## Changes
 
-### Version 0.21 (Next Version)
+### Version 0.21
 
 - New PolyBLEP oscillator opcodes `poly_saw`, `poly_saw_hz`,
   `poly_square`, `poly_square_hz`, `poly_pulse` and `poly_pulse_hz`.

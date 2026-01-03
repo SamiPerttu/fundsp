@@ -284,18 +284,6 @@ impl<X: AudioNode> An<X> {
         self.set(Setting::interval(time));
         self
     }
-
-    /// This builder method sets the subsampling `period`
-    /// between reads of non-audio inputs (frequency, Q and gain) in filters.
-    /// The non-audio inputs are read every `period` samples.
-    /// The setting has no effect on filters that do not have non-audio inputs (for example, `bell_hz`).
-    /// The default period is 1 (that is, no subsampling).
-    /// Works with opcodes `lowpass`, `highpass`, `bandpass`, `notch`, `peak`,
-    /// `allpass`, `bell`, `lowshelf` and `highshelf`.
-    pub fn subsample(mut self, period: u32) -> Self {
-        self.set(Setting::subsample(period));
-        self
-    }
 }
 
 impl<X> Neg for An<X>

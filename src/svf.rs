@@ -756,8 +756,6 @@ where
     coefs: SvfCoefs<F>,
     ic1eq: F,
     ic2eq: F,
-    period: u32,
-    counter: u32,
 }
 
 impl<F, M> Svf<F, M>
@@ -777,8 +775,6 @@ where
             coefs,
             ic1eq: F::zero(),
             ic2eq: F::zero(),
-            period: 1,
-            counter: 0,
         }
     }
 
@@ -822,7 +818,6 @@ where
     fn reset(&mut self) {
         self.ic1eq = F::zero();
         self.ic2eq = F::zero();
-        self.counter = 0;
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
@@ -832,13 +827,9 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        self.counter += 1;
-        if self.counter >= self.period {
-            self.counter = 0;
-            // Update parameters from input.
-            self.mode
-                .update_inputs(input, &mut self.params, &mut self.coefs);
-        }
+        // Update parameters from input.
+        self.mode
+            .update_inputs(input, &mut self.params, &mut self.coefs);
         let v0 = F::from_f32(input[0]);
         let v3 = v0 - self.ic2eq;
         let v1 = self.coefs.a1 * self.ic1eq + self.coefs.a2 * v3;
@@ -849,13 +840,6 @@ where
             self.coefs.m0 * v0 + self.coefs.m1 * v1 + self.coefs.m2 * v2,
         )]
         .into()
-    }
-
-    fn set(&mut self, setting: Setting) {
-        if let Parameter::Subsample(period) = setting.parameter() {
-            self.period = max(1, *period);
-            self.counter = 0;
-        }
     }
 
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {

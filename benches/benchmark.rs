@@ -87,36 +87,6 @@ fn phaser_bench(_dummy: usize) -> Wave {
     )
 }
 
-fn lowpass_bench(_dummy: usize) -> Wave {
-    Wave::render(
-        44100.0,
-        1.0,
-        &mut ((noise()
-            | lfo(|t| {
-                (
-                    xerp11(1000.0, 10000.0, sin_hz(1.0, t)),
-                    xerp11(1.0, 2.0, sin_hz(2.0, t)),
-                )
-            }))
-            >> lowpass().subsample(1)),
-    )
-}
-
-fn lowpass16_bench(_dummy: usize) -> Wave {
-    Wave::render(
-        44100.0,
-        1.0,
-        &mut ((noise()
-            | lfo(|t| {
-                (
-                    xerp11(1000.0, 10000.0, sin_hz(1.0, t)),
-                    xerp11(1.0, 2.0, sin_hz(2.0, t)),
-                )
-            }))
-            >> lowpass().subsample(16)),
-    )
-}
-
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("netpass", |b| {
         b.iter(|| netpass_bench(core::hint::black_box(0)))
@@ -149,12 +119,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
     c.bench_function("phaser", |b| {
         b.iter(|| phaser_bench(core::hint::black_box(0)))
-    });
-    c.bench_function("lowpass", |b| {
-        b.iter(|| lowpass_bench(core::hint::black_box(0)))
-    });
-    c.bench_function("lowpass16", |b| {
-        b.iter(|| lowpass16_bench(core::hint::black_box(0)))
     });
 }
 
