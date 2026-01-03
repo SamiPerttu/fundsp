@@ -1,5 +1,7 @@
 //! Multichannel wave abstraction.
 
+use core::usize;
+
 use super::audionode::*;
 use super::audiounit::*;
 use super::buffer::*;
@@ -562,6 +564,76 @@ impl Wave {
         wave
     }
 
+    /// Filter hte input waves, channels concatenated, with `node` and return the resulting wave.
+    /// Sets the sample rate of `node`. Does not discard pre-delay.
+    /// The `node` must have as many inputs as there are channels in this wave.
+    /// All zeros input is used for the rest of the wave if
+    /// the duration is greater than the duration of this wave.
+    ///
+    /// TODO: example
+    pub fn multifilter<'a>(
+        inputs: impl Iterator<Item = &'a Self> + Clone,
+        duration: f64,
+        node: &mut dyn AudioUnit,
+    ) -> Self {
+        let channels = inputs.clone().map(|a| a.channels()).sum();
+        let sample_rate = inputs.clone().next().unwrap().sample_rate();
+        assert!(inputs.clone().all(|a| a.sample_rate() == sample_rate));
+        assert_eq!(node.inputs(), channels);
+        assert!(node.outputs() > 0);
+        assert!(duration >= 0.0);
+        node.set_sample_rate(sample_rate);
+        let total_length = round(duration * sample_rate) as usize;
+        let input_length = min(
+            total_length,
+            inputs.clone().map(|a| a.length()).fold(usize::MAX, min),
+        );
+        let mut wave = Self::with_capacity(node.outputs(), sample_rate, total_length);
+        wave.len = total_length;
+        let mut i = 0;
+        let mut input_buffer = BufferVec::new(channels);
+        let mut output_buffer = BufferVec::new(node.outputs());
+        // Filter from this wave.
+        while i < input_length {
+            let n = min(input_length - i, MAX_BUFFER_SIZE);
+            let mut k = 0;
+            for input in inputs.clone() {
+                for channel in 0..input.channels() {
+                    for j in 0..n {
+                        input_buffer.set_f32(channel + k, j, input.at(channel, i + j));
+                    }
+                }
+                k += input.channels();
+            }
+            node.process(
+                n,
+                &input_buffer.buffer_ref(),
+                &mut output_buffer.buffer_mut(),
+            );
+            for channel in 0..node.outputs() {
+                wave.vec[channel].extend_from_slice(&output_buffer.channel_f32(channel)[0..n]);
+            }
+            i += n;
+        }
+        // Filter the rest from a zero input.
+        if i < total_length {
+            input_buffer.clear();
+            while i < total_length {
+                let n = min(total_length - i, MAX_BUFFER_SIZE);
+                node.process(
+                    n,
+                    &input_buffer.buffer_ref(),
+                    &mut output_buffer.buffer_mut(),
+                );
+                for channel in 0..node.outputs() {
+                    wave.vec[channel].extend_from_slice(&output_buffer.channel_f32(channel)[0..n]);
+                }
+                i += n;
+            }
+        }
+        wave
+    }
+
     /// Filter this wave with `node` and return the resulting wave.
     /// Any pre-delay, as measured by signal latency, is discarded.
     /// Sets the sample rate of `node`.
@@ -590,6 +662,44 @@ impl Wave {
             wave
         } else {
             self.filter(duration, node)
+        }
+    }
+
+    /// Filter the input waves, channels concatenated, with `node` and return the resulting wave.
+    /// Any pre-delay, as measured by signal latency, is discarded.
+    /// Sets the sample rate of `node`.
+    /// The `node` must have as many inputs as there are channels in this wave.
+    /// All zeros input is used for the rest of the wave if
+    /// the `duration` is greater than the duration of this wave.
+    pub fn multifilter_latency<'a>(
+        inputs: impl Iterator<Item = &'a Self> + Clone,
+        duration: f64,
+        node: &mut dyn AudioUnit,
+    ) -> Self {
+        let channels = inputs.clone().map(|a| a.channels()).sum();
+        let sample_rate = inputs.clone().next().unwrap().sample_rate();
+        assert!(inputs.clone().all(|a| a.sample_rate() == sample_rate));
+        assert_eq!(node.inputs(), channels);
+        assert!(node.outputs() > 0);
+        assert!(duration >= 0.0);
+        let latency = node.latency().unwrap_or_default();
+        // Round latency down to nearest sample.
+        let latency_samples = floor(latency) as usize;
+        let latency_duration = latency_samples as f64 / sample_rate;
+        // Round duration to nearest sample.
+        let duration_samples = round(duration * sample_rate) as usize;
+        let duration = duration_samples as f64 / sample_rate;
+        if latency_samples > 0 {
+            let latency_wave = Self::multifilter(inputs, duration + latency_duration, node);
+            let mut wave = Self::zero(node.outputs(), sample_rate, duration);
+            for channel in 0..wave.channels() {
+                for i in 0..duration_samples {
+                    wave.set(channel, i, latency_wave.at(channel, i + latency_samples));
+                }
+            }
+            wave
+        } else {
+            Self::multifilter(inputs, duration, node)
         }
     }
 }
