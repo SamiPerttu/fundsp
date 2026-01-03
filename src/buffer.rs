@@ -27,7 +27,7 @@ impl<'a> BufferMut<'a> {
 
     /// Create new buffer that is a subset of this buffer.
     #[inline]
-    pub fn subset(&mut self, first_channel: usize, channels: usize) -> BufferMut {
+    pub fn subset(&mut self, first_channel: usize, channels: usize) -> BufferMut<'_> {
         debug_assert!(first_channel + channels <= self.channels());
         BufferMut::new(
             &mut self.0[(first_channel << SIMD_C)..((first_channel + channels) << SIMD_C)],
@@ -36,7 +36,7 @@ impl<'a> BufferMut<'a> {
 
     /// Convert this buffer into an immutable one.
     #[inline]
-    pub fn buffer_ref(&mut self) -> BufferRef {
+    pub fn buffer_ref(&mut self) -> BufferRef<'_> {
         BufferRef::new(self.0)
     }
 
@@ -143,7 +143,7 @@ impl<'a> BufferRef<'a> {
 
     /// Create new buffer that is a subset of this buffer.
     #[inline]
-    pub fn subset(&self, first_channel: usize, channels: usize) -> BufferRef {
+    pub fn subset(&self, first_channel: usize, channels: usize) -> BufferRef<'_> {
         debug_assert!(first_channel + channels <= self.channels());
         BufferRef::new(&self.0[(first_channel << SIMD_C)..((first_channel + channels) << SIMD_C)])
     }
@@ -292,13 +292,13 @@ impl BufferVec {
 
     /// Get an immutably borrowed buffer.
     #[inline]
-    pub fn buffer_ref(&self) -> BufferRef {
+    pub fn buffer_ref(&self) -> BufferRef<'_> {
         BufferRef::new(&self.buffer)
     }
 
     /// Get a mutably borrowed buffer.
     #[inline]
-    pub fn buffer_mut(&mut self) -> BufferMut {
+    pub fn buffer_mut(&mut self) -> BufferMut<'_> {
         BufferMut::new(&mut self.buffer)
     }
 }
@@ -423,7 +423,7 @@ impl<N: ArrayLength> BufferArray<N> {
 
     /// Get immutably borrowed buffer.
     #[inline]
-    pub fn buffer_ref(&self) -> BufferRef {
+    pub fn buffer_ref(&self) -> BufferRef<'_> {
         // Safety: we know Frames are contiguous and we know the length statically.
         let slice = unsafe {
             core::slice::from_raw_parts(self.array.as_ptr() as *const F32x, N::USIZE << SIMD_C)
@@ -433,7 +433,7 @@ impl<N: ArrayLength> BufferArray<N> {
 
     /// Get mutably borrowed buffer.
     #[inline]
-    pub fn buffer_mut(&mut self) -> BufferMut {
+    pub fn buffer_mut(&mut self) -> BufferMut<'_> {
         // Safety: we know Frames are contiguous and we know the length statically.
         let data = self.array.as_mut_ptr() as *mut F32x;
         let slice = unsafe { core::slice::from_raw_parts_mut(data, N::USIZE << SIMD_C) };

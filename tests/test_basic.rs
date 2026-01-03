@@ -602,7 +602,7 @@ fn test_basic() {
     ));
 
     // No-ops with sinks.
-    assert_eq!(inouts(--sink() - 42.0 ^ sink() & ---sink() * 3.15), (1, 0));
+    assert_eq!(inouts(-(-sink()) - 42.0 ^ sink() & -(-(-sink())) * 3.15), (1, 0));
 
     // These were converted from docs using search: ^[|] .(.*)[`].*[|] +([\d-]).+(\d-) +[|](.*)[|].*$
     // Replace with: assert_eq!(inouts($1), ($2, $3)); //$4
@@ -642,7 +642,7 @@ fn test_basic() {
         (0, 1)
     ); // A major chord generator
     assert_eq!(inouts(!zero()), (0, 0)); //  A null unit. Stacking it with a graph modifies its sound subtly, as the hash is altered.
-    assert_eq!(inouts(!-!!!--!!!-!!--!zero()), (0, 0)); // Hot-rodded null unit with a custom hash. Uses more electricity.
+    assert_eq!(inouts(!-!!!-(-!!!-!!-(-!zero()))), (0, 0)); // Hot-rodded null unit with a custom hash. Uses more electricity.
 }
 
 #[test]

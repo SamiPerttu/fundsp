@@ -758,3 +758,17 @@ pub fn fractal_ease_noise<T: Float>(
     }
     result / total_weight
 }
+
+/// Mirror input between the range 0...1
+#[inline]
+pub fn mirror<T: Num>(x: T) -> T {
+    let x = x / T::new(2) - T::from_f32(0.5);
+    let x = x - x.floor();
+    abs(x - T::from_f32(0.5)) * T::new(2)
+}
+
+/// Wrap input between the range 0...1
+#[inline]
+pub fn wrap<T: Num>(x: T) -> T {
+    x - x.floor()
+}
