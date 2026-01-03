@@ -660,12 +660,12 @@ impl Float for f32x8 {
 
     #[inline(always)]
     fn set(&mut self, index: usize, value: f32) {
-        self.as_array_mut()[index] = value;
+        self.as_mut_array()[index] = value;
     }
 
     #[inline(always)]
     fn get(&self, index: usize) -> f32 {
-        self.as_array_ref()[index]
+        self.as_array()[index]
     }
 }
 
@@ -745,12 +745,12 @@ impl Float for f64x4 {
 
     #[inline(always)]
     fn set(&mut self, index: usize, value: f32) {
-        self.as_array_mut()[index] = value as f64;
+        self.as_mut_array()[index] = value as f64;
     }
 
     #[inline(always)]
     fn get(&self, index: usize) -> f32 {
-        self.as_array_ref()[index] as f32
+        self.as_array()[index] as f32
     }
 }
 
@@ -840,7 +840,7 @@ pub mod fft;
 pub mod filter;
 pub mod fir;
 pub mod follow;
-pub mod gen;
+pub mod generate;
 pub mod granular;
 pub mod hacker;
 pub mod hacker32;

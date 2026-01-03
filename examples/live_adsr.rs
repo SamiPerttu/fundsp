@@ -22,7 +22,7 @@
 use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, FromSample, SampleFormat, SizedSample, StreamConfig};
-use fundsp::hacker::{adsr_live, midi_hz, shared, triangle, var, Shared};
+use fundsp::hacker::{Shared, adsr_live, midi_hz, shared, triangle, var};
 use fundsp::prelude::AudioUnit;
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
 use midir::{Ignore, MidiInput, MidiInputPort};
@@ -175,7 +175,7 @@ fn run_synth<T: SizedSample + FromSample<f64>>(
     config: StreamConfig,
 ) {
     std::thread::spawn(move || {
-        let sample_rate = config.sample_rate.0 as f64;
+        let sample_rate = config.sample_rate as f64;
         let mut sound = create_sound(pitch, volume, pitch_bend, control);
         sound.set_sample_rate(sample_rate);
 

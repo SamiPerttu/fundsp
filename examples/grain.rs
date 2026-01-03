@@ -26,7 +26,7 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
 where
     T: SizedSample + FromSample<f64>,
 {
-    let sample_rate = config.sample_rate.0 as f64;
+    let sample_rate = config.sample_rate as f64;
     let channels = config.channels as usize;
 
     let _c = Granular::new(
@@ -172,7 +172,7 @@ where
 
     //let mut dna = Dna::new(37);
     let mut dna = Dna::new(102);
-    let mut c = Net::wrap(fundsp::gen::gen_granular(2, &scale, 2.4, 30, &mut dna));
+    let mut c = Net::wrap(fundsp::generate::gen_granular(2, &scale, 2.4, 30, &mut dna));
 
     for parameter in dna.parameter_vector().iter() {
         println!("{}: {}", parameter.name(), parameter.value());

@@ -6,7 +6,7 @@ use super::math::*;
 use super::net::*;
 use super::setting::*;
 use super::signal::*;
-use thingbuf::mpsc::{channel, Receiver, Sender};
+use thingbuf::mpsc::{Receiver, Sender, channel};
 extern crate alloc;
 use alloc::boxed::Box;
 

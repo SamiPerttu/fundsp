@@ -8,7 +8,7 @@ use super::net::NodeId;
 use super::signal::*;
 use super::*;
 pub use thingbuf::mpsc::errors::TrySendError;
-use thingbuf::mpsc::{channel, Receiver, Sender};
+use thingbuf::mpsc::{Receiver, Sender, channel};
 use tinyvec::ArrayVec;
 
 /// Parameters specify what to set and to what value.

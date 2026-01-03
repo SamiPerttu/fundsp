@@ -454,7 +454,7 @@ impl Wave {
             node.process(n, &BufferRef::new(&[]), &mut buffer_mut);
             for channel in 0..node.outputs() {
                 for j in 0..n >> SIMD_S {
-                    wave.vec[channel].extend_from_slice(buffer_mut.at(channel, j).as_array_ref());
+                    wave.vec[channel].extend_from_slice(buffer_mut.at(channel, j).as_array());
                 }
                 for j in 0..n & SIMD_M {
                     wave.vec[channel].push(buffer_mut.at_f32(channel, (n & !7) + j));

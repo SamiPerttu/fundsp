@@ -15,16 +15,16 @@ use alloc::vec::Vec;
 
 /// Generate a reverb unit.
 pub fn generate_reverb(dna: &mut Dna) -> An<impl AudioNode<Inputs = U2, Outputs = U2>> {
-    let mut times = Vec::new();
+    let mut times = [0.0; 32];
     for i in 0..32 {
         let name = format!("Delay {}", i);
         if i < 32 {
-            times.push(dna.f32_in(&name, 0.030, 0.070));
+            times[i] = dna.f32_in(&name, 0.030, 0.070);
         } else {
-            times.push(dna.f32_in(&name, 0.001, 0.030));
+            times[i] = dna.f32_in(&name, 0.001, 0.030);
         }
     }
-    super::prelude::reverb4_stereo_delays(&times, 100.0)
+    super::prelude::reverb4_stereo_delays(times, 100.0)
 }
 
 /// Attempt to measure the quality of a stereo reverb unit.

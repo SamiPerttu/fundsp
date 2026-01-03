@@ -7,7 +7,7 @@ use std::path::Path;
 extern crate alloc;
 use alloc::boxed::Box;
 use symphonia::core::audio::{AudioBuffer, Signal};
-use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
+use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
 use symphonia::core::errors::{Error, Result};
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::{MediaSource, MediaSourceStream};

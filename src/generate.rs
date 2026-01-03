@@ -116,7 +116,7 @@ where
 pub fn gen_lfo(dna: &mut Dna) -> Box<dyn Generated> {
     let control = dna.index("Control Type", [(1.0, "Slow Sine"), (1.0, "Spline Noise")]);
     dna.group();
-    let gen: Box<dyn Generated> = match control {
+    let generated: Box<dyn Generated> = match control {
         0 => {
             let f = dna.f32_in("Frequency", 0.05, 0.5) as f64;
             let o = dna.f32("Offset") as f64;
@@ -135,7 +135,7 @@ pub fn gen_lfo(dna: &mut Dna) -> Box<dyn Generated> {
         }
     };
     dna.ungroup();
-    gen
+    generated
 }
 
 #[derive(Clone)]

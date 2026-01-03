@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use fundsp::hacker32::*;
 
 fn sine_bench(_dummy: usize) -> Wave {
@@ -118,20 +118,44 @@ fn lowpass16_bench(_dummy: usize) -> Wave {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("netpass", |b| b.iter(|| netpass_bench(black_box(0))));
-    c.bench_function("sine", |b| b.iter(|| sine_bench(black_box(0))));
-    c.bench_function("resynth", |b| b.iter(|| resynth_bench(black_box(0))));
-    c.bench_function("pass", |b| b.iter(|| pass_bench(black_box(0))));
-    c.bench_function("wavetable", |b| b.iter(|| wavetable_bench(black_box(0))));
-    c.bench_function("envelope", |b| b.iter(|| envelope_bench(black_box(0))));
-    c.bench_function("oversample", |b| b.iter(|| oversample_bench(black_box(0))));
-    c.bench_function("chorus", |b| b.iter(|| chorus_bench(black_box(0))));
-    c.bench_function("equalizer", |b| b.iter(|| equalizer_bench(black_box(0))));
-    c.bench_function("reverb", |b| b.iter(|| reverb_bench(black_box(0))));
-    c.bench_function("limiter", |b| b.iter(|| limiter_bench(black_box(0))));
-    c.bench_function("phaser", |b| b.iter(|| phaser_bench(black_box(0))));
-    c.bench_function("lowpass", |b| b.iter(|| lowpass_bench(black_box(0))));
-    c.bench_function("lowpass16", |b| b.iter(|| lowpass16_bench(black_box(0))));
+    c.bench_function("netpass", |b| {
+        b.iter(|| netpass_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("sine", |b| b.iter(|| sine_bench(core::hint::black_box(0))));
+    c.bench_function("resynth", |b| {
+        b.iter(|| resynth_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("pass", |b| b.iter(|| pass_bench(core::hint::black_box(0))));
+    c.bench_function("wavetable", |b| {
+        b.iter(|| wavetable_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("envelope", |b| {
+        b.iter(|| envelope_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("oversample", |b| {
+        b.iter(|| oversample_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("chorus", |b| {
+        b.iter(|| chorus_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("equalizer", |b| {
+        b.iter(|| equalizer_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("reverb", |b| {
+        b.iter(|| reverb_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("limiter", |b| {
+        b.iter(|| limiter_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("phaser", |b| {
+        b.iter(|| phaser_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("lowpass", |b| {
+        b.iter(|| lowpass_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("lowpass16", |b| {
+        b.iter(|| lowpass16_bench(core::hint::black_box(0)))
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);

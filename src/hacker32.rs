@@ -299,13 +299,13 @@ pub fn meter(meter: Meter) -> An<MeterNode> {
 }
 
 /// Mono sink. Input is discarded.
-/// -Input 0: signal
+/// - Input 0: signal
 pub fn sink() -> An<Sink<U1>> {
     An(Sink::new())
 }
 
 /// Multichannel sink. Inputs are discarded.
-/// -Input(s): signal
+/// - Input(s): signal
 pub fn multisink<N: Size<f32>>() -> An<Sink<N>> {
     An(Sink::new())
 }
@@ -1740,7 +1740,7 @@ pub fn reverb4_stereo(room_size: f32, time: f32) -> An<impl AudioNode<Inputs = U
 /// - Output 0: reverberated left signal
 /// - Output 1: reverberated right signal
 pub fn reverb4_stereo_delays(
-    delays: &[f32],
+    delays: [f32; 32],
     time: f32,
 ) -> An<impl AudioNode<Inputs = U2, Outputs = U2>> {
     super::prelude::reverb4_stereo_delays(delays, time as f64)

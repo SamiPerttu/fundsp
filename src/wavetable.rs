@@ -177,18 +177,10 @@ impl Wavetable {
         let i1 = i1 & mask;
         let i2 = (i1 + 1) & mask;
         let i3 = (i2 + 1) & mask;
-        let t0 = F32x::new(core::array::from_fn(|j| {
-            table[i0.as_array_ref()[j] as usize]
-        }));
-        let t1 = F32x::new(core::array::from_fn(|j| {
-            table[i1.as_array_ref()[j] as usize]
-        }));
-        let t2 = F32x::new(core::array::from_fn(|j| {
-            table[i2.as_array_ref()[j] as usize]
-        }));
-        let t3 = F32x::new(core::array::from_fn(|j| {
-            table[i3.as_array_ref()[j] as usize]
-        }));
+        let t0 = F32x::new(core::array::from_fn(|j| table[i0.as_array()[j] as usize]));
+        let t1 = F32x::new(core::array::from_fn(|j| table[i1.as_array()[j] as usize]));
+        let t2 = F32x::new(core::array::from_fn(|j| table[i2.as_array()[j] as usize]));
+        let t3 = F32x::new(core::array::from_fn(|j| table[i3.as_array()[j] as usize]));
         optimal4x44(t0, t1, t2, t3, w)
     }
 
@@ -336,9 +328,9 @@ where
         let mut phase = self.phase;
         let mut table_hint = self.table_hint;
         for i in 0..full_simd_items(size) {
-            let frequency = input.at(0, i).as_array_ref()[0];
+            let frequency = input.at(0, i).as_array()[0];
             let phase_simd = F32x::new(core::array::from_fn(|j| {
-                phase += input.at(0, i).as_array_ref()[j] * self.sample_duration;
+                phase += input.at(0, i).as_array()[j] * self.sample_duration;
                 phase
             }));
             let phase_simd = phase_simd - phase_simd.floor();
@@ -520,11 +512,7 @@ pub fn square_table() -> Arc<Wavetable> {
     INSTANCE
         .get_or_init(|| {
             let table = Wavetable::new(20.0, 20_000.0, 4.0, &|_| 0.0, &|_, i| {
-                if (i & 1) == 1 {
-                    1.0 / i as f64
-                } else {
-                    0.0
-                }
+                if (i & 1) == 1 { 1.0 / i as f64 } else { 0.0 }
             });
             Box::new(Arc::new(table))
         })

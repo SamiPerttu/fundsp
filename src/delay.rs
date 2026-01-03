@@ -259,16 +259,16 @@ where
                 let tap_d = tap - tap_floor.round_float();
                 out += spline(
                     F32x::new(core::array::from_fn(|k| {
-                        self.buffer[tap_i0.as_array_ref()[k] as usize]
+                        self.buffer[tap_i0.as_array()[k] as usize]
                     })),
                     F32x::new(core::array::from_fn(|k| {
-                        self.buffer[tap_i1.as_array_ref()[k] as usize]
+                        self.buffer[tap_i1.as_array()[k] as usize]
                     })),
                     F32x::new(core::array::from_fn(|k| {
-                        self.buffer[tap_i2.as_array_ref()[k] as usize]
+                        self.buffer[tap_i2.as_array()[k] as usize]
                     })),
                     F32x::new(core::array::from_fn(|k| {
-                        self.buffer[tap_i3.as_array_ref()[k] as usize]
+                        self.buffer[tap_i3.as_array()[k] as usize]
                     })),
                     tap_d,
                 );
@@ -484,10 +484,10 @@ where
                 let tap_d = tap - tap_floor.round_float();
                 out += lerp(
                     F32x::new(core::array::from_fn(|k| {
-                        self.buffer[tap_i1.as_array_ref()[k] as usize]
+                        self.buffer[tap_i1.as_array()[k] as usize]
                     })),
                     F32x::new(core::array::from_fn(|k| {
-                        self.buffer[tap_i2.as_array_ref()[k] as usize]
+                        self.buffer[tap_i2.as_array()[k] as usize]
                     })),
                     tap_d,
                 );

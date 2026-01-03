@@ -12,7 +12,7 @@ use super::signal::*;
 use super::vertex::*;
 use super::*;
 use hashbrown::HashMap;
-use thingbuf::mpsc::{channel, Receiver, Sender};
+use thingbuf::mpsc::{Receiver, Sender, channel};
 extern crate alloc;
 use super::sequencer::Fade;
 use alloc::boxed::Box;
@@ -1121,10 +1121,14 @@ impl Net {
     pub fn commit(&mut self) {
         assert!(self.has_backend());
         if self.inputs() != self.backend_inputs {
-            panic!("The number of inputs has changed since last commit. The number of inputs must stay the same.");
+            panic!(
+                "The number of inputs has changed since last commit. The number of inputs must stay the same."
+            );
         }
         if self.outputs() != self.backend_outputs {
-            panic!("The number of outputs has changed since last commit. The number of outputs must stay the same.");
+            panic!(
+                "The number of outputs has changed since last commit. The number of outputs must stay the same."
+            );
         }
         if !self.is_ordered() {
             self.determine_order();

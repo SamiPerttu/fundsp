@@ -20,7 +20,7 @@ fn evaluate_reverb(dna: &mut Dna) -> f32 {
     let reverb = generate_reverb(dna);
     // Prevent cases where two lines have nearly the same length.
     let repeat_weight = 0.0;
-    let mut repeat_fitness = 0.0;
+    let mut repeat_fitness = reverb_fitness(reverb);
     for i in 0..dna.parameters() {
         let i_time = round(44100.0 * dna.parameter(i).value_f32().unwrap());
         for j in i + 1..dna.parameters() {
@@ -31,7 +31,7 @@ fn evaluate_reverb(dna: &mut Dna) -> f32 {
             }
         }
     }
-    repeat_fitness + reverb_fitness(reverb)
+    repeat_fitness
 }
 
 /// Mutate the source Dna. Return the mutated Dna.

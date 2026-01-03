@@ -5,7 +5,7 @@ use super::buffer::*;
 use super::signal::*;
 use super::*;
 use numeric_array::*;
-use thingbuf::mpsc::{channel, Receiver, Sender};
+use thingbuf::mpsc::{Receiver, Sender, channel};
 extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;

@@ -298,13 +298,13 @@ pub fn meter(meter: Meter) -> An<MeterNode> {
 }
 
 /// Mono sink. Input is discarded.
-/// -Input 0: signal
+/// - Input 0: signal
 pub fn sink() -> An<Sink<U1>> {
     An(Sink::new())
 }
 
 /// Multichannel sink. Inputs are discarded.
-/// -Input(s): signal
+/// - Input(s): signal
 pub fn multisink<N: Size<f32>>() -> An<Sink<N>> {
     An(Sink::new())
 }
@@ -1890,7 +1890,7 @@ pub fn reverb4_stereo(room_size: f64, time: f64) -> An<impl AudioNode<Inputs = U
         // The delays sound like garbage below 15 meters.
         *delay *= (max(room_size as f32, 15.0)) / 10.0;
     }
-    reverb4_stereo_delays(&delays, time)
+    reverb4_stereo_delays(delays, time)
 }
 
 /// Create a stereo reverb unit, given delay times (in seconds) for the 32 delay lines
@@ -1900,10 +1900,9 @@ pub fn reverb4_stereo(room_size: f64, time: f64) -> An<impl AudioNode<Inputs = U
 /// - Output 0: reverberated left signal
 /// - Output 1: reverberated right signal
 pub fn reverb4_stereo_delays(
-    delays: &[f32],
+    delays: [f32; 32],
     time: f64,
 ) -> An<impl AudioNode<Inputs = U2, Outputs = U2>> {
-    assert!(delays.len() == 32);
     let room_size = 10.0; // delays.iter().sum::<f64>() / 32.0 / 0.03 * 10.0;
     let a = pow(db_amp(-60.0), 0.03 * room_size / 10.0 / time) as f32;
 

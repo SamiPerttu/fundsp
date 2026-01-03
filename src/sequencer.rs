@@ -14,7 +14,7 @@ use alloc::collections::BinaryHeap;
 use alloc::vec;
 use alloc::vec::Vec;
 use hashbrown::HashMap;
-use thingbuf::mpsc::{channel, Receiver, Sender};
+use thingbuf::mpsc::{Receiver, Sender, channel};
 
 /// Globally unique ID for a sequencer event.
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]

@@ -5,7 +5,7 @@ use super::combinator::An;
 use super::signal::*;
 use super::typenum::*;
 use super::*;
-use thingbuf::mpsc::{channel, Receiver, Sender};
+use thingbuf::mpsc::{Receiver, Sender, channel};
 
 pub struct Ring<N: Size<f32>> {
     receiver: Receiver<Frame<f32, N>>,

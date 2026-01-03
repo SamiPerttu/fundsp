@@ -89,7 +89,7 @@ impl<'a> BufferMut<'a> {
     #[inline]
     pub fn set_f32(&mut self, channel: usize, i: usize, value: f32) {
         debug_assert!(channel < self.channels());
-        (self.0)[(channel << SIMD_C) + (i >> SIMD_S)].as_array_mut()[i & SIMD_M] = value;
+        (self.0)[(channel << SIMD_C) + (i >> SIMD_S)].as_mut_array()[i & SIMD_M] = value;
         // Note. There is no difference in speed between the versions above and below.
         //self.channel_f32_mut(channel)[i] = value;
     }
@@ -112,7 +112,7 @@ impl<'a> BufferMut<'a> {
     #[inline]
     pub fn at_f32(&self, channel: usize, i: usize) -> f32 {
         debug_assert!(channel < self.channels());
-        (self.0)[(channel << SIMD_C) + (i >> SIMD_S)].as_array_ref()[i & SIMD_M]
+        (self.0)[(channel << SIMD_C) + (i >> SIMD_S)].as_array()[i & SIMD_M]
     }
 
     /// Add to value at index `i` (0 <= `i` <= 7) of `channel`.
@@ -181,7 +181,7 @@ impl<'a> BufferRef<'a> {
     #[inline]
     pub fn at_f32(&self, channel: usize, i: usize) -> f32 {
         debug_assert!(channel < self.channels());
-        (self.0)[(channel << SIMD_C) + (i >> SIMD_S)].as_array_ref()[i & SIMD_M]
+        (self.0)[(channel << SIMD_C) + (i >> SIMD_S)].as_array()[i & SIMD_M]
     }
 }
 
@@ -237,14 +237,14 @@ impl BufferVec {
     #[inline]
     pub fn at_f32(&self, channel: usize, i: usize) -> f32 {
         debug_assert!(channel < self.channels());
-        self.buffer[(channel << SIMD_C) + (i >> SIMD_S)].as_array_ref()[i & SIMD_M]
+        self.buffer[(channel << SIMD_C) + (i >> SIMD_S)].as_array()[i & SIMD_M]
     }
 
     /// Set `f32` value at index `i` (0 <= `i` <= 63) of `channel`.
     #[inline]
     pub fn set_f32(&mut self, channel: usize, i: usize, value: f32) {
         debug_assert!(channel < self.channels());
-        self.buffer[(channel << SIMD_C) + (i >> SIMD_S)].as_array_mut()[i & SIMD_M] = value;
+        self.buffer[(channel << SIMD_C) + (i >> SIMD_S)].as_mut_array()[i & SIMD_M] = value;
     }
 
     /// Get channel slice.
@@ -341,7 +341,7 @@ impl<N: ArrayLength> BufferArray<N> {
     #[inline]
     pub fn at_f32(&self, channel: usize, i: usize) -> f32 {
         debug_assert!(channel < self.channels());
-        self.array[channel][i >> SIMD_S].as_array_ref()[i & SIMD_M]
+        self.array[channel][i >> SIMD_S].as_array()[i & SIMD_M]
     }
 
     /// Set value at index `i` (0 <= `i` <= 7) of `channel`.
@@ -355,7 +355,7 @@ impl<N: ArrayLength> BufferArray<N> {
     #[inline]
     pub fn set_f32(&mut self, channel: usize, i: usize, value: f32) {
         debug_assert!(channel < self.channels());
-        self.array[channel][i >> SIMD_S].as_array_mut()[i & SIMD_M] = value;
+        self.array[channel][i >> SIMD_S].as_mut_array()[i & SIMD_M] = value;
     }
 
     /// Number of channels in this buffer.

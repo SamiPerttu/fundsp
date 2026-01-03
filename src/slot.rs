@@ -6,7 +6,7 @@ use super::math::*;
 use super::sequencer::*;
 use super::signal::*;
 use super::*;
-use thingbuf::mpsc::{channel, Receiver, Sender};
+use thingbuf::mpsc::{Receiver, Sender, channel};
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec;

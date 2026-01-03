@@ -15,8 +15,8 @@
 //! connected MIDI input device it finds, and play the corresponding pitches with the volume moderated by
 //! an `adsr_live()` envelope.
 
-use super::prelude::{clamp01, delerp, envelope2, lerp, shared, var, An, EnvelopeIn, Frame, U1};
 use super::Real;
+use super::prelude::{An, EnvelopeIn, Frame, U1, clamp01, delerp, envelope2, lerp, shared, var};
 
 pub fn adsr_live(
     attack: f32,

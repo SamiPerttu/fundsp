@@ -13,6 +13,8 @@
 - New `Wave` methods `mix` and `mix_channel`.
 - New builder notation for setting envelope sampling interval, for example, `lfo(|t| exp(-t)).interval(0.01)`.
 - New `Wave` methods `append`, `amplify` and `retain`.
+- Added math functions `wrap` and `mirror`.
+- Added `Wave` methods `multifilter` and `multifilter_latency`.
 
 ### Version 0.20
 

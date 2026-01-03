@@ -3,7 +3,7 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
-use fundsp::gen::*;
+use fundsp::generate::*;
 use fundsp::hacker::*;
 use funutd::dna::*;
 
@@ -27,7 +27,7 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
 where
     T: SizedSample + FromSample<f64>,
 {
-    let sample_rate = config.sample_rate.0 as f64;
+    let sample_rate = config.sample_rate as f64;
     let channels = config.channels as usize;
 
     let scale = [

@@ -5,7 +5,7 @@ use super::buffer::*;
 use super::math::*;
 use super::sequencer::*;
 use super::signal::*;
-use thingbuf::mpsc::{channel, Receiver, Sender};
+use thingbuf::mpsc::{Receiver, Sender, channel};
 
 #[derive(Default, Clone)]
 pub(crate) enum Message {

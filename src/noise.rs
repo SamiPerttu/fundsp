@@ -208,7 +208,7 @@ impl AudioNode for Noise {
         let output = output.channel_f32_mut(0);
         for i in 0..simd_items(size) {
             let value: U32x = hash32x_simd(state) >> 8;
-            let value_ref = value.as_array_ref();
+            let value_ref = value.as_array();
             for j in 0..SIMD_N {
                 output[(i << SIMD_S) + j] = value_ref[j] as f32 * NOISE_Z - 1.0;
             }

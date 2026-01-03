@@ -14,9 +14,7 @@ pub trait Shape: Clone + Sync + Send {
     /// Process multiple samples at once in a SIMD element.
     #[inline]
     fn simd(&mut self, input: F32x) -> F32x {
-        F32x::new(core::array::from_fn(|i| {
-            self.shape(input.as_array_ref()[i])
-        }))
+        F32x::new(core::array::from_fn(|i| self.shape(input.as_array()[i])))
         /*
         let mut output = [0.0; SIMD_N];
         for i in 0..SIMD_N {

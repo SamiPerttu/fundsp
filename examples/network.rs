@@ -31,7 +31,7 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
 where
     T: SizedSample + FromSample<f64>,
 {
-    let sample_rate = config.sample_rate.0 as f64;
+    let sample_rate = config.sample_rate as f64;
     let channels = config.channels as usize;
 
     let mut net = Net::new(0, 2);

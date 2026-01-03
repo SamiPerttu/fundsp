@@ -3,8 +3,8 @@ use super::math::*;
 use super::wave::*;
 
 use std::fs::File;
-use std::io::prelude::*;
 use std::io::BufWriter;
+use std::io::prelude::*;
 use std::path::Path;
 
 /// Write a 32-bit value to a WAV file.
