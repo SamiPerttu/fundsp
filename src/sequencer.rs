@@ -542,6 +542,7 @@ impl Sequencer {
         let (sender_a, receiver_a) = channel(2048);
         let (sender_b, receiver_b) = channel(2048);
         let mut sequencer = self.clone();
+        core::mem::swap(self, &mut sequencer);
         sequencer.allocate();
         self.front = Some((sender_a, receiver_b));
         SequencerBackend::new(sender_b, receiver_a, sequencer)
