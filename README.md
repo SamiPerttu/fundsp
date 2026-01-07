@@ -701,6 +701,10 @@ let wave3 = Wave::load("test.wav").expect("Could not load wave.");
 
 Individual channels of waves can be played back with the `playwave` and `playwave_at` opcodes.
 
+Waves can be resampled with the `resample_fir` method that employs the [`resampler`](https://github.com/hasenbanck/resampler)
+crate for FIR based sinc resampling. It accepts these source and target rates:
+16 kHz, 22.05 kHz, 32 kHz, 44.1 kHz, 48 kHz, 88.2 kHz, 96 kHz, 176.4 kHz, 192 kHz, and 384 kHz.
+
 ## Signal Flow Analysis
 
 FunDSP features a comprehensive signal flow system that analyzes
