@@ -1,9 +1,10 @@
 ## Changes
 
-### Version 0.23 (Next Version)
+### Version 0.23
 
 - `Sequencer` can now have inputs.
 - New opcode `convolve` for FFT based convolution using the `fft_convolver` crate.
+- Enhanced resampling with quality settings.
 
 ### Version 0.22
 

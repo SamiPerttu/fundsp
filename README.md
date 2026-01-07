@@ -60,7 +60,7 @@ Add `fundsp` to your `Cargo.toml` as a dependency.
 
 ```rust
 [dependencies]
-fundsp = "0.22.0"
+fundsp = "0.23.0"
 ```
 
 The `files` feature is enabled by default. It adds support for
@@ -82,7 +82,7 @@ The convolution engine is also missing in action, as it depends on `rustfft`.
 
 ```rust
 [dependencies]
-fundsp = { version = "0.22.0", default-features = false }
+fundsp = { version = "0.23.0", default-features = false }
 ```
 
 ## Graph Notation
