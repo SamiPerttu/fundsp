@@ -5,6 +5,8 @@
 - New `Wave` resampling method `resample_fir`.
 - The 64-bit hacker prelude is now `prelude64`.
 - The 32-bit prelude is now `prelude32`.
+- The `wavech` opcode is now `playwave`.
+- The `wavech_at` opcode is now `playwave_at`.
 
 ### Version 0.21
 
