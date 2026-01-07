@@ -131,7 +131,7 @@ impl AudioUnit for SequencerBackend {
         match self.sequencer.replay_mode() {
             ReplayMode::None => {
                 self.send_back_past();
-            },
+            }
             _ => (),
         }
     }
@@ -143,7 +143,7 @@ impl AudioUnit for SequencerBackend {
         match self.sequencer.replay_mode() {
             ReplayMode::None => {
                 self.send_back_past();
-            },
+            }
             _ => (),
         }
     }

@@ -611,14 +611,14 @@ impl AudioUnit for Sequencer {
                     self.ready.push(active);
                 }
                 self.active_map.clear();
-            },
+            }
             ReplayMode::None => {
                 while let Some(_ready) = self.ready.pop() {}
                 while let Some(_past) = self.past.pop() {}
                 while let Some(_active) = self.active.pop() {}
                 self.edit_map.clear();
                 self.active_map.clear();
-            },
+            }
         }
         self.time = 0.0;
         self.active_threshold = -f64::INFINITY;
@@ -650,9 +650,7 @@ impl AudioUnit for Sequencer {
     #[inline]
     fn tick(&mut self, input: &[f32], output: &mut [f32]) {
         match self.mode {
-            ReplayMode::None => {
-                while let Some(_past) = self.past.pop() {}
-            },
+            ReplayMode::None => while let Some(_past) = self.past.pop() {},
             _ => (),
         }
         for channel in 0..self.outputs {
@@ -724,9 +722,7 @@ impl AudioUnit for Sequencer {
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         match self.mode {
-            ReplayMode::None => {
-                while let Some(_past) = self.past.pop() {}
-            },
+            ReplayMode::None => while let Some(_past) = self.past.pop() {},
             _ => (),
         }
         for channel in 0..self.outputs {
@@ -762,9 +758,11 @@ impl AudioUnit for Sequencer {
                         input.span(start_index, end_index - start_index, &mut self.input_buffer);
                         &self.input_buffer.buffer_ref()
                     };
-                    self.active[i]
-                        .unit
-                        .process(end_index - start_index, node_input, &mut buffer_output);
+                    self.active[i].unit.process(
+                        end_index - start_index,
+                        node_input,
+                        &mut buffer_output,
+                    );
                     fade_in(
                         self.sample_duration,
                         self.time,
