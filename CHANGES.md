@@ -1,6 +1,6 @@
 ## Changes
 
-### Version 0.22 (Next Version)
+### Version 0.22
 
 - New opcode `resample_fir` for FIR based sinc resampling using the `resampler` crate.
 - New `Wave` resampling method `resample_fir`.
