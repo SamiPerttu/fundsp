@@ -1008,12 +1008,17 @@ where
 /// It supports these input and output sample rates:
 /// 16 kHz, 22.05 kHz, 32 kHz, 44.1 kHz, 48 kHz, 88.2 kHz, 96 kHz, 176.4 kHz, 192 kHz, 384 kHz.
 /// - Output(s): Resampled outputs of contained generator.
-pub fn resample_fir<X>(source_rate: f64, target_rate: f64, node: An<X>) -> An<ResampleFir<X>>
+pub fn resample_fir<X>(
+    source_rate: f64,
+    target_rate: f64,
+    quality: Quality,
+    node: An<X>,
+) -> An<ResampleFir<X>>
 where
     X: AudioNode<Inputs = U0>,
     X::Outputs: Size<f32> + Size<Frame<f32, X::Outputs>>,
 {
-    An(ResampleFir::new(source_rate, target_rate, node.0))
+    An(ResampleFir::new(source_rate, target_rate, quality, node.0))
 }
 
 /// Resample enclosed generator `node` using cubic interpolation

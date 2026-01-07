@@ -7,6 +7,7 @@ use super::audiounit::*;
 use super::buffer::*;
 use super::combinator::*;
 use super::math::*;
+use super::resample::*;
 use super::signal::*;
 use super::*;
 use numeric_array::typenum::Unsigned;
@@ -706,7 +707,7 @@ impl Wave {
     /// Resample this wave using FIR based sinc interpolation.
     /// These source and target rates are supported:
     /// 16 kHz, 22.05 kHz, 32 kHz, 44.1 kHz, 48 kHz, 88.2 kHz, 96 kHz, 176.4 kHz, 192 kHz, 384 kHz.
-    pub fn resample_fir(&mut self, target_rate: f64) -> Wave {
+    pub fn resample_fir(&mut self, target_rate: f64, quality: Quality) -> Wave {
         let mut output = Wave::new(self.channels(), target_rate);
         let length = self.length();
         for channel in 0..self.channels() {
@@ -718,9 +719,10 @@ impl Wave {
                     let mut resampler = super::prelude::resample_fir(
                         self.sample_rate(),
                         target_rate,
+                        quality.clone(),
                         super::prelude::playwave(&input_arc, 0, None),
                     );
-                    while resampler.samples() < length + 16 {
+                    while resampler.samples() < length + 2 * quality.latency() as usize {
                         let value = resampler.get_mono();
                         output.resize(max(output.length(), resampler.produced()));
                         output.set(channel, resampler.produced() - 1, value);

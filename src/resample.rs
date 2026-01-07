@@ -7,6 +7,41 @@ use super::*;
 use numeric_array::typenum::*;
 use resampler::{Attenuation, Latency, ResamplerFir, SampleRate};
 
+/// Resampling quality:
+/// Medium = 32 taps (latency 16, attenuation 60 dB),
+/// High = 64 taps (latency 32, attenuation 90 dB), and
+/// Best = 128 taps (latency 64, attenuation 90 dB).
+#[derive(Clone)]
+pub enum Quality {
+    Medium,
+    High,
+    Best,
+}
+
+impl Quality {
+    pub fn latency(&self) -> f64 {
+        match self {
+            Quality::Medium => 16.0,
+            Quality::High => 32.0,
+            Quality::Best => 64.0,
+        }
+    }
+    pub fn latency_enum(&self) -> Latency {
+        match self {
+            Quality::Medium => Latency::Sample16,
+            Quality::High => Latency::Sample32,
+            Quality::Best => Latency::Sample64,
+        }
+    }
+    pub fn attenuation(&self) -> Attenuation {
+        match self {
+            Quality::Medium => Attenuation::Db60,
+            Quality::High => Attenuation::Db90,
+            Quality::Best => Attenuation::Db90,
+        }
+    }
+}
+
 /// FIR based sinc resampler. It supports these input and output sample rates:
 /// 16 kHz, 22.05 kHz, 32 kHz, 44.1 kHz, 48 kHz, 88.2 kHz, 96 kHz, 176.4 kHz, 192 kHz, 384 kHz.
 /// - Output(s): Resampled outputs of contained generator.
@@ -16,6 +51,7 @@ where
     X::Outputs: Size<f32> + Size<Frame<f32, X::Outputs>>,
 {
     x: X,
+    quality: Quality,
     resampler: ResamplerFir,
     source_rate: f64,
     target_rate: f64,
@@ -46,16 +82,17 @@ where
     X: AudioNode<Inputs = U0>,
     X::Outputs: Size<f32> + Size<Frame<f32, X::Outputs>>,
 {
-    pub fn new(source_rate: f64, target_rate: f64, mut node: X) -> Self {
+    pub fn new(source_rate: f64, target_rate: f64, quality: Quality, mut node: X) -> Self {
         node.set_sample_rate(source_rate);
         Self {
             x: node,
+            quality: quality.clone(),
             resampler: ResamplerFir::new(
                 X::Outputs::USIZE,
                 rate_enum(source_rate),
                 rate_enum(target_rate),
-                Latency::Sample32,
-                Attenuation::Db60,
+                quality.latency_enum(),
+                quality.attenuation(),
             ),
             source_rate,
             target_rate,
@@ -99,12 +136,13 @@ where
     fn clone(&self) -> ResampleFir<X> {
         Self {
             x: self.x.clone(),
+            quality: self.quality.clone(),
             resampler: ResamplerFir::new(
                 X::Outputs::USIZE,
                 rate_enum(self.source_rate),
                 rate_enum(self.target_rate),
-                Latency::Sample32,
-                Attenuation::Db60,
+                self.quality.latency_enum(),
+                self.quality.attenuation(),
             ),
             source_rate: self.source_rate,
             target_rate: self.target_rate,
@@ -137,8 +175,8 @@ where
             X::Outputs::USIZE,
             rate_enum(self.source_rate),
             rate_enum(self.target_rate),
-            Latency::Sample32,
-            Attenuation::Db60,
+            self.quality.latency_enum(),
+            self.quality.attenuation(),
         );
     }
 
@@ -155,6 +193,10 @@ where
             ..(self.i - self.producer + 1) * self.outputs()];
         self.producer += 1;
         Frame::generate(|i| output[i])
+    }
+
+    fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {
+        Routing::Generator(0.0).route(input, Self::Outputs::USIZE)
     }
 }
 
