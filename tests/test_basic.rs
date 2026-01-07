@@ -320,6 +320,11 @@ fn test_basic() {
     net.check();
     check_wave(net);
 
+    check_wave(
+        noise() >> convolve(&Wave::from_samples(44100.0, &[1.0, 0.9, 0.8]), 0)
+            | pink() >> convolve(&Wave::from_samples(44100.0, &[0.5, 0.4, 0.3]), 0),
+    );
+
     // Wave filtering, tick vs. process rendering, node reseting.
     let input = Wave::render(44100.0, 1.0, &mut (noise() | noise()));
     check_wave_filter(&input, butterpass_hz(1000.0) | lowpole_hz(100.0));
@@ -673,4 +678,29 @@ fn test_resynth() {
                 && input.at(0, i) + tolerance >= output.at(0, i)
         );
     }
+}
+
+fn within(x: f32, y: f32, tolerance: f32) -> bool {
+    if x + tolerance >= y && x - tolerance <= y {
+        true
+    } else {
+        println!("x {}, y {}, tolerance {}", x, y, tolerance);
+        false
+    }
+}
+
+#[test]
+fn test_convolver() {
+    let mut response = Wave::new(1, 44100.0);
+    let tolerance = 1.0e-4;
+    response.push(1.00);
+    response.push(0.75);
+    response.push(0.50);
+    response.push(0.25);
+    let mut convolver = convolve(&response, 0);
+    assert!(within(convolver.filter_mono(0.0), 0.00, tolerance));
+    assert!(within(convolver.filter_mono(1.0), 1.00, tolerance));
+    assert!(within(convolver.filter_mono(0.0), 0.75, tolerance));
+    assert!(within(convolver.filter_mono(0.0), 0.50, tolerance));
+    assert!(within(convolver.filter_mono(0.0), 0.25, tolerance));
 }
