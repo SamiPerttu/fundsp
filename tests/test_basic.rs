@@ -189,6 +189,8 @@ fn test_basic() {
     check_wave(
         dc((20.0, 40.0)) >> reverse() >> pass() * pass() >> (dsf_saw_r(0.999) ^ square() * 0.1),
     );
+    let seq = Sequencer::new(2, 2, ReplayMode::None);
+    check_wave((noise() | noise()) >> Net::wrap(Box::new(seq)));
     check_wave(
         dc((880.0, 440.0)) >> pass() - pass() >> branchf::<U2, _, _>(|f| (f - 0.5) * triangle()),
     );
@@ -703,4 +705,21 @@ fn test_convolver() {
     assert!(within(convolver.filter_mono(0.0), 0.75, tolerance));
     assert!(within(convolver.filter_mono(0.0), 0.50, tolerance));
     assert!(within(convolver.filter_mono(0.0), 0.25, tolerance));
+}
+
+#[test]
+fn test_sequencer_passthrough() {
+    let mut sequencer = Sequencer::new(1, 1, ReplayMode::None);
+    sequencer.push(0.0, 1.0, Fade::Smooth, 0.0, 0.0, Box::new(pass()));
+    sequencer.push(
+        1.0 / 44100.0,
+        1.0,
+        Fade::Smooth,
+        0.0,
+        0.0,
+        Box::new(mul(2.0)),
+    );
+    assert!(sequencer.filter_mono(1.0) == 1.0);
+    assert!(sequencer.filter_mono(2.0) == 6.0);
+    assert!(sequencer.filter_mono(0.5) == 1.5);
 }

@@ -230,6 +230,8 @@ pub struct Sequencer {
     past: Vec<Event>,
     /// Map of edits to be made to events in the ready queue.
     edit_map: HashMap<EventId, Edit>,
+    /// Number of input channels.
+    inputs: usize,
     /// Number of output channels.
     outputs: usize,
     /// Current time. Does not apply to frontends.
@@ -262,6 +264,7 @@ impl Clone for Sequencer {
             ready: self.ready.clone(),
             past: self.past.clone(),
             edit_map: self.edit_map.clone(),
+            inputs: self.inputs,
             outputs: self.outputs,
             time: self.time,
             sample_rate: self.sample_rate,
@@ -293,6 +296,7 @@ impl Sequencer {
             ready: BinaryHeap::with_capacity(DEFAULT_CAPACITY),
             past: Vec::with_capacity(DEFAULT_CAPACITY),
             edit_map: HashMap::with_capacity(DEFAULT_CAPACITY),
+            inputs,
             outputs,
             time: 0.0,
             sample_rate: DEFAULT_SR,
@@ -816,7 +820,7 @@ impl AudioUnit for Sequencer {
     }
 
     fn inputs(&self) -> usize {
-        0
+        self.inputs
     }
     fn outputs(&self) -> usize {
         self.outputs
