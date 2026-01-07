@@ -2707,10 +2707,10 @@ pub fn biquad_bank() -> An<BiquadBank<f64x4>> {
     An(BiquadBank::new())
 }
 
-/// Convolve the input with channel 0 of the given response.
+/// Convolve the input with channel `channel` of the given response.
 /// - Input 0: input signal
 /// - Output 0: convolved signal
 #[cfg(all(feature = "std", feature = "fft"))]
-pub fn convolve(response: Arc<Wave>) -> An<Convolver> {
-    An(Convolver::new(response))
+pub fn convolve(response: &Wave, channel: usize) -> An<Convolver> {
+    An(Convolver::new(response, channel))
 }

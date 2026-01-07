@@ -1151,7 +1151,7 @@ The type parameters in the table refer to the `prelude32` and `prelude64` prelud
 | `clip()`               |    1    |    1    | Clip signal to -1...1. |
 | `clip_to(min, max)`    |    1    |    1    | Clip signal to min...max. |
 | `constant(x)`          |    -    |   `x`   | Constant signal `x`. Synonymous with `dc`. |
-| `convolve(wave)`       |    1    |    1    | Convolve input with the given response. |
+| `convolve(&wave, channel)` | 1   |    1    | Convolve input with the given response. |
 | `dbell(shape)`         | 4 (audio, frequency, Q, gain) | 1 | Dirty biquad bell equalizer (2nd order) with feedback `shape`, for example, `Tanh(1.0)`. |
 | `dbell_hz(shape, f, q, gain)` | 1 |   1    | Dirty biquad bell equalizer (2nd order) with feedback `shape`, center `f` Hz, Q value `q` and amplitude gain `gain`. |
 | `dc(x)`                |    -    |   `x`   | Constant signal `x`. Synonymous with `constant`. |

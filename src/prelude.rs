@@ -3146,10 +3146,10 @@ pub fn poly_pulse_hz<F: Real>(f: f32, width: f32) -> An<Pipe<Constant<U2>, PolyP
     dc((f, width)) >> poly_pulse()
 }
 
-/// Convolve the input with channel 0 of the given response.
+/// Convolve the input with channel `channel` of the given response.
 /// - Input 0: input signal
 /// - Output 0: convolved signal
 #[cfg(all(feature = "std", feature = "fft"))]
-pub fn convolve(response: Arc<Wave>) -> An<Convolver> {
-    An(Convolver::new(response))
+pub fn convolve(response: &Wave, channel: usize) -> An<Convolver> {
+    An(Convolver::new(response, channel))
 }

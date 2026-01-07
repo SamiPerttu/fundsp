@@ -4,29 +4,23 @@ use super::signal::*;
 use super::wave::*;
 use super::*;
 use fft_convolver::FFTConvolver;
-use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Convolver {
     convolver: FFTConvolver<f32>,
-    response: Arc<Wave>,
 }
 
 impl Convolver {
-    pub fn new(impulse_response: Arc<Wave>) -> Self {
+    pub fn new(response: &Wave, channel: usize) -> Self {
         let mut convolver = FFTConvolver::<f32>::default();
         convolver
-            .init(super::MAX_BUFFER_SIZE, impulse_response.channel(0))
+            .init(super::MAX_BUFFER_SIZE, response.channel(channel))
             .unwrap();
-        Self {
-            convolver,
-            response: impulse_response,
-        }
+        Self { convolver }
     }
-    pub fn set_response(&mut self, impulse_response: Arc<Wave>) {
-        self.response = impulse_response;
+    pub fn set_response(&mut self, response: &Wave, channel: usize) {
         self.convolver
-            .init(super::MAX_BUFFER_SIZE, self.response.channel(0))
+            .init(super::MAX_BUFFER_SIZE, response.channel(channel))
             .unwrap();
     }
 }
