@@ -1,5 +1,11 @@
 ## Changes
 
+### Version 0.22 (Next Version)
+- New opcode `resample_fir` for FIR based sinc resampling using the `resampler` crate.
+- New `Wave` resampling method `resample_fir`.
+- The 64-bit hacker prelude is now `prelude64`.
+- The 32-bit prelude is now `prelude32`.
+
 ### Version 0.21
 
 - New PolyBLEP oscillator opcodes `poly_saw`, `poly_saw_hz`,
@@ -161,7 +167,7 @@
 
 ### Version 0.10
 
-- New opcode `resample` for variable speed cubic resampling.
+- New opcode `Resample` for variable speed cubic resampling.
 - `Wave32/64` improvements. Symphonia integration for reading audio files.
 - Tagged constants were removed. They were not scaleable.
 - Callbacks were removed from `Sequencer32/64` and `Net32/64`. Will reimplement if requested.

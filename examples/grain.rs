@@ -3,7 +3,7 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 use funutd::dna::*;
 
 fn main() {

@@ -1,5 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use fundsp::hacker32::*;
+use fundsp::prelude32::*;
 
 fn sine_bench(_dummy: usize) -> Wave {
     Wave::render(

@@ -1,6 +1,6 @@
 //! Save and load an audio file.
 
-use fundsp::hacker32::*;
+use fundsp::prelude32::*;
 
 fn main() {
     let wave1 = Wave::render(44100.0, 10.0, &mut (pink()));

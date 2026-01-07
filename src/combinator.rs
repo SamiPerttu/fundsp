@@ -257,7 +257,7 @@ impl<X: AudioNode> An<X> {
     ///
     /// ### Example (Square Wave At 110 Hz With Initial Phase 0.5)
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let oscillator = square_hz(110.0).phase(0.5);
     /// ```
     pub fn phase(mut self, phase: f32) -> Self {

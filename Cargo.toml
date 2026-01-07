@@ -24,6 +24,7 @@ funutd = { version = "0.16.0", default-features = false }
 thingbuf = { version = "0.1.6", default-features = false, features = ["alloc"] }
 once_cell = { version = "1.21.3", default-features = false, features = ["race", "alloc"] }
 symphonia = { version = "0.5.5", optional = true, features = ["all"] }
+resampler = { version = "0.4.0", features = ["no_std"] }
 
 [dev-dependencies]
 anyhow = "1.0.89"

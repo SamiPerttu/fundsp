@@ -12,7 +12,7 @@
 )]
 
 use fundsp::fft::*;
-use fundsp::hacker32::*;
+use fundsp::prelude32::*;
 use num_complex::Complex32;
 
 fn is_equal_response(x: Complex32, y: Complex32) -> bool {

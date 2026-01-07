@@ -6,7 +6,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
 use eframe::egui;
 use egui::*;
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 use funutd::Rnd;
 
 #[derive(Debug, PartialEq)]
@@ -76,6 +76,8 @@ struct State {
     snoop0: Snoop,
     /// Right channel data for the oscilloscope.
     snoop1: Snoop,
+    /// octave offset
+    octave: f64,
 }
 
 static KEYS: [Key; 29] = [
@@ -193,7 +195,7 @@ where
     )?;
     stream.play()?;
 
-    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 540.0));
+    let viewport = ViewportBuilder::default().with_min_inner_size(vec2(360.0, 590.0));
 
     let options = eframe::NativeOptions {
         viewport,
@@ -220,6 +222,7 @@ where
         flanger_enabled: false,
         snoop0,
         snoop1,
+        octave: 0.0,
     };
 
     eframe::run_native(
@@ -276,6 +279,18 @@ impl eframe::App for State {
                 ui.selectable_value(&mut self.waveform, Waveform::PolyPulse, "PolyPulse");
             });
             ui.separator();
+
+            ui.label("Octave Shift");
+            ui.add(egui::Slider::new(&mut self.octave, -5.0..=5.0).step_by(1.));
+            ui.separator();
+
+            if ctx.input(|c| c.key_pressed(Key::ArrowRight) || c.key_pressed(Key::ArrowUp)) {
+                self.octave += 1.;
+            }
+
+            if ctx.input(|c| c.key_pressed(Key::ArrowLeft) || c.key_pressed(Key::ArrowDown)) {
+                self.octave -= 1.;
+            }
 
             ui.label("Vibrato Amount");
             let mut vibrato = self.vibrato_amount * 100.0;
@@ -453,7 +468,7 @@ impl eframe::App for State {
                     }
                 }
                 if ctx.input(|c| c.key_down(KEYS[i])) && self.id[i].is_none() {
-                    let pitch_hz = midi_hz(40.0 + i as f64);
+                    let pitch_hz = midi_hz(40.0 + i as f64 + self.octave * 12.0);
                     let v = self.vibrato_amount * 0.006;
                     let pitch = lfo(move |t| {
                         pitch_hz

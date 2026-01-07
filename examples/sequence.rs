@@ -3,7 +3,7 @@
 #![allow(unused_must_use)]
 #![allow(clippy::precedence)]
 
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 use fundsp::sound::*;
 use funutd::*;
 

@@ -58,8 +58,8 @@ fn main() {
     remove_string(&mut arg, "filter::");
     remove_string(&mut arg, "fir::");
     remove_string(&mut arg, "follow::");
-    remove_string(&mut arg, "hacker::");
-    remove_string(&mut arg, "hacker32::");
+    remove_string(&mut arg, "prelude64::");
+    remove_string(&mut arg, "prelude32::");
     remove_string(&mut arg, "math::");
     remove_string(&mut arg, "moog::");
     remove_string(&mut arg, "net::");

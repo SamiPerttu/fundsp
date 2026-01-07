@@ -181,7 +181,7 @@ where
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert!(lerp(0.0, 5.0, 0.0) == 0.0);
 /// assert!(lerp(0.0, 5.0, 0.5) == 2.5);
 /// assert!(lerp(0.0, 5.0, 1.0) == 5.0);
@@ -195,7 +195,7 @@ pub fn lerp<U: Lerp<T>, T>(a: U, b: U, t: T) -> U {
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert!(lerp11(0.0, 5.0, -1.0) == 0.0);
 /// assert!(lerp11(0.0, 5.0, 0.0) == 2.5);
 /// assert!(lerp11(0.0, 5.0, 1.0) == 5.0);
@@ -209,7 +209,7 @@ pub fn lerp11<U: Lerp<T>, T: Num>(a: U, b: U, t: T) -> U {
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert_eq!(delerp(2.0, 4.0, 2.0), 0.0);
 /// assert_eq!(delerp(2.0, 4.0, 3.0), 0.5);
 /// assert_eq!(delerp(2.0, 4.0, 4.0), 1.0);
@@ -223,7 +223,7 @@ pub fn delerp<T: Num>(a: T, b: T, x: T) -> T {
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert_eq!(delerp11(5.0, 9.0, 5.0), -1.0);
 /// assert_eq!(delerp11(5.0, 9.0, 7.0), 0.0);
 /// assert_eq!(delerp11(5.0, 9.0, 9.0), 1.0);
@@ -273,7 +273,7 @@ pub fn dissonance<T: Real>(f0: T, f1: T) -> T {
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert!(dissonance_max(60.0) > 78.625 && dissonance_max(60.0) < 78.626);
 /// assert!(dissonance_max(440.0) > 465.959 && dissonance_max(440.0) < 465.960);
 /// ```
@@ -286,7 +286,7 @@ pub fn dissonance_max<T: Num>(f: T) -> T {
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert!(db_amp(3.0) > 1.4125 && db_amp(3.0) < 1.4126);
 /// ```
 #[inline]
@@ -306,7 +306,7 @@ pub fn amp_db<T: Real>(gain: T) -> T {
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert!(a_weight(1_000.0) > 0.9999 && a_weight(1_000.0) < 1.0001);
 /// ```
 #[inline]
@@ -328,7 +328,7 @@ pub fn a_weight<T: Real>(f: T) -> T {
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert!(m_weight(1_000.0) > 0.9999 && m_weight(1_000.0) < 1.0001);
 /// ```
 #[inline]
@@ -473,7 +473,7 @@ pub fn cos_hz<T: Real>(hz: T, t: T) -> T {
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert_eq!(sqr_hz(1.0, 0.0), 1.0);
 /// assert_eq!(sqr_hz(1.0, 0.25), 1.0);
 /// assert_eq!(sqr_hz(1.0, 0.5), -1.0);
@@ -496,7 +496,7 @@ pub fn sqr_hz<T: Real>(hz: T, t: T) -> T {
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert_eq!(tri_hz(1.0, 0.0), 0.0);
 /// assert_eq!(tri_hz(1.0, 0.25), 1.0);
 /// assert_eq!(tri_hz(1.0, 0.5), 0.0);
@@ -513,7 +513,7 @@ pub fn tri_hz<T: Num>(hz: T, t: T) -> T {
 ///
 /// ### Example
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// assert_eq!(semitone_ratio(0.0), 1.0);
 /// ```
 #[inline]
@@ -572,7 +572,7 @@ pub fn hash2(x: u64) -> u64 {
 ///
 /// ### Example (Major Chord)
 /// ```
-/// use fundsp::hacker::*;
+/// use fundsp::prelude64::*;
 /// triangle_hz(midi_hz(69.0)) & triangle_hz(midi_hz(73.0)) & triangle_hz(midi_hz(76.0));
 /// ```
 #[inline]

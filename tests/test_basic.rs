@@ -12,7 +12,7 @@
 )]
 
 use fundsp::audiounit::*;
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 use funutd::*;
 
 /// Check that the stereo generator given is rendered identically

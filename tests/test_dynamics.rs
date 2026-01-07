@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 
 use fundsp::dynamics::*;
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 use funutd::*;
 
 #[test]

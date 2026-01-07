@@ -1,7 +1,7 @@
 //! Failed experiment to optimize a stereo reverb. WIP.
 //! Please run me in release mode!
 
-use fundsp::hacker32::*;
+use fundsp::prelude32::*;
 use funutd::dna::*;
 use funutd::*;
 use rayon::prelude::*;

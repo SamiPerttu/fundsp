@@ -2,7 +2,7 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
-use fundsp::hacker32::*;
+use fundsp::prelude32::*;
 
 use crossbeam_channel::{bounded, Receiver, Sender};
 

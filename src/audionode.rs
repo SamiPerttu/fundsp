@@ -37,7 +37,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let mut node = saw_hz(440.0);
     /// let sample1 = node.get_mono();
     /// node.reset();
@@ -56,7 +56,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example (Changing The Sample Rate)
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let mut node = saw_hz(440.0);
     /// node.set_sample_rate(48_000.0);
     /// ```
@@ -69,7 +69,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(pass().tick(&Frame::from([2.0])), Frame::from([2.0]));
     /// ```
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs>;
@@ -143,7 +143,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example (Setting a Custom Hash)
     /// ```
-    /// use fundsp::hacker32::*;
+    /// use fundsp::prelude32::*;
     /// let mut node = square_hz(440.0);
     /// node.ping(false, AttoHash::new(1));
     /// ```
@@ -174,7 +174,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(sink().inputs(), 1);
     /// ```
     #[inline(always)]
@@ -186,7 +186,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(zero().outputs(), 1);
     /// ```
     #[inline(always)]
@@ -200,7 +200,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(dc(2.0).get_mono(), 2.0);
     /// assert_eq!(dc((3.0, 4.0)).get_mono(), 3.5);
     /// ```
@@ -223,7 +223,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(dc((5.0, 6.0)).get_stereo(), (5.0, 6.0));
     /// assert_eq!(dc(7.0).get_stereo(), (7.0, 7.0));
     /// ```
@@ -241,7 +241,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(add(1.0).filter_mono(1.0), 2.0);
     /// ```
     #[inline]
@@ -256,7 +256,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(add((2.0, 3.0)).filter_stereo(4.0, 5.0), (6.0, 8.0));
     /// ```
     #[inline]
@@ -272,7 +272,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(pass().response(0, 440.0), Some(Complex64::new(1.0, 0.0)));
     /// ```
     fn response(&mut self, output: usize, frequency: f64) -> Option<Complex64> {
@@ -294,7 +294,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let db = pass().response_db(0, 440.0).unwrap();
     /// assert!(db < 1.0e-7 && db > -1.0e-7);
     /// ```
@@ -310,7 +310,7 @@ pub trait AudioNode: Clone + Sync + Send {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(pass().latency(), Some(0.0));
     /// assert_eq!(tick().latency(), Some(0.0));
     /// assert_eq!(sink().latency(), None);

@@ -1,6 +1,6 @@
 //! FunDSP Sound Library. WIP.
 
-use super::hacker::*;
+use super::prelude64::*;
 use funutd::*;
 
 /// Sound 001. Risset Glissando, stereo.

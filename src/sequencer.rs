@@ -819,7 +819,7 @@ impl AudioUnit for Sequencer {
 
 #[cfg(test)]
 mod tests {
-    use hacker::sine_hz;
+    use prelude64::sine_hz;
 
     use super::*;
 

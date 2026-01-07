@@ -40,6 +40,12 @@ To discuss FunDSP and other topics, come hang out with us at the
 [bevy_fundsp](https://github.com/harudagondi/bevy_fundsp) integrates FunDSP into
 the [Bevy](https://bevyengine.org/) game engine.
 
+[bevy_procedural_audio](https://github.com/bsgbryan/bevy_procedural_audio) is a fork
+of `bevy_fundsp` that is more up to date.
+
+[bgawk](https://github.com/tomara-x/bgawk) is a sandbox for playing with physics
+and sound.
+
 [lapis](https://github.com/tomara-x/lapis) is an interpreter for FunDSP expressions.
 
 [midi_fundsp](https://github.com/gjf2a/midi_fundsp) enables the easy creation
@@ -156,7 +162,7 @@ In this case, the input and output arities must be provided as type-level consta
 `U0`, `U1`, ..., for example:
 
 ```rust
-use fundsp::hacker32::*;
+use fundsp::prelude32::*;
 // The number of inputs is zero and the number of outputs is one.
 let type_erased: An<Unit<U0, U1>> = unit::<U0, U1>(Box::new(white() >> lowpass_hz(5000.0, 1.0) >> highpass_hz(1000.0, 1.0)));
 ```
@@ -213,7 +219,7 @@ Using this buffer type it is possible to do block processing without allocating 
 The number of channels can be decided at runtime.
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 // Create a stereo buffer on the stack.
 let mut buffer = BufferArray::<U2>::new();
 // Declare stereo noise.
@@ -259,17 +265,17 @@ There are three name-level compatible versions of the prelude.
 
 The default environment (`fundsp::prelude`) offers a generic interface.
 
-The 64-bit hacker environment (`fundsp::hacker`) for audio hacking
+The 64-bit prelude environment (`fundsp::prelude64`) for audio hacking
 uses 64-bit internal state for components to maximize audio quality.
 
-The 32-bit hacker environment (`fundsp::hacker32`) uses 32-bit internal
+The 32-bit prelude environment (`fundsp::prelude32`) uses 32-bit internal
 state for components. It aims to offer maximum processing speed.
 
 An application interfacing `fundsp` can mix and match preludes as needed.
 The aims of the environments are:
 
 - Minimize the number of characters needed to type to express an idiom.
-- Keep the syntax clean so that a subset of the hacker environment
+- Keep the syntax clean so that a subset of the prelude environment
   can be parsed straightforwardly as a high-level DSL for quick prototyping.
   This has been done in the [lapis](https://github.com/tomara-x/lapis) project.
 
@@ -361,7 +367,7 @@ Components can be broadly classified into generators, filters and sinks.
 *Generators* have only outputs, while *filters* have both inputs and outputs.
 
 Sinks are components with no outputs. Direct arithmetic on a sink translates to a no-op.
-In the prelude, `sink()` returns a mono sink.
+In the preludes, `sink()` returns a mono sink.
 
 ### Graph Combinators
 
@@ -488,7 +494,7 @@ Arity of the net is specified as constructor arguments.
 For example, to build `dc(220.0) >> sine()` dynamically using `Net`:
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 // Instantiate network with 0 inputs and 1 output.
 let mut net = Net::new(0, 1);
 // Add nodes, obtaining their IDs.
@@ -515,7 +521,7 @@ which converts any unit into a network. Moreover, we can control when
 to cross from the static realm into the dynamic by the placement of `Net::wrap`.
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 // Wrap saw wave in a network.
 let mut net = Net::wrap(Box::new(saw()));
 // Now we can add filters conditionally.
@@ -530,7 +536,7 @@ and a backend. The frontend handles changes to the network,
 while the real-time safe backend renders audio.
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 let mut net = Net::new(0, 1);
 let noise_id = net.chain(Box::new(pink()));
 // Create the backend.
@@ -564,7 +570,7 @@ It can start and stop rendering nodes with sample accuracy.
 The sequencer has no inputs and a user specified number of outputs.
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 // Create stereo sequencer.
 // The first argument should be set true if we want to replay events after `reset`.
 let mut sequencer = Sequencer::new(false, 2);
@@ -661,7 +667,7 @@ FunDSP includes a multichannel wave abstraction called `Wave`.
 For example, to render 10 seconds of pink noise:
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 let wave1 = Wave::render(44100.0, 10.0, &mut (pink()));
 ```
 
@@ -693,7 +699,7 @@ For example, to load `test.wav`:
 let wave3 = Wave::load("test.wav").expect("Could not load wave.");
 ```
 
-Individual channels of waves can be played back with the `wavech` and `wavech_at` opcodes.
+Individual channels of waves can be played back with the `playwave` and `playwave_at` opcodes.
 
 ## Signal Flow Analysis
 
@@ -722,7 +728,7 @@ has zero gain at the [Nyquist](https://en.wikipedia.org/wiki/Nyquist_frequency) 
 while a 3-point averaging filter does not:
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 assert!((pass() & tick()).response(0, 22050.0).unwrap().norm() < 1.0e-9);
 assert!((pass() & tick() & tick() >> tick()).response(0, 22050.0).unwrap().norm() > 0.1);
 ```
@@ -730,7 +736,7 @@ assert!((pass() & tick() & tick() >> tick()).response(0, 22050.0).unwrap().norm(
 However, with appropriate scaling a 3-point FIR can vanish, too:
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 assert!((0.5 * pass() & tick() & 0.5 * tick() >> tick()).response(0, 22050.0).unwrap().norm() < 1.0e-9);
 ```
 
@@ -816,7 +822,7 @@ For example, to implement a highly selective
 bandpass filter:
 
 ```rust
-use fundsp::hacker32::*;
+use fundsp::prelude32::*;
 
 // The window length, which must be a power of two and at least four,
 // determines the frequency resolution. Latency is equal to the window length.
@@ -853,7 +859,7 @@ We may use shared atomic variables to communicate data from and to external cont
 A shared variable is declared with an initial value:
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 let amp = shared(1.0);
 ```
 
@@ -888,7 +894,7 @@ A node can respond to one or more types of settings, which are
 applied using the `set` method.
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 let mut node = afollow(0.1, 1.0);
 node.set(Setting::attack_release(0.2, 2.0));
 ```
@@ -918,8 +924,8 @@ different sides can be picked with the `left` or `right` method.
 For example, constants are exposed as scalar settings:
 
 ```rust
-use fundsp::hacker::*;
-let (sender, node) = listen(dc(0.5) >> resample(pink()));
+use fundsp::prelude64::*;
+let (sender, node) = listen(dc(0.5) >> Resample(pink()));
 sender.try_send(Setting::value(0.6).left()).expect("Cannot send setting.");
 ```
 
@@ -929,7 +935,7 @@ is to use the forms that specify all parameters
 as constant, for example, `lowpass_hz`.
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 let (sender, node) = listen(lowpass_hz(1000.0, 1.0));
 ```
 
@@ -997,7 +1003,7 @@ Here we space the bands at 1 kHz increments starting from 1 kHz, set Q values to
 and set gains of all bands to 0 dB initially:
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 let mut equalizer = pipei::<U12, _, _>(|i| bell_hz(1000.0 + 1000.0 * i as f32, 1.0, db_amp(0.0)));
 ```
 
@@ -1059,7 +1065,7 @@ to examine frequency responses interactively:
 C:\rust>evcxr
 Welcome to evcxr. For help, type :help
 >> :dep fundsp
->> use fundsp::hacker::*;
+>> use fundsp::prelude64::*;
 >> print!("{}", bell_hz(1000.0, 1.0, db_amp(50.0)).display())
  60 dB ------------------------------------------------  60 dB
  
@@ -1094,7 +1100,7 @@ These free functions are available in the environment.
 
 ### Component Opcodes
 
-The type parameters in the table refer to the hacker preludes.
+The type parameters in the table refer to the `prelude32` and `prelude64` preludes.
 
 `I`, `M`, `N`, `O`, `U` are type-level integers. They are `U0`, `U1`, `U2`...
 
@@ -1244,6 +1250,8 @@ The type parameters in the table refer to the hacker preludes.
 | `pipe(x, y)`           |   `x`   |   `y`   | Pipe `x` to `y`. Identical with `x >> y`. |
 | `pipef::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from fractional generator `f`. |
 | `pipei::<U, _, _>(f)`  |   `f`   |   `f`   | Chain `U` nodes from indexed generator `f`. |
+| `playwave(&wave, channel, loop)` | - | 1 | Play back a channel of `Arc<Wave>`. Optional loop point is the index to jump to at the end of the wave. |
+| `playwave_at(&wave, channel, start, end, loop)` | - | 1 | Play back a channel of `Arc<Wave>` between indices `start` (inclusive) and `end` (exclusive), with optional `loop` index to jump to at the end. |
 | `pluck(f, gain, damping)` | 1 (excitation) | 1 | [Karplus-Strong](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis) plucked string oscillator with frequency `f` Hz, `gain` per second (`gain` <= 1) and high frequency `damping` in 0...1. |
 | `poly_pulse()`         | 2 (frequency, pulse width) | 1 | Somewhat bandlimited pulse wave oscillator. |
 | `poly_pulse_hz(f, w)`  |    -    |    1    | Somewhat bandlimited pulse wave oscillator with frequency `f` Hz and pulse width `w` in 0...1. |
@@ -1256,6 +1264,7 @@ The type parameters in the table refer to the hacker preludes.
 | `ramp()`               | 1 (frequency) | 1 | Non-bandlimited ramp (sawtooth) wave in 0...1. |
 | `ramp_hz(f)`           |    0    |    1    | Non-bandlimited ramp (sawtooth) wave in 0...1 with frequency `f` Hz. |
 | `resample(node)`       | 1 (speed) | `node` | Resample generator `node` using cubic interpolation at speed obtained from the input, where 1 is the original speed. |
+| `resample_fir(r1, r2, node)`       | 0 | `node` | Resample generator `node` using FIR based sinc interpolation from sample rate `r1` to sample rate `r2`. |
 | `resonator()`          | 3 (audio, frequency, Q) | 1 | Constant-gain bandpass resonator (2nd order). |
 | `resonator_hz(f, q)`   |    1    |    1    | Constant-gain bandpass resonator (2nd order) with center frequency `f` Hz and Q `q`. |
 | `resynth::<I, O, _>(w, f)` | `I` |   `O`   | Frequency domain resynthesis with window length `w` and processing function `f`. |
@@ -1295,8 +1304,6 @@ The type parameters in the table refer to the hacker preludes.
 | `update(x, dt, f)`     |   `x`   |   `x`   | Update node `x` with update interval `dt` seconds and update function `f(t, dt, x)`. |
 | `var(&shared)`         |    -    |    1    | Output value of the shared variable. |
 | `var_fn(&shared, f)`   |    -    |   `f`   | Output value of the shared variable mapped through function `f`. |
-| `wavech(&wave, channel, loop)` | - | 1 | Play back a channel of `Arc<Wave>`. Optional loop point is the index to jump to at the end of the wave. |
-| `wavech_at(&wave, channel, start, end, loop)` | - | 1 | Play back a channel of `Arc<Wave>` between indices `start` (inclusive) and `end` (exclusive), with optional `loop` index to jump to at the end. |
 | `white()`              |    -    |    1    | [White noise](https://en.wikipedia.org/wiki/White_noise) source. Synonymous with `noise`. |
 | `zero()`               |    -    |    1    | Zero signal. |
 
@@ -1331,7 +1338,7 @@ The nodes are allocated inline, and each node is assigned its own pseudorandom p
 For example, to create 20 noise bands in 1 kHz...2 kHz:
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 let partials = busi::<U20, _, _>(|i| noise() >> resonator_hz(xerp(1_000.0, 2_000.0, rnd1(i) as f32), 20.0));
 ```
 
@@ -1343,7 +1350,7 @@ If there is only one node, then it receives the value 0.5.
 For example, to distribute 20 noise bands evenly in 1 kHz...2 kHz:
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 let partials = busf::<U20, _, _>(|f| noise() >> resonator_hz(xerp(1_000.0, 2_000.0, f), 20.0));
 ```
 
@@ -1423,6 +1430,7 @@ The same modes are used in the `meter` opcode.
 | `log2(x)`              | binary logarithm |
 | `midi_hz(x)`           | convert [MIDI](https://en.wikipedia.org/wiki/MIDI) note number `x` to Hz (69.0 = *A4* = 440 Hz) |
 | `min(x, y)`            | minimum of `x` and `y` |
+| `mirror(x)`            | mirrors `x` to 0...1 as a triangle wave. |
 | `max(x, y)`            | maximum of `x` and `y` |
 | `m_weight(f)`          | [M-weighted](https://en.wikipedia.org/wiki/ITU-R_468_noise_weighting) amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `pow(x, y)`            | `x` raised to the power `y` |
@@ -1450,6 +1458,7 @@ The same modes are used in the `meter` opcode.
 | `tanh(x)`              | hyperbolic tangent |
 | `tri_hz(f, t)`         | triangle wave (non-bandlimited) that oscillates at `f` Hz at time `t` seconds |
 | `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
+| `wrap(x)`              | wraps `x` to 0...1. |
 | `xerp(x0, x1, t)`      | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) with `t` in 0...1 |
 | `xerp11(x0, x1, t)`    | exponential interpolation between `x0` and `x1` (`x0`, `x1` > 0) with `t` in -1...1 |
 
@@ -1483,7 +1492,7 @@ an inaudible tone suppression function for pure tones, falling smoothly from one
 frequency of 22.05 kHz.
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 fn pure_tone_amp(hz: f32) -> f32 { lerp(1.0, 0.0, smooth5(clamp01(delerp(20_000.0, 22_050.0, hz)))) }
 ```
 
@@ -1537,7 +1546,7 @@ Some examples of graph expressions.
 | `oversample(sine_hz(f) * f * m + f >> sine())` | - |   1    | Oversampled [FM (frequency modulation)](https://ccrma.stanford.edu/~jos/sasp/Frequency_Modulation_FM_Synthesis.html) oscillator at `f` Hz with modulation index `m` |
 | `sine() & mul(2.0) >> sine()`            |   1    |    1    | frequency doubled dual sine oscillator        |
 | `envelope(\|t\| exp(-t)) * noise()`      |   -    |    1    | exponentially decaying white noise            |
-| `lfo(\|t\| xerp11(0.25, 4.0, spline_noise(1, t))) >> resample(pink())` | 0 | 1 | Resampled pink noise. |
+| `lfo(\|t\| xerp11(0.25, 4.0, spline_noise(1, t))) >> Resample(pink())` | 0 | 1 | Resampled pink noise. |
 | `feedback(delay(1.0) * db_amp(-3.0))`    |   1    |    1    | 1 second feedback delay with 3 dB attenuation |
 | `feedback((delay(1.0) \| delay(1.0)) >> reverse() * db_amp(-6.0))` | 2 | 2 | 1 second ping-pong delay with 6 dB attenuation. |
 | `var(&wet) * delay(1.0) & (1.0 - var(&wet)) * pass()` | 1 | 1 | 1 second delay with wet/dry mix controlled by shared variable `wet`. The shared variable can be declared as `let wet = shared(0.5);` |
@@ -1597,7 +1606,7 @@ The preludes employ the wrapper type `An<X: AudioNode>`
 containing operator overloads and other trait implementations.
 The wrapper also implements the `AudioUnit` trait.
 
-The type encoding is straightforward. As an example, in the hacker prelude
+The type encoding is straightforward. As an example, in the `prelude64` prelude
 
 ```rust
 noise() & constant(440.0) >> sine()
@@ -1625,7 +1634,7 @@ Declaring the full arity in the signature does enable use of the node
 in further combinations. For example:
 
 ```rust
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 fn split_quad() -> An<impl AudioNode<Inputs = U1, Outputs = U4>> {
     pass() ^ pass() ^ pass() ^ pass()
 }

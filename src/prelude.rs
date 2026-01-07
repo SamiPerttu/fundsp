@@ -1001,6 +1001,18 @@ where
     An(Oversampler::new(DEFAULT_SR, node.0))
 }
 
+/// Resample enclosed generator `node` using FIR based sinc interpolation.
+/// It supports these input and output sample rates:
+/// 16 kHz, 22.05 kHz, 32 kHz, 44.1 kHz, 48 kHz, 88.2 kHz, 96 kHz, 176.4 kHz, 192 kHz, 384 kHz.
+/// - Output(s): Resampled outputs of contained generator.
+pub fn resample_fir<X>(source_rate: f64, target_rate: f64, node: An<X>) -> An<ResampleFir<X>>
+where
+    X: AudioNode<Inputs = U0>,
+    X::Outputs: Size<f32> + Size<Frame<f32, X::Outputs>>,
+{
+    An(ResampleFir::new(source_rate, target_rate, node.0))
+}
+
 /// Resample enclosed generator `node` using cubic interpolation
 /// at speed obtained from input 0, where 1 is the original speed.
 /// - Input 0: Sampling speed.
@@ -1011,13 +1023,13 @@ where
 /// use fundsp::prelude::*;
 /// lfo(|t: f64| xerp11(0.5, 2.0, spline_noise(1, t))) >> resample(pink::<f64>());
 /// ```
-pub fn resample<X>(node: An<X>) -> An<Resampler<X>>
+pub fn resample<X>(node: An<X>) -> An<Resample<X>>
 where
     X: AudioNode<Inputs = U0>,
     X::Outputs: Size<f32>,
     X::Outputs: Size<Frame<f32, U128>>,
 {
-    An(Resampler::new(DEFAULT_SR, node.0))
+    An(Resample::new(DEFAULT_SR, node.0))
 }
 
 /// Mix output of enclosed circuit `node` back to its input.
@@ -2608,15 +2620,16 @@ pub fn morph_hz<F: Real>(f: F, q: F, morph: F) -> An<Pipe<Stack<Pass, Constant<U
 /// Play back a channel of a `Wave`.
 /// Optional loop point is the index to jump to at the end of the wave.
 /// - Output 0: wave
-pub fn wavech(wave: &Arc<Wave>, channel: usize, loop_point: Option<usize>) -> An<WavePlayer> {
-    An(WavePlayer::new(wave, channel, 0, wave.length(), loop_point))
+pub fn playwave(wave: &Arc<Wave>, channel: usize, loop_point: Option<usize>) -> An<WavePlayer> {
+    let length = wave.length();
+    An(WavePlayer::new(wave, channel, 0, length, loop_point))
 }
 
 /// Play back a channel of a `Wave` starting from sample `start_point`, inclusive,
 /// and ending at sample `end_point`, exclusive.
 /// Optional loop point is the index to jump to at the end.
 /// - Output 0: wave
-pub fn wavech_at(
+pub fn playwave_at(
     wave: &Arc<Wave>,
     channel: usize,
     start_point: usize,

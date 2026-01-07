@@ -1,6 +1,6 @@
 //! Plot ease_noise.png and fractal_noise.png for documentation.
 
-use fundsp::hacker32::*;
+use fundsp::prelude32::*;
 use plotters::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

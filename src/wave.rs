@@ -74,7 +74,7 @@ impl Wave {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker32::*;
+    /// use fundsp::prelude32::*;
     /// let wave = Wave::zero(1, 44100.0, 1.0);
     /// assert!(wave.duration() == 1.0 && wave.amplitude() == 0.0);
     /// ```
@@ -98,7 +98,7 @@ impl Wave {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker32::*;
+    /// use fundsp::prelude32::*;
     /// let wave = Wave::from_samples(44100.0, &[0.0; 22050]);
     /// assert!(wave.channels() == 1 && wave.duration() == 0.5 && wave.amplitude() == 0.0);
     /// ```
@@ -220,7 +220,7 @@ impl Wave {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let mut wave = Wave::new(2, 44100.0);
     /// wave.push(0.0);
     /// assert!(wave.len() == 1 && wave.amplitude() == 0.0);
@@ -261,7 +261,7 @@ impl Wave {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let wave = Wave::new(1, 44100.0);
     /// assert!(wave.is_empty());
     /// ```
@@ -274,7 +274,7 @@ impl Wave {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let wave = Wave::with_capacity(1, 44100.0, 44100);
     /// assert!(wave.duration() == 0.0);
     /// ```
@@ -288,7 +288,7 @@ impl Wave {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let mut wave = Wave::new(1, 44100.0);
     /// wave.resize(44100);
     /// assert!(wave.duration() == 1.0 && wave.amplitude() == 0.0);
@@ -323,7 +323,7 @@ impl Wave {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let mut wave = Wave::render(44100.0, 1.0, &mut (sine_hz(60.0)));
     /// let amplitude = wave.amplitude();
     /// assert!(amplitude >= 1.0 - 1.0e-5 && amplitude <= 1.0);
@@ -351,7 +351,7 @@ impl Wave {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let mut wave = Wave::render(44100.0, 1.0, &mut (sine_hz(60.0)));
     /// wave.normalize();
     /// assert!(wave.amplitude() == 1.0);
@@ -375,7 +375,7 @@ impl Wave {
     /// ### Example
     ///
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let mut wave = Wave::render(44100.0, 10.0, &mut(white()));
     /// wave.fade_in(1.0);
     /// ```
@@ -396,7 +396,7 @@ impl Wave {
     /// ### Example
     ///
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let mut wave = Wave::render(44100.0, 10.0, &mut(brown() | brown()));
     /// wave.fade_out(5.0);
     /// ```
@@ -419,7 +419,7 @@ impl Wave {
     /// ### Example
     ///
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let mut wave = Wave::render(44100.0, 10.0, &mut(pink() | pink()));
     /// wave.fade(1.0);
     /// ```
@@ -434,7 +434,7 @@ impl Wave {
     ///
     /// ### Example: Render 10 Seconds Of Stereo Brown Noise
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let wave = Wave::render(44100.0, 10.0, &mut (brown() | brown()));
     /// assert!(wave.sample_rate() == 44100.0 && wave.channels() == 2 && wave.duration() == 10.0);
     /// ```
@@ -471,7 +471,7 @@ impl Wave {
     ///
     /// ### Example: Render 10 Seconds Of Square-Like Wave With Look-Ahead Limiter
     /// ```
-    /// use fundsp::hacker32::*;
+    /// use fundsp::prelude32::*;
     /// let wave = Wave::render_latency(44100.0, 10.0, &mut (lfo(|t| (440.0, exp(-t))) >> dsf_square() >> limiter(0.5, 0.5)));
     /// assert!(wave.amplitude() <= 1.0 && wave.duration() == 10.0 && wave.sample_rate() == 44100.0);
     /// ```
@@ -508,7 +508,7 @@ impl Wave {
     ///
     /// ### Example: Reverberate A Square Wave
     /// ```
-    /// use fundsp::hacker32::*;
+    /// use fundsp::prelude32::*;
     /// let wave1 = Wave::render(44100.0, 1.0, &mut (lfo(|t| xerp11(215.0, 225.0, sin_hz(8.0, t))) >> square() >> pan(0.0)));
     /// assert!(wave1.channels() == 2 && wave1.duration() == 1.0);
     /// let mut processor = 0.2 * reverb_stereo(10.0, 1.0, 0.5) & multipass();
@@ -572,7 +572,7 @@ impl Wave {
     ///
     /// TODO: example
     pub fn multifilter<'a>(
-        inputs: impl Iterator<Item = &'a Self> + Clone,
+        inputs: impl core::iter::Iterator<Item = &'a Self> + Clone,
         duration: f64,
         node: &mut dyn AudioUnit,
     ) -> Self {
@@ -672,7 +672,7 @@ impl Wave {
     /// All zeros input is used for the rest of the wave if
     /// the `duration` is greater than the duration of this wave.
     pub fn multifilter_latency<'a>(
-        inputs: impl Iterator<Item = &'a Self> + Clone,
+        inputs: impl core::iter::Iterator<Item = &'a Self> + Clone,
         duration: f64,
         node: &mut dyn AudioUnit,
     ) -> Self {
@@ -701,6 +701,36 @@ impl Wave {
         } else {
             Self::multifilter(inputs, duration, node)
         }
+    }
+
+    /// Resample this wave using FIR based sinc interpolation.
+    /// These source and target rates are supported:
+    /// 16 kHz, 22.05 kHz, 32 kHz, 44.1 kHz, 48 kHz, 88.2 kHz, 96 kHz, 176.4 kHz, 192 kHz, 384 kHz.
+    pub fn resample_fir(&mut self, target_rate: f64) -> Wave {
+        let mut output = Wave::new(self.channels(), target_rate);
+        let length = self.length();
+        for channel in 0..self.channels() {
+            let mut input_wave = Wave::new(0, target_rate);
+            input_wave.insert_channel(0, &self.remove_channel(channel));
+            {
+                let input_arc = Arc::new(input_wave);
+                {
+                    let mut resampler = super::prelude::resample_fir(
+                        self.sample_rate(),
+                        target_rate,
+                        super::prelude::playwave(&input_arc, 0, None),
+                    );
+                    while resampler.samples() < length + 16 {
+                        let value = resampler.get_mono();
+                        output.resize(max(output.length(), resampler.produced()));
+                        output.set(channel, resampler.produced() - 1, value);
+                    }
+                }
+                let mut input_wave = Arc::into_inner(input_arc).unwrap();
+                self.insert_channel(channel, &input_wave.remove_channel(0));
+            }
+        }
+        output
     }
 }
 

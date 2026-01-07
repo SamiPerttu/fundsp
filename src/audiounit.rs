@@ -100,7 +100,7 @@ pub trait AudioUnit: Send + Sync + DynClone {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(dc(2.0).get_mono(), 2.0);
     /// assert_eq!(dc((3.0, 4.0)).get_mono(), 3.5);
     /// ```
@@ -128,7 +128,7 @@ pub trait AudioUnit: Send + Sync + DynClone {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(dc((5.0, 6.0)).get_stereo(), (5.0, 6.0));
     /// assert_eq!(dc(7.0).get_stereo(), (7.0, 7.0));
     /// ```
@@ -155,7 +155,7 @@ pub trait AudioUnit: Send + Sync + DynClone {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(add(4.0).filter_mono(5.0), 9.0);
     /// ```
     #[inline]
@@ -171,7 +171,7 @@ pub trait AudioUnit: Send + Sync + DynClone {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(add((2.0, 3.0)).filter_stereo(4.0, 5.0), (6.0, 8.0));
     /// ```
     #[inline]
@@ -188,7 +188,7 @@ pub trait AudioUnit: Send + Sync + DynClone {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(pass().response(0, 440.0), Some(Complex64::new(1.0, 0.0)));
     /// ```
     fn response(&mut self, output: usize, frequency: f64) -> Option<Complex64> {
@@ -210,7 +210,7 @@ pub trait AudioUnit: Send + Sync + DynClone {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// let db = pass().response_db(0, 440.0).unwrap();
     /// assert!(db < 1.0e-7 && db > -1.0e-7);
     /// ```
@@ -225,7 +225,7 @@ pub trait AudioUnit: Send + Sync + DynClone {
     ///
     /// ### Example
     /// ```
-    /// use fundsp::hacker::*;
+    /// use fundsp::prelude64::*;
     /// assert_eq!(pass().latency(), Some(0.0));
     /// assert_eq!(tick().latency(), Some(0.0));
     /// assert_eq!(sink().latency(), None);

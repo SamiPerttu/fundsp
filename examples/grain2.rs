@@ -4,7 +4,7 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
 use fundsp::generate::*;
-use fundsp::hacker::*;
+use fundsp::prelude64::*;
 use funutd::dna::*;
 
 fn main() {
@@ -74,7 +74,7 @@ where
                 duration,
                 duration * 0.5,
                 Box::new(
-                    wavech_at(&wave_arc, 0, start_i, wave_arc.len(), None) * xerp11(0.01, 0.1, y)
+                    playwave_at(&wave_arc, 0, start_i, wave_arc.len(), None) * xerp11(0.01, 0.1, y)
                         >> peak_hz(xerp11(50.0, 3000.0, z), 3.0)
                         >> pan(v * 0.6),
                 ),
