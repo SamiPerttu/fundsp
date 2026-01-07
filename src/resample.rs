@@ -168,7 +168,6 @@ where
     }
 
     fn set_sample_rate(&mut self, sample_rate: f64) {
-        self.x.set_sample_rate(sample_rate);
         self.x.reset();
         self.target_rate = sample_rate;
         self.resampler = ResamplerFir::new(
