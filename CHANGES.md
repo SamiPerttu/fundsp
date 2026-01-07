@@ -1,5 +1,9 @@
 ## Changes
 
+### Version 0.23 (Next Version)
+
+- `Sequencer` can now have inputs.
+
 ### Version 0.22
 
 - New opcode `resample_fir` for FIR based sinc resampling using the `resampler` crate.

@@ -120,6 +120,15 @@ impl<'a> BufferMut<'a> {
         debug_assert!(channel < self.channels());
         (self.0)[(channel << SIMD_C) + i] += value;
     }
+
+    /// Create a sub-span of this buffer.
+    pub fn span(&self, start: usize, length: usize, target: &mut BufferVec) {
+        for channel in 0..self.channels() {
+            for i in start..length {
+                target.set_f32(channel, i - start, self.at_f32(channel, start));
+            }
+        }
+    }
 }
 
 /// Immutably borrowed audio buffer with an arbitrary number of channels
@@ -182,6 +191,15 @@ impl<'a> BufferRef<'a> {
     pub fn at_f32(&self, channel: usize, i: usize) -> f32 {
         debug_assert!(channel < self.channels());
         (self.0)[(channel << SIMD_C) + (i >> SIMD_S)].as_array()[i & SIMD_M]
+    }
+
+    /// Create a sub-span of this buffer.
+    pub fn span(&self, start: usize, length: usize, target: &mut BufferVec) {
+        for channel in 0..self.channels() {
+            for i in start..length {
+                target.set_f32(channel, i - start, self.at_f32(channel, start));
+            }
+        }
     }
 }
 

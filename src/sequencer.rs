@@ -210,6 +210,12 @@ fn fade_out(
     }
 }
 
+#[derive(Clone)]
+pub enum ReplayMode {
+    All,
+    None,
+}
+
 /// Sequencer mixes together scheduled audio events.
 pub struct Sequencer {
     /// Current events, unsorted.
@@ -239,7 +245,9 @@ pub struct Sequencer {
     /// Optional frontend.
     front: Option<(Sender<Message>, Receiver<Option<Event>>)>,
     /// Whether we replay existing events after a call to `reset`.
-    replay_events: bool,
+    mode: ReplayMode,
+    /// Intermediate input buffer.
+    input_buffer: BufferVec,
 }
 
 impl Clone for Sequencer {
@@ -261,7 +269,8 @@ impl Clone for Sequencer {
             buffer: self.buffer.clone(),
             tick_buffer: self.tick_buffer.clone(),
             front: None,
-            replay_events: self.replay_events,
+            mode: self.mode.clone(),
+            input_buffer: self.input_buffer.clone(),
         }
     }
 }
@@ -274,7 +283,7 @@ impl Sequencer {
     /// If `replay_events` is true, then past events will be retained
     /// and played back after a reset.
     /// If false, then all events will be cleared on reset.
-    pub fn new(replay_events: bool, outputs: usize) -> Self {
+    pub fn new(inputs: usize, outputs: usize, mode: ReplayMode) -> Self {
         // when adding new dynamically sized fields,
         // don't forget to update [AudioUnit::allocate] implementation
         Self {
@@ -291,7 +300,8 @@ impl Sequencer {
             buffer: BufferVec::new(outputs),
             tick_buffer: vec![0.0; outputs],
             front: None,
-            replay_events,
+            mode,
+            input_buffer: BufferVec::new(inputs),
         }
     }
 
@@ -317,7 +327,7 @@ impl Sequencer {
         fade_out_time: f64,
         mut unit: Box<dyn AudioUnit>,
     ) -> EventId {
-        assert_eq!(unit.inputs(), 0);
+        assert_eq!(unit.inputs(), self.inputs());
         assert_eq!(unit.outputs(), self.outputs);
         let duration = end_time - start_time;
         assert!(fade_in_time <= duration && fade_out_time <= duration);
@@ -366,7 +376,7 @@ impl Sequencer {
         fade_out_time: f64,
         mut unit: Box<dyn AudioUnit>,
     ) -> EventId {
-        assert!(unit.inputs() == 0 && unit.outputs() == self.outputs);
+        assert!(unit.inputs() == self.inputs() && unit.outputs() == self.outputs);
         let duration = end_time - start_time;
         assert!(fade_in_time <= duration && fade_out_time <= duration);
         // Make sure the sample rate of the unit matches ours.
@@ -554,8 +564,8 @@ impl Sequencer {
     }
 
     /// Returns whether we retain past events and replay them after a reset.
-    pub fn replay_events(&self) -> bool {
-        self.replay_events
+    pub fn replay_mode(&self) -> &ReplayMode {
+        &self.mode
     }
 
     /// Get past events. This is an internal method.
@@ -586,26 +596,29 @@ impl AudioUnit for Sequencer {
             let _ = sender.try_send(Message::Reset);
             return;
         }
-        if self.replay_events {
-            while let Some(ready) = self.ready.pop() {
-                self.active.push(ready);
-            }
-            while let Some(past) = self.past.pop() {
-                self.active.push(past);
-            }
-            for i in 0..self.active.len() {
-                self.active[i].unit.reset();
-            }
-            while let Some(active) = self.active.pop() {
-                self.ready.push(active);
-            }
-            self.active_map.clear();
-        } else {
-            while let Some(_ready) = self.ready.pop() {}
-            while let Some(_past) = self.past.pop() {}
-            while let Some(_active) = self.active.pop() {}
-            self.edit_map.clear();
-            self.active_map.clear();
+        match self.mode {
+            ReplayMode::All => {
+                while let Some(ready) = self.ready.pop() {
+                    self.active.push(ready);
+                }
+                while let Some(past) = self.past.pop() {
+                    self.active.push(past);
+                }
+                for i in 0..self.active.len() {
+                    self.active[i].unit.reset();
+                }
+                while let Some(active) = self.active.pop() {
+                    self.ready.push(active);
+                }
+                self.active_map.clear();
+            },
+            ReplayMode::None => {
+                while let Some(_ready) = self.ready.pop() {}
+                while let Some(_past) = self.past.pop() {}
+                while let Some(_active) = self.active.pop() {}
+                self.edit_map.clear();
+                self.active_map.clear();
+            },
         }
         self.time = 0.0;
         self.active_threshold = -f64::INFINITY;
@@ -636,8 +649,11 @@ impl AudioUnit for Sequencer {
 
     #[inline]
     fn tick(&mut self, input: &[f32], output: &mut [f32]) {
-        if !self.replay_events {
-            while let Some(_past) = self.past.pop() {}
+        match self.mode {
+            ReplayMode::None => {
+                while let Some(_past) = self.past.pop() {}
+            },
+            _ => (),
         }
         for channel in 0..self.outputs {
             output[channel] = 0.0;
@@ -707,8 +723,11 @@ impl AudioUnit for Sequencer {
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
-        if !self.replay_events {
-            while let Some(_past) = self.past.pop() {}
+        match self.mode {
+            ReplayMode::None => {
+                while let Some(_past) = self.past.pop() {}
+            },
+            _ => (),
         }
         for channel in 0..self.outputs {
             output.channel_mut(channel)[..simd_items(size)].fill(F32x::ZERO);
@@ -737,9 +756,15 @@ impl AudioUnit for Sequencer {
                     round((self.active[i].end_time - self.time) * self.sample_rate) as usize
                 };
                 if end_index > start_index {
+                    let node_input = if start_index == 0 {
+                        input
+                    } else {
+                        input.span(start_index, end_index - start_index, &mut self.input_buffer);
+                        &self.input_buffer.buffer_ref()
+                    };
                     self.active[i]
                         .unit
-                        .process(end_index - start_index, input, &mut buffer_output);
+                        .process(end_index - start_index, node_input, &mut buffer_output);
                     fade_in(
                         self.sample_duration,
                         self.time,
@@ -825,7 +850,7 @@ mod tests {
 
     #[test]
     fn reset_replays_events() {
-        let mut seq = Sequencer::new(true, 1);
+        let mut seq = Sequencer::new(0, 1, ReplayMode::All);
         seq.push(0.0, 1.0, Fade::Smooth, 0.0, 0.0, Box::new(sine_hz(440.0)));
 
         let mut first = [0.0; 1];
@@ -841,7 +866,7 @@ mod tests {
 
     #[test]
     fn reset_replays_events_with_backend() {
-        let mut front = Sequencer::new(true, 1);
+        let mut front = Sequencer::new(0, 1, ReplayMode::All);
         front.push(0.0, 1.0, Fade::Smooth, 0.0, 0.0, Box::new(sine_hz(440.0)));
         let mut back = front.backend();
 

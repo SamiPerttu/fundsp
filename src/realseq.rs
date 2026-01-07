@@ -101,16 +101,19 @@ impl AudioUnit for SequencerBackend {
 
     fn reset(&mut self) {
         self.handle_messages();
-        if !self.sequencer.replay_events() {
-            while let Some(event) = self.sequencer.get_past_event() {
-                if self.sender.try_send(Some(event)).is_ok() {}
+        match self.sequencer.replay_mode() {
+            ReplayMode::None => {
+                while let Some(event) = self.sequencer.get_past_event() {
+                    if self.sender.try_send(Some(event)).is_ok() {}
+                }
+                while let Some(event) = self.sequencer.get_ready_event() {
+                    if self.sender.try_send(Some(event)).is_ok() {}
+                }
+                while let Some(event) = self.sequencer.get_active_event() {
+                    if self.sender.try_send(Some(event)).is_ok() {}
+                }
             }
-            while let Some(event) = self.sequencer.get_ready_event() {
-                if self.sender.try_send(Some(event)).is_ok() {}
-            }
-            while let Some(event) = self.sequencer.get_active_event() {
-                if self.sender.try_send(Some(event)).is_ok() {}
-            }
+            _ => (),
         }
         self.sequencer.reset();
     }
@@ -125,8 +128,11 @@ impl AudioUnit for SequencerBackend {
         self.handle_messages();
         self.sequencer.tick(input, output);
         // Tick and process are the only places where events may be pushed to the past vector.
-        if !self.sequencer.replay_events() {
-            self.send_back_past();
+        match self.sequencer.replay_mode() {
+            ReplayMode::None => {
+                self.send_back_past();
+            },
+            _ => (),
         }
     }
 
@@ -134,8 +140,11 @@ impl AudioUnit for SequencerBackend {
         self.handle_messages();
         self.sequencer.process(size, input, output);
         // Tick and process are the only places where events may be pushed to the past vector.
-        if !self.sequencer.replay_events() {
-            self.send_back_past();
+        match self.sequencer.replay_mode() {
+            ReplayMode::None => {
+                self.send_back_past();
+            },
+            _ => (),
         }
     }
 

@@ -88,7 +88,7 @@ impl<X: Fn(f64, f32, f32, f32, f32, f32) -> (f32, f32, Box<dyn AudioUnit>) + Syn
             inner_radius,
             outer_radius,
             generator,
-            sequencer: Sequencer::new(false, outputs),
+            sequencer: Sequencer::new(0, outputs, ReplayMode::None),
             sample_rate: DEFAULT_SR,
             time: 0.0,
             rnd_seed: texture_seed,

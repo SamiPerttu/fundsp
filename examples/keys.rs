@@ -147,7 +147,7 @@ where
     let sample_rate = config.sample_rate as f64;
     let channels = config.channels as usize;
 
-    let mut sequencer = Sequencer::new(false, 1);
+    let mut sequencer = Sequencer::new(0, 1, ReplayMode::None);
     let sequencer_backend = sequencer.backend();
 
     let (snoop0, snoop_backend0) = snoop(32768);

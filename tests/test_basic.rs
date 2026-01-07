@@ -247,7 +247,7 @@ fn test_basic() {
         )));
     check_wave(feedback1 | feedback2);
 
-    let mut sequencer = Sequencer::new(true, 2);
+    let mut sequencer = Sequencer::new(0, 2, ReplayMode::All);
     sequencer.push(
         0.1,
         0.2,

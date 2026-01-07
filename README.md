@@ -564,16 +564,16 @@ All nodes get processed anyway.
 
 ### Sequencer
 
-The `Sequencer` component mixes together generator nodes dynamically.
+The `Sequencer` component mixes together nodes dynamically.
 It can start and stop rendering nodes with sample accuracy.
 
-The sequencer has no inputs and a user specified number of outputs.
+The sequencer has a user specified number of inputs and outputs.
 
 ```rust
 use fundsp::prelude64::*;
 // Create stereo sequencer.
-// The first argument should be set true if we want to replay events after `reset`.
-let mut sequencer = Sequencer::new(false, 2);
+// The third argument should be set to `ReplayMode::All` if we want to replay events after `reset`.
+let mut sequencer = Sequencer::new(0, 2, ReplayMode::None);
 ```
 
 Adding new events, their start and stop times as well as fade-in and fade-out envelopes

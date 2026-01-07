@@ -63,7 +63,7 @@ fn main() {
     };
     */
 
-    let mut sequencer = Sequencer::new(true, 2);
+    let mut sequencer = Sequencer::new(0, 2, ReplayMode::None);
     sequencer.set_sample_rate(sample_rate);
 
     //sequencer.push(0.0, 60.0, Fade::Smooth, 0.0, 0.0, Box::new(stab() * 0.4));
