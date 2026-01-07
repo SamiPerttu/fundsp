@@ -3,6 +3,7 @@
 ### Version 0.23 (Next Version)
 
 - `Sequencer` can now have inputs.
+- New opcode `convolve` for FFT based convolution using the `fft_convolver` crate.
 
 ### Version 0.22
 

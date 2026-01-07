@@ -43,6 +43,9 @@ pub use super::wave::*;
 pub use super::wavetable::*;
 pub use super::*;
 
+#[cfg(all(feature = "std", feature = "fft"))]
+pub use super::convolve::*;
+
 // Import some typenum integers for reporting arities.
 pub type U0 = numeric_array::typenum::U0;
 pub type U1 = numeric_array::typenum::U1;
@@ -3141,4 +3144,12 @@ pub fn poly_pulse<F: Real>() -> An<PolyPulse<F>> {
 /// - Output 0: pulse wave
 pub fn poly_pulse_hz<F: Real>(f: f32, width: f32) -> An<Pipe<Constant<U2>, PolyPulse<F>>> {
     dc((f, width)) >> poly_pulse()
+}
+
+/// Convolve the input with channel 0 of the given response.
+/// - Input 0: input signal
+/// - Output 0: convolved signal
+#[cfg(all(feature = "std", feature = "fft"))]
+pub fn convolve(response: Arc<Wave>) -> An<Convolver> {
+    An(Convolver::new(response))
 }

@@ -889,3 +889,6 @@ pub mod write;
 
 #[cfg(all(feature = "std", feature = "files"))]
 pub mod read;
+
+#[cfg(all(feature = "std", feature = "fft"))]
+pub mod convolve;

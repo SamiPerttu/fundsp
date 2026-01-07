@@ -67,6 +67,10 @@ The `files` feature is enabled by default. It adds support for
 loading of audio files into `Wave` objects
 via the [Symphonia](https://crates.io/crates/symphonia) crate.
 
+The `fft` feature is also enabled by default.
+It adds support for efficient FFT convolutions via the
+[fft_convolver](https://github.com/neodsp/fft-convolver) crate.
+
 ### no_std Support
 
 FunDSP supports `no_std` environments. To enable `no_std`, disable
@@ -74,6 +78,7 @@ the feature `std`, which is enabled by default. The `alloc` crate
 is still needed for components that allocate memory.
 
 Audio file reading and writing is not available in `no_std`.
+The convolution engine is also missing in action, as it depends on `rustfft`.
 
 ```rust
 [dependencies]
@@ -1146,6 +1151,7 @@ The type parameters in the table refer to the `prelude32` and `prelude64` prelud
 | `clip()`               |    1    |    1    | Clip signal to -1...1. |
 | `clip_to(min, max)`    |    1    |    1    | Clip signal to min...max. |
 | `constant(x)`          |    -    |   `x`   | Constant signal `x`. Synonymous with `dc`. |
+| `convolve(wave)`       |    1    |    1    | Convolve input with the given response. |
 | `dbell(shape)`         | 4 (audio, frequency, Q, gain) | 1 | Dirty biquad bell equalizer (2nd order) with feedback `shape`, for example, `Tanh(1.0)`. |
 | `dbell_hz(shape, f, q, gain)` | 1 |   1    | Dirty biquad bell equalizer (2nd order) with feedback `shape`, center `f` Hz, Q value `q` and amplitude gain `gain`. |
 | `dc(x)`                |    -    |   `x`   | Constant signal `x`. Synonymous with `constant`. |
