@@ -1,6 +1,7 @@
 ## Changes
 
 ### Version 0.22 (Next Version)
+
 - New opcode `resample_fir` for FIR based sinc resampling using the `resampler` crate.
 - New `Wave` resampling method `resample_fir`.
 - The 64-bit hacker prelude is now `prelude64`.
