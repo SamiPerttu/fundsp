@@ -210,9 +210,12 @@ fn fade_out(
     }
 }
 
+/// Controls whether a sequencer retains and replays events after a reset.
 #[derive(Clone)]
 pub enum ReplayMode {
+    /// Retain past events on reset.
     All,
+    /// Clear all events on reset.
     None,
 }
 
@@ -281,11 +284,9 @@ impl Clone for Sequencer {
 const DEFAULT_CAPACITY: usize = 16384;
 
 impl Sequencer {
-    /// Create a new sequencer. The sequencer has zero inputs.
-    /// The number of outputs is decided by the user.
-    /// If `replay_events` is true, then past events will be retained
-    /// and played back after a reset.
-    /// If false, then all events will be cleared on reset.
+    /// Create a new sequencer with a user-configurable number of inputs and
+    /// outputs. `mode` controls whether or not events are retained for replay
+    /// after reset. See [`ReplayMode`] for more information.
     pub fn new(inputs: usize, outputs: usize, mode: ReplayMode) -> Self {
         // when adding new dynamically sized fields,
         // don't forget to update [AudioUnit::allocate] implementation
