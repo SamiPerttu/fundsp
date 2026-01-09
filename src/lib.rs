@@ -881,8 +881,12 @@ pub use numeric_array::{
 };
 
 pub use funutd;
-pub use thingbuf;
+pub use lfqueue;
 pub use wide;
+
+extern crate alloc;
+pub use alloc::sync::Arc;
+pub type Queue<T, const N: usize> = lfqueue::ConstBoundedQueue<T, N>;
 
 #[cfg(feature = "std")]
 pub mod write;

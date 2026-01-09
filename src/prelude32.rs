@@ -2,7 +2,6 @@
 
 extern crate alloc;
 use alloc::boxed::Box;
-use alloc::sync::Arc;
 
 pub use super::audionode::*;
 pub use super::audiounit::*;

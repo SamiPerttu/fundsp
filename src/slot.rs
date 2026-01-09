@@ -6,7 +6,6 @@ use super::math::*;
 use super::sequencer::*;
 use super::signal::*;
 use super::*;
-use thingbuf::mpsc::{Receiver, Sender, channel};
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec;
@@ -27,23 +26,23 @@ enum SlotMessage {
 pub struct Slot {
     inputs: usize,
     outputs: usize,
-    receiver: Receiver<SlotMessage>,
-    sender: Sender<SlotMessage>,
+    receiver: Arc<Queue<SlotMessage, 256>>,
+    sender: Arc<Queue<SlotMessage, 256>>,
 }
 
 impl Slot {
     /// Create a new slot. The number of inputs and outputs will be taken from the initial unit.
     /// Returns (frontend, backend) pair.
     pub fn new(mut initial_unit: Box<dyn AudioUnit>) -> (Slot, SlotBackend) {
-        let (sender_a, receiver_a) = channel(1024);
-        let (sender_b, receiver_b) = channel(1024);
+        let queue_a = Arc::new(Queue::new_const());
+        let queue_b = Arc::new(Queue::new_const());
         let inputs = initial_unit.inputs();
         let outputs = initial_unit.outputs();
         let slot = Slot {
             inputs,
             outputs,
-            receiver: receiver_a,
-            sender: sender_b,
+            receiver: queue_a.clone(),
+            sender: queue_b.clone(),
         };
         initial_unit.set_sample_rate(DEFAULT_SR);
         #[allow(clippy::unnecessary_cast)]
@@ -59,8 +58,8 @@ impl Slot {
             latest: None,
             latest_fade: Fade::Smooth,
             latest_fade_time: 0.0,
-            receiver: receiver_b,
-            sender: sender_a,
+            receiver: queue_b,
+            sender: queue_a,
             buffer: BufferVec::new(outputs),
             tick: vec![0.0; outputs],
         };
@@ -73,9 +72,9 @@ impl Slot {
         assert_eq!(self.inputs, unit.inputs());
         assert_eq!(self.outputs, unit.outputs());
         // Deallocate units that were sent back.
-        while self.receiver.try_recv().is_ok() {}
+        while self.receiver.dequeue().is_some() {}
         let message = SlotMessage::Update(fade, fade_time, unit);
-        if self.sender.try_send(message).is_ok() {}
+        if self.sender.enqueue(message).is_ok() {}
     }
 
     /// Number of inputs.
@@ -101,8 +100,8 @@ pub struct SlotBackend {
     latest: Option<Box<dyn AudioUnit>>,
     latest_fade: Fade,
     latest_fade_time: f64,
-    receiver: Receiver<SlotMessage>,
-    sender: Sender<SlotMessage>,
+    receiver: Arc<Queue<SlotMessage, 256>>,
+    sender: Arc<Queue<SlotMessage, 256>>,
     buffer: BufferVec,
     tick: Vec<f32>,
 }
@@ -110,7 +109,7 @@ pub struct SlotBackend {
 impl Clone for SlotBackend {
     fn clone(&self) -> Self {
         // Backends cannot be cloned effectively. Allocate a dummy channel.
-        let (sender, receiver) = channel(1);
+        let queue = Arc::new(Queue::new_const());
         Self {
             inputs: self.inputs,
             outputs: self.outputs,
@@ -123,8 +122,8 @@ impl Clone for SlotBackend {
             latest: self.latest.clone(),
             latest_fade: self.latest_fade.clone(),
             latest_fade_time: self.latest_fade_time,
-            receiver,
-            sender,
+            receiver: queue.clone(),
+            sender: queue.clone(),
             buffer: BufferVec::new(self.outputs),
             tick: self.tick.clone(),
         }
@@ -134,7 +133,7 @@ impl Clone for SlotBackend {
 impl SlotBackend {
     /// Handle updates.
     fn handle_messages(&mut self) {
-        while let Ok(message) = self.receiver.try_recv() {
+        while let Some(message) = self.receiver.dequeue() {
             if let SlotMessage::Update(fade, fade_time, unit) = message {
                 if self.next.is_none() {
                     self.next = Some(unit);
@@ -143,7 +142,7 @@ impl SlotBackend {
                     self.fade = fade;
                 } else {
                     if let Some(latest) = self.latest.take() {
-                        if self.sender.try_send(SlotMessage::Return(latest)).is_ok() {}
+                        if self.sender.enqueue(SlotMessage::Return(latest)).is_ok() {}
                     }
                     self.latest = Some(unit);
                     self.latest_fade = fade;
@@ -157,7 +156,7 @@ impl SlotBackend {
     fn next_phase(&mut self) {
         let mut next = self.next.take().unwrap();
         core::mem::swap(&mut self.current, &mut next);
-        if self.sender.try_send(SlotMessage::Return(next)).is_ok() {}
+        if self.sender.enqueue(SlotMessage::Return(next)).is_ok() {}
         self.fade = self.latest_fade.clone();
         self.fade_phase = 0.0;
         self.fade_time = self.latest_fade_time;
@@ -171,13 +170,13 @@ impl AudioUnit for SlotBackend {
         // Adopt the latest configuration and reset the unit.
         if let Some(mut latest) = self.latest.take() {
             core::mem::swap(&mut self.current, &mut latest);
-            if self.sender.try_send(SlotMessage::Return(latest)).is_ok() {}
+            if self.sender.enqueue(SlotMessage::Return(latest)).is_ok() {}
             if let Some(next) = self.next.take() {
-                if self.sender.try_send(SlotMessage::Return(next)).is_ok() {}
+                if self.sender.enqueue(SlotMessage::Return(next)).is_ok() {}
             }
         } else if let Some(mut next) = self.next.take() {
             core::mem::swap(&mut self.current, &mut next);
-            if self.sender.try_send(SlotMessage::Return(next)).is_ok() {}
+            if self.sender.enqueue(SlotMessage::Return(next)).is_ok() {}
         }
         self.current.reset();
     }

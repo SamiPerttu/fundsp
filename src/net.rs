@@ -6,17 +6,15 @@ use super::buffer::*;
 use super::combinator::*;
 use super::math::*;
 use super::realnet::*;
+use super::sequencer::Fade;
 use super::setting::*;
 use super::shared::IdGenerator;
 use super::signal::*;
 use super::vertex::*;
 use super::*;
-use hashbrown::HashMap;
-use thingbuf::mpsc::{Receiver, Sender, channel};
-extern crate alloc;
-use super::sequencer::Fade;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use hashbrown::HashMap;
 
 // Iterator type returned from `Net::ids`.
 pub use hashbrown::hash_map::Keys;
@@ -133,7 +131,7 @@ pub struct Net {
     /// Current sample rate.
     sample_rate: f32,
     /// Optional frontend.
-    front: Option<(Sender<NetMessage>, Receiver<NetReturn>)>,
+    front: Option<(Arc<Queue<NetMessage, 256>>, Arc<Queue<NetReturn, 256>>)>,
     /// Number of inputs in the backend. This is for checking consistency during commits.
     backend_inputs: usize,
     /// Number of outputs in the backend. This is for checking consistency during commits.
@@ -1094,9 +1092,9 @@ impl Net {
     pub fn backend(&mut self) -> NetBackend {
         assert!(!self.has_backend());
         // Create huge channel buffers to make sure we don't run out of space easily.
-        let (sender_a, receiver_a) = channel(1024);
-        let (sender_b, receiver_b) = channel(1024);
-        self.front = Some((sender_a, receiver_b));
+        let queue_message = Arc::new(Queue::<NetMessage, 256>::new_const());
+        let queue_return = Arc::new(Queue::<NetReturn, 256>::new_const());
+        self.front = Some((queue_message.clone(), queue_return.clone()));
         self.backend_inputs = self.inputs();
         self.backend_outputs = self.outputs();
         if !self.is_ordered() {
@@ -1108,7 +1106,7 @@ impl Net {
         core::mem::swap(&mut net.vertex, &mut self.vertex);
         net.allocate();
         self.revision += 1;
-        NetBackend::new(sender_b, receiver_a, net)
+        NetBackend::new(queue_return.clone(), queue_message.clone(), net)
     }
 
     /// Returns whether this network has a backend.
@@ -1155,15 +1153,15 @@ impl Net {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all previous versions.
             loop {
-                match receiver.try_recv() {
-                    Ok(NetReturn::Null) => (),
-                    Ok(NetReturn::Net(net)) => drop(net),
-                    Ok(NetReturn::Unit(unit)) => drop(unit),
+                match receiver.dequeue() {
+                    Some(NetReturn::Null) => (),
+                    Some(NetReturn::Net(net)) => drop(net),
+                    Some(NetReturn::Unit(unit)) => drop(unit),
                     _ => break,
                 }
             }
             // Send the new version over.
-            if sender.try_send(NetMessage::Net(net)).is_ok() {}
+            if sender.enqueue(NetMessage::Net(net)).is_ok() {}
         }
         self.revision += 1;
     }
@@ -1188,7 +1186,7 @@ impl Net {
         &mut self,
         input: &[f32],
         output: &mut [f32],
-        sender: &Option<Sender<NetReturn>>,
+        sender: &Option<Arc<Queue<NetReturn, 256>>>,
     ) {
         if !self.is_ordered() {
             self.determine_order();
@@ -1226,7 +1224,7 @@ impl Net {
         size: usize,
         input: &BufferRef,
         output: &mut BufferMut,
-        sender: &Option<Sender<NetReturn>>,
+        sender: &Option<Arc<Queue<NetReturn, 256>>>,
     ) {
         if !self.is_ordered() {
             self.determine_order();
@@ -1286,7 +1284,7 @@ impl Net {
     }
 
     /// Apply all edits into this network.
-    pub(crate) fn apply_edits(&mut self, sender: &Option<Sender<NetReturn>>) {
+    pub(crate) fn apply_edits(&mut self, sender: &Option<Arc<Queue<NetReturn, 256>>>) {
         for edit in self.edit_queue.iter_mut() {
             self.vertex[edit.index].enqueue(edit, sender);
         }
@@ -1297,7 +1295,7 @@ impl Net {
     pub(crate) fn apply_foreign_edits(
         &mut self,
         source: &mut Net,
-        sender: &Option<Sender<NetReturn>>,
+        sender: &Option<Arc<Queue<NetReturn, 256>>>,
     ) {
         for edit in source.edit_queue.iter_mut() {
             if let Some(index) = self.node_index.get(&edit.id) {
@@ -1360,7 +1358,7 @@ impl AudioUnit for Net {
 
     fn set(&mut self, setting: Setting) {
         if let Some((sender, _receiver)) = &mut self.front {
-            if sender.try_send(NetMessage::Setting(setting)).is_ok() {}
+            if sender.enqueue(NetMessage::Setting(setting)).is_ok() {}
         } else if let Address::Node(id) = setting.direction() {
             if let Some(index) = self.node_index.get(&id) {
                 self.vertex[*index].unit.set(setting.peel());

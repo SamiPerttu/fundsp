@@ -7,8 +7,6 @@ use super::math::*;
 use super::net::NodeId;
 use super::signal::*;
 use super::*;
-pub use thingbuf::mpsc::errors::TrySendError;
-use thingbuf::mpsc::{Receiver, Sender, channel};
 use tinyvec::ArrayVec;
 
 /// Parameters specify what to set and to what value.
@@ -216,31 +214,31 @@ impl Setting {
 
 #[derive(Clone)]
 pub struct SettingSender {
-    sender: Sender<Setting>,
+    sender: Arc<Queue<Setting, 256>>,
 }
 
 impl SettingSender {
-    pub fn new(sender: Sender<Setting>) -> Self {
+    pub fn new(sender: Arc<Queue<Setting, 256>>) -> Self {
         Self { sender }
     }
-    pub fn try_send(&self, setting: Setting) -> Result<(), TrySendError<Setting>> {
-        self.sender.try_send(setting)
+    pub fn send(&self, setting: Setting) -> bool {
+        self.sender.enqueue(setting).is_ok()
     }
 }
 
-/// Setting listener using MPSC from the thingbuf crate.
+/// Setting listener using MPMC from the lfqueue crate.
 pub struct SettingListener<X: AudioNode> {
     x: X,
-    rv: Receiver<Setting>,
+    queue: Arc<Queue<Setting, 256>>,
 }
 
 impl<X: AudioNode> Clone for SettingListener<X> {
     fn clone(&self) -> Self {
         // Receiver cannot be cloned, so instantiate a dummy channel.
-        let (_sender, receiver) = channel(1);
+        let queue = Arc::new(Queue::new_const());
         Self {
             x: self.x.clone(),
-            rv: receiver,
+            queue,
         }
     }
 }
@@ -255,15 +253,18 @@ pub fn listen<X: AudioNode>(node: An<X>) -> (SettingSender, An<SettingListener<X
 
 impl<X: AudioNode> SettingListener<X> {
     pub fn new(x: X) -> (SettingSender, Self) {
-        let (sender, receiver) = channel(64);
-        let mut node = Self { rv: receiver, x };
+        let queue = Arc::new(Queue::new_const());
+        let mut node = Self {
+            queue: queue.clone(),
+            x,
+        };
         let hash = node.ping(true, AttoHash::new(Self::ID));
         node.ping(false, hash);
-        let sender = SettingSender::new(sender);
+        let sender = SettingSender::new(queue);
         (sender, node)
     }
     fn receive_settings(&mut self) {
-        while let Result::Ok(setting) = self.rv.try_recv() {
+        while let Some(setting) = self.queue.dequeue() {
             self.set(setting);
         }
     }

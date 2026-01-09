@@ -5,7 +5,7 @@ use super::buffer::*;
 use super::math::*;
 use super::sequencer::*;
 use super::signal::*;
-use thingbuf::mpsc::{Receiver, Sender, channel};
+use super::*;
 
 #[derive(Default, Clone)]
 pub(crate) enum Message {
@@ -24,9 +24,9 @@ pub(crate) enum Message {
 
 pub struct SequencerBackend {
     /// For sending events for deallocation back to the frontend.
-    pub(crate) sender: Sender<Option<Event>>,
+    pub(crate) sender: Arc<Queue<Event, 256>>,
     /// For receiving new events from the frontend.
-    receiver: Receiver<Message>,
+    receiver: Arc<Queue<Message, 256>>,
     /// The backend sequencer.
     sequencer: Sequencer,
 }
@@ -34,11 +34,11 @@ pub struct SequencerBackend {
 impl Clone for SequencerBackend {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
-        let (sender_1, _receiver_1) = channel(1);
-        let (_sender_2, receiver_2) = channel(1);
+        let queue_event = Arc::new(Queue::<Event, 256>::new_const());
+        let queue_message = Arc::new(Queue::<Message, 256>::new_const());
         SequencerBackend {
-            sender: sender_1,
-            receiver: receiver_2,
+            sender: queue_event,
+            receiver: queue_message,
             sequencer: self.sequencer.clone(),
         }
     }
@@ -47,8 +47,8 @@ impl Clone for SequencerBackend {
 impl SequencerBackend {
     /// Create new backend.
     pub(crate) fn new(
-        sender: Sender<Option<Event>>,
-        receiver: Receiver<Message>,
+        sender: Arc<Queue<Event, 256>>,
+        receiver: Arc<Queue<Message, 256>>,
         sequencer: Sequencer,
     ) -> Self {
         Self {
@@ -60,7 +60,7 @@ impl SequencerBackend {
 
     /// Handle changes made to the backend.
     fn handle_messages(&mut self) {
-        while let Ok(message) = self.receiver.try_recv() {
+        while let Some(message) = self.receiver.dequeue() {
             match message {
                 Message::Reset => {
                     self.reset();
@@ -85,7 +85,7 @@ impl SequencerBackend {
     #[inline]
     fn send_back_past(&mut self) {
         while let Some(event) = self.sequencer.get_past_event() {
-            if self.sender.try_send(Some(event)).is_ok() {}
+            if self.sender.enqueue(event).is_ok() {}
         }
     }
 }
@@ -104,13 +104,13 @@ impl AudioUnit for SequencerBackend {
         match self.sequencer.replay_mode() {
             ReplayMode::None => {
                 while let Some(event) = self.sequencer.get_past_event() {
-                    if self.sender.try_send(Some(event)).is_ok() {}
+                    if self.sender.enqueue(event).is_ok() {}
                 }
                 while let Some(event) = self.sequencer.get_ready_event() {
-                    if self.sender.try_send(Some(event)).is_ok() {}
+                    if self.sender.enqueue(event).is_ok() {}
                 }
                 while let Some(event) = self.sequencer.get_active_event() {
-                    if self.sender.try_send(Some(event)).is_ok() {}
+                    if self.sender.enqueue(event).is_ok() {}
                 }
             }
             _ => (),

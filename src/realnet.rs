@@ -6,8 +6,7 @@ use super::math::*;
 use super::net::*;
 use super::setting::*;
 use super::signal::*;
-use thingbuf::mpsc::{Receiver, Sender, channel};
-extern crate alloc;
+use super::*;
 use alloc::boxed::Box;
 
 /// Message from frontend to backend.
@@ -30,20 +29,20 @@ pub(crate) enum NetReturn {
 
 pub struct NetBackend {
     /// For sending versions for deallocation back to the frontend.
-    sender: Option<Sender<NetReturn>>,
+    sender: Option<Arc<Queue<NetReturn, 256>>>,
     /// For receiving new versions and settings from the frontend.
-    receiver: Receiver<NetMessage>,
+    receiver: Arc<Queue<NetMessage, 256>>,
     net: Net,
 }
 
 impl Clone for NetBackend {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
-        let (sender_net, _receiver_net) = channel(1);
-        let (_sender_message, receiver_message) = channel(1);
+        let queue_return = Arc::new(Queue::<NetReturn, 256>::new_const());
+        let queue_message = Arc::new(Queue::<NetMessage, 256>::new_const());
         Self {
-            sender: Some(sender_net),
-            receiver: receiver_message,
+            sender: Some(queue_return),
+            receiver: queue_message,
             net: self.net.clone(),
         }
     }
@@ -51,7 +50,11 @@ impl Clone for NetBackend {
 
 impl NetBackend {
     /// Create new backend.
-    pub(crate) fn new(sender: Sender<NetReturn>, receiver: Receiver<NetMessage>, net: Net) -> Self {
+    pub(crate) fn new(
+        sender: Arc<Queue<NetReturn, 256>>,
+        receiver: Arc<Queue<NetMessage, 256>>,
+        net: Net,
+    ) -> Self {
         Self {
             sender: Some(sender),
             receiver,
@@ -64,8 +67,8 @@ impl NetBackend {
         let mut latest_net: Option<Net> = None;
         #[allow(clippy::while_let_loop)]
         loop {
-            match self.receiver.try_recv() {
-                Ok(message) => {
+            match self.receiver.dequeue() {
+                Some(message) => {
                     match message {
                         NetMessage::Net(net) => {
                             if let Some(mut net) = latest_net {
@@ -75,7 +78,7 @@ impl NetBackend {
                                     .sender
                                     .as_ref()
                                     .unwrap()
-                                    .try_send(NetReturn::Net(net))
+                                    .enqueue(NetReturn::Net(net))
                                     .is_ok()
                                 {}
                             }
@@ -100,7 +103,7 @@ impl NetBackend {
                 .sender
                 .as_ref()
                 .unwrap()
-                .try_send(NetReturn::Net(net))
+                .enqueue(NetReturn::Net(net))
                 .is_ok()
             {}
         }

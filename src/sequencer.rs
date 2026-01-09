@@ -14,7 +14,6 @@ use alloc::collections::BinaryHeap;
 use alloc::vec;
 use alloc::vec::Vec;
 use hashbrown::HashMap;
-use thingbuf::mpsc::{Receiver, Sender, channel};
 
 /// Globally unique ID for a sequencer event.
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
@@ -248,7 +247,7 @@ pub struct Sequencer {
     /// Intermediate output frame.
     tick_buffer: Vec<f32>,
     /// Optional frontend.
-    front: Option<(Sender<Message>, Receiver<Option<Event>>)>,
+    front: Option<(Arc<Queue<Message, 256>>, Arc<Queue<Event, 256>>)>,
     /// Whether we replay existing events after a call to `reset`.
     mode: ReplayMode,
     /// Intermediate input buffer.
@@ -356,9 +355,9 @@ impl Sequencer {
     pub(crate) fn push_event(&mut self, event: Event) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
-            while receiver.try_recv().is_ok() {}
+            while receiver.dequeue().is_some() {}
             // Send the new event over.
-            if sender.try_send(Message::Push(event)).is_ok() {}
+            if sender.enqueue(Message::Push(event)).is_ok() {}
         } else if event.start_time < self.active_threshold {
             self.active_map.insert(event.id, self.active.len());
             self.active.push(event);
@@ -404,9 +403,9 @@ impl Sequencer {
     pub(crate) fn push_relative_event(&mut self, mut event: Event) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
-            while receiver.try_recv().is_ok() {}
+            while receiver.dequeue().is_some() {}
             // Send the new event over.
-            if sender.try_send(Message::PushRelative(event)).is_ok() {}
+            if sender.enqueue(Message::PushRelative(event)).is_ok() {}
         } else {
             event.start_time += self.time;
             event.end_time += self.time;
@@ -449,10 +448,10 @@ impl Sequencer {
     pub fn edit(&mut self, id: EventId, end_time: f64, fade_out_time: f64) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
-            while receiver.try_recv().is_ok() {}
+            while receiver.dequeue().is_some() {}
             // Send the new edit over.
             if sender
-                .try_send(Message::Edit(
+                .enqueue(Message::Edit(
                     id,
                     Edit {
                         end_time,
@@ -490,10 +489,10 @@ impl Sequencer {
     pub fn edit_relative(&mut self, id: EventId, end_time: f64, fade_out_time: f64) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
-            while receiver.try_recv().is_ok() {}
+            while receiver.dequeue().is_some() {}
             // Send the new edit over.
             if sender
-                .try_send(Message::EditRelative(
+                .enqueue(Message::EditRelative(
                     id,
                     Edit {
                         end_time,
@@ -554,13 +553,13 @@ impl Sequencer {
     pub fn backend(&mut self) -> SequencerBackend {
         assert!(!self.has_backend());
         // Create huge channel buffers to make sure we don't run out of space easily.
-        let (sender_a, receiver_a) = channel(2048);
-        let (sender_b, receiver_b) = channel(2048);
+        let queue_a = Arc::new(Queue::new_const());
+        let queue_b = Arc::new(Queue::new_const());
         let mut sequencer = self.clone();
         core::mem::swap(self, &mut sequencer);
         sequencer.allocate();
-        self.front = Some((sender_a, receiver_b));
-        SequencerBackend::new(sender_b, receiver_a, sequencer)
+        self.front = Some((queue_a.clone(), queue_b.clone()));
+        SequencerBackend::new(queue_b, queue_a, sequencer)
     }
 
     /// Returns whether this sequencer has a backend.
@@ -597,8 +596,8 @@ impl AudioUnit for Sequencer {
     fn reset(&mut self) {
         if let Some((sender, receiver)) = &mut self.front {
             // Deallocate all past events.
-            while receiver.try_recv().is_ok() {}
-            let _ = sender.try_send(Message::Reset);
+            while receiver.dequeue().is_some() {}
+            let _ = sender.enqueue(Message::Reset);
             return;
         }
         match self.mode {

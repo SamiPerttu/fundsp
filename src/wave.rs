@@ -14,7 +14,6 @@ use numeric_array::typenum::Unsigned;
 use numeric_array::*;
 
 extern crate alloc;
-use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 /// Multichannel wave in 32-bit float precision.
@@ -677,7 +676,7 @@ impl Wave {
         duration: f64,
         node: &mut dyn AudioUnit,
     ) -> Self {
-        let channels = inputs.clone().map(|a| a.channels()).sum();
+        let channels: usize = inputs.clone().map(|a| a.channels()).sum();
         let sample_rate = inputs.clone().next().unwrap().sample_rate();
         assert!(inputs.clone().all(|a| a.sample_rate() == sample_rate));
         assert_eq!(node.inputs(), channels);

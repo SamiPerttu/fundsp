@@ -5,36 +5,40 @@ use super::combinator::An;
 use super::signal::*;
 use super::typenum::*;
 use super::*;
-use thingbuf::mpsc::{Receiver, Sender, channel};
 
-pub struct Ring<N: Size<f32>> {
-    receiver: Receiver<Frame<f32, N>>,
+pub struct Ring<N: Size<f32>, const M: usize> {
+    queue: Arc<Queue<Frame<f32, N>, M>>,
 }
 
-impl<N: Size<f32>> Clone for Ring<N> {
+impl<N: Size<f32>, const M: usize> Clone for Ring<N, M> {
     fn clone(&self) -> Self {
         // We cannot clone ourselves effectively. Create a dummy channel.
-        let (_sender, receiver) = channel(1);
-        Self { receiver }
+        let queue = Arc::new(Queue::new_const());
+        Self { queue }
     }
 }
 
-impl<N: Size<f32>> Ring<N> {
+impl<N: Size<f32>, const M: usize> Ring<N, M> {
     /// Create new ring buffer with space for `capacity` frames (for example, 44100). Returns (frontend, backend).
-    pub fn new(capacity: usize) -> (Sender<Frame<f32, N>>, An<Ring<N>>) {
-        let (sender, receiver) = channel(capacity);
-        (sender, An(Self { receiver }))
+    pub fn new() -> (Arc<Queue<Frame<f32, N>, M>>, An<Ring<N, M>>) {
+        let queue = Arc::new(Queue::new_const());
+        (
+            queue.clone(),
+            An(Self {
+                queue: queue.clone(),
+            }),
+        )
     }
 }
 
-impl<N: Size<f32>> AudioNode for Ring<N> {
+impl<N: Size<f32>, const M: usize> AudioNode for Ring<N, M> {
     const ID: u64 = 92;
     type Inputs = U0;
     type Outputs = N;
 
     fn tick(&mut self, _input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
         // We output zeros in case of buffer underrun.
-        self.receiver.try_recv().unwrap_or_default()
+        self.queue.dequeue().unwrap_or_default()
     }
 
     fn route(&mut self, input: &SignalFrame, _frequency: f64) -> SignalFrame {

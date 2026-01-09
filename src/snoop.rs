@@ -5,7 +5,6 @@ use super::buffer::*;
 use super::signal::*;
 use super::*;
 use numeric_array::*;
-use thingbuf::mpsc::{Receiver, Sender, channel};
 extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -46,7 +45,7 @@ impl SnoopBuffer {
 
 /// Receiver for snooped audio data.
 pub struct Snoop {
-    receiver: Receiver<SnoopBuffer>,
+    receiver: Arc<Queue<SnoopBuffer, 256>>,
     index: usize,
     total: u64,
     latest: Vec<f32>,
@@ -56,9 +55,9 @@ impl Snoop {
     /// Create a new snoop node. Returns a (frontend, backend) pair.
     pub fn new(capacity: usize) -> (Snoop, SnoopBackend) {
         let capacity = capacity.next_power_of_two();
-        let (sender, receiver) = channel(1024);
+        let queue = Arc::new(Queue::new_const());
         let snoop = Snoop {
-            receiver,
+            receiver: queue.clone(),
             index: 0,
             total: 0,
             latest: vec![0.0; capacity],
@@ -66,7 +65,7 @@ impl Snoop {
         let snoop_backend = SnoopBackend {
             index: 0,
             buffer: SnoopBuffer::default(),
-            sender,
+            sender: queue,
         };
         (snoop, snoop_backend)
     }
@@ -89,7 +88,7 @@ impl Snoop {
     /// Get the next buffer of data, if available.
     /// Either this method or `update` should be polled repeatedly.
     pub fn get(&mut self) -> Option<SnoopBuffer> {
-        if let Ok(buffer) = self.receiver.try_recv() {
+        if let Some(buffer) = self.receiver.dequeue() {
             for i in 0..buffer.size() {
                 self.latest[self.index] = buffer.at(i);
                 self.index = (self.index + 1) & (self.latest.len() - 1);
@@ -113,7 +112,7 @@ impl Snoop {
 pub struct SnoopBackend {
     index: usize,
     buffer: SnoopBuffer,
-    sender: Sender<SnoopBuffer>,
+    sender: Arc<Queue<SnoopBuffer, 256>>,
 }
 
 impl AudioNode for SnoopBackend {
@@ -131,7 +130,7 @@ impl AudioNode for SnoopBackend {
         self.buffer.set(self.index, input[0]);
         self.index += 1;
         if self.index == MAX_BUFFER_SIZE {
-            if self.sender.try_send(self.buffer.clone()).is_ok() {}
+            if self.sender.enqueue(self.buffer.clone()).is_ok() {}
             self.index = 0;
         }
         *input
@@ -145,7 +144,7 @@ impl AudioNode for SnoopBackend {
             self.buffer.set(self.index, input.at_f32(0, i));
             self.index += 1;
             if self.index == MAX_BUFFER_SIZE {
-                if self.sender.try_send(self.buffer.clone()).is_ok() {}
+                if self.sender.enqueue(self.buffer.clone()).is_ok() {}
                 self.index = 0;
             }
         }

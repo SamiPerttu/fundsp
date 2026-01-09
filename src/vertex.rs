@@ -6,8 +6,7 @@ use super::math::*;
 use super::net::*;
 use super::realnet::*;
 use super::sequencer::Fade;
-use thingbuf::mpsc::Sender;
-extern crate alloc;
+use super::*;
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -124,11 +123,11 @@ impl Vertex {
 
     /// We have faded to the next unit, now start fading to the latest unit, if any.
     #[allow(clippy::needless_if)]
-    fn next_phase(&mut self, sender: &Option<Sender<NetReturn>>) {
+    fn next_phase(&mut self, sender: &Option<Arc<Queue<NetReturn, 256>>>) {
         let mut next = self.next.unit.take().unwrap();
         core::mem::swap(&mut self.unit, &mut next);
         if let Some(sender) = sender {
-            if sender.try_send(NetReturn::Unit(next)).is_ok() {}
+            if sender.enqueue(NetReturn::Unit(next)).is_ok() {}
         }
         self.next.fade = self.latest.fade.clone();
         self.fade_phase = 0.0;
@@ -138,7 +137,7 @@ impl Vertex {
 
     /// Process one sample.
     #[inline]
-    pub fn tick(&mut self, sample_rate: f32, sender: &Option<Sender<NetReturn>>) {
+    pub fn tick(&mut self, sample_rate: f32, sender: &Option<Arc<Queue<NetReturn, 256>>>) {
         self.unit.tick(&self.tick_input, &mut self.tick_output);
 
         if let Some(next) = self.next.unit.as_deref_mut() {
@@ -165,7 +164,7 @@ impl Vertex {
         size: usize,
         input: &BufferRef,
         sample_rate: f32,
-        sender: &Option<Sender<NetReturn>>,
+        sender: &Option<Arc<Queue<NetReturn, 256>>>,
     ) {
         self.unit
             .process(size, input, &mut self.output.buffer_mut());
@@ -230,12 +229,12 @@ impl Vertex {
     }
 
     /// Edit this vertex.
-    pub fn enqueue(&mut self, edit: &mut NodeEdit, sender: &Option<Sender<NetReturn>>) {
+    pub fn enqueue(&mut self, edit: &mut NodeEdit, sender: &Option<Arc<Queue<NetReturn, 256>>>) {
         if self.next.unit.is_some() {
             // Replace the latest unit.
             if let Some(latest) = self.latest.unit.take() {
                 if let Some(sender) = sender {
-                    if sender.try_send(NetReturn::Unit(latest)).is_ok() {}
+                    if sender.enqueue(NetReturn::Unit(latest)).is_ok() {}
                 }
             }
             core::mem::swap(&mut self.latest, edit);
