@@ -21,7 +21,7 @@
 
 use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, FromSample, SampleFormat, SizedSample, StreamConfig, BufferSize};
+use cpal::{BufferSize, Device, FromSample, SampleFormat, SizedSample, StreamConfig};
 use fundsp::prelude::AudioUnit;
 use fundsp::prelude64::{Shared, adsr_live, midi_hz, shared, triangle, var};
 use midi_msg::{ChannelVoiceMsg, MidiMsg};

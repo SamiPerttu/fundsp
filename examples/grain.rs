@@ -2,7 +2,7 @@
 #![allow(clippy::precedence)]
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{FromSample, SizedSample, BufferSize};
+use cpal::{BufferSize, FromSample, SizedSample};
 use fundsp::prelude64::*;
 use funutd::dna::*;
 
