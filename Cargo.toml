@@ -30,7 +30,7 @@ fft-convolver = { version = "0.3.0", optional = true }
 [dev-dependencies]
 anyhow = "1.0.89"
 criterion = "0.8.1"
-cpal = "0.17.0"
+cpal = { version = "0.17.0", features = ["audio_thread_priority"] }
 assert_no_alloc = "1.1.2"
 eframe = "0.33.3"
 plotters = "0.3.7"

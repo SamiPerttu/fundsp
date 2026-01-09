@@ -3,7 +3,7 @@
 #![allow(clippy::precedence)]
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{FromSample, SizedSample};
+use cpal::{FromSample, SizedSample, BufferSize};
 use eframe::egui;
 use egui::*;
 use fundsp::prelude64::*;
@@ -118,9 +118,11 @@ fn main() {
     let device = host
         .default_output_device()
         .expect("failed to find a default output device");
-    let config = device.default_output_config().unwrap();
+    let supported_config = device.default_output_config().unwrap();
+    let mut config = supported_config.config();
+    config.buffer_size = BufferSize::Fixed(256);
 
-    match config.sample_format() {
+    match supported_config.sample_format() {
         cpal::SampleFormat::F32 => run::<f32>(&device, &config.into()).unwrap(),
         cpal::SampleFormat::I16 => run::<i16>(&device, &config.into()).unwrap(),
         cpal::SampleFormat::U16 => run::<u16>(&device, &config.into()).unwrap(),

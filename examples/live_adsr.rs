@@ -21,7 +21,7 @@
 
 use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, FromSample, SampleFormat, SizedSample, StreamConfig};
+use cpal::{Device, FromSample, SampleFormat, SizedSample, StreamConfig, BufferSize};
 use fundsp::prelude::AudioUnit;
 use fundsp::prelude64::{Shared, adsr_live, midi_hz, shared, triangle, var};
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
@@ -149,8 +149,11 @@ fn run_output(pitch: Shared, volume: Shared, pitch_bend: Shared, control: Shared
     let device = host
         .default_output_device()
         .expect("failed to find a default output device");
-    let config = device.default_output_config().unwrap();
-    match config.sample_format() {
+    let supported_config = device.default_output_config().unwrap();
+    let mut config = supported_config.config();
+    config.buffer_size = BufferSize::Fixed(256);
+
+    match supported_config.sample_format() {
         SampleFormat::F32 => {
             run_synth::<f32>(pitch, volume, pitch_bend, control, device, config.into())
         }
