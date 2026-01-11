@@ -990,7 +990,12 @@ where
     }
 
     fn fill_graph(&self, prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         let mut x_path = prefix.clone();
         x_path.push(0);
         self.x.fill_graph(x_path, graph);
@@ -998,7 +1003,6 @@ where
         y_path.push(1);
         self.y.fill_graph(y_path, graph);
     }
-
 }
 
 /// Provides unary operator implementations to the `Unop` node.
@@ -1284,7 +1288,12 @@ where
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         self.x.fill_graph(prefix, graph);
     }
@@ -1445,7 +1454,12 @@ where
     }
 
     fn fill_graph(&self, prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         let mut prefix_x = prefix.clone();
         prefix_x.push(0);
         let mut prefix_y = prefix.clone();
@@ -1453,7 +1467,10 @@ where
         self.x.fill_graph(prefix_x.clone(), graph);
         self.y.fill_graph(prefix_y.clone(), graph);
         for j in 0..X::Outputs::USIZE {
-            graph.push_edge(Edge::new(self.x.output_edge(j, prefix_x.clone()), self.y.input_edge(j, prefix_y.clone())));
+            graph.push_edge(Edge::new(
+                self.x.output_edge(j, prefix_x.clone()),
+                self.y.input_edge(j, prefix_y.clone()),
+            ));
         }
     }
 }
@@ -1610,7 +1627,12 @@ where
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         self.x.fill_graph(prefix.clone(), graph);
         prefix.set_suffix(1);
@@ -1751,13 +1773,17 @@ where
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         self.x.fill_graph(prefix.clone(), graph);
         prefix.set_suffix(1);
         self.y.fill_graph(prefix, graph);
     }
-
 }
 
 /// Mix together `X` and `Y` sourcing from the same inputs.
@@ -1885,13 +1911,17 @@ where
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         self.x.fill_graph(prefix.clone(), graph);
         prefix.set_suffix(1);
         self.y.fill_graph(prefix, graph);
     }
-
 }
 
 /// Pass through inputs without matching outputs.
@@ -1996,11 +2026,15 @@ impl<X: AudioNode> AudioNode for Thru<X> {
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         self.x.fill_graph(prefix.clone(), graph);
     }
-
 }
 
 /// Mix together a bunch of similar nodes sourcing from the same inputs.
@@ -2125,14 +2159,18 @@ where
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         for i in 0..N::USIZE {
             prefix.set_suffix(i as u32);
             self.x[i].fill_graph(prefix.clone(), graph);
         }
     }
-
 }
 
 /// Stack a bunch of similar nodes in parallel.
@@ -2284,7 +2322,12 @@ where
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         for i in 0..N::USIZE {
             prefix.set_suffix(i as u32);
@@ -2445,7 +2488,12 @@ where
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         for i in 0..N::USIZE {
             prefix.set_suffix(i as u32);
@@ -2584,7 +2632,12 @@ where
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         for i in 0..N::USIZE {
             prefix.set_suffix(i as u32);
@@ -2714,7 +2767,12 @@ where
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         for i in 0..N::USIZE {
             prefix.set_suffix(i as u32);
@@ -2723,12 +2781,14 @@ where
                 for j in 0..self.x[0].inputs() {
                     let mut i_1_prefix = prefix.clone();
                     i_1_prefix.set_suffix(i as u32 + 1);
-                    graph.push_edge(Edge::new(self.x[i].output_edge(j, prefix.clone()), self.x[i + 1].input_edge(j, i_1_prefix.clone())));
+                    graph.push_edge(Edge::new(
+                        self.x[i].output_edge(j, prefix.clone()),
+                        self.x[i + 1].input_edge(j, i_1_prefix.clone()),
+                    ));
                 }
             }
         }
     }
-
 }
 
 /// Reverse channel order.

@@ -303,9 +303,13 @@ where
     }
 
     fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        graph.push_node(Node::new(
+            prefix.clone(),
+            Self::ID,
+            self.inputs(),
+            self.outputs(),
+        ));
         prefix.push(0);
         self.x.fill_graph(prefix, graph);
     }
-
 }
