@@ -1,6 +1,7 @@
 //! Oversampling.
 
 use super::audionode::*;
+use super::graph::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
@@ -290,4 +291,21 @@ where
     fn allocate(&mut self) {
         self.x.allocate();
     }
+
+    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
+        prefix.push(0);
+        self.x.input_edge(index, prefix)
+    }
+
+    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
+        prefix.push(0);
+        self.x.output_edge(index, prefix)
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        self.x.fill_graph(prefix, graph);
+    }
+
 }

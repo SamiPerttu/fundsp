@@ -6,6 +6,9 @@ use super::signal::*;
 use super::*;
 use numeric_array::typenum::*;
 use resampler::{Attenuation, Latency, ResamplerFir, SampleRate};
+extern crate alloc;
+use alloc::vec::*;
+use alloc::vec;
 
 /// Resampling quality:
 /// Medium = 32 taps (latency 16, attenuation 60 dB),

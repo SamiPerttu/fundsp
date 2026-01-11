@@ -842,6 +842,7 @@ pub mod fir;
 pub mod follow;
 pub mod generate;
 pub mod granular;
+pub mod graph;
 pub mod math;
 pub mod moog;
 pub mod net;

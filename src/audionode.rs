@@ -2,6 +2,7 @@
 
 use super::buffer::*;
 use super::combinator::*;
+use super::graph::*;
 use super::math::*;
 use super::setting::*;
 use super::signal::*;
@@ -166,6 +167,21 @@ pub trait AudioNode: Clone + Sync + Send {
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         // The default implementation marks all outputs unknown.
         SignalFrame::new(self.outputs())
+    }
+
+    /// Get edge target to input `index`.
+    fn input_edge(&self, index: usize, prefix: Path) -> Path {
+        prefix.with_index(index)
+    }
+
+    /// Get edge source from output `index`.
+    fn output_edge(&self, index: usize, prefix: Path) -> Path {
+        prefix.with_index(index)
+    }
+
+    /// Fill inner structure of the node with nodes and edges.
+    fn fill_graph(&self, prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix, Self::ID, self.inputs(), self.outputs()));
     }
 
     // End of interface. There is no need to override the following.
@@ -958,6 +974,31 @@ where
         }
         signal_x
     }
+
+    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
+        if index < self.x.inputs() {
+            prefix.push(0);
+            self.x.input_edge(index, prefix)
+        } else {
+            prefix.push(1);
+            self.y.input_edge(index - self.x.inputs(), prefix)
+        }
+    }
+
+    fn output_edge(&self, index: usize, prefix: Path) -> Path {
+        prefix.with_index(index)
+    }
+
+    fn fill_graph(&self, prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        let mut x_path = prefix.clone();
+        x_path.push(0);
+        self.x.fill_graph(x_path, graph);
+        let mut y_path = prefix.clone();
+        y_path.push(1);
+        self.y.fill_graph(y_path, graph);
+    }
+
 }
 
 /// Provides unary operator implementations to the `Unop` node.
@@ -1232,6 +1273,21 @@ where
         }
         signal_x
     }
+
+    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
+        prefix.push(0);
+        self.x.input_edge(index, prefix)
+    }
+
+    fn output_edge(&self, index: usize, prefix: Path) -> Path {
+        prefix.with_index(index)
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        self.x.fill_graph(prefix, graph);
+    }
 }
 
 /// Map any number of channels.
@@ -1377,6 +1433,29 @@ where
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
         self.y.route(&self.x.route(input, frequency), frequency)
     }
+
+    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
+        prefix.push(0);
+        self.x.input_edge(index, prefix)
+    }
+
+    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
+        prefix.push(1);
+        self.y.input_edge(index, prefix)
+    }
+
+    fn fill_graph(&self, prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        let mut prefix_x = prefix.clone();
+        prefix_x.push(0);
+        let mut prefix_y = prefix.clone();
+        prefix_y.push(1);
+        self.x.fill_graph(prefix_x.clone(), graph);
+        self.y.fill_graph(prefix_y.clone(), graph);
+        for j in 0..X::Outputs::USIZE {
+            graph.push_edge(Edge::new(self.x.output_edge(j, prefix_x.clone()), self.y.input_edge(j, prefix_y.clone())));
+        }
+    }
 }
 
 /// Stack `X` and `Y` in parallel.
@@ -1509,6 +1588,34 @@ where
         self.x.allocate();
         self.y.allocate();
     }
+
+    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
+        if index < self.x.inputs() {
+            prefix.push(0);
+            self.x.input_edge(index, prefix)
+        } else {
+            prefix.push(1);
+            self.y.input_edge(index - self.x.inputs(), prefix)
+        }
+    }
+
+    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
+        if index < self.x.outputs() {
+            prefix.push(0);
+            self.x.output_edge(index, prefix)
+        } else {
+            prefix.push(1);
+            self.y.output_edge(index - self.x.outputs(), prefix)
+        }
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        self.x.fill_graph(prefix.clone(), graph);
+        prefix.set_suffix(1);
+        self.y.fill_graph(prefix, graph);
+    }
 }
 
 /// Send the same input to `X` and `Y`. Concatenate outputs.
@@ -1628,6 +1735,29 @@ where
         self.x.allocate();
         self.y.allocate();
     }
+
+    fn input_edge(&self, index: usize, prefix: Path) -> Path {
+        prefix.with_index(index)
+    }
+
+    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
+        if index < self.x.outputs() {
+            prefix.push(0);
+            self.x.output_edge(index, prefix)
+        } else {
+            prefix.push(1);
+            self.y.output_edge(index - self.x.outputs(), prefix)
+        }
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        self.x.fill_graph(prefix.clone(), graph);
+        prefix.set_suffix(1);
+        self.y.fill_graph(prefix, graph);
+    }
+
 }
 
 /// Mix together `X` and `Y` sourcing from the same inputs.
@@ -1745,6 +1875,23 @@ where
         self.x.allocate();
         self.y.allocate();
     }
+
+    fn input_edge(&self, index: usize, prefix: Path) -> Path {
+        prefix.with_index(index)
+    }
+
+    fn output_edge(&self, index: usize, prefix: Path) -> Path {
+        prefix.with_index(index)
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        self.x.fill_graph(prefix.clone(), graph);
+        prefix.set_suffix(1);
+        self.y.fill_graph(prefix, graph);
+    }
+
 }
 
 /// Pass through inputs without matching outputs.
@@ -1833,6 +1980,27 @@ impl<X: AudioNode> AudioNode for Thru<X> {
     fn allocate(&mut self) {
         self.x.allocate();
     }
+
+    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
+        prefix.push(0);
+        self.x.input_edge(index, prefix)
+    }
+
+    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
+        if index < self.x.outputs() {
+            prefix.push(0);
+            self.x.input_edge(index, prefix)
+        } else {
+            prefix.with_index(index)
+        }
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        self.x.fill_graph(prefix.clone(), graph);
+    }
+
 }
 
 /// Mix together a bunch of similar nodes sourcing from the same inputs.
@@ -1947,6 +2115,24 @@ where
             x.allocate();
         }
     }
+
+    fn input_edge(&self, index: usize, prefix: Path) -> Path {
+        prefix.with_index(index)
+    }
+
+    fn output_edge(&self, index: usize, prefix: Path) -> Path {
+        prefix.with_index(index)
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        for i in 0..N::USIZE {
+            prefix.set_suffix(i as u32);
+            self.x[i].fill_graph(prefix.clone(), graph);
+        }
+    }
+
 }
 
 /// Stack a bunch of similar nodes in parallel.
@@ -2080,6 +2266,29 @@ where
     fn allocate(&mut self) {
         for x in &mut self.x {
             x.allocate();
+        }
+    }
+
+    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
+        let i_index = index % self.x[0].inputs();
+        let j_index = index / self.x[0].inputs();
+        prefix.push(j_index as u32);
+        self.x[j_index].input_edge(i_index, prefix)
+    }
+
+    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
+        let i_index = index % self.x[0].outputs();
+        let j_index = index / self.x[0].outputs();
+        prefix.push(j_index as u32);
+        self.x[j_index].input_edge(i_index, prefix)
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        for i in 0..N::USIZE {
+            prefix.set_suffix(i as u32);
+            self.x[i].fill_graph(prefix.clone(), graph);
         }
     }
 }
@@ -2220,6 +2429,29 @@ where
             x.allocate();
         }
     }
+
+    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
+        let i_index = index % self.x[0].inputs();
+        let j_index = index / self.x[0].inputs();
+        prefix.push(j_index as u32);
+        self.x[j_index].input_edge(i_index, prefix)
+    }
+
+    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
+        let i_index = index % self.x[0].outputs();
+        let j_index = index / self.x[0].outputs();
+        prefix.push(j_index as u32);
+        self.x[j_index].input_edge(i_index, prefix)
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        for i in 0..N::USIZE {
+            prefix.set_suffix(i as u32);
+            self.x[i].fill_graph(prefix.clone(), graph);
+        }
+    }
 }
 
 /// Branch into a bunch of similar nodes in parallel.
@@ -2339,6 +2571,26 @@ where
             x.allocate();
         }
     }
+
+    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
+        let index_rem = index % X::Inputs::USIZE;
+        let index_div = index / X::Inputs::USIZE;
+        prefix.push(index_div as u32);
+        prefix.with_index(index_rem)
+    }
+
+    fn output_edge(&self, index: usize, prefix: Path) -> Path {
+        prefix.with_index(index)
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        for i in 0..N::USIZE {
+            prefix.set_suffix(i as u32);
+            self.x[i].fill_graph(prefix.clone(), graph);
+        }
+    }
 }
 
 /// A pipeline of multiple nodes.
@@ -2450,6 +2702,33 @@ where
         }
         output
     }
+
+    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
+        prefix.push(0);
+        self.x[0].input_edge(index, prefix)
+    }
+
+    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
+        prefix.push(N::U32 - 1);
+        self.x[N::USIZE - 1].output_edge(index, prefix)
+    }
+
+    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+        graph.push_node(Node::new(prefix.clone(), Self::ID, self.inputs(), self.outputs()));
+        prefix.push(0);
+        for i in 0..N::USIZE {
+            prefix.set_suffix(i as u32);
+            self.x[i].fill_graph(prefix.clone(), graph);
+            if i + 1 < N::USIZE {
+                for j in 0..self.x[0].inputs() {
+                    let mut i_1_prefix = prefix.clone();
+                    i_1_prefix.set_suffix(i as u32 + 1);
+                    graph.push_edge(Edge::new(self.x[i].output_edge(j, prefix.clone()), self.x[i + 1].input_edge(j, i_1_prefix.clone())));
+                }
+            }
+        }
+    }
+
 }
 
 /// Reverse channel order.

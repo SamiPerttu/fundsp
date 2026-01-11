@@ -17,7 +17,7 @@ pub(crate) struct Vertex {
     /// The unit.
     pub unit: Box<dyn AudioUnit>,
     /// Edges connecting into this vertex. The length is equal to the number of inputs.
-    pub source: Vec<Edge>,
+    pub source: Vec<NetEdge>,
     /// Input buffers. The number of channels is equal to the number of inputs.
     pub input: BufferVec,
     /// Output buffers. The number of channels is equal to the number of outputs.

@@ -16,6 +16,7 @@ pub use super::filter::*;
 pub use super::fir::*;
 pub use super::follow::*;
 pub use super::granular::*;
+pub use super::graph::*;
 pub use super::math::*;
 pub use super::moog::*;
 pub use super::net::*;

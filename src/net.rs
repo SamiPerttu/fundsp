@@ -101,14 +101,14 @@ pub enum Source {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct Edge {
+pub(crate) struct NetEdge {
     pub source: Port,
     pub target: Port,
 }
 
 /// Create an edge from source to target.
-pub(crate) fn edge(source: Port, target: Port) -> Edge {
-    Edge { source, target }
+pub(crate) fn edge(source: Port, target: Port) -> NetEdge {
+    NetEdge { source, target }
 }
 
 /// Network unit. It can contain other units and maintain connections between them.
@@ -121,7 +121,7 @@ pub struct Net {
     /// Global output buffers.
     output: BufferVec,
     /// Sources of global outputs.
-    output_edge: Vec<Edge>,
+    output_edge: Vec<NetEdge>,
     /// Vertices of the graph.
     vertex: Vec<Vertex>,
     /// Ordering of vertex evaluation.
