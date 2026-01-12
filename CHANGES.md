@@ -1,5 +1,10 @@
 ## Changes
 
+### Version 0.24 (Next Version)
+
+- `Sequencer` now supports looping.
+- New `AudioNode` tree introspection system in the module `graph`.
+
 ### Version 0.23
 
 - `Sequencer` can now have inputs.

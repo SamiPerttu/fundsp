@@ -11,6 +11,7 @@ use core::cmp::{Eq, Ord, Ordering};
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::collections::BinaryHeap;
+use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use hashbrown::HashMap;
@@ -83,6 +84,14 @@ impl Event {
             fade_in,
             fade_out,
             id: EventId::new(),
+        }
+    }
+
+    pub fn looped_end_time(&self, loop_point: f64) -> f64 {
+        if self.end_time - loop_point >= 0.0 {
+            self.end_time - loop_point
+        } else {
+            self.end_time
         }
     }
 }
@@ -216,6 +225,8 @@ pub enum ReplayMode {
     All,
     /// Clear all events on reset.
     None,
+    /// Loop while retaining all past events.
+    Loop(f64),
 }
 
 /// Sequencer mixes together scheduled audio events.
@@ -252,6 +263,12 @@ pub struct Sequencer {
     mode: ReplayMode,
     /// Intermediate input buffer.
     input_buffer: BufferVec,
+    /// Loop point, if we are looping.
+    loop_point: f64,
+    /// Input buffer used when looping.
+    loop_input_buffer: BufferVec,
+    /// Output buffer used when looping.
+    loop_output_buffer: BufferVec,
 }
 
 impl Clone for Sequencer {
@@ -276,6 +293,9 @@ impl Clone for Sequencer {
             front: None,
             mode: self.mode.clone(),
             input_buffer: self.input_buffer.clone(),
+            loop_point: self.loop_point.clone(),
+            loop_input_buffer: self.loop_input_buffer.clone(),
+            loop_output_buffer: self.loop_output_buffer.clone(),
         }
     }
 }
@@ -287,6 +307,11 @@ impl Sequencer {
     /// outputs. `mode` controls whether or not events are retained for replay
     /// after reset. See [`ReplayMode`] for more information.
     pub fn new(inputs: usize, outputs: usize, mode: ReplayMode) -> Self {
+        let loop_point = if let ReplayMode::Loop(x) = mode {
+            x
+        } else {
+            f64::INFINITY
+        };
         // when adding new dynamically sized fields,
         // don't forget to update [AudioUnit::allocate] implementation
         Self {
@@ -306,6 +331,9 @@ impl Sequencer {
             front: None,
             mode,
             input_buffer: BufferVec::new(inputs),
+            loop_point,
+            loop_input_buffer: BufferVec::new(inputs),
+            loop_output_buffer: BufferVec::new(outputs),
         }
     }
 
@@ -601,7 +629,7 @@ impl AudioUnit for Sequencer {
             return;
         }
         match self.mode {
-            ReplayMode::All => {
+            ReplayMode::All | ReplayMode::Loop(_) => {
                 while let Some(ready) = self.ready.pop() {
                     self.active.push(ready);
                 }
@@ -664,7 +692,9 @@ impl AudioUnit for Sequencer {
         self.ready_to_active(end_time);
         let mut i = 0;
         while i < self.active.len() {
-            if self.active[i].end_time <= self.time + 0.5 * self.sample_duration {
+            if self.active[i].looped_end_time(self.loop_point)
+                <= self.time + 0.5 * self.sample_duration
+            {
                 self.active_map.remove(&self.active[i].id);
                 if i + 1 < self.active.len() {
                     self.active_map
@@ -696,8 +726,8 @@ impl AudioUnit for Sequencer {
                 }
                 if self.active[i].fade_out > 0.0 {
                     let fade_out = delerp(
-                        self.active[i].end_time - self.active[i].fade_out,
-                        self.active[i].end_time,
+                        self.active[i].looped_end_time(self.loop_point) - self.active[i].fade_out,
+                        self.active[i].looped_end_time(self.loop_point),
                         self.time,
                     ) as f32;
                     if fade_out > 0.0 {
@@ -722,6 +752,11 @@ impl AudioUnit for Sequencer {
             }
         }
         self.time = end_time;
+        if let ReplayMode::Loop(x) = self.replay_mode() {
+            if self.time >= *x {
+                self.reset();
+            }
+        }
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
@@ -732,12 +767,22 @@ impl AudioUnit for Sequencer {
         for channel in 0..self.outputs {
             output.channel_mut(channel)[..simd_items(size)].fill(F32x::ZERO);
         }
-        let end_time = self.time + self.sample_duration * size as f64;
+        let end_time = min(self.time, self.loop_point) + self.sample_duration * size as f64;
         self.ready_to_active(end_time);
+        let mode = self.replay_mode().clone();
         let mut buffer_output = self.buffer.buffer_mut();
         let mut i = 0;
+        let loop_size = {
+            if let ReplayMode::Loop(x) = mode {
+                round((x - self.time) * self.sample_rate) as usize
+            } else {
+                size
+            }
+        };
         while i < self.active.len() {
-            if self.active[i].end_time <= self.time + 0.5 * self.sample_duration {
+            if self.active[i].looped_end_time(self.loop_point)
+                <= self.time + 0.5 * self.sample_duration
+            {
                 self.active_map.remove(&self.active[i].id);
                 if i + 1 < self.active.len() {
                     self.active_map
@@ -750,10 +795,16 @@ impl AudioUnit for Sequencer {
                 } else {
                     round((self.active[i].start_time - self.time) * self.sample_rate) as usize
                 };
-                let end_index = if self.active[i].end_time >= end_time {
-                    size
+                let end_index = if self.active[i].looped_end_time(self.loop_point) >= end_time {
+                    min(size, loop_size)
                 } else {
-                    round((self.active[i].end_time - self.time) * self.sample_rate) as usize
+                    min(
+                        loop_size,
+                        round(
+                            (self.active[i].looped_end_time(self.loop_point) - self.time)
+                                * self.sample_rate,
+                        ) as usize,
+                    )
                 };
                 if end_index > start_index {
                     let node_input = if start_index == 0 {
@@ -812,6 +863,28 @@ impl AudioUnit for Sequencer {
             }
         }
         self.time = end_time;
+        if loop_size < size {
+            self.reset();
+            let mut loop_input_tmp = BufferVec::new(0);
+            core::mem::swap(&mut loop_input_tmp, &mut self.loop_input_buffer);
+            let mut loop_output_tmp = BufferVec::new(0);
+            core::mem::swap(&mut loop_output_tmp, &mut self.loop_output_buffer);
+            for channel in 0..self.inputs() {
+                for j in loop_size - size..size {
+                    loop_input_tmp.set_f32(channel, j - loop_size, input.at_f32(channel, j));
+                }
+            }
+            let input_ref = &loop_input_tmp.buffer_ref();
+            let output_ref = &mut loop_output_tmp.buffer_mut();
+            self.process(size - loop_size, input_ref, output_ref);
+            for channel in 0..self.outputs() {
+                for j in loop_size - size..size {
+                    output.set_f32(channel, j, output_ref.at_f32(channel, j - loop_size));
+                }
+            }
+            core::mem::swap(&mut loop_input_tmp, &mut self.loop_input_buffer);
+            core::mem::swap(&mut loop_output_tmp, &mut self.loop_output_buffer);
+        }
     }
 
     fn get_id(&self) -> u64 {
