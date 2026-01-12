@@ -87,8 +87,8 @@ impl Event {
         }
     }
 
-    pub fn looped_end_time(&self, loop_point: f64) -> f64 {
-        if self.end_time - loop_point >= 0.0 {
+    pub fn looped_end_time(&self, time: f64, loop_point: f64) -> f64 {
+        if self.end_time - loop_point >= time {
             self.end_time - loop_point
         } else {
             self.end_time
@@ -692,7 +692,7 @@ impl AudioUnit for Sequencer {
         self.ready_to_active(end_time);
         let mut i = 0;
         while i < self.active.len() {
-            if self.active[i].looped_end_time(self.loop_point)
+            if self.active[i].looped_end_time(self.time, self.loop_point)
                 <= self.time + 0.5 * self.sample_duration
             {
                 self.active_map.remove(&self.active[i].id);
@@ -726,8 +726,9 @@ impl AudioUnit for Sequencer {
                 }
                 if self.active[i].fade_out > 0.0 {
                     let fade_out = delerp(
-                        self.active[i].looped_end_time(self.loop_point) - self.active[i].fade_out,
-                        self.active[i].looped_end_time(self.loop_point),
+                        self.active[i].looped_end_time(self.time, self.loop_point)
+                            - self.active[i].fade_out,
+                        self.active[i].looped_end_time(self.time, self.loop_point),
                         self.time,
                     ) as f32;
                     if fade_out > 0.0 {
@@ -780,7 +781,7 @@ impl AudioUnit for Sequencer {
             }
         };
         while i < self.active.len() {
-            if self.active[i].looped_end_time(self.loop_point)
+            if self.active[i].looped_end_time(self.time, self.loop_point)
                 <= self.time + 0.5 * self.sample_duration
             {
                 self.active_map.remove(&self.active[i].id);
@@ -795,17 +796,19 @@ impl AudioUnit for Sequencer {
                 } else {
                     round((self.active[i].start_time - self.time) * self.sample_rate) as usize
                 };
-                let end_index = if self.active[i].looped_end_time(self.loop_point) >= end_time {
-                    min(size, loop_size)
-                } else {
-                    min(
-                        loop_size,
-                        round(
-                            (self.active[i].looped_end_time(self.loop_point) - self.time)
-                                * self.sample_rate,
-                        ) as usize,
-                    )
-                };
+                let end_index =
+                    if self.active[i].looped_end_time(self.time, self.loop_point) >= end_time {
+                        min(size, loop_size)
+                    } else {
+                        min(
+                            loop_size,
+                            round(
+                                (self.active[i].looped_end_time(self.time, self.loop_point)
+                                    - self.time)
+                                    * self.sample_rate,
+                            ) as usize,
+                        )
+                    };
                 if end_index > start_index {
                     let node_input = if start_index == 0 {
                         input
