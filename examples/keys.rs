@@ -554,6 +554,7 @@ impl eframe::App for State {
                     ));
                 }
             }
+            self.sequencer.commit();
         });
     }
 }

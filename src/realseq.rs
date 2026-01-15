@@ -6,6 +6,7 @@ use super::math::*;
 use super::sequencer::*;
 use super::signal::*;
 use super::*;
+use tinyvec::TinyVec;
 
 #[derive(Default, Clone)]
 pub(crate) enum Message {
@@ -22,11 +23,23 @@ pub(crate) enum Message {
     EditRelative(EventId, Edit),
 }
 
+#[derive(Default)]
+pub(crate) struct SequencerMessage {
+    pub edits: Vec<Message>,
+}
+
+#[derive(Default)]
+pub(crate) struct SequencerReturn {
+    pub vec: Box<TinyVec<[Option<Event>; 256]>>,
+}
+
 pub struct SequencerBackend {
     /// For sending events for deallocation back to the frontend.
-    pub(crate) sender: Arc<Queue<Event, 256>>,
+    pub(crate) sender: Arc<Queue<SequencerReturn, 256>>,
+    /// Return message that is being filled.
+    pub(crate) fill_message: SequencerReturn,
     /// For receiving new events from the frontend.
-    receiver: Arc<Queue<Message, 256>>,
+    receiver: Arc<Queue<SequencerMessage, 256>>,
     /// The backend sequencer.
     sequencer: Sequencer,
 }
@@ -34,11 +47,12 @@ pub struct SequencerBackend {
 impl Clone for SequencerBackend {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
-        let queue_event = Arc::new(Queue::<Event, 256>::new_const());
-        let queue_message = Arc::new(Queue::<Message, 256>::new_const());
+        let queue_event = Arc::new(Queue::<SequencerReturn, 256>::new_const());
+        let queue_message = Arc::new(Queue::<SequencerMessage, 256>::new_const());
         SequencerBackend {
             sender: queue_event,
             receiver: queue_message,
+            fill_message: SequencerReturn::default(),
             sequencer: self.sequencer.clone(),
         }
     }
@@ -47,36 +61,39 @@ impl Clone for SequencerBackend {
 impl SequencerBackend {
     /// Create new backend.
     pub(crate) fn new(
-        sender: Arc<Queue<Event, 256>>,
-        receiver: Arc<Queue<Message, 256>>,
+        sender: Arc<Queue<SequencerReturn, 256>>,
+        receiver: Arc<Queue<SequencerMessage, 256>>,
         sequencer: Sequencer,
     ) -> Self {
         Self {
             sender,
             receiver,
+            fill_message: SequencerReturn::default(),
             sequencer,
         }
     }
 
     /// Handle changes made to the backend.
     fn handle_messages(&mut self) {
-        while let Some(message) = self.receiver.dequeue() {
-            match message {
-                Message::Reset => {
-                    self.reset();
-                }
-                Message::Push(event) => {
-                    self.sequencer.push_event(event);
-                }
-                Message::PushRelative(event) => {
-                    self.sequencer.push_relative_event(event);
-                }
-                Message::Edit(id, edit) => {
-                    self.sequencer.edit(id, edit.end_time, edit.fade_out);
-                }
-                Message::EditRelative(id, edit) => {
-                    self.sequencer
-                        .edit_relative(id, edit.end_time, edit.fade_out);
+        while let Some(mut message) = self.receiver.dequeue() {
+            while let Some(msg) = message.edits.pop() {
+                match msg {
+                    Message::Reset => {
+                        self.reset();
+                    }
+                    Message::Push(event) => {
+                        self.sequencer.push_event(event);
+                    }
+                    Message::PushRelative(event) => {
+                        self.sequencer.push_relative_event(event);
+                    }
+                    Message::Edit(id, edit) => {
+                        self.sequencer.edit(id, edit.end_time, edit.fade_out);
+                    }
+                    Message::EditRelative(id, edit) => {
+                        self.sequencer
+                            .edit_relative(id, edit.end_time, edit.fade_out);
+                    }
                 }
             }
         }
@@ -85,7 +102,12 @@ impl SequencerBackend {
     #[inline]
     fn send_back_past(&mut self) {
         while let Some(event) = self.sequencer.get_past_event() {
-            if self.sender.enqueue(event).is_ok() {}
+            self.fill_message.vec.push(Some(event));
+            if self.fill_message.vec.len() == self.fill_message.vec.capacity() {
+                let mut msg = SequencerReturn::default();
+                core::mem::swap(&mut self.fill_message, &mut msg);
+                if self.sender.enqueue(msg).is_ok() {}
+            }
         }
     }
 }
@@ -104,13 +126,28 @@ impl AudioUnit for SequencerBackend {
         match self.sequencer.replay_mode() {
             ReplayMode::None => {
                 while let Some(event) = self.sequencer.get_past_event() {
-                    if self.sender.enqueue(event).is_ok() {}
+                    self.fill_message.vec.push(Some(event));
+                    if self.fill_message.vec.len() == self.fill_message.vec.capacity() {
+                        let mut msg = SequencerReturn::default();
+                        core::mem::swap(&mut self.fill_message, &mut msg);
+                        if self.sender.enqueue(msg).is_ok() {}
+                    }
                 }
                 while let Some(event) = self.sequencer.get_ready_event() {
-                    if self.sender.enqueue(event).is_ok() {}
+                    self.fill_message.vec.push(Some(event));
+                    if self.fill_message.vec.len() == self.fill_message.vec.capacity() {
+                        let mut msg = SequencerReturn::default();
+                        core::mem::swap(&mut self.fill_message, &mut msg);
+                        if self.sender.enqueue(msg).is_ok() {}
+                    }
                 }
                 while let Some(event) = self.sequencer.get_active_event() {
-                    if self.sender.enqueue(event).is_ok() {}
+                    self.fill_message.vec.push(Some(event));
+                    if self.fill_message.vec.len() == self.fill_message.vec.capacity() {
+                        let mut msg = SequencerReturn::default();
+                        core::mem::swap(&mut self.fill_message, &mut msg);
+                        if self.sender.enqueue(msg).is_ok() {}
+                    }
                 }
             }
             _ => (),

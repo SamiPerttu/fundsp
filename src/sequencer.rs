@@ -257,8 +257,10 @@ pub struct Sequencer {
     buffer: BufferVec,
     /// Intermediate output frame.
     tick_buffer: Vec<f32>,
+    /// Current commit.
+    commit_message: SequencerMessage,
     /// Optional frontend.
-    front: Option<(Arc<Queue<Message, 256>>, Arc<Queue<Event, 256>>)>,
+    front: Option<(Arc<Queue<SequencerMessage, 256>>, Arc<Queue<SequencerReturn, 256>>)>,
     /// Whether we replay existing events after a call to `reset`.
     mode: ReplayMode,
     /// Intermediate input buffer.
@@ -290,6 +292,7 @@ impl Clone for Sequencer {
             sample_duration: self.sample_duration,
             buffer: self.buffer.clone(),
             tick_buffer: self.tick_buffer.clone(),
+            commit_message: SequencerMessage::default(),
             front: None,
             mode: self.mode.clone(),
             input_buffer: self.input_buffer.clone(),
@@ -328,6 +331,7 @@ impl Sequencer {
             sample_duration: 1.0 / DEFAULT_SR,
             buffer: BufferVec::new(outputs),
             tick_buffer: vec![0.0; outputs],
+            commit_message: SequencerMessage::default(),
             front: None,
             mode,
             input_buffer: BufferVec::new(inputs),
@@ -381,16 +385,29 @@ impl Sequencer {
 
     /// Add event. This is an internal method.
     pub(crate) fn push_event(&mut self, event: Event) {
-        if let Some((sender, receiver)) = &mut self.front {
+        if let Some((_sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.dequeue().is_some() {}
             // Send the new event over.
-            if sender.enqueue(Message::Push(event)).is_ok() {}
+            self.commit_message.edits.push(Message::Push(event));
         } else if event.start_time < self.active_threshold {
             self.active_map.insert(event.id, self.active.len());
             self.active.push(event);
         } else {
             self.ready.push(event);
+        }
+    }
+
+    /// Commit all events and edits to the backend.
+    pub fn commit(&mut self) {
+        assert!(self.has_backend());
+        if self.commit_message.edits.len() > 0 {
+            if let Some((sender, _receiver)) = &mut self.front {
+                self.commit_message.edits.reverse();
+                let mut next_commit_message = SequencerMessage::default();
+                core::mem::swap(&mut next_commit_message, &mut self.commit_message);
+                if sender.enqueue(next_commit_message).is_ok() {}
+            }
         }
     }
 
@@ -429,11 +446,11 @@ impl Sequencer {
 
     /// Add relative event. This is an internal method.
     pub(crate) fn push_relative_event(&mut self, mut event: Event) {
-        if let Some((sender, receiver)) = &mut self.front {
+        if let Some((_sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.dequeue().is_some() {}
             // Send the new event over.
-            if sender.enqueue(Message::PushRelative(event)).is_ok() {}
+            self.commit_message.edits.push(Message::PushRelative(event));
         } else {
             event.start_time += self.time;
             event.end_time += self.time;
@@ -474,20 +491,17 @@ impl Sequencer {
     /// how long they need to play. The original end time can be set to infinity,
     /// for example.
     pub fn edit(&mut self, id: EventId, end_time: f64, fade_out_time: f64) {
-        if let Some((sender, receiver)) = &mut self.front {
+        if let Some((_sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.dequeue().is_some() {}
             // Send the new edit over.
-            if sender
-                .enqueue(Message::Edit(
+            self.commit_message.edits.push(Message::Edit(
                     id,
                     Edit {
                         end_time,
                         fade_out: fade_out_time,
                     },
-                ))
-                .is_ok()
-            {}
+                ));
         } else if self.active_map.contains_key(&id) {
             // The edit applies to an active event.
             let i = self.active_map[&id];
@@ -515,20 +529,17 @@ impl Sequencer {
     /// how long they need to play. The original end time can be set to infinity,
     /// for example.
     pub fn edit_relative(&mut self, id: EventId, end_time: f64, fade_out_time: f64) {
-        if let Some((sender, receiver)) = &mut self.front {
+        if let Some((_sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.dequeue().is_some() {}
             // Send the new edit over.
-            if sender
-                .enqueue(Message::EditRelative(
+            self.commit_message.edits.push(Message::EditRelative(
                     id,
                     Edit {
                         end_time,
                         fade_out: fade_out_time,
                     },
-                ))
-                .is_ok()
-            {}
+            ));
         } else if self.active_map.contains_key(&id) {
             // The edit applies to an active event.
             let i = self.active_map[&id];
@@ -622,10 +633,10 @@ impl Sequencer {
 
 impl AudioUnit for Sequencer {
     fn reset(&mut self) {
-        if let Some((sender, receiver)) = &mut self.front {
+        if let Some((_sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.dequeue().is_some() {}
-            let _ = sender.enqueue(Message::Reset);
+            self.commit_message.edits.push(Message::Reset);
             return;
         }
         match self.mode {
