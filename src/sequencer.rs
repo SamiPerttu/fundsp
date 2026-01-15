@@ -260,7 +260,10 @@ pub struct Sequencer {
     /// Current commit.
     commit_message: SequencerMessage,
     /// Optional frontend.
-    front: Option<(Arc<Queue<SequencerMessage, 256>>, Arc<Queue<SequencerReturn, 256>>)>,
+    front: Option<(
+        Arc<Queue<SequencerMessage, 256>>,
+        Arc<Queue<SequencerReturn, 256>>,
+    )>,
     /// Whether we replay existing events after a call to `reset`.
     mode: ReplayMode,
     /// Intermediate input buffer.
@@ -496,12 +499,12 @@ impl Sequencer {
             while receiver.dequeue().is_some() {}
             // Send the new edit over.
             self.commit_message.edits.push(Message::Edit(
-                    id,
-                    Edit {
-                        end_time,
-                        fade_out: fade_out_time,
-                    },
-                ));
+                id,
+                Edit {
+                    end_time,
+                    fade_out: fade_out_time,
+                },
+            ));
         } else if self.active_map.contains_key(&id) {
             // The edit applies to an active event.
             let i = self.active_map[&id];
@@ -534,11 +537,11 @@ impl Sequencer {
             while receiver.dequeue().is_some() {}
             // Send the new edit over.
             self.commit_message.edits.push(Message::EditRelative(
-                    id,
-                    Edit {
-                        end_time,
-                        fade_out: fade_out_time,
-                    },
+                id,
+                Edit {
+                    end_time,
+                    fade_out: fade_out_time,
+                },
             ));
         } else if self.active_map.contains_key(&id) {
             // The edit applies to an active event.
@@ -956,13 +959,15 @@ mod tests {
     #[test]
     fn reset_replays_events_with_backend() {
         let mut front = Sequencer::new(0, 1, ReplayMode::All);
-        front.push(0.0, 1.0, Fade::Smooth, 0.0, 0.0, Box::new(sine_hz(440.0)));
         let mut back = front.backend();
+        front.push(0.0, 1.0, Fade::Smooth, 0.0, 0.0, Box::new(sine_hz(440.0)));
+        front.commit();
 
         let mut first = [0.0; 1];
         back.tick(&[], &mut first);
 
         front.reset();
+        front.commit();
 
         let mut second = [0.0; 1];
         back.tick(&[], &mut second);

@@ -4,6 +4,7 @@
 
 - `Sequencer` now supports looping.
 - New `AudioNode` tree introspection system in the module `graph`.
+- In order to take effect, `Sequencer` changes must now be committed to the backend.
 
 ### Version 0.23
 
