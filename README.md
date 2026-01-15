@@ -603,6 +603,8 @@ let mut backend = sequencer.backend();
 // Later we can use the frontend to create events and make edits to them; the end time and fade-out time
 // can be changed. Here we start fading out the event immediately with an envelope duration of 0.1 seconds.
 sequencer.edit_relative(id2, 0.1, 0.1);
+/// In order to take effect, changes must be committed.
+sequencer.commit();
 ```
 
 ## Input Modalities And Ranges
