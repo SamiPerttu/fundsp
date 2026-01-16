@@ -1,6 +1,7 @@
 //! Oversampling.
 
 use super::audionode::*;
+use super::buffer::*;
 use super::graph::*;
 use super::math::*;
 use super::signal::*;
@@ -152,34 +153,196 @@ const HALFBAND_MIN: [f32; HALFBAND_MIN_LEN] = [
     -9.41945265e-04,
 ];
 
+const HALFBAND_LEN_SIMD: usize = HALF_HALFBAND_LEN * 2;
+pub const HALF_HALFBAND_LEN: usize = 3;
+type SimdCoeffs = [[f32; 8]; HALF_HALFBAND_LEN];
+
+/// Filter coefficients used for decimation, grouped for efficient f32x8 construction at compile time.
+pub const DECIMATING_COEFFS: [[f32; 8]; HALFBAND_LEN_SIMD] = [
+    [
+        0.,
+        0.,
+        0.,
+        0.,
+        0.,
+        HALFBAND_MIN[0],
+        HALFBAND_MIN[1],
+        HALFBAND_MIN[2],
+    ],
+    [
+        HALFBAND_MIN[3],
+        HALFBAND_MIN[4],
+        HALFBAND_MIN[5],
+        HALFBAND_MIN[6],
+        HALFBAND_MIN[7],
+        HALFBAND_MIN[8],
+        HALFBAND_MIN[9],
+        HALFBAND_MIN[10],
+    ],
+    [
+        HALFBAND_MIN[11],
+        HALFBAND_MIN[12],
+        HALFBAND_MIN[13],
+        HALFBAND_MIN[14],
+        HALFBAND_MIN[15],
+        HALFBAND_MIN[16],
+        HALFBAND_MIN[17],
+        HALFBAND_MIN[18],
+    ],
+    [
+        HALFBAND_MIN[19],
+        HALFBAND_MIN[20],
+        HALFBAND_MIN[21],
+        HALFBAND_MIN[22],
+        HALFBAND_MIN[23],
+        HALFBAND_MIN[24],
+        HALFBAND_MIN[25],
+        HALFBAND_MIN[26],
+    ],
+    [
+        HALFBAND_MIN[27],
+        HALFBAND_MIN[28],
+        HALFBAND_MIN[29],
+        HALFBAND_MIN[30],
+        HALFBAND_MIN[31],
+        HALFBAND_MIN[32],
+        HALFBAND_MIN[33],
+        HALFBAND_MIN[34],
+    ],
+    [
+        HALFBAND_MIN[35],
+        HALFBAND_MIN[36],
+        HALFBAND_MIN[37],
+        HALFBAND_MIN[38],
+        HALFBAND_MIN[39],
+        HALFBAND_MIN[40],
+        HALFBAND_MIN[41],
+        HALFBAND_MIN[42],
+    ],
+];
+
+/// Filter coefficients used for interpolation on even (real) samples,
+/// grouped for efficient f32x8 construction at compile time.
+pub const INTERPOLATING_EVEN_COEFFS: SimdCoeffs = [
+    [
+        0.,
+        0.,
+        HALFBAND_MIN[0],
+        HALFBAND_MIN[2],
+        HALFBAND_MIN[4],
+        HALFBAND_MIN[6],
+        HALFBAND_MIN[8],
+        HALFBAND_MIN[10],
+    ],
+    [
+        HALFBAND_MIN[12],
+        HALFBAND_MIN[14],
+        HALFBAND_MIN[16],
+        HALFBAND_MIN[18],
+        HALFBAND_MIN[20],
+        HALFBAND_MIN[22],
+        HALFBAND_MIN[24],
+        HALFBAND_MIN[26],
+    ],
+    [
+        HALFBAND_MIN[28],
+        HALFBAND_MIN[30],
+        HALFBAND_MIN[32],
+        HALFBAND_MIN[34],
+        HALFBAND_MIN[36],
+        HALFBAND_MIN[38],
+        HALFBAND_MIN[40],
+        HALFBAND_MIN[42],
+    ],
+];
+
+/// Filter coefficients used for interpolation on odd (0-padded) samples,
+/// grouped for efficient f32x8 construction at compile time.
+pub const INTERPOLATING_ODD_COEFFS: SimdCoeffs = [
+    [
+        0.,
+        0.,
+        0.,
+        HALFBAND_MIN[1],
+        HALFBAND_MIN[3],
+        HALFBAND_MIN[5],
+        HALFBAND_MIN[7],
+        HALFBAND_MIN[9],
+    ],
+    [
+        HALFBAND_MIN[11],
+        HALFBAND_MIN[13],
+        HALFBAND_MIN[15],
+        HALFBAND_MIN[17],
+        HALFBAND_MIN[19],
+        HALFBAND_MIN[21],
+        HALFBAND_MIN[23],
+        HALFBAND_MIN[25],
+    ],
+    [
+        HALFBAND_MIN[27],
+        HALFBAND_MIN[29],
+        HALFBAND_MIN[31],
+        HALFBAND_MIN[33],
+        HALFBAND_MIN[35],
+        HALFBAND_MIN[37],
+        HALFBAND_MIN[39],
+        HALFBAND_MIN[41],
+    ],
+];
+
+/// wrapping offset from the index of the latest sample to start filtering from.
+/// we add 1 more than the ringbuf length to the start sample so that the last sample is used.
+const START_SAMPLE_OFFSET_HALF: usize = 129 - HALF_HALFBAND_LEN * 8;
+const START_SAMPLE_OFFSET_FULL: usize = 129 - (HALFBAND_MIN_LEN / 8 + 1) * 8;
+
 #[inline]
-fn tick_even(v: &Frame<f32, U128>, j: usize) -> f32 {
-    let j = j + 0x80 - HALFBAND_MIN_LEN;
-    let mut output = 0.0;
-    for i in 0..HALFBAND_MIN_LEN / 2 + 1 {
-        output += v[(j + i * 2) & 0x7f] * HALFBAND_MIN[i * 2];
+fn interpolating_filter(input_buffer: &[f32], new_sample_index: usize) -> (f32, f32) {
+    let start_sample = new_sample_index + START_SAMPLE_OFFSET_HALF;
+    let mut acc_even = f32x8::splat(0.);
+    let mut acc_odd = f32x8::splat(0.);
+
+    for i in 0..HALF_HALFBAND_LEN {
+        let loop_start = start_sample + i * 8;
+        let samples = f32x8::from([
+            input_buffer[(loop_start) & 0x7f],
+            input_buffer[(loop_start + 1) & 0x7f],
+            input_buffer[(loop_start + 2) & 0x7f],
+            input_buffer[(loop_start + 3) & 0x7f],
+            input_buffer[(loop_start + 4) & 0x7f],
+            input_buffer[(loop_start + 5) & 0x7f],
+            input_buffer[(loop_start + 6) & 0x7f],
+            input_buffer[(loop_start + 7) & 0x7f],
+        ]);
+        acc_even = samples.mul_add(f32x8::from(INTERPOLATING_EVEN_COEFFS[i]), acc_even);
+        acc_odd = samples.mul_add(f32x8::from(INTERPOLATING_ODD_COEFFS[i]), acc_odd);
     }
-    output * 2.0
+
+    // multiply output by 2 since we only summed half the sample * coefficient products!
+    (acc_even.reduce_add() * 2.0, acc_odd.reduce_add() * 2.0)
 }
 
 #[inline]
-fn tick_odd(v: &Frame<f32, U128>, j: usize) -> f32 {
-    let j = j + 0x80 - HALFBAND_MIN_LEN;
-    let mut output = 0.0;
-    for i in 0..HALFBAND_MIN_LEN / 2 {
-        output += v[(j + i * 2 + 1) & 0x7f] * HALFBAND_MIN[i * 2 + 1];
-    }
-    output * 2.0
-}
+fn decimating_filter(output_buffer: &[f32], last_sample_index: usize) -> f32 {
+    let start_sample = last_sample_index + START_SAMPLE_OFFSET_FULL;
+    let coeffs = DECIMATING_COEFFS;
+    let mut accumulator = f32x8::splat(0.);
 
-#[inline]
-fn tick(v: &Frame<f32, U128>, j: usize) -> f32 {
-    let j = j + 0x80 - HALFBAND_MIN_LEN;
-    let mut output = 0.0;
-    for i in 0..HALFBAND_MIN_LEN {
-        output += v[(j + i) & 0x7f] * HALFBAND_MIN[i];
+    for (i, coeffs_slice) in coeffs.iter().copied().enumerate() {
+        let loop_start = start_sample + i * 8;
+        let samples = f32x8::from([
+            output_buffer[(loop_start) & 0x7f],
+            output_buffer[(loop_start + 1) & 0x7f],
+            output_buffer[(loop_start + 2) & 0x7f],
+            output_buffer[(loop_start + 3) & 0x7f],
+            output_buffer[(loop_start + 4) & 0x7f],
+            output_buffer[(loop_start + 5) & 0x7f],
+            output_buffer[(loop_start + 6) & 0x7f],
+            output_buffer[(loop_start + 7) & 0x7f],
+        ]);
+        accumulator = samples.mul_add(f32x8::from(coeffs_slice), accumulator);
     }
-    output
+    accumulator.reduce_add()
 }
 
 #[derive(Clone)]
@@ -194,7 +357,8 @@ where
     x: X,
     inv: Frame<Frame<f32, U128>, X::Inputs>,
     outv: Frame<Frame<f32, U128>, X::Outputs>,
-    j: usize,
+    input_rb_index: usize,
+    output_rb_index: usize,
 }
 
 impl<X> Oversampler<X>
@@ -215,7 +379,8 @@ where
             x: node,
             inv: Frame::default(),
             outv: Frame::default(),
-            j: 0,
+            input_rb_index: 0,
+            output_rb_index: 0,
         }
     }
 
@@ -255,29 +420,79 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
+        let mut over_input = Frame::default();
+        let mut over_input2 = Frame::default();
+
+        // add input sample to input ringbuf
         for channel in 0..Self::Inputs::USIZE {
-            self.inv[channel][self.j] = input[channel];
+            self.inv[channel][self.input_rb_index] = input[channel];
+
+            let (even, odd) = interpolating_filter(&self.inv[channel], self.input_rb_index);
+            over_input[channel] = even;
+            over_input2[channel] = odd;
         }
-        let over_input: Frame<f32, Self::Inputs> =
-            Frame::generate(|channel| tick_even(&self.inv[channel], self.j + 1));
+        self.input_rb_index = (self.input_rb_index + 1) & 0x7f;
+
+        // get output and push to output ringbuf
         let over_output = self.x.tick(&over_input);
         for channel in 0..Self::Outputs::USIZE {
-            self.outv[channel][self.j] = over_output[channel];
+            self.outv[channel][self.output_rb_index] = over_output[channel];
         }
-        self.j = (self.j + 1) & 0x7f;
-        for channel in 0..Self::Inputs::USIZE {
-            self.inv[channel][self.j] = 0.0;
-        }
-        let over_input2: Frame<f32, Self::Inputs> =
-            Frame::generate(|channel| tick_odd(&self.inv[channel], self.j + 1));
+        self.output_rb_index = (self.output_rb_index + 1) & 0x7f;
+
         let over_output2 = self.x.tick(&over_input2);
         for channel in 0..Self::Outputs::USIZE {
-            self.outv[channel][self.j] = over_output2[channel];
+            self.outv[channel][self.output_rb_index] = over_output2[channel];
         }
+
         let output: Frame<f32, Self::Outputs> =
-            Frame::generate(|channel| tick(&self.outv[channel], self.j));
-        self.j = (self.j + 1) & 0x7f;
+            Frame::generate(|channel| decimating_filter(&self.outv[channel], self.output_rb_index));
+
+        self.output_rb_index = (self.output_rb_index + 1) & 0x7f;
+
         output
+    }
+
+    #[inline]
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        let mut inner_input: BufferArray<Self::Inputs> = BufferArray::new();
+        let mut inner_output: BufferArray<Self::Outputs> = BufferArray::new();
+
+        for offset in [0, size / 2] {
+            // interpolate into input buffer (half of input)
+            for i in 0..size / 2 {
+                for channel in 0..Self::Inputs::USIZE {
+                    self.inv[channel][self.input_rb_index] = input.at_f32(channel, i + offset);
+
+                    let (even, odd) = interpolating_filter(&self.inv[channel], self.input_rb_index);
+                    inner_input.set_f32(channel, i * 2, even);
+                    inner_input.set_f32(channel, i * 2 + 1, odd);
+                }
+
+                self.input_rb_index = (self.input_rb_index + 1) & 0x7f;
+            }
+
+            // process
+            self.x.process(
+                size,
+                &(inner_input.buffer_ref()),
+                &mut inner_output.buffer_mut(),
+            );
+
+            // decimate into output buffer (half of output)
+            for i in 0..size / 2 {
+                for channel in 0..Self::Inputs::USIZE {
+                    self.outv[channel][self.output_rb_index] = inner_output.at_f32(channel, i * 2);
+                    let next_output_index = (self.output_rb_index + 1) & 0x7f;
+                    self.outv[channel][next_output_index] = inner_output.at_f32(channel, i * 2 + 1);
+
+                    let output_sample = decimating_filter(&self.outv[channel], next_output_index);
+                    output.set_f32(channel, i + offset, output_sample);
+                }
+
+                self.output_rb_index = (self.output_rb_index + 2) & 0x7f;
+            }
+        }
     }
 
     fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
