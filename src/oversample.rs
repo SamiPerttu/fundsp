@@ -14,7 +14,12 @@ fn interpolating_filter(input_buffer: &[f32], new_sample_index: usize) -> (f32, 
     let mut acc_even = f32x8::splat(0.);
     let mut acc_odd = f32x8::splat(0.);
 
-    for i in 0..HALF_HALFBAND_LEN {
+    for (i, (even_coeff_slice, odd_coeff_slice)) in INTERPOLATING_EVEN_COEFFS
+        .iter()
+        .copied()
+        .zip(INTERPOLATING_ODD_COEFFS.iter().copied())
+        .enumerate()
+    {
         let loop_start = start_sample + i * 8;
         let samples = f32x8::from([
             input_buffer[(loop_start) & 0x7f],
@@ -26,8 +31,8 @@ fn interpolating_filter(input_buffer: &[f32], new_sample_index: usize) -> (f32, 
             input_buffer[(loop_start + 6) & 0x7f],
             input_buffer[(loop_start + 7) & 0x7f],
         ]);
-        acc_even = samples.mul_add(f32x8::from(INTERPOLATING_EVEN_COEFFS[i]), acc_even);
-        acc_odd = samples.mul_add(f32x8::from(INTERPOLATING_ODD_COEFFS[i]), acc_odd);
+        acc_even = samples.mul_add(f32x8::from(even_coeff_slice), acc_even);
+        acc_odd = samples.mul_add(f32x8::from(odd_coeff_slice), acc_odd);
     }
 
     // multiply output by 2 since we only summed half the sample * coefficient products!
@@ -37,10 +42,9 @@ fn interpolating_filter(input_buffer: &[f32], new_sample_index: usize) -> (f32, 
 #[inline]
 fn decimating_filter(output_buffer: &[f32], last_sample_index: usize) -> f32 {
     let start_sample = last_sample_index + START_SAMPLE_OFFSET_FULL;
-    let coeffs = DECIMATING_COEFFS;
     let mut accumulator = f32x8::splat(0.);
 
-    for (i, coeffs_slice) in coeffs.iter().copied().enumerate() {
+    for (i, coeffs_slice) in DECIMATING_COEFFS.iter().copied().enumerate() {
         let loop_start = start_sample + i * 8;
         let samples = f32x8::from([
             output_buffer[(loop_start) & 0x7f],
