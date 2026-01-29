@@ -30,6 +30,7 @@ pub(crate) struct SequencerMessage {
 
 #[derive(Default)]
 pub(crate) struct SequencerReturn {
+    pub msg: Box<TinyVec<[Option<SequencerMessage>; 256]>>,
     pub vec: Box<TinyVec<[Option<Event>; 256]>>,
 }
 
@@ -96,18 +97,29 @@ impl SequencerBackend {
                     }
                 }
             }
+            self.fill_message.msg.push(Some(message));
+            if self.fill_message.msg.len() == self.fill_message.msg.capacity() {
+                let mut return_msg = SequencerReturn::default();
+                core::mem::swap(&mut self.fill_message, &mut return_msg);
+                if self.sender.enqueue(return_msg).is_ok() {}
+            }
         }
     }
 
     #[inline]
     fn send_back_past(&mut self) {
         while let Some(event) = self.sequencer.get_past_event() {
-            self.fill_message.vec.push(Some(event));
-            if self.fill_message.vec.len() == self.fill_message.vec.capacity() {
-                let mut msg = SequencerReturn::default();
-                core::mem::swap(&mut self.fill_message, &mut msg);
-                if self.sender.enqueue(msg).is_ok() {}
-            }
+            self.return_event(event);
+        }
+    }
+
+    #[inline]
+    fn return_event(&mut self, event: Event) {
+        self.fill_message.vec.push(Some(event));
+        if self.fill_message.vec.len() == self.fill_message.vec.capacity() {
+            let mut msg = SequencerReturn::default();
+            core::mem::swap(&mut self.fill_message, &mut msg);
+            if self.sender.enqueue(msg).is_ok() {}
         }
     }
 }
@@ -126,28 +138,13 @@ impl AudioUnit for SequencerBackend {
         match self.sequencer.replay_mode() {
             ReplayMode::None => {
                 while let Some(event) = self.sequencer.get_past_event() {
-                    self.fill_message.vec.push(Some(event));
-                    if self.fill_message.vec.len() == self.fill_message.vec.capacity() {
-                        let mut msg = SequencerReturn::default();
-                        core::mem::swap(&mut self.fill_message, &mut msg);
-                        if self.sender.enqueue(msg).is_ok() {}
-                    }
+                    self.return_event(event);
                 }
                 while let Some(event) = self.sequencer.get_ready_event() {
-                    self.fill_message.vec.push(Some(event));
-                    if self.fill_message.vec.len() == self.fill_message.vec.capacity() {
-                        let mut msg = SequencerReturn::default();
-                        core::mem::swap(&mut self.fill_message, &mut msg);
-                        if self.sender.enqueue(msg).is_ok() {}
-                    }
+                    self.return_event(event);
                 }
                 while let Some(event) = self.sequencer.get_active_event() {
-                    self.fill_message.vec.push(Some(event));
-                    if self.fill_message.vec.len() == self.fill_message.vec.capacity() {
-                        let mut msg = SequencerReturn::default();
-                        core::mem::swap(&mut self.fill_message, &mut msg);
-                        if self.sender.enqueue(msg).is_ok() {}
-                    }
+                    self.return_event(event);
                 }
             }
             _ => (),

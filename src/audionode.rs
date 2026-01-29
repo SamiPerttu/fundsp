@@ -10,6 +10,9 @@ use super::*;
 use core::marker::PhantomData;
 use num_complex::Complex64;
 use numeric_array::typenum::*;
+extern crate alloc;
+use alloc::vec;
+use alloc::vec::Vec;
 
 /*
 Order of type arguments in nodes:
@@ -169,19 +172,19 @@ pub trait AudioNode: Clone + Sync + Send {
         SignalFrame::new(self.outputs())
     }
 
-    /// Get edge target to input `index`.
-    fn input_edge(&self, index: usize, prefix: Path) -> Path {
-        prefix.with_index(index)
+    /// Get edge source to output `index`.
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        path.with_index(output)
     }
 
-    /// Get edge source from output `index`.
-    fn output_edge(&self, index: usize, prefix: Path) -> Path {
-        prefix.with_index(index)
+    /// Get edge targets from input `index`.
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        vec![path.with_index(input)]
     }
 
     /// Fill inner structure of the node with nodes and edges.
-    fn fill_graph(&self, prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(prefix, Self::ID, self.inputs(), self.outputs()));
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
+        graph.push_node(Node::new(path, Self::ID, self.inputs(), self.outputs()));
     }
 
     // End of interface. There is no need to override the following.
@@ -975,33 +978,43 @@ where
         signal_x
     }
 
-    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
-        if index < self.x.inputs() {
-            prefix.push(0);
-            self.x.input_edge(index, prefix)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        path.with_index(output)
+    }
+
+    fn target_edges(&self, input: usize, mut path: Path) -> Vec<Path> {
+        if input < self.x.inputs() {
+            path.push(0);
+            self.x.target_edges(input, path)
         } else {
-            prefix.push(1);
-            self.y.input_edge(index - self.x.inputs(), prefix)
+            path.push(1);
+            self.y.target_edges(input - self.x.inputs(), path)
         }
     }
 
-    fn output_edge(&self, index: usize, prefix: Path) -> Path {
-        prefix.with_index(index)
-    }
-
-    fn fill_graph(&self, prefix: Path, graph: &mut Graph) {
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
         graph.push_node(Node::new(
-            prefix.clone(),
+            path.clone(),
             Self::ID,
-            self.inputs(),
+            self.outputs(),
             self.outputs(),
         ));
-        let mut x_path = prefix.clone();
-        x_path.push(0);
-        self.x.fill_graph(x_path, graph);
-        let mut y_path = prefix.clone();
-        y_path.push(1);
-        self.y.fill_graph(y_path, graph);
+        let x_path = path.clone().with_suffix(0);
+        for i in 0..self.x.outputs() {
+            graph.push_edge(Edge::new(
+                self.x.source_edge(i, x_path.clone()),
+                path.clone().with_index(i),
+            ));
+        }
+        self.x.fill_graph(graph, x_path);
+        let y_path = path.clone().with_suffix(1);
+        for i in 0..self.y.outputs() {
+            graph.push_edge(Edge::new(
+                self.y.source_edge(i, y_path.clone()),
+                path.clone().with_index(i),
+            ));
+        }
+        self.y.fill_graph(graph, y_path);
     }
 }
 
@@ -1278,24 +1291,29 @@ where
         signal_x
     }
 
-    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
-        prefix.push(0);
-        self.x.input_edge(index, prefix)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        path.with_index(output)
     }
 
-    fn output_edge(&self, index: usize, prefix: Path) -> Path {
-        prefix.with_index(index)
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        self.x.target_edges(input, path.with_suffix(0))
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
         graph.push_node(Node::new(
-            prefix.clone(),
+            path.clone(),
             Self::ID,
-            self.inputs(),
+            self.outputs(),
             self.outputs(),
         ));
-        prefix.push(0);
-        self.x.fill_graph(prefix, graph);
+        let x_path = path.clone().with_suffix(0);
+        for i in 0..self.x.outputs() {
+            graph.push_edge(Edge::new(
+                self.x.source_edge(i, x_path.clone()),
+                path.clone().with_index(i),
+            ));
+        }
+        self.x.fill_graph(graph, x_path);
     }
 }
 
@@ -1443,35 +1461,25 @@ where
         self.y.route(&self.x.route(input, frequency), frequency)
     }
 
-    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
-        prefix.push(0);
-        self.x.input_edge(index, prefix)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        self.y.source_edge(output, path.with_suffix(1))
     }
 
-    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
-        prefix.push(1);
-        self.y.input_edge(index, prefix)
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        self.x.target_edges(input, path.with_suffix(0))
     }
 
-    fn fill_graph(&self, prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(
-            prefix.clone(),
-            Self::ID,
-            self.inputs(),
-            self.outputs(),
-        ));
-        let mut prefix_x = prefix.clone();
-        prefix_x.push(0);
-        let mut prefix_y = prefix.clone();
-        prefix_y.push(1);
-        self.x.fill_graph(prefix_x.clone(), graph);
-        self.y.fill_graph(prefix_y.clone(), graph);
-        for j in 0..X::Outputs::USIZE {
-            graph.push_edge(Edge::new(
-                self.x.output_edge(j, prefix_x.clone()),
-                self.y.input_edge(j, prefix_y.clone()),
-            ));
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
+        let x_path = path.clone().with_suffix(0);
+        let y_path = path.clone().with_suffix(1);
+        for i in 0..self.x.outputs() {
+            graph.push_edges(
+                self.x.source_edge(i, x_path.clone()),
+                self.y.target_edges(i, y_path.clone()),
+            );
         }
+        self.x.fill_graph(graph, x_path);
+        self.y.fill_graph(graph, y_path);
     }
 }
 
@@ -1606,37 +1614,29 @@ where
         self.y.allocate();
     }
 
-    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
-        if index < self.x.inputs() {
-            prefix.push(0);
-            self.x.input_edge(index, prefix)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        if output < X::Outputs::USIZE {
+            self.x.source_edge(output, path.with_suffix(0))
         } else {
-            prefix.push(1);
-            self.y.input_edge(index - self.x.inputs(), prefix)
+            self.y
+                .source_edge(output - X::Outputs::USIZE, path.with_suffix(1))
         }
     }
 
-    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
-        if index < self.x.outputs() {
-            prefix.push(0);
-            self.x.output_edge(index, prefix)
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        if input < X::Inputs::USIZE {
+            self.x.target_edges(input, path.with_suffix(0))
         } else {
-            prefix.push(1);
-            self.y.output_edge(index - self.x.outputs(), prefix)
+            self.y
+                .target_edges(input - X::Inputs::USIZE, path.with_suffix(1))
         }
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(
-            prefix.clone(),
-            Self::ID,
-            self.inputs(),
-            self.outputs(),
-        ));
-        prefix.push(0);
-        self.x.fill_graph(prefix.clone(), graph);
-        prefix.set_suffix(1);
-        self.y.fill_graph(prefix, graph);
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
+        let x_path = path.clone().with_suffix(0);
+        self.x.fill_graph(graph, x_path);
+        let y_path = path.clone().with_suffix(1);
+        self.y.fill_graph(graph, y_path);
     }
 }
 
@@ -1758,31 +1758,28 @@ where
         self.y.allocate();
     }
 
-    fn input_edge(&self, index: usize, prefix: Path) -> Path {
-        prefix.with_index(index)
-    }
-
-    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
-        if index < self.x.outputs() {
-            prefix.push(0);
-            self.x.output_edge(index, prefix)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        if output < X::Outputs::USIZE {
+            self.x.source_edge(output, path.with_suffix(0))
         } else {
-            prefix.push(1);
-            self.y.output_edge(index - self.x.outputs(), prefix)
+            self.y
+                .source_edge(output - X::Outputs::USIZE, path.with_suffix(1))
         }
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(
-            prefix.clone(),
-            Self::ID,
-            self.inputs(),
-            self.outputs(),
-        ));
-        prefix.push(0);
-        self.x.fill_graph(prefix.clone(), graph);
-        prefix.set_suffix(1);
-        self.y.fill_graph(prefix, graph);
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        let x_path = path.clone().with_suffix(0);
+        let y_path = path.clone().with_suffix(1);
+        let mut edges = self.x.target_edges(input, x_path);
+        edges.append(&mut self.y.target_edges(input, y_path));
+        edges
+    }
+
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
+        let x_path = path.clone().with_suffix(0);
+        self.x.fill_graph(graph, x_path);
+        let y_path = path.clone().with_suffix(1);
+        self.y.fill_graph(graph, y_path);
     }
 }
 
@@ -1902,25 +1899,41 @@ where
         self.y.allocate();
     }
 
-    fn input_edge(&self, index: usize, prefix: Path) -> Path {
-        prefix.with_index(index)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        path.with_index(output)
     }
 
-    fn output_edge(&self, index: usize, prefix: Path) -> Path {
-        prefix.with_index(index)
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        let x_path = path.clone().with_suffix(0);
+        let y_path = path.clone().with_suffix(1);
+        let mut edges = self.x.target_edges(input, x_path);
+        edges.append(&mut self.y.target_edges(input, y_path));
+        edges
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
         graph.push_node(Node::new(
-            prefix.clone(),
+            path.clone(),
             Self::ID,
-            self.inputs(),
+            self.outputs(),
             self.outputs(),
         ));
-        prefix.push(0);
-        self.x.fill_graph(prefix.clone(), graph);
-        prefix.set_suffix(1);
-        self.y.fill_graph(prefix, graph);
+        let x_path = path.clone().with_suffix(0);
+        for x_output in 0..self.x.outputs() {
+            graph.push_edge(Edge::new(
+                self.x.source_edge(x_output, x_path.clone()),
+                path.clone().with_index(x_output),
+            ));
+        }
+        self.x.fill_graph(graph, x_path);
+        let y_path = path.clone().with_suffix(1);
+        for y_output in 0..self.y.outputs() {
+            graph.push_edge(Edge::new(
+                self.y.source_edge(y_output, y_path.clone()),
+                path.clone().with_index(y_output),
+            ));
+        }
+        self.y.fill_graph(graph, y_path);
     }
 }
 
@@ -2011,29 +2024,31 @@ impl<X: AudioNode> AudioNode for Thru<X> {
         self.x.allocate();
     }
 
-    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
-        prefix.push(0);
-        self.x.input_edge(index, prefix)
-    }
-
-    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
-        if index < self.x.outputs() {
-            prefix.push(0);
-            self.x.input_edge(index, prefix)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        if output < self.x.outputs() {
+            let x_path = path.clone().with_suffix(0);
+            self.x.source_edge(output, x_path)
         } else {
-            prefix.with_index(index)
+            path.with_index(output)
         }
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        let x_path = path.clone().with_suffix(0);
+        let mut edges = self.x.target_edges(input, x_path);
+        edges.push(path.with_index(input));
+        edges
+    }
+
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
         graph.push_node(Node::new(
-            prefix.clone(),
+            path.clone(),
             Self::ID,
             self.inputs(),
             self.outputs(),
         ));
-        prefix.push(0);
-        self.x.fill_graph(prefix.clone(), graph);
+        let x_path = path.clone().with_suffix(0);
+        self.x.fill_graph(graph, x_path);
     }
 }
 
@@ -2150,25 +2165,35 @@ where
         }
     }
 
-    fn input_edge(&self, index: usize, prefix: Path) -> Path {
-        prefix.with_index(index)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        path.with_index(output)
     }
 
-    fn output_edge(&self, index: usize, prefix: Path) -> Path {
-        prefix.with_index(index)
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        let mut edges = Vec::new();
+        for x_index in 0..N::USIZE {
+            let x_path = path.clone().with_suffix(x_index as u32);
+            edges.append(&mut self.x[x_index].target_edges(input, x_path));
+        }
+        edges
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
         graph.push_node(Node::new(
-            prefix.clone(),
+            path.clone(),
             Self::ID,
-            self.inputs(),
+            self.outputs(),
             self.outputs(),
         ));
-        prefix.push(0);
-        for i in 0..N::USIZE {
-            prefix.set_suffix(i as u32);
-            self.x[i].fill_graph(prefix.clone(), graph);
+        for x_index in 0..N::USIZE {
+            let x_path = path.clone().with_suffix(x_index as u32);
+            self.x[x_index].fill_graph(graph, x_path.clone());
+            for output in 0..self.x[x_index].outputs() {
+                graph.push_edge(Edge::new(
+                    self.x[x_index].source_edge(output, x_path.clone()),
+                    path.clone().with_index(output),
+                ));
+            }
         }
     }
 }
@@ -2307,31 +2332,21 @@ where
         }
     }
 
-    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
-        let i_index = index % self.x[0].inputs();
-        let j_index = index / self.x[0].inputs();
-        prefix.push(j_index as u32);
-        self.x[j_index].input_edge(i_index, prefix)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        let x_index = output / X::Outputs::USIZE;
+        let x_output = output % X::Outputs::USIZE;
+        self.x[x_index].source_edge(x_output, path.with_suffix(x_index as u32))
     }
 
-    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
-        let i_index = index % self.x[0].outputs();
-        let j_index = index / self.x[0].outputs();
-        prefix.push(j_index as u32);
-        self.x[j_index].input_edge(i_index, prefix)
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        let x_index = input / X::Inputs::USIZE;
+        let x_input = input % X::Inputs::USIZE;
+        self.x[x_index].target_edges(x_input, path.with_suffix(x_index as u32))
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(
-            prefix.clone(),
-            Self::ID,
-            self.inputs(),
-            self.outputs(),
-        ));
-        prefix.push(0);
-        for i in 0..N::USIZE {
-            prefix.set_suffix(i as u32);
-            self.x[i].fill_graph(prefix.clone(), graph);
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
+        for x_index in 0..N::USIZE {
+            self.x[x_index].fill_graph(graph, path.clone().with_suffix(x_index as u32));
         }
     }
 }
@@ -2473,31 +2488,33 @@ where
         }
     }
 
-    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
-        let i_index = index % self.x[0].inputs();
-        let j_index = index / self.x[0].inputs();
-        prefix.push(j_index as u32);
-        self.x[j_index].input_edge(i_index, prefix)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        path.with_index(output)
     }
 
-    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
-        let i_index = index % self.x[0].outputs();
-        let j_index = index / self.x[0].outputs();
-        prefix.push(j_index as u32);
-        self.x[j_index].input_edge(i_index, prefix)
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        let x_index = input / X::Inputs::USIZE;
+        let x_input = input % X::Inputs::USIZE;
+        self.x[x_index].target_edges(x_input, path.with_suffix(x_index as u32))
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
         graph.push_node(Node::new(
-            prefix.clone(),
+            path.clone(),
             Self::ID,
-            self.inputs(),
+            self.outputs(),
             self.outputs(),
         ));
-        prefix.push(0);
-        for i in 0..N::USIZE {
-            prefix.set_suffix(i as u32);
-            self.x[i].fill_graph(prefix.clone(), graph);
+        let mut x_path = path.clone().with_suffix(0);
+        for x_index in 0..N::USIZE {
+            x_path.set_suffix(x_index as u32);
+            self.x[x_index].fill_graph(graph, x_path.clone());
+            for output in 0..X::Outputs::USIZE {
+                graph.push_edge(Edge::new(
+                    self.x[x_index].source_edge(output, x_path.clone()),
+                    path.clone().with_index(output),
+                ));
+            }
         }
     }
 }
@@ -2620,28 +2637,25 @@ where
         }
     }
 
-    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
-        let index_rem = index % X::Inputs::USIZE;
-        let index_div = index / X::Inputs::USIZE;
-        prefix.push(index_div as u32);
-        prefix.with_index(index_rem)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        let x_index = output / X::Outputs::USIZE;
+        let x_output = output % X::Outputs::USIZE;
+        self.x[x_index].source_edge(x_output, path.with_suffix(x_index as u32))
     }
 
-    fn output_edge(&self, index: usize, prefix: Path) -> Path {
-        prefix.with_index(index)
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        let mut edges = Vec::new();
+        for x_index in 0..N::USIZE {
+            let x_path = path.clone().with_suffix(x_index as u32);
+            edges.append(&mut self.x[x_index].target_edges(input, x_path));
+        }
+        edges
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(
-            prefix.clone(),
-            Self::ID,
-            self.inputs(),
-            self.outputs(),
-        ));
-        prefix.push(0);
-        for i in 0..N::USIZE {
-            prefix.set_suffix(i as u32);
-            self.x[i].fill_graph(prefix.clone(), graph);
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
+        for x_index in 0..N::USIZE {
+            let x_path = path.clone().with_suffix(x_index as u32);
+            self.x[x_index].fill_graph(graph, x_path);
         }
     }
 }
@@ -2756,35 +2770,25 @@ where
         output
     }
 
-    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
-        prefix.push(0);
-        self.x[0].input_edge(index, prefix)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        self.x[N::USIZE - 1].source_edge(output, path.with_suffix(N::U32 - 1))
     }
 
-    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
-        prefix.push(N::U32 - 1);
-        self.x[N::USIZE - 1].output_edge(index, prefix)
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        self.x[0].target_edges(input, path.with_suffix(0))
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(
-            prefix.clone(),
-            Self::ID,
-            self.inputs(),
-            self.outputs(),
-        ));
-        prefix.push(0);
-        for i in 0..N::USIZE {
-            prefix.set_suffix(i as u32);
-            self.x[i].fill_graph(prefix.clone(), graph);
-            if i + 1 < N::USIZE {
-                for j in 0..self.x[0].inputs() {
-                    let mut i_1_prefix = prefix.clone();
-                    i_1_prefix.set_suffix(i as u32 + 1);
-                    graph.push_edge(Edge::new(
-                        self.x[i].output_edge(j, prefix.clone()),
-                        self.x[i + 1].input_edge(j, i_1_prefix.clone()),
-                    ));
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
+        for x_index in 0..N::USIZE {
+            let x_path = path.clone().with_suffix(x_index as u32);
+            self.x[x_index].fill_graph(graph, x_path.clone());
+            if x_index + 1 < N::USIZE {
+                let x_1_path = path.clone().with_suffix(x_index as u32 + 1);
+                for x_output in 0..X::Outputs::USIZE {
+                    graph.push_edges(
+                        self.x[x_index].source_edge(x_output, x_path.clone()),
+                        self.x[x_index + 1].target_edges(x_output, x_1_path.clone()),
+                    );
                 }
             }
         }

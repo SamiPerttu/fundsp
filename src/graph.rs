@@ -1,11 +1,16 @@
-/// Conversion of AudioNode trees into directed acyclic graphs
-/// that reveal their inner structure.
+//! Conversion of `AudioNode` trees into directed acyclic graphs
+//! that reveal their inner structure.
 extern crate alloc;
 use alloc::vec::Vec;
 
+/// Path in an `AudioNode` tree.
 #[derive(Clone, Eq, PartialEq)]
 pub struct Path {
+    /// The path, from root, of a node in the tree.
     path: Vec<u32>,
+    /// The index indicates an output (if this is a source path),
+    /// an input (if this is a target path), or is arbitrary
+    /// if this path points to a node.
     index: usize,
 }
 
@@ -16,6 +21,18 @@ impl Path {
             path: Vec::new(),
             index: 0,
         }
+    }
+    /// Length of the path.
+    pub fn len(&self) -> usize {
+        self.path.len()
+    }
+    /// Length of the path.
+    pub fn length(&self) -> usize {
+        self.path.len()
+    }
+    /// Get node number at depth `index`.
+    pub fn at(&self, index: usize) -> u32 {
+        self.path[index]
     }
     /// Add `suffix` to path.
     pub fn push(&mut self, suffix: u32) {
@@ -35,7 +52,7 @@ impl Path {
         self.path.pop();
     }
     /// Push `suffix` to path and return the path.
-    pub fn with(mut self, suffix: u32) -> Path {
+    pub fn with_suffix(mut self, suffix: u32) -> Path {
         self.push(suffix);
         self
     }
@@ -121,6 +138,12 @@ impl Graph {
 
     pub fn push_edge(&mut self, edge: Edge) {
         self.edges.push(edge);
+    }
+
+    pub fn push_edges(&mut self, source: Path, mut targets: Vec<Path>) {
+        while let Some(target) = targets.pop() {
+            self.edges.push(Edge::new(source.clone(), target));
+        }
     }
 
     pub fn push_node(&mut self, node: Node) {

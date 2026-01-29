@@ -158,25 +158,23 @@ where
         self.x.allocate();
     }
 
-    fn input_edge(&self, index: usize, mut prefix: Path) -> Path {
-        prefix.push(0);
-        self.x.input_edge(index, prefix)
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        self.x.source_edge(output, path.with_suffix(0))
     }
 
-    fn output_edge(&self, index: usize, mut prefix: Path) -> Path {
-        prefix.push(0);
-        self.x.output_edge(index, prefix)
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        self.x.target_edges(input, path.with_suffix(0))
     }
 
-    fn fill_graph(&self, mut prefix: Path, graph: &mut Graph) {
-        graph.push_node(Node::new(
-            prefix.clone(),
-            Self::ID,
-            self.inputs(),
-            self.outputs(),
-        ));
-        prefix.push(0);
-        self.x.fill_graph(prefix, graph);
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
+        let x_path = path.with_suffix(0);
+        self.x.fill_graph(graph, x_path.clone());
+        for output in 0..X::Outputs::USIZE {
+            graph.push_edges(
+                self.x.source_edge(output, x_path.clone()),
+                self.x.target_edges(output, x_path.clone()),
+            );
+        }
     }
 }
 
@@ -289,6 +287,31 @@ where
 
     fn allocate(&mut self) {
         self.x.allocate();
+    }
+
+    fn source_edge(&self, output: usize, path: Path) -> Path {
+        self.x.source_edge(output, path.with_suffix(0))
+    }
+
+    fn target_edges(&self, input: usize, path: Path) -> Vec<Path> {
+        self.x.target_edges(input, path.with_suffix(0))
+    }
+
+    fn fill_graph(&self, graph: &mut Graph, path: Path) {
+        let x_path = path.clone().with_suffix(0);
+        self.x.fill_graph(graph, x_path.clone());
+        let y_path = path.with_suffix(1);
+        self.y.fill_graph(graph, y_path.clone());
+        for output in 0..X::Outputs::USIZE {
+            graph.push_edges(
+                self.x.source_edge(output, x_path.clone()),
+                self.y.target_edges(output, y_path.clone()),
+            );
+            graph.push_edges(
+                self.y.source_edge(output, y_path.clone()),
+                self.x.target_edges(output, x_path.clone()),
+            );
+        }
     }
 }
 

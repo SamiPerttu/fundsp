@@ -723,3 +723,37 @@ fn test_sequencer_passthrough() {
     assert!(sequencer.filter_mono(2.0) == 6.0);
     assert!(sequencer.filter_mono(0.5) == 1.5);
 }
+
+// WIP.
+//#[test]
+fn test_sequencer_loop() {
+    let mut sequencer = Sequencer::new(0, 1, ReplayMode::Loop(79.0 / 44100.0));
+    sequencer.push(
+        12.0 / 44100.0,
+        89.0 / 44100.0,
+        Fade::Smooth,
+        0.0,
+        0.0,
+        Box::new(dc(1.0)),
+    );
+    for i in 0..12 {
+        let output = sequencer.get_mono();
+        eprintln!("index {}, output {}, expecting {}", i, output, 0.0);
+        assert_eq!(output, 0.0);
+    }
+    for i in 0..77 {
+        let output = sequencer.get_mono();
+        eprintln!("index {}, output {}, expecting {}", i + 12, output, 1.0);
+        assert_eq!(output, 1.0);
+    }
+    for i in 0..2 {
+        let output = sequencer.get_mono();
+        eprintln!("index {}, output {}, expecting {}", i + 89, output, 0.0);
+        assert_eq!(output, 0.0);
+    }
+    for i in 0..77 {
+        let output = sequencer.get_mono();
+        eprintln!("index {}, output {}, expecting {}", i + 91, output, 1.0);
+        assert_eq!(output, 1.0);
+    }
+}
