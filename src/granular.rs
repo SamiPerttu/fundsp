@@ -154,7 +154,7 @@ impl<X: Fn(f64, f32, f32, f32, f32, f32) -> (f32, f32, Box<dyn AudioUnit>) + Syn
         }
         self.voices[voice].next_time = t + grain_length as f64 - envelope_length as f64;
         // Use a random phase for each individual grain.
-        grain.ping(false, AttoHash::new(self.rnd.u64()));
+        grain.set_seed(self.rnd.u64());
         self.sequencer.push_duration(
             t,
             grain_length as f64,

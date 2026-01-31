@@ -61,6 +61,8 @@ pub(crate) struct Event {
     pub unit: Box<dyn AudioUnit>,
     pub start_time: f64,
     pub end_time: f64,
+    pub start_time_now: f64,
+    pub end_time_now: f64,
     pub fade_ease: Fade,
     pub fade_in: f64,
     pub fade_out: f64,
@@ -80,18 +82,12 @@ impl Event {
             unit,
             start_time,
             end_time,
+            start_time_now: start_time,
+            end_time_now: end_time,
             fade_ease,
             fade_in,
             fade_out,
             id: EventId::new(),
-        }
-    }
-
-    pub fn looped_end_time(&self, time: f64, loop_point: f64) -> f64 {
-        if self.end_time - loop_point >= time {
-            self.end_time - loop_point
-        } else {
-            self.end_time
         }
     }
 }
@@ -226,6 +222,8 @@ pub enum ReplayMode {
     /// Clear all events on reset.
     None,
     /// Loop while retaining all past events.
+    /// The parameter is the loop period in seconds, which is rounded to the nearest sample.
+    /// The minimum loop period is 64 (MAX_BUFFER_LEN) samples.
     Loop(f64),
 }
 
@@ -268,7 +266,7 @@ pub struct Sequencer {
     mode: ReplayMode,
     /// Intermediate input buffer.
     input_buffer: BufferVec,
-    /// Loop point, if we are looping.
+    /// Loop point rounded to the nearest sample, if we are looping, or otherwise `f64::INFINITY`.
     loop_point: f64,
     /// Input buffer used when looping.
     loop_input_buffer: BufferVec,
@@ -311,16 +309,11 @@ const DEFAULT_CAPACITY: usize = 16384;
 impl Sequencer {
     /// Create a new sequencer with a user-configurable number of inputs and
     /// outputs. `mode` controls whether or not events are retained for replay
-    /// after reset. See [`ReplayMode`] for more information.
+    /// after reset and whether the sequencer loops. See [`ReplayMode`] for more information.
     pub fn new(inputs: usize, outputs: usize, mode: ReplayMode) -> Self {
-        let loop_point = if let ReplayMode::Loop(x) = mode {
-            x
-        } else {
-            f64::INFINITY
-        };
         // when adding new dynamically sized fields,
         // don't forget to update [AudioUnit::allocate] implementation
-        Self {
+        let mut sequencer = Self {
             active: Vec::with_capacity(DEFAULT_CAPACITY),
             active_map: HashMap::with_capacity(DEFAULT_CAPACITY),
             active_threshold: -f64::INFINITY,
@@ -338,10 +331,12 @@ impl Sequencer {
             front: None,
             mode,
             input_buffer: BufferVec::new(inputs),
-            loop_point,
+            loop_point: 0.0,
             loop_input_buffer: BufferVec::new(inputs),
             loop_output_buffer: BufferVec::new(outputs),
-        }
+        };
+        sequencer.reset();
+        sequencer
     }
 
     /// Current time in seconds.
@@ -509,6 +504,7 @@ impl Sequencer {
             // The edit applies to an active event.
             let i = self.active_map[&id];
             self.active[i].end_time = end_time;
+            self.active[i].end_time_now = end_time;
             self.active[i].fade_out = fade_out_time;
         } else if end_time < self.active_threshold {
             // The edit is already in the past.
@@ -547,6 +543,7 @@ impl Sequencer {
             // The edit applies to an active event.
             let i = self.active_map[&id];
             self.active[i].end_time = self.time + end_time;
+            self.active[i].end_time_now = self.active[i].end_time;
             self.active[i].fade_out = fade_out_time;
         } else if self.time + end_time < self.active_threshold {
             // The edit is already in the past.
@@ -636,6 +633,10 @@ impl Sequencer {
 
 impl AudioUnit for Sequencer {
     fn reset(&mut self) {
+        self.loop_point = match self.mode {
+            ReplayMode::Loop(point) => round(point * self.sample_rate) / self.sample_rate,
+            _ => f64::INFINITY,
+        };
         if let Some((_sender, receiver)) = &mut self.front {
             // Deallocate all past events.
             while receiver.dequeue().is_some() {}
@@ -690,6 +691,7 @@ impl AudioUnit for Sequencer {
             }
             self.active_map.clear();
             self.active_threshold = -f64::INFINITY;
+            self.reset();
         }
     }
 
@@ -706,15 +708,16 @@ impl AudioUnit for Sequencer {
         self.ready_to_active(end_time);
         let mut i = 0;
         while i < self.active.len() {
-            if self.active[i].looped_end_time(self.time, self.loop_point)
-                <= self.time + 0.5 * self.sample_duration
-            {
+            if self.active[i].end_time_now <= self.time + 0.5 * self.sample_duration {
                 self.active_map.remove(&self.active[i].id);
                 if i + 1 < self.active.len() {
                     self.active_map
                         .insert(self.active[self.active.len() - 1].id, i);
                 }
-                self.past.push(self.active.swap_remove(i));
+                let mut event = self.active.swap_remove(i);
+                event.start_time_now = event.start_time;
+                event.end_time_now = event.end_time;
+                self.past.push(event);
             } else {
                 self.active[i].unit.tick(input, &mut self.tick_buffer);
                 if self.active[i].fade_in > 0.0 {
@@ -740,9 +743,8 @@ impl AudioUnit for Sequencer {
                 }
                 if self.active[i].fade_out > 0.0 {
                     let fade_out = delerp(
-                        self.active[i].looped_end_time(self.time, self.loop_point)
-                            - self.active[i].fade_out,
-                        self.active[i].looped_end_time(self.time, self.loop_point),
+                        self.active[i].end_time_now - self.active[i].fade_out,
+                        self.active[i].end_time_now,
                         self.time,
                     ) as f32;
                     if fade_out > 0.0 {
@@ -767,14 +769,17 @@ impl AudioUnit for Sequencer {
             }
         }
         self.time = end_time;
-        if let ReplayMode::Loop(x) = self.replay_mode() {
-            if self.time >= *x {
+        if let ReplayMode::Loop(_) = self.replay_mode() {
+            if self.time >= self.loop_point {
                 self.reset();
             }
         }
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        if size == 0 {
+            return;
+        }
         match self.mode {
             ReplayMode::None => while let Some(_past) = self.past.pop() {},
             _ => (),
@@ -782,47 +787,47 @@ impl AudioUnit for Sequencer {
         for channel in 0..self.outputs {
             output.channel_mut(channel)[..simd_items(size)].fill(F32x::ZERO);
         }
-        let end_time = min(self.time, self.loop_point) + self.sample_duration * size as f64;
+        let end_time = min(
+            self.time + self.sample_duration * size as f64,
+            self.loop_point,
+        );
         self.ready_to_active(end_time);
         let mode = self.replay_mode().clone();
         let mut buffer_output = self.buffer.buffer_mut();
         let mut i = 0;
         let loop_size = {
-            if let ReplayMode::Loop(x) = mode {
-                round((x - self.time) * self.sample_rate) as usize
+            if let ReplayMode::Loop(_) = mode {
+                round(max(0.0, self.loop_point - self.time) * self.sample_rate) as usize
             } else {
                 size
             }
         };
         while i < self.active.len() {
-            if self.active[i].looped_end_time(self.time, self.loop_point)
-                <= self.time + 0.5 * self.sample_duration
-            {
+            if self.active[i].end_time_now <= self.time + 0.5 * self.sample_duration {
                 self.active_map.remove(&self.active[i].id);
                 if i + 1 < self.active.len() {
                     self.active_map
                         .insert(self.active[self.active.len() - 1].id, i);
                 }
-                self.past.push(self.active.swap_remove(i));
+                let mut event = self.active.swap_remove(i);
+                event.start_time_now = event.start_time;
+                event.end_time_now = event.end_time;
+                self.past.push(event);
             } else {
                 let start_index = if self.active[i].start_time <= self.time {
                     0
                 } else {
                     round((self.active[i].start_time - self.time) * self.sample_rate) as usize
                 };
-                let end_index =
-                    if self.active[i].looped_end_time(self.time, self.loop_point) >= end_time {
-                        min(size, loop_size)
-                    } else {
-                        min(
-                            loop_size,
-                            round(
-                                (self.active[i].looped_end_time(self.time, self.loop_point)
-                                    - self.time)
-                                    * self.sample_rate,
-                            ) as usize,
-                        )
-                    };
+                let end_index = if self.active[i].end_time_now >= end_time {
+                    min(size, loop_size)
+                } else {
+                    min(
+                        loop_size,
+                        round((self.active[i].end_time_now - self.time) * self.sample_rate)
+                            as usize,
+                    )
+                };
                 if end_index > start_index {
                     let node_input = if start_index == 0 {
                         input
@@ -926,11 +931,23 @@ impl AudioUnit for Sequencer {
     }
 
     fn allocate(&mut self) {
-        self.active.reserve(DEFAULT_CAPACITY);
-        self.active_map.reserve(DEFAULT_CAPACITY);
-        self.ready.reserve(DEFAULT_CAPACITY);
-        self.past.reserve(DEFAULT_CAPACITY);
-        self.edit_map.reserve(DEFAULT_CAPACITY);
+        if self.active.len() < DEFAULT_CAPACITY {
+            self.active.reserve(DEFAULT_CAPACITY - self.active.len());
+        }
+        if self.active_map.len() < DEFAULT_CAPACITY {
+            self.active_map
+                .reserve(DEFAULT_CAPACITY - self.active_map.len());
+        }
+        if self.ready.len() < DEFAULT_CAPACITY {
+            self.ready.reserve(DEFAULT_CAPACITY - self.ready.len());
+        }
+        if self.past.len() < DEFAULT_CAPACITY {
+            self.past.reserve(DEFAULT_CAPACITY - self.past.len());
+        }
+        if self.edit_map.len() < DEFAULT_CAPACITY {
+            self.edit_map
+                .reserve(DEFAULT_CAPACITY - self.edit_map.len());
+        }
     }
 }
 

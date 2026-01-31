@@ -119,9 +119,10 @@ impl AudioNode for Var {
         [sample].into()
     }
 
-    fn process(&mut self, size: usize, _input: &BufferRef, output: &mut BufferMut) {
+    fn process(&mut self, _size: usize, _input: &BufferRef, output: &mut BufferMut) {
         let sample = self.value();
-        output.channel_mut(0)[..simd_items(size)].fill(F32x::splat(sample.to_f32()));
+        let length = output.len();
+        output.channel_mut(0)[..length].fill(F32x::splat(sample));
     }
 
     fn route(&mut self, _input: &SignalFrame, _frequency: f64) -> SignalFrame {
@@ -173,11 +174,11 @@ where
         (self.f)(f32::get_stored(&self.value)).frame()
     }
 
-    fn process(&mut self, size: usize, _input: &BufferRef, output: &mut BufferMut) {
+    fn process(&mut self, _size: usize, _input: &BufferRef, output: &mut BufferMut) {
         let frame = (self.f)(f32::get_stored(&self.value)).frame();
+        let length = output.len();
         for channel in 0..self.outputs() {
-            output.channel_mut(channel)[..simd_items(size)]
-                .fill(F32x::splat(frame[channel].to_f32()));
+            output.channel_mut(channel)[..length].fill(F32x::splat(frame[channel]));
         }
     }
 
@@ -398,7 +399,7 @@ pub struct IdGenerator {
 
 /// When the low word of an `IdGenerator` enters the danger zone,
 /// we attempt to rewind it and increment the high word.
-const DANGER: u32 = 0xfff00000;
+const DANGER: u32 = 0xff000000;
 
 impl IdGenerator {
     pub const fn new() -> Self {

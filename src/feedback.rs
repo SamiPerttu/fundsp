@@ -93,6 +93,7 @@ where
     U: FrameUnop<X::Outputs>,
 {
     pub fn new(x: X, feedback: U) -> Self {
+        super::denormal::prevent_denormals();
         let mut node = Feedback {
             x,
             value: Frame::default(),
@@ -127,14 +128,12 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        super::denormal::prevent_denormals();
         let output = self.x.tick(&(input + self.value.clone()));
         self.value = self.feedback.frame(&output);
         output
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
-        super::denormal::prevent_denormals();
         for i in 0..size {
             let input_frame =
                 Frame::generate(|channel| input.at_f32(channel, i) + self.value[channel]);
@@ -218,6 +217,7 @@ where
     /// The feedforward path does not include `Y`.
     /// The contained nodes must have an equal number of inputs and outputs.
     pub fn new(x: X, y: Y, feedback: U) -> Self {
+        super::denormal::prevent_denormals();
         let mut node = Feedback2 {
             x,
             y,
@@ -258,14 +258,12 @@ where
 
     #[inline]
     fn tick(&mut self, input: &Frame<f32, Self::Inputs>) -> Frame<f32, Self::Outputs> {
-        super::denormal::prevent_denormals();
         let output = self.x.tick(&(input + self.value.clone()));
         self.value = self.feedback.frame(&self.y.tick(&output));
         output
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
-        super::denormal::prevent_denormals();
         for i in 0..size {
             let input_frame =
                 Frame::generate(|channel| input.at_f32(channel, i) + self.value[channel]);
@@ -348,6 +346,7 @@ impl FeedbackUnit {
     /// The minimum delay is one sample, which may also be accomplished by setting `delay` to zero.
     /// The feedback unit mixes back delayed output of contained unit `x` to its input.
     pub fn new(delay: f64, x: Box<dyn AudioUnit>) -> Self {
+        super::denormal::prevent_denormals();
         let channels = x.inputs();
         assert_eq!(channels, x.outputs());
         let mut unit = Self {
@@ -399,7 +398,6 @@ impl AudioUnit for FeedbackUnit {
     }
 
     fn tick(&mut self, input: &[f32], output: &mut [f32]) {
-        super::denormal::prevent_denormals();
         let read_i = self.read_index(self.samples);
         for (channel, (tick, i)) in self.tick_buffer.iter_mut().zip(input.iter()).enumerate() {
             *tick = *i + self.feedback[channel][read_i];
@@ -412,7 +410,6 @@ impl AudioUnit for FeedbackUnit {
     }
 
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
-        super::denormal::prevent_denormals();
         if size <= self.samples {
             // We have enough feedback samples to process the whole block at once.
             for channel in 0..self.channels {

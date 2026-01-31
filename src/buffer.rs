@@ -129,6 +129,19 @@ impl<'a> BufferMut<'a> {
             }
         }
     }
+
+    /// Length of the buffer is 8 SIMD samples.
+    #[inline]
+    pub fn length(&self) -> usize {
+        SIMD_LEN
+    }
+
+    /// Length of the buffer is 8 SIMD samples.
+    #[inline]
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        SIMD_LEN
+    }
 }
 
 /// Immutably borrowed audio buffer with an arbitrary number of channels
@@ -200,6 +213,19 @@ impl<'a> BufferRef<'a> {
                 target.set_f32(channel, i - start, self.at_f32(channel, start));
             }
         }
+    }
+
+    /// Length of the buffer is 8 SIMD samples.
+    #[inline]
+    pub fn length(&self) -> usize {
+        SIMD_LEN
+    }
+
+    /// Length of the buffer is 8 SIMD samples.
+    #[inline]
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        SIMD_LEN
     }
 }
 

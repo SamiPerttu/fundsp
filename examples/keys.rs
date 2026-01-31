@@ -540,8 +540,8 @@ impl eframe::App for State {
                         )),
                     };
                     let mut note = Box::new(waveform >> filter >> dcblock());
-                    // Give the note its own random seed.
-                    note.ping(false, AttoHash::new(self.rnd.u64()));
+                    // Give the note its own deterministic pseudorandom phase seed.
+                    note.set_seed(self.rnd.u64());
                     // Insert new note. We set the end time to infinity initially,
                     // which means it plays indefinitely until the key is released.
                     self.id[i] = Some(self.sequencer.push_relative(

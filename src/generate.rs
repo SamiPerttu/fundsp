@@ -370,26 +370,29 @@ pub fn gen_granular(
 
             let mut c = match choice_x {
                 ChoiceX::Oscillator => match waveform {
-                    Waveform::Saw => Net::wrap(Box::new(saw_hz(f as f32))),
-                    Waveform::Square => Net::wrap(Box::new(square_hz(f as f32))),
-                    Waveform::Triangle => Net::wrap(Box::new(triangle_hz(f as f32))),
-                    Waveform::SoftSaw => Net::wrap(Box::new(soft_saw_hz(f as f32))),
-                    Waveform::Organ => Net::wrap(Box::new(organ_hz(f as f32))),
+                    Waveform::Saw => Net::wrap(Box::new(saw_hz(f as f32).phase(0.0))),
+                    Waveform::Square => Net::wrap(Box::new(square_hz(f as f32).phase(0.0))),
+                    Waveform::Triangle => Net::wrap(Box::new(triangle_hz(f as f32).phase(0.0))),
+                    Waveform::SoftSaw => Net::wrap(Box::new(soft_saw_hz(f as f32).phase(0.0))),
+                    Waveform::Organ => Net::wrap(Box::new(organ_hz(f as f32).phase(0.0))),
                 },
                 ChoiceX::PulseWave => Net::wrap(Box::new(
-                    dc((f as f32, 1.0 - xerp11(0.02, 0.50, y))) >> pulse(),
+                    dc((f as f32, 1.0 - xerp11(0.02, 0.50, y))) >> pulse().phase(0.0),
                 )),
                 ChoiceX::NoisySine => {
                     let bandwidth = xerp11(1.0, 200.0, y);
                     amp *= 20.0 / sqrt(bandwidth);
                     Net::wrap(Box::new(
-                        (white() >> lowpass_hz(bandwidth as f32, 1.0)) * sine_hz(f as f32),
+                        (white() >> lowpass_hz(bandwidth as f32, 1.0))
+                            * sine_hz(f as f32).phase(0.0),
                     ))
                 }
                 ChoiceX::OverdriveSine => {
                     let hardness = 0.1 + xerp11(0.1, 10.0, y);
                     amp /= hardness;
-                    Net::wrap(Box::new(sine_hz(f as f32) >> shape(Tanh(hardness as f32))))
+                    Net::wrap(Box::new(
+                        sine_hz(f as f32).phase(0.0) >> shape(Tanh(hardness as f32)),
+                    ))
                 }
                 ChoiceX::Resonator => {
                     let bandwidth = xerp11(2.0, 100.0, y);

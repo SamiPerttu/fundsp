@@ -358,6 +358,12 @@ pub trait AudioNode: Clone + Sync + Send {
         }
         result
     }
+
+    /// Set deterministic pseudorandom phase seed.
+    /// Note that this seed is lost if this node is combined further with something.
+    fn set_seed(&mut self, seed: u64) {
+        self.ping(false, AttoHash::new(seed));
+    }
 }
 
 /// Pass through inputs unchanged.
