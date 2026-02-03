@@ -123,7 +123,7 @@ impl Vertex {
 
     /// We have faded to the next unit, now start fading to the latest unit, if any.
     #[allow(clippy::needless_if)]
-    fn next_phase(&mut self, sender: &Option<Arc<Queue<NetReturn, 256>>>) {
+    fn next_phase(&mut self, sender: &Option<Arc<Queue<NetReturn>>>) {
         let mut next = self.next.unit.take().unwrap();
         core::mem::swap(&mut self.unit, &mut next);
         if let Some(sender) = sender {
@@ -137,7 +137,7 @@ impl Vertex {
 
     /// Process one sample.
     #[inline]
-    pub fn tick(&mut self, sample_rate: f32, sender: &Option<Arc<Queue<NetReturn, 256>>>) {
+    pub fn tick(&mut self, sample_rate: f32, sender: &Option<Arc<Queue<NetReturn>>>) {
         self.unit.tick(&self.tick_input, &mut self.tick_output);
 
         if let Some(next) = self.next.unit.as_deref_mut() {
@@ -164,7 +164,7 @@ impl Vertex {
         size: usize,
         input: &BufferRef,
         sample_rate: f32,
-        sender: &Option<Arc<Queue<NetReturn, 256>>>,
+        sender: &Option<Arc<Queue<NetReturn>>>,
     ) {
         self.unit
             .process(size, input, &mut self.output.buffer_mut());
@@ -229,7 +229,7 @@ impl Vertex {
     }
 
     /// Edit this vertex.
-    pub fn enqueue(&mut self, edit: &mut NodeEdit, sender: &Option<Arc<Queue<NetReturn, 256>>>) {
+    pub fn enqueue(&mut self, edit: &mut NodeEdit, sender: &Option<Arc<Queue<NetReturn>>>) {
         if self.next.unit.is_some() {
             // Replace the latest unit.
             if let Some(latest) = self.latest.unit.take() {

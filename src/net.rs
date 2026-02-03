@@ -131,7 +131,7 @@ pub struct Net {
     /// Current sample rate.
     sample_rate: f32,
     /// Optional frontend.
-    front: Option<(Arc<Queue<NetMessage, 256>>, Arc<Queue<NetReturn, 256>>)>,
+    front: Option<(Arc<Queue<NetMessage>>, Arc<Queue<NetReturn>>)>,
     /// Number of inputs in the backend. This is for checking consistency during commits.
     backend_inputs: usize,
     /// Number of outputs in the backend. This is for checking consistency during commits.
@@ -1092,8 +1092,8 @@ impl Net {
     pub fn backend(&mut self) -> NetBackend {
         assert!(!self.has_backend());
         // Create huge channel buffers to make sure we don't run out of space easily.
-        let queue_message = Arc::new(Queue::<NetMessage, 256>::new_const());
-        let queue_return = Arc::new(Queue::<NetReturn, 256>::new_const());
+        let queue_message = Arc::new(Queue::<NetMessage>::new_const());
+        let queue_return = Arc::new(Queue::<NetReturn>::new_const());
         self.front = Some((queue_message.clone(), queue_return.clone()));
         self.backend_inputs = self.inputs();
         self.backend_outputs = self.outputs();
@@ -1186,7 +1186,7 @@ impl Net {
         &mut self,
         input: &[f32],
         output: &mut [f32],
-        sender: &Option<Arc<Queue<NetReturn, 256>>>,
+        sender: &Option<Arc<Queue<NetReturn>>>,
     ) {
         if !self.is_ordered() {
             self.determine_order();
@@ -1224,7 +1224,7 @@ impl Net {
         size: usize,
         input: &BufferRef,
         output: &mut BufferMut,
-        sender: &Option<Arc<Queue<NetReturn, 256>>>,
+        sender: &Option<Arc<Queue<NetReturn>>>,
     ) {
         if !self.is_ordered() {
             self.determine_order();
@@ -1284,7 +1284,7 @@ impl Net {
     }
 
     /// Apply all edits into this network.
-    pub(crate) fn apply_edits(&mut self, sender: &Option<Arc<Queue<NetReturn, 256>>>) {
+    pub(crate) fn apply_edits(&mut self, sender: &Option<Arc<Queue<NetReturn>>>) {
         for edit in self.edit_queue.iter_mut() {
             self.vertex[edit.index].enqueue(edit, sender);
         }
@@ -1295,7 +1295,7 @@ impl Net {
     pub(crate) fn apply_foreign_edits(
         &mut self,
         source: &mut Net,
-        sender: &Option<Arc<Queue<NetReturn, 256>>>,
+        sender: &Option<Arc<Queue<NetReturn>>>,
     ) {
         for edit in source.edit_queue.iter_mut() {
             if let Some(index) = self.node_index.get(&edit.id) {

@@ -887,7 +887,8 @@ pub use wide;
 
 extern crate alloc;
 pub use alloc::sync::Arc;
-pub type Queue<T, const N: usize> = lfqueue::ConstBoundedQueue<T, N>;
+pub type Queue<T> = lfqueue::ConstBoundedQueue<T, 256>;
+pub type QueueN<T, const N: usize> = lfqueue::ConstBoundedQueue<T, N>;
 
 #[cfg(feature = "std")]
 pub mod write;

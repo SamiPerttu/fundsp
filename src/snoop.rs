@@ -45,7 +45,7 @@ impl SnoopBuffer {
 
 /// Receiver for snooped audio data.
 pub struct Snoop {
-    receiver: Arc<Queue<SnoopBuffer, 256>>,
+    receiver: Arc<Queue<SnoopBuffer>>,
     index: usize,
     total: u64,
     latest: Vec<f32>,
@@ -86,6 +86,7 @@ impl Snoop {
     }
 
     /// Get the next buffer of data, if available.
+    /// The buffer will also be appended to the latest sample buffer.
     /// Either this method or `update` should be polled repeatedly.
     pub fn get(&mut self) -> Option<SnoopBuffer> {
         if let Some(buffer) = self.receiver.dequeue() {
@@ -112,7 +113,7 @@ impl Snoop {
 pub struct SnoopBackend {
     index: usize,
     buffer: SnoopBuffer,
-    sender: Arc<Queue<SnoopBuffer, 256>>,
+    sender: Arc<Queue<SnoopBuffer>>,
 }
 
 impl AudioNode for SnoopBackend {

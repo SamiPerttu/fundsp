@@ -27,9 +27,9 @@ pub enum Parameter {
     Coefficient(f32),
     /// Set biquad parameters `(a1, a2, b0, b1, b2)`.
     Biquad(f32, f32, f32, f32, f32),
-    /// Set delay.
+    /// Set delay time in seconds.
     Delay(f32),
-    /// Set response time.
+    /// Set response time in seconds.
     Time(f32),
     /// Set oscillator roughness in 0...1.
     Roughness(f32),
@@ -39,9 +39,9 @@ pub enum Parameter {
     Pan(f32),
     /// Set attack and release times in seconds.
     AttackRelease(f32, f32),
-    /// Oscillator initial phase in 0...1.
+    /// Set oscillator initial phase in 0...1.
     Phase(f32),
-    /// Generator seed.
+    /// Set generator seed.
     Seed(u64),
     /// Average sampling interval in seconds for envelopes.
     Interval(f32),
@@ -53,11 +53,9 @@ pub enum Address {
     /// Default value.
     #[default]
     Null,
-    /// Take the left branch of a binary operation.
-    Left,
-    /// Take the right branch of a binary operation.
-    Right,
     /// Specify node index.
+    /// To pick the left branch of a binary operation, set the index to 0.
+    /// To pick the right branch of a binary operation, set the index to 1.
     Index(usize),
     /// Specify node ID in `Net`.
     Node(NodeId),
@@ -69,7 +67,7 @@ pub enum Address {
 #[derive(Clone, Default)]
 pub struct Setting {
     parameter: Parameter,
-    address: ArrayVec<[Address; 4]>,
+    address: ArrayVec<[Address; 6]>,
 }
 
 impl Setting {
@@ -183,12 +181,12 @@ impl Setting {
     }
     /// Add left choice address to setting.
     pub fn left(mut self) -> Self {
-        self.address.push(Address::Left);
+        self.address.push(Address::Index(0));
         self
     }
     /// Add right choice address to setting.
     pub fn right(mut self) -> Self {
-        self.address.push(Address::Right);
+        self.address.push(Address::Index(1));
         self
     }
     /// Access parameter.
@@ -214,11 +212,11 @@ impl Setting {
 
 #[derive(Clone)]
 pub struct SettingSender {
-    sender: Arc<Queue<Setting, 256>>,
+    sender: Arc<Queue<Setting>>,
 }
 
 impl SettingSender {
-    pub fn new(sender: Arc<Queue<Setting, 256>>) -> Self {
+    pub fn new(sender: Arc<Queue<Setting>>) -> Self {
         Self { sender }
     }
     pub fn send(&self, setting: Setting) -> bool {
@@ -229,7 +227,7 @@ impl SettingSender {
 /// Setting listener using MPMC from the lfqueue crate.
 pub struct SettingListener<X: AudioNode> {
     x: X,
-    queue: Arc<Queue<Setting, 256>>,
+    queue: Arc<Queue<Setting>>,
 }
 
 impl<X: AudioNode> Clone for SettingListener<X> {

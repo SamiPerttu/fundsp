@@ -40,6 +40,8 @@ pub trait AudioUnit: Send + Sync + DynClone {
 
     /// Process up to 64 (MAX_BUFFER_SIZE) samples.
     /// If `size` is zero then this is a no-op, which is permitted.
+    /// Note that the node may use the full output buffer even if `size` < 64.
+    /// It is best to consider `f32` values starting from index `size` to be undefined after this call.
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut);
 
     /// Set a parameter. What formats are recognized depends on the component.

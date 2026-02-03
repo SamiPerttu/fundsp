@@ -80,6 +80,8 @@ pub trait AudioNode: Clone + Sync + Send {
 
     /// Process up to 64 (`MAX_BUFFER_SIZE`) samples.
     /// If `size` is zero then this is a no-op, which is permitted.
+    /// Note that the node may use the full output buffer even if `size` < 64.
+    /// It is best to consider `f32` values starting from index `size` to be undefined after this call.
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         // The default implementation is a fallback that calls into `tick`.
         debug_assert!(size <= MAX_BUFFER_SIZE);
@@ -954,8 +956,8 @@ where
 
     fn set(&mut self, setting: Setting) {
         match setting.direction() {
-            Address::Left => self.x.set(setting.peel()),
-            Address::Right => self.y.set(setting.peel()),
+            Address::Index(0) => self.x.set(setting.peel()),
+            Address::Index(1) => self.y.set(setting.peel()),
             _ => (),
         }
     }
@@ -1448,8 +1450,8 @@ where
 
     fn set(&mut self, setting: Setting) {
         match setting.direction() {
-            Address::Left => self.x.set(setting.peel()),
-            Address::Right => self.y.set(setting.peel()),
+            Address::Index(0) => self.x.set(setting.peel()),
+            Address::Index(1) => self.y.set(setting.peel()),
             _ => (),
         }
     }
@@ -1590,8 +1592,8 @@ where
 
     fn set(&mut self, setting: Setting) {
         match setting.direction() {
-            Address::Left => self.x.set(setting.peel()),
-            Address::Right => self.y.set(setting.peel()),
+            Address::Index(0) => self.x.set(setting.peel()),
+            Address::Index(1) => self.y.set(setting.peel()),
             _ => (),
         }
     }
@@ -1738,8 +1740,8 @@ where
 
     fn set(&mut self, setting: Setting) {
         match setting.direction() {
-            Address::Left => self.x.set(setting.peel()),
-            Address::Right => self.y.set(setting.peel()),
+            Address::Index(0) => self.x.set(setting.peel()),
+            Address::Index(1) => self.y.set(setting.peel()),
             _ => (),
         }
     }
@@ -1876,8 +1878,8 @@ where
 
     fn set(&mut self, setting: Setting) {
         match setting.direction() {
-            Address::Left => self.x.set(setting.peel()),
-            Address::Right => self.y.set(setting.peel()),
+            Address::Index(0) => self.x.set(setting.peel()),
+            Address::Index(1) => self.y.set(setting.peel()),
             _ => (),
         }
     }

@@ -26,8 +26,8 @@ enum SlotMessage {
 pub struct Slot {
     inputs: usize,
     outputs: usize,
-    receiver: Arc<Queue<SlotMessage, 256>>,
-    sender: Arc<Queue<SlotMessage, 256>>,
+    receiver: Arc<Queue<SlotMessage>>,
+    sender: Arc<Queue<SlotMessage>>,
 }
 
 impl Slot {
@@ -100,8 +100,8 @@ pub struct SlotBackend {
     latest: Option<Box<dyn AudioUnit>>,
     latest_fade: Fade,
     latest_fade_time: f64,
-    receiver: Arc<Queue<SlotMessage, 256>>,
-    sender: Arc<Queue<SlotMessage, 256>>,
+    receiver: Arc<Queue<SlotMessage>>,
+    sender: Arc<Queue<SlotMessage>>,
     buffer: BufferVec,
     tick: Vec<f32>,
 }

@@ -237,6 +237,9 @@ fn test_basic() {
     check_wave_big(Box::new(dc((110.0, 0.5)) >> pulse() * 0.2 >> delay(0.1)));
     check_wave_big(Box::new(envelope(|t| exp(-t * 10.0))));
 
+    let (_sender, ring) = Ring::<U2, 512>::new();
+    check_wave(ring);
+
     let feedback1 = noise()
         >> Net::wrap(Box::new(FeedbackUnit::new(
             0.01,

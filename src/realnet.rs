@@ -29,17 +29,17 @@ pub(crate) enum NetReturn {
 
 pub struct NetBackend {
     /// For sending versions for deallocation back to the frontend.
-    sender: Option<Arc<Queue<NetReturn, 256>>>,
+    sender: Option<Arc<Queue<NetReturn>>>,
     /// For receiving new versions and settings from the frontend.
-    receiver: Arc<Queue<NetMessage, 256>>,
+    receiver: Arc<Queue<NetMessage>>,
     net: Net,
 }
 
 impl Clone for NetBackend {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
-        let queue_return = Arc::new(Queue::<NetReturn, 256>::new_const());
-        let queue_message = Arc::new(Queue::<NetMessage, 256>::new_const());
+        let queue_return = Arc::new(Queue::<NetReturn>::new_const());
+        let queue_message = Arc::new(Queue::<NetMessage>::new_const());
         Self {
             sender: Some(queue_return),
             receiver: queue_message,
@@ -51,8 +51,8 @@ impl Clone for NetBackend {
 impl NetBackend {
     /// Create new backend.
     pub(crate) fn new(
-        sender: Arc<Queue<NetReturn, 256>>,
-        receiver: Arc<Queue<NetMessage, 256>>,
+        sender: Arc<Queue<NetReturn>>,
+        receiver: Arc<Queue<NetMessage>>,
         net: Net,
     ) -> Self {
         Self {

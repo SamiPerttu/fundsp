@@ -223,7 +223,7 @@ pub enum ReplayMode {
     None,
     /// Loop while retaining all past events.
     /// The parameter is the loop period in seconds, which is rounded to the nearest sample.
-    /// The minimum loop period is 64 (MAX_BUFFER_LEN) samples.
+    /// The minimum loop period is 64 (`MAX_BUFFER_LEN`) samples.
     Loop(f64),
 }
 
@@ -258,10 +258,7 @@ pub struct Sequencer {
     /// Current commit.
     commit_message: SequencerMessage,
     /// Optional frontend.
-    front: Option<(
-        Arc<Queue<SequencerMessage, 256>>,
-        Arc<Queue<SequencerReturn, 256>>,
-    )>,
+    front: Option<(Arc<Queue<SequencerMessage>>, Arc<Queue<SequencerReturn>>)>,
     /// Whether we replay existing events after a call to `reset`.
     mode: ReplayMode,
     /// Intermediate input buffer.

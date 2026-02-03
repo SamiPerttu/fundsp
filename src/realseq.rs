@@ -36,11 +36,11 @@ pub(crate) struct SequencerReturn {
 
 pub struct SequencerBackend {
     /// For sending events for deallocation back to the frontend.
-    pub(crate) sender: Arc<Queue<SequencerReturn, 256>>,
+    pub(crate) sender: Arc<Queue<SequencerReturn>>,
     /// Return message that is being filled.
     pub(crate) fill_message: SequencerReturn,
     /// For receiving new events from the frontend.
-    receiver: Arc<Queue<SequencerMessage, 256>>,
+    receiver: Arc<Queue<SequencerMessage>>,
     /// The backend sequencer.
     sequencer: Sequencer,
 }
@@ -48,8 +48,8 @@ pub struct SequencerBackend {
 impl Clone for SequencerBackend {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
-        let queue_event = Arc::new(Queue::<SequencerReturn, 256>::new_const());
-        let queue_message = Arc::new(Queue::<SequencerMessage, 256>::new_const());
+        let queue_event = Arc::new(Queue::<SequencerReturn>::new_const());
+        let queue_message = Arc::new(Queue::<SequencerMessage>::new_const());
         SequencerBackend {
             sender: queue_event,
             receiver: queue_message,
@@ -62,8 +62,8 @@ impl Clone for SequencerBackend {
 impl SequencerBackend {
     /// Create new backend.
     pub(crate) fn new(
-        sender: Arc<Queue<SequencerReturn, 256>>,
-        receiver: Arc<Queue<SequencerMessage, 256>>,
+        sender: Arc<Queue<SequencerReturn>>,
+        receiver: Arc<Queue<SequencerMessage>>,
         sequencer: Sequencer,
     ) -> Self {
         Self {

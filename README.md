@@ -924,13 +924,13 @@ Nodes inside structures can be accessed via addressing:
 
 | `Setting` Call | Address Meaning |
 | -------------- | --------------------------------- |
-| `left()`       | Pick left side of binary operation. |
-| `right()`      | Pick right side of binary operation. |
+| `left()`       | Pick left side of binary operation. This is identical to `index(0)`. |
+| `right()`      | Pick right side of binary operation. This is identical to `index(1)`. |
 | `index(i)`     | Pick index `i` inside structure such as `busi`. |
 | `node(id)`     | Pick node with `id` inside `Net`. |
 
 Addresses are specified after the parameter constructor.
-They can be nested up to four levels deep.
+They can be nested up to six levels deep.
 
 If a listener is attached to a binary operation, then the
 different sides can be picked with the `left` or `right` method.
