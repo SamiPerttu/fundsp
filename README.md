@@ -1483,36 +1483,105 @@ The same modes are used in the `meter` opcode.
 *Easing functions* are interpolation curves that remap the range 0...1.
 These math functions have the shape of an easing function.
 
-| Function               | Explanation                                    |
-| ---------------------- | ---------------------------------------------- |
-| `cubed(x)`             | cube of `x` |
-| `downarc(x)`           | concave quarter circle easing curve (inverse function of `uparc` in 0...1) |
-| `identity(x)`          | identity function (linear easing function) |
-| `smooth3(x)`           | smooth cubic easing polynomial |
-| `smooth5(x)`           | smooth 5th degree easing polynomial (commonly used in computer graphics) |
-| `smooth7(x)`           | smooth 7th degree easing polynomial |
-| `smooth9(x)`           | smooth 9th degree easing polynomial |
-| `squared(x)`           | square of `x` |
-| `sqrt(x)`              | square root of `x` |
-| `uparc(x)`             | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
+| Function               | Clamped Continuity | Explanation            |
+| ---------------------- | ------------------ | ---------------------- |
+| `cubed(x)`             | 1st order          | cube of `x` |
+| `downarc(x)`           | 1st order          | concave quarter circle easing curve (inverse function of `uparc` in 0...1) |
+| `identity(x)`          | 1st order          | identity function (linear easing function) |
+| `smooth3(x)`           | 2nd order          | smooth 3rd degree easing polynomial |
+| `smooth5(x)`           | 3rd order          | smooth 5th degree easing polynomial |
+| `smooth7(x)`           | 4th order          | smooth 7th degree easing polynomial |
+| `smooth9(x)`           | 5th order          | smooth 9th degree easing polynomial |
+| `squared(x)`           | 1st order          | square of `x` |
+| `sqrt(x)`              | 1st order          | square root of `x` |
+| `uparc(x)`             | 1st order          | convex quarter circle easing curve (inverse function of `downarc` in 0...1) |
+
+Clamped continuity is the resulting order of continuity
+when the argument to an easing function
+is clamped to 0...1 with, e.g., the `clamp01` function.
+
+---
+
+#### Easing Function Graphs
 
 ![](easing_functions.png "easing_functions")
 
 ---
 
-For example, if we wish to interpolate a transition, then interpolation, de-interpolation and
-re-interpolation combined with easing functions is handy. This example defines
-an inaudible tone suppression function for pure tones, falling smoothly from one at 20 kHz to zero at the default Nyquist
-frequency of 22.05 kHz.
+### Interpolation
+
+The `math` module contains several useful
+functions for interpolation. If we wish to interpolate something,
+for example a transition from one scalar state to the next, then
+interpolation, de-interpolation and re-interpolation
+combined with easing functions and judicious use of
+clamping is handy.
+
+This example examines the inaudible tone suppression function `inaudible_amp`
+for pure tones, the generic version of which can be found in the `math` module.
+In the high end, it falls smoothly from unity (0 dB) at 20 kHz
+to inaudibility (-100 dB) at the default Nyquist frequency of 22.05 kHz.
+In the low end, it falls smoothly from unity (0 dB) at 15 Hz to inaudibility
+(-100 dB) at 10 Hz. In between 15 Hz and 20 kHz it maintains unity amplitude.
+
+The argument of `inaudible_amp` is frequency in Hz,
+and the output is the desired amplification at the frequency as an amplitude.
+Its purpose is the suppression of aliasing in the high end and infrasound tones
+and aliasing in the low end. The low end includes negative frequencies also.
 
 ```rust
 use fundsp::prelude64::*;
-fn pure_tone_amp(hz: f32) -> f32 { lerp(1.0, 0.0, smooth5(clamp01(delerp(20_000.0, 22_050.0, hz)))) }
+fn inaudible_amp(frequency: f64) -> f64 {
+    xerp(db_amp(0.0), db_amp(-100.0), smooth5(clamp01(delerp(20_000.0, 22_050.0, frequency))))
+    * xerp(db_amp(0.0), db_amp(-100.0), smooth5(clamp01(delerp(15.0, 10.0, frequency))))
+}
 ```
 
-The above is an example of re-interpolation, which is de-interpolation followed with interpolation. First we recover, using `delerp` and clamping, an interpolation value in 0...1 (this is de-interpolation). Then we interpolate that value smoothly using `lerp` with the `smooth5` ease, in the desired final range of 1 to 0.
+The above example contains two instances of re-interpolation, which is 
+de-interpolation followed with interpolation. These instances are
+combined using the amplification operator (`*`).
 
-For exponential interpolation and de-interpolation, such as might be often used to deal with amplitudes or frequencies, use the `xerp` and `dexerp` functions.
+First we re-interpolate in the high end.
+we recover, using `delerp`, an interpolation value for the
+range 0...1. The frequency 20 kHz results in 0 and 22.05 kHz results 
+in 1, with anything in between linearly interpolated. As this value 
+may fall outside the 0...1 range, we clamp it there using `clamp01`. 
+This is de-interpolation.
+
+Then we interpolate the value smoothly using `xerp` with the 
+`smooth5` ease, in the desired final range of 0 dB to -100 dB.
+The `smooth5` ease is famous for its usage in the canonical
+implementation of the [Perlin noise function](https://en.wikipedia.org/wiki/Perlin_noise),
+developed by Ken Perlin.
+
+Finally, we repeat the re-interpolation steps in the low end
+and combine the result with high end re-interpolation
+using the amplification operator (`*`).
+
+Thanks to `smooth5` and `clamp01`, the final result is third order continuous in
+log-amplitude space with respect to the frequency argument.
+If we remove the call to `smooth5`, then the result uses linear interpolation
+in log-amplitude space and is thereby only first order continuous.
+
+For linear interpolation and de-interpolation, such as might be often used
+to deal with time durations, use the `lerp` and `delerp` functions.
+For exponential interpolation and de-interpolation, such as might be often used
+to deal with amplitudes or frequencies, use the `xerp` and `dexerp` functions.
+
+Exponential interpolation is harder to use than linear, as the first and second
+arguments to `xerp` must be positive. The result is also positive.
+
+Exponential de-interpolation is also more difficult to use than linear,
+as all arguments to `dexerp` must be positive.
+The resulting interpolation value may be positive or negative.
+
+Exported in the preludes are also interpolation and de-interpolation 
+functions that operate in interpolation value range -1...1 instead of 0...1.
+These are `lerp11`, `delerp11`, `xerp11` and `dexerp11`.
+Interpolation values are the third arguments
+to the functions `lerp`, `lerp11`, `xerp` and `xerp11`,
+and result from invoking the functions `delerp`, `delerp11`,
+`dexerp` and `dexerp11`.
 
 ---
 

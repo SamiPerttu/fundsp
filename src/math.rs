@@ -509,6 +509,45 @@ pub fn tri_hz<T: Num>(hz: T, t: T) -> T {
     abs(x - T::from_f32(0.5)) * T::new(4) - T::one()
 }
 
+/// Inaudible pure tone suppression function that
+/// suppresses aliasing in the low and high ends
+/// as well as suppressing infrasound tones and
+/// negative frequencies. The argument `frequency`
+/// is specified in Hz. The result is the desired
+/// amplification at that frequency as an amplitude.
+/// Suppression transitions are interpolated smoothly.
+///
+/// ### Example
+/// ```
+/// use fundsp::prelude64::*;
+/// assert_eq!(inaudible_amp::<f64, f64>(-200000.0), db_amp(-100.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(-20000.0), db_amp(-100.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(-2000.0), db_amp(-100.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(-200.0), db_amp(-100.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(-20.0), db_amp(-100.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(0.0), db_amp(-100.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(10.0), db_amp(-100.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(15.0), db_amp(0.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(20.0), db_amp(0.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(200.0), db_amp(0.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(2000.0), db_amp(0.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(20000.0), db_amp(0.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(22050.0), db_amp(-100.0));
+/// assert_eq!(inaudible_amp::<f64, f64>(200000.0), db_amp(-100.0));
+/// ```
+#[inline]
+pub fn inaudible_amp<U: Real, T: Real + Lerp<U>>(frequency: U) -> T {
+    xerp(
+        db_amp(T::zero()),
+        db_amp(T::new(-100)),
+        smooth5(clamp01(delerp(U::new(20_000), U::new(22_050), frequency))),
+    ) * xerp(
+        db_amp(T::zero()),
+        db_amp(T::new(-100)),
+        smooth5(clamp01(delerp(U::new(15), U::new(10), frequency))),
+    )
+}
+
 /// Converts from semitone interval to frequency ratio.
 ///
 /// ### Example
