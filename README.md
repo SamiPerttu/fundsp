@@ -1409,6 +1409,7 @@ The same modes are used in the `meter` opcode.
 | `a_weight(f)`          | [A-weighted](https://en.wikipedia.org/wiki/A-weighting) amplitude response at `f` Hz (normalized to 1.0 at 1 kHz) |
 | `abs(x)`               | absolute value of `x` |
 | `amp_db(x)`            | convert amplitude (aka gain) `x` to decibels with amplitude 1.0 equal to 0 dB |
+| `audible_amp(f)`       | amplification function for an `f` Hz pure tone that suppresses inaudible, infrasound and negative frequencies | 
 | `bpm_hz(bpm)`          | convert `bpm` BPM (beats per minute) to Hz |
 | `ceil(x)`              | ceiling function |
 | `clamp(min, max, x)`   | clamp `x` between `min` and `max` |

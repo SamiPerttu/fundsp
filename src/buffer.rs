@@ -121,6 +121,12 @@ impl<'a> BufferMut<'a> {
         (self.0)[(channel << SIMD_C) + i] += value;
     }
 
+    /// Fill the buffer with zeros.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.0.fill(F32x::ZERO);
+    }
+
     /// Create a sub-span of this buffer.
     pub fn span(&self, start: usize, length: usize, target: &mut BufferVec) {
         for channel in 0..self.channels() {

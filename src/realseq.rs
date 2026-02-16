@@ -116,7 +116,7 @@ impl SequencerBackend {
     #[inline]
     fn return_event(&mut self, event: Event) {
         self.fill_message.vec.push(Some(event));
-        if self.fill_message.vec.len() == self.fill_message.vec.capacity() {
+        if self.fill_message.vec.len() >= self.fill_message.vec.capacity() {
             let mut msg = SequencerReturn::default();
             core::mem::swap(&mut self.fill_message, &mut msg);
             if self.sender.enqueue(msg).is_ok() {}
@@ -125,10 +125,12 @@ impl SequencerBackend {
 }
 
 impl AudioUnit for SequencerBackend {
+    #[inline]
     fn inputs(&self) -> usize {
-        0
+        self.sequencer.inputs()
     }
 
+    #[inline]
     fn outputs(&self) -> usize {
         self.sequencer.outputs()
     }
@@ -170,6 +172,7 @@ impl AudioUnit for SequencerBackend {
         }
     }
 
+    #[inline]
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         self.handle_messages();
         self.sequencer.process(size, input, output);

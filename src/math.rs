@@ -259,7 +259,8 @@ pub fn dexerp11<T: Real>(a: T, b: T, x: T) -> T {
     (x / a).log() / (b / a).log() * T::new(2) - T::new(1)
 }
 
-/// Return a dissonance amount between pure tones at `f0` and `f1` Hz.
+/// Return a dissonance amount between pure tones at `f0` and `f1` Hz
+/// following the Plomp-Levelt dissonance curve.
 /// Dissonance amounts range between 0 (no dissonance) and 1 (maximum dissonance).
 /// This function is often the basis for more sophisticated calculations
 /// that take overtones and octave equivalence into account.
@@ -520,23 +521,23 @@ pub fn tri_hz<T: Num>(hz: T, t: T) -> T {
 /// ### Example
 /// ```
 /// use fundsp::prelude64::*;
-/// assert_eq!(inaudible_amp::<f64, f64>(-200000.0), db_amp(-100.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(-20000.0), db_amp(-100.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(-2000.0), db_amp(-100.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(-200.0), db_amp(-100.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(-20.0), db_amp(-100.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(0.0), db_amp(-100.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(10.0), db_amp(-100.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(15.0), db_amp(0.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(20.0), db_amp(0.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(200.0), db_amp(0.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(2000.0), db_amp(0.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(20000.0), db_amp(0.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(22050.0), db_amp(-100.0));
-/// assert_eq!(inaudible_amp::<f64, f64>(200000.0), db_amp(-100.0));
+/// assert_eq!(audible_amp::<f64, f64>(-200000.0), db_amp(-100.0));
+/// assert_eq!(audible_amp::<f64, f64>(-20000.0), db_amp(-100.0));
+/// assert_eq!(audible_amp::<f64, f64>(-2000.0), db_amp(-100.0));
+/// assert_eq!(audible_amp::<f64, f64>(-200.0), db_amp(-100.0));
+/// assert_eq!(audible_amp::<f64, f64>(-20.0), db_amp(-100.0));
+/// assert_eq!(audible_amp::<f64, f64>(0.0), db_amp(-100.0));
+/// assert_eq!(audible_amp::<f64, f64>(10.0), db_amp(-100.0));
+/// assert_eq!(audible_amp::<f64, f64>(15.0), db_amp(0.0));
+/// assert_eq!(audible_amp::<f64, f64>(20.0), db_amp(0.0));
+/// assert_eq!(audible_amp::<f64, f64>(200.0), db_amp(0.0));
+/// assert_eq!(audible_amp::<f64, f64>(2000.0), db_amp(0.0));
+/// assert_eq!(audible_amp::<f64, f64>(20000.0), db_amp(0.0));
+/// assert_eq!(audible_amp::<f64, f64>(22050.0), db_amp(-100.0));
+/// assert_eq!(audible_amp::<f64, f64>(200000.0), db_amp(-100.0));
 /// ```
 #[inline]
-pub fn inaudible_amp<U: Real, T: Real + Lerp<U>>(frequency: U) -> T {
+pub fn audible_amp<U: Real, T: Real + Lerp<U>>(frequency: U) -> T {
     xerp(
         db_amp(T::zero()),
         db_amp(T::new(-100)),

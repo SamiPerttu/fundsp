@@ -32,6 +32,15 @@ fn pass_bench(_dummy: usize) -> Wave {
 }
 
 #[allow(clippy::precedence)]
+fn wrap_bench(_dummy: usize) -> Wave {
+    Wave::render(
+        44100.0,
+        1.0,
+        &mut Net::wrap(Box::new(dc((1.0, 2.0)) * 2.0 >> pass() + pass() >> pass())),
+    )
+}
+
+#[allow(clippy::precedence)]
 fn netpass_bench(_dummy: usize) -> Wave {
     let x = Net::wrap(Box::new(dc((1.0, 2.0))));
     let y = Net::wrap(Box::new(pass()));
@@ -88,14 +97,15 @@ fn phaser_bench(_dummy: usize) -> Wave {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("netpass", |b| {
-        b.iter(|| netpass_bench(core::hint::black_box(0)))
-    });
-    c.bench_function("sine", |b| b.iter(|| sine_bench(core::hint::black_box(0))));
     c.bench_function("resynth", |b| {
         b.iter(|| resynth_bench(core::hint::black_box(0)))
     });
+    c.bench_function("sine", |b| b.iter(|| sine_bench(core::hint::black_box(0))));
     c.bench_function("pass", |b| b.iter(|| pass_bench(core::hint::black_box(0))));
+    c.bench_function("netpass", |b| {
+        b.iter(|| netpass_bench(core::hint::black_box(0)))
+    });
+    c.bench_function("wrap", |b| b.iter(|| wrap_bench(core::hint::black_box(0))));
     c.bench_function("wavetable", |b| {
         b.iter(|| wavetable_bench(core::hint::black_box(0)))
     });

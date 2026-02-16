@@ -754,6 +754,7 @@ impl Net {
     }
 
     /// Number of nodes in the network.
+    #[inline]
     pub fn size(&self) -> usize {
         self.vertex.len()
     }
@@ -1110,6 +1111,7 @@ impl Net {
     }
 
     /// Returns whether this network has a backend.
+    #[inline]
     pub fn has_backend(&self) -> bool {
         self.front.is_some()
     }
@@ -1284,6 +1286,7 @@ impl Net {
     }
 
     /// Apply all edits into this network.
+    #[inline]
     pub(crate) fn apply_edits(&mut self, sender: &Option<Arc<Queue<NetReturn>>>) {
         for edit in self.edit_queue.iter_mut() {
             self.vertex[edit.index].enqueue(edit, sender);
@@ -1292,6 +1295,7 @@ impl Net {
     }
 
     /// Apply all edits from another network into this network.
+    #[inline]
     pub(crate) fn apply_foreign_edits(
         &mut self,
         source: &mut Net,
@@ -1306,10 +1310,12 @@ impl Net {
 }
 
 impl AudioUnit for Net {
+    #[inline]
     fn inputs(&self) -> usize {
         self.input.channels()
     }
 
+    #[inline]
     fn outputs(&self) -> usize {
         self.output.channels()
     }
@@ -1348,14 +1354,17 @@ impl AudioUnit for Net {
         }
     }
 
+    #[inline]
     fn tick(&mut self, input: &[f32], output: &mut [f32]) {
         self.tick_2(input, output, &None);
     }
 
+    #[inline]
     fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
         self.process_2(size, input, output, &None);
     }
 
+    #[inline]
     fn set(&mut self, setting: Setting) {
         if let Some((sender, _receiver)) = &mut self.front {
             if sender.enqueue(NetMessage::Setting(setting)).is_ok() {}
@@ -1366,6 +1375,7 @@ impl AudioUnit for Net {
         }
     }
 
+    #[inline]
     fn get_id(&self) -> u64 {
         ID
     }
