@@ -673,6 +673,7 @@ The PolyBLEP oscillator is a fast approximation with fair quality.
 ## Working With Waves
 
 FunDSP includes a multichannel wave abstraction called `Wave`.
+Each channel of the wave is stored in its own vector (`Vec<f32>`) and can be taken ownership of.
 For example, to render 10 seconds of pink noise:
 
 ```rust
