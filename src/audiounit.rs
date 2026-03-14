@@ -18,7 +18,7 @@ use core::fmt::Write;
 
 /// An audio processor with an object safe interface.
 /// Once constructed, it has a fixed number of inputs and outputs.
-pub trait AudioUnit: Send + Sync + DynClone {
+pub trait AudioUnit: DynClone {
     /// Reset the input state of the unit to an initial state where it has not processed any data.
     /// In other words, reset time to zero.
     fn reset(&mut self) {
@@ -372,7 +372,7 @@ pub trait AudioUnit: Send + Sync + DynClone {
 
 dyn_clone::clone_trait_object!(AudioUnit);
 
-impl<X: AudioNode + Sync + Send> AudioUnit for An<X>
+impl<X: AudioNode> AudioUnit for An<X>
 where
     X::Inputs: Size<f32>,
     X::Outputs: Size<f32>,

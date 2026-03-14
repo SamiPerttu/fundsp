@@ -26,7 +26,7 @@ Order of type arguments in nodes:
 
 /// Generic audio processor.
 /// `AudioNode` has a static number of inputs (`AudioNode::Inputs`) and outputs (`AudioNode::Outputs`).
-pub trait AudioNode: Clone + Sync + Send {
+pub trait AudioNode: Clone {
     /// Unique ID for hashing.
     const ID: u64;
     /// Input arity.
