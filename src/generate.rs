@@ -209,7 +209,7 @@ pub fn gen_granular(
     beat_length: f32,
     beats_per_cycle: usize,
     dna: &mut Dna,
-) -> Box<dyn AudioUnit> {
+) -> Box<dyn SharedUnit> {
     assert!(channels == 1 || channels == 2);
     let scale_vec: Vec<_> = Vec::from(scale);
 
@@ -344,7 +344,7 @@ pub fn gen_granular(
     };
 
     let create_grain =
-        move |t: f64, _b: f32, v: f32, x: f32, y: f32, z: f32| -> (f32, f32, Box<dyn AudioUnit>) {
+        move |t: f64, _b: f32, v: f32, x: f32, y: f32, z: f32| -> (f32, f32, Box<dyn SharedUnit>) {
             let f = if scale_vec.len() > 0 {
                 let d = lerp11(0.0, scale_vec.len() as f32 - 0.01, x);
                 midi_hz(scale_vec[d as usize] + 0.02 * (d - round(d)))

@@ -15,7 +15,7 @@ use alloc::vec::Vec;
 /// Individual AudioUnits are vertices in the graph.
 pub(crate) struct Vertex {
     /// The unit.
-    pub unit: Box<dyn AudioUnit>,
+    pub unit: Box<dyn SharedUnit>,
     /// Edges connecting into this vertex. The length is equal to the number of inputs.
     pub source: Vec<NetEdge>,
     /// Input buffers. The number of channels is equal to the number of inputs.
@@ -50,7 +50,7 @@ pub(crate) struct Vertex {
 }
 
 impl Vertex {
-    pub fn new(id: NodeId, index: NodeIndex, unit: Box<dyn AudioUnit>) -> Self {
+    pub fn new(id: NodeId, index: NodeIndex, unit: Box<dyn SharedUnit>) -> Self {
         let inputs = unit.inputs();
         let outputs = unit.outputs();
         let mut vertex = Self {

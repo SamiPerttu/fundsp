@@ -16,6 +16,18 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
 
+/// An AudioUnit that can also be sent and shared between threads.
+///
+/// Implemented automatically for all AudioUnits that are Send + Sync,
+/// and required for types that support backends, like Net and Sequencer.
+///
+/// Use Box<dyn SharedUnit> anywhere you need a dynamically sized audio
+/// processor that can be used across threads.
+pub trait SharedUnit: Send + Sync + AudioUnit + DynClone {}
+
+impl<T: AudioUnit + Send + Sync + Clone> SharedUnit for T {}
+dyn_clone::clone_trait_object!(SharedUnit);
+
 /// An audio processor with an object safe interface.
 /// Once constructed, it has a fixed number of inputs and outputs.
 pub trait AudioUnit: DynClone {
@@ -572,7 +584,7 @@ impl AudioUnit for BigBlockAdapter {
 /// The unit to be adapted must have no inputs.
 #[derive(Clone)]
 pub struct BlockRateAdapter {
-    unit: Box<dyn AudioUnit>,
+    unit: Box<dyn SharedUnit>,
     channels: usize,
     buffer: BufferVec,
     index: usize,
@@ -580,7 +592,7 @@ pub struct BlockRateAdapter {
 
 impl BlockRateAdapter {
     /// Create new block rate adapter for the unit.
-    pub fn new(unit: Box<dyn AudioUnit>) -> Self {
+    pub fn new(unit: Box<dyn SharedUnit>) -> Self {
         assert_eq!(unit.inputs(), 0);
         let channels = unit.outputs();
         Self {

@@ -22,8 +22,8 @@
 use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, Device, FromSample, SampleFormat, SizedSample, StreamConfig};
-use fundsp::prelude::AudioUnit;
-use fundsp::prelude64::{Shared, adsr_live, midi_hz, shared, triangle, var};
+use fundsp::prelude::SharedUnit;
+use fundsp::prelude64::{adsr_live, midi_hz, shared, triangle, var, Shared};
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
 use midir::{Ignore, MidiInput, MidiInputPort};
 use read_input::prelude::*;
@@ -66,7 +66,7 @@ fn create_sound(
     volume: Shared,
     pitch_bend: Shared,
     control: Shared,
-) -> Box<dyn AudioUnit> {
+) -> Box<dyn SharedUnit> {
     Box::new(
         var(&pitch_bend) * var(&pitch)
             >> triangle() * (var(&control) >> adsr_live(0.1, 0.2, 0.4, 0.2)) * var(&volume),

@@ -130,7 +130,7 @@ fn main() {
     }
 }
 
-fn create_reverb(room_size: f32, time: f32, diffusion: f32) -> Box<dyn AudioUnit> {
+fn create_reverb(room_size: f32, time: f32, diffusion: f32) -> Box<dyn SharedUnit> {
     //Box::new(reverb3_stereo(time, diffusion, highshelf_hz(5000.0, 1.0, db_amp(-1.0))))
     Box::new(reverb2_stereo(
         room_size,

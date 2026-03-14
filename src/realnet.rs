@@ -24,7 +24,7 @@ pub(crate) enum NetReturn {
     #[default]
     Null,
     Net(Net),
-    Unit(Box<dyn AudioUnit>),
+    Unit(Box<dyn SharedUnit>),
 }
 
 pub struct NetBackend {

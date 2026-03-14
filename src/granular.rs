@@ -25,7 +25,7 @@ struct Voice {
 /// a helix (corkscrew) shape.
 #[derive(Clone)]
 pub struct Granular<
-    X: Fn(f64, f32, f32, f32, f32, f32) -> (f32, f32, Box<dyn AudioUnit>) + Sync + Send + Clone,
+    X: Fn(f64, f32, f32, f32, f32, f32) -> (f32, f32, Box<dyn SharedUnit>) + Sync + Send + Clone,
 > {
     voices: Vec<Voice>,
     outputs: usize,
@@ -44,8 +44,9 @@ pub struct Granular<
     rnd: Rnd,
 }
 
-impl<X: Fn(f64, f32, f32, f32, f32, f32) -> (f32, f32, Box<dyn AudioUnit>) + Sync + Send + Clone>
-    Granular<X>
+impl<
+        X: Fn(f64, f32, f32, f32, f32, f32) -> (f32, f32, Box<dyn SharedUnit>) + Sync + Send + Clone,
+    > Granular<X>
 {
     /// Create a new granular synthesizer.
     /// - `outputs`: number of outputs.
@@ -175,8 +176,9 @@ impl<X: Fn(f64, f32, f32, f32, f32, f32) -> (f32, f32, Box<dyn AudioUnit>) + Syn
     }
 }
 
-impl<X: Fn(f64, f32, f32, f32, f32, f32) -> (f32, f32, Box<dyn AudioUnit>) + Sync + Send + Clone>
-    AudioUnit for Granular<X>
+impl<
+        X: Fn(f64, f32, f32, f32, f32, f32) -> (f32, f32, Box<dyn SharedUnit>) + Sync + Send + Clone,
+    > AudioUnit for Granular<X>
 {
     fn reset(&mut self) {
         self.sequencer.reset();

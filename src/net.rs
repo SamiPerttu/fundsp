@@ -62,7 +62,7 @@ impl NodeId {
 /// Node introduced with a crossfade.
 #[derive(Clone, Default)]
 pub(crate) struct NodeEdit {
-    pub unit: Option<Box<dyn AudioUnit>>,
+    pub unit: Option<Box<dyn SharedUnit>>,
     pub id: NodeId,
     pub index: NodeIndex,
     pub fade: Fade,
@@ -226,7 +226,7 @@ impl Net {
     /// net.pipe_output(id);
     /// net.check();
     /// ```
-    pub fn push(&mut self, mut unit: Box<dyn AudioUnit>) -> NodeId {
+    pub fn push(&mut self, mut unit: Box<dyn SharedUnit>) -> NodeId {
         unit.set_sample_rate(self.sample_rate as f64);
         let index = self.vertex.len();
         let id = NodeId::new();
@@ -239,7 +239,7 @@ impl Net {
 
     /// Add a new unit to the network with a fade-in. Return its ID handle.
     /// Unit inputs are initially set to zero.
-    pub fn fade_in(&mut self, fade: Fade, fade_time: f32, unit: Box<dyn AudioUnit>) -> NodeId {
+    pub fn fade_in(&mut self, fade: Fade, fade_time: f32, unit: Box<dyn SharedUnit>) -> NodeId {
         let dummy = DummyUnit::new(unit.inputs(), unit.outputs());
         let id = self.push(Box::new(dummy));
         self.crossfade(id, fade, fade_time, unit);
@@ -457,7 +457,7 @@ impl Net {
     /// net.replace(id, Box::new(square_hz(220.0)));
     /// net.check();
     /// ```
-    pub fn replace(&mut self, node: NodeId, mut unit: Box<dyn AudioUnit>) -> Box<dyn AudioUnit> {
+    pub fn replace(&mut self, node: NodeId, mut unit: Box<dyn SharedUnit>) -> Box<dyn AudioUnit> {
         let node_index = self.node_index[&node];
         assert_eq!(unit.inputs(), self.vertex[node_index].inputs());
         assert_eq!(unit.outputs(), self.vertex[node_index].outputs());
@@ -487,7 +487,7 @@ impl Net {
         node: NodeId,
         fade: Fade,
         fade_time: f32,
-        mut unit: Box<dyn AudioUnit>,
+        mut unit: Box<dyn SharedUnit>,
     ) {
         let node_index = self.node_index[&node];
         assert_eq!(unit.inputs(), self.vertex[node_index].inputs());
@@ -776,7 +776,7 @@ impl Net {
     /// net.chain(Box::new(highpass_hz(1000.0, 1.0)));
     /// net.check();
     /// ```
-    pub fn chain(&mut self, unit: Box<dyn AudioUnit>) -> NodeId {
+    pub fn chain(&mut self, unit: Box<dyn SharedUnit>) -> NodeId {
         let unit_inputs = unit.inputs();
         let id = self.push(unit);
         let index = self.node_index[&id];
@@ -926,7 +926,7 @@ impl Net {
     ///     net = net >> lowpass_hz(880.0, 1.0);
     /// }
     /// ```
-    pub fn wrap(unit: Box<dyn AudioUnit>) -> Net {
+    pub fn wrap(unit: Box<dyn SharedUnit>) -> Net {
         let mut net = Net::new(unit.inputs(), unit.outputs());
         let id = net.push(unit);
         if net.inputs() > 0 {
@@ -939,7 +939,7 @@ impl Net {
     }
 
     /// Wrap arbitrary `unit` in a network. Return network and the ID of the unit.
-    pub fn wrap_id(unit: Box<dyn AudioUnit>) -> (Net, NodeId) {
+    pub fn wrap_id(unit: Box<dyn SharedUnit>) -> (Net, NodeId) {
         let mut net = Net::new(unit.inputs(), unit.outputs());
         let id = net.push(unit);
         if net.inputs() > 0 {
