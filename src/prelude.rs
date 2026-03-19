@@ -237,7 +237,7 @@ pub fn multizero<N: Size<f32>>() -> An<Constant<N>> {
 /// Update enclosed node `x` with approximately `dt` seconds between updates.
 /// The update function is `f(t, dt, x)` where `t` is current time,
 /// `dt` is time from previous update, and `x` is the enclosed node.
-pub fn update<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone + Send + Sync>(
+pub fn update<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone>(
     x: An<X>,
     dt: f32,
     f: F,
