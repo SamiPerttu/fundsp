@@ -1335,7 +1335,7 @@ pub struct Map<M, I, O> {
 
 impl<M, I, O> Map<M, I, O>
 where
-    M: Fn(&Frame<f32, I>) -> O + Clone + Send + Sync,
+    M: Fn(&Frame<f32, I>) -> O + Clone,
     I: Size<f32>,
     O: ConstantFrame<Sample = f32>,
     O::Size: Size<f32>,
@@ -1351,7 +1351,7 @@ where
 
 impl<M, I, O> AudioNode for Map<M, I, O>
 where
-    M: Fn(&Frame<f32, I>) -> O + Clone + Send + Sync,
+    M: Fn(&Frame<f32, I>) -> O + Clone,
     I: Size<f32>,
     O: ConstantFrame<Sample = f32>,
     O::Size: Size<f32>,

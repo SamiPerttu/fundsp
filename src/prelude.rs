@@ -1138,7 +1138,7 @@ where
 /// ```
 pub fn map<M, I, O>(f: M) -> An<Map<M, I, O>>
 where
-    M: Fn(&Frame<f32, I>) -> O + Clone + Send + Sync,
+    M: Fn(&Frame<f32, I>) -> O + Clone,
     I: Size<f32>,
     O: ConstantFrame<Sample = f32>,
     O::Size: Size<f32>,
@@ -1191,7 +1191,7 @@ pub fn declick_s<F: Real>(t: F) -> An<Declick<F>> {
 /// Shape signal with a waveshaper function.
 /// - Input 0: input signal
 /// - Output 0: shaped signal
-pub fn shape_fn<S: Fn(f32) -> f32 + Clone + Send + Sync>(f: S) -> An<Shaper<ShapeFn<S>>> {
+pub fn shape_fn<S: Fn(f32) -> f32 + Clone>(f: S) -> An<Shaper<ShapeFn<S>>> {
     An(Shaper::new(ShapeFn(f)))
 }
 
@@ -2716,7 +2716,7 @@ pub fn chorus(
 /// use fundsp::prelude::*;
 /// saw_hz(110.0) >> flanger(0.5, 0.005, 0.010, |t| lerp11(0.005, 0.010, sin_hz(0.1, t)));
 /// ```
-pub fn flanger<X: Fn(f32) -> f32 + Clone + Send + Sync>(
+pub fn flanger<X: Fn(f32) -> f32 + Clone>(
     feedback_amount: f32,
     minimum_delay: f32,
     maximum_delay: f32,
@@ -2740,7 +2740,7 @@ pub fn flanger<X: Fn(f32) -> f32 + Clone + Send + Sync>(
 /// use fundsp::prelude::*;
 /// saw_hz(110.0) >> phaser(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5);
 /// ```
-pub fn phaser<X: Fn(f32) -> f32 + Clone + Send + Sync>(
+pub fn phaser<X: Fn(f32) -> f32 + Clone>(
     feedback_amount: f32,
     phase_f: X,
 ) -> An<impl AudioNode<Inputs = U1, Outputs = U1>> {
@@ -2850,7 +2850,7 @@ pub fn resynth<I, O, F>(window_length: usize, processing: F) -> An<Resynth<I, O,
 where
     I: Size<f32>,
     O: Size<f32>,
-    F: FnMut(&mut FftWindow) + Clone + Send + Sync,
+    F: FnMut(&mut FftWindow) + Clone,
 {
     An(Resynth::new(window_length, processing))
 }
