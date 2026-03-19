@@ -511,17 +511,20 @@ net.pipe_output(sine_id);
 ```
 
 `Net` is generic over the type of contained `AudioUnits`. `BoxedNet` is a convenience
-alias for constructing `Net`s made up of `Box<dyn AudioUnit + Send + Sync>`, which is
+alias for constructing `Net`s made up of `Box<dyn SharedUnit>`, which is
 the most flexible implementation.
 The overhead of `BoxedNet` is the overhead of calling into `Box<dyn AudioUnit>`
 objects (pointer indirection + dynamic dispatch). Static graphs can get optimized 
 more effectively as well by the compiler. Beyond that, the dynamic versions are roughly 
-as efficient as the static ones. 
+as efficient as the static ones. If your `Net` doesn't need to be `Send` and `Sync`, you
+can also use a `Net<Box<dyn AudioUnit>>` to enable the use of faster, single-threaded
+synchronization primitives within your `AudioUnits`.
 
-If you need even better performance, you can also use a different generic parameter. For
-instance, an enum with variants for each concrete `An<AudioNode>` you want to add to 
-the graph and an `impl AudioUnit` that defers to each variant can provide a significant
-speed-up over the boxed default. 
+If you need even better performance, you can also use an enum with variants for each 
+concrete `An<AudioNode>` you want to add to the `Net`, and an `impl AudioUnit` that 
+defers to each variant. This can provide a significant speed-up over the boxed default.
+Crates such as [enum_dispatch](https://docs.rs/enum_dispatch/latest/enum_dispatch/)
+can make this pattern more ergonomic.
 
 The graph syntax is also available for combining `Net` instances.
 Connectivity checks are then deferred to runtime. 
