@@ -185,7 +185,7 @@ where
 pub struct EnvelopeIn<F, E, I, R>
 where
     F: Real,
-    E: FnMut(F, &Frame<f32, I>) -> R + Clone + Send + Sync,
+    E: FnMut(F, &Frame<f32, I>) -> R + Clone,
     I: Size<f32>,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -220,7 +220,7 @@ where
 impl<F, E, I, R> EnvelopeIn<F, E, I, R>
 where
     F: Real,
-    E: FnMut(F, &Frame<f32, I>) -> R + Clone + Send + Sync,
+    E: FnMut(F, &Frame<f32, I>) -> R + Clone,
     I: Size<f32>,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -281,7 +281,7 @@ where
 impl<F, E, I, R> AudioNode for EnvelopeIn<F, E, I, R>
 where
     F: Real,
-    E: FnMut(F, &Frame<f32, I>) -> R + Clone + Send + Sync,
+    E: FnMut(F, &Frame<f32, I>) -> R + Clone,
     I: Size<f32>,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,

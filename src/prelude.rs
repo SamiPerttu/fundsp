@@ -604,7 +604,7 @@ where
 pub fn lfo<F, E, R>(f: E) -> An<Envelope<F, E, R>>
 where
     F: Real,
-    E: FnMut(F) -> R + Clone + Send + Sync,
+    E: FnMut(F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
 {
@@ -628,7 +628,7 @@ pub fn envelope2<F, E, R>(
 ) -> An<EnvelopeIn<F, impl FnMut(F, &Frame<f32, U1>) -> R + Clone, U1, R>>
 where
     F: Real,
-    E: FnMut(F, F) -> R + Clone + Send + Sync,
+    E: FnMut(F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
 {
@@ -655,7 +655,7 @@ pub fn lfo2<F, E, R>(
 ) -> An<EnvelopeIn<F, impl FnMut(F, &Frame<f32, U1>) -> R + Clone, U1, R>>
 where
     F: Real,
-    E: FnMut(F, F) -> R + Clone + Send + Sync,
+    E: FnMut(F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
 {
@@ -676,7 +676,7 @@ pub fn envelope3<F, E, R>(
 ) -> An<EnvelopeIn<F, impl FnMut(F, &Frame<f32, U2>) -> R + Clone, U2, R>>
 where
     F: Real,
-    E: FnMut(F, F, F) -> R + Clone + Send + Sync,
+    E: FnMut(F, F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
 {
@@ -706,7 +706,7 @@ pub fn lfo3<F, E, R>(
 ) -> An<EnvelopeIn<F, impl FnMut(F, &Frame<f32, U2>) -> R + Clone, U2, R>>
 where
     F: Real,
-    E: FnMut(F, F, F) -> R + Clone + Send + Sync,
+    E: FnMut(F, F, F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
 {
@@ -725,7 +725,7 @@ where
 pub fn envelope_in<F, E, I, R>(f: E) -> An<EnvelopeIn<F, E, I, R>>
 where
     F: Real,
-    E: FnMut(F, &Frame<f32, I>) -> R + Clone + Send + Sync,
+    E: FnMut(F, &Frame<f32, I>) -> R + Clone,
     I: Size<f32>,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
@@ -742,7 +742,7 @@ where
 pub fn lfo_in<F, E, I, R>(f: E) -> An<EnvelopeIn<F, E, I, R>>
 where
     F: Real,
-    E: FnMut(F, &Frame<f32, I>) -> R + Clone + Send + Sync,
+    E: FnMut(F, &Frame<f32, I>) -> R + Clone,
     I: Size<f32>,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
