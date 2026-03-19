@@ -7,39 +7,38 @@ use super::net::*;
 use super::setting::*;
 use super::signal::*;
 use super::*;
-use alloc::boxed::Box;
 
 /// Message from frontend to backend.
 #[derive(Default, Clone)]
-pub(crate) enum NetMessage {
+pub(crate) enum NetMessage<T: AudioUnit + Clone> {
     #[default]
     Null,
-    Net(Net),
+    Net(Net<T>),
     Setting(Setting),
 }
 
 /// Message from backend to frontend.
 #[derive(Default, Clone)]
-pub(crate) enum NetReturn {
+pub(crate) enum NetReturn<T: AudioUnit + Clone> {
     #[default]
     Null,
-    Net(Net),
-    Unit(Box<dyn SharedUnit>),
+    Net(Net<T>),
+    Unit(T),
 }
 
-pub struct NetBackend {
+pub struct NetBackend<T: AudioUnit + Clone> {
     /// For sending versions for deallocation back to the frontend.
-    sender: Option<Arc<Queue<NetReturn>>>,
+    sender: Option<Arc<Queue<NetReturn<T>>>>,
     /// For receiving new versions and settings from the frontend.
-    receiver: Arc<Queue<NetMessage>>,
-    net: Net,
+    receiver: Arc<Queue<NetMessage<T>>>,
+    net: Net<T>,
 }
 
-impl Clone for NetBackend {
+impl<T: AudioUnit + Clone> Clone for NetBackend<T> {
     fn clone(&self) -> Self {
         // Allocate a dummy channel.
-        let queue_return = Arc::new(Queue::<NetReturn>::new_const());
-        let queue_message = Arc::new(Queue::<NetMessage>::new_const());
+        let queue_return = Arc::new(Queue::<NetReturn<T>>::new_const());
+        let queue_message = Arc::new(Queue::<NetMessage<T>>::new_const());
         Self {
             sender: Some(queue_return),
             receiver: queue_message,
@@ -48,12 +47,12 @@ impl Clone for NetBackend {
     }
 }
 
-impl NetBackend {
+impl<T: AudioUnit + Clone> NetBackend<T> {
     /// Create new backend.
     pub(crate) fn new(
-        sender: Arc<Queue<NetReturn>>,
-        receiver: Arc<Queue<NetMessage>>,
-        net: Net,
+        sender: Arc<Queue<NetReturn<T>>>,
+        receiver: Arc<Queue<NetMessage<T>>>,
+        net: Net<T>,
     ) -> Self {
         Self {
             sender: Some(sender),
@@ -64,7 +63,7 @@ impl NetBackend {
 
     /// Handle changes made to the backend.
     fn handle_messages(&mut self) {
-        let mut latest_net: Option<Net> = None;
+        let mut latest_net: Option<Net<T>> = None;
         #[allow(clippy::while_let_loop)]
         loop {
             match self.receiver.dequeue() {
@@ -110,7 +109,7 @@ impl NetBackend {
     }
 }
 
-impl AudioUnit for NetBackend {
+impl<T: AudioUnit + Clone> AudioUnit for NetBackend<T> {
     fn inputs(&self) -> usize {
         self.net.inputs()
     }

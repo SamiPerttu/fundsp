@@ -36,7 +36,7 @@ where
     let sample_rate = config.sample_rate as f64;
     let channels = config.channels as usize;
 
-    let mut net = Net::new(0, 2);
+    let mut net = BoxedNet::new(0, 2);
 
     let id_noise = net.chain(Box::new(zero()));
     let id_pan = net.chain(Box::new(pan(0.0)));

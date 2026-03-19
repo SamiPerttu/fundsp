@@ -368,7 +368,7 @@ pub fn gen_granular(
 
             let mut amp = 0.1 / sqrt(voices as f32);
 
-            let mut c = match choice_x {
+            let mut c: BoxedNet = match choice_x {
                 ChoiceX::Oscillator => match waveform {
                     Waveform::Saw => Net::wrap(Box::new(saw_hz(f as f32).phase(0.0))),
                     Waveform::Square => Net::wrap(Box::new(square_hz(f as f32).phase(0.0))),

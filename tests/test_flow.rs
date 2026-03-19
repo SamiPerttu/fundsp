@@ -176,74 +176,74 @@ fn test_responses() {
             >> (multisink::<U3>() | pass() | multisink::<U4>()),
     );
 
-    let mut net1 = Net::new(1, 1);
+    let mut net1 = BoxedNet::new(1, 1);
     net1.chain(Box::new(lowpole_hz(1500.0)));
     test_response(net1);
 
-    let mut net2 = Net::new(1, 1);
+    let mut net2 = BoxedNet::new(1, 1);
     net2.chain(Box::new(lowpole_hz(500.0)));
     net2.chain(Box::new(lowpole_hz(2500.0)));
     test_response(net2);
 
-    let mut net3 = Net::new(1, 1);
+    let mut net3 = BoxedNet::new(1, 1);
     net3.chain(Box::new(highpole_hz(1500.0)));
-    let mut net4 = Net::new(1, 1);
+    let mut net4 = BoxedNet::new(1, 1);
     net4.chain(Box::new(highpole_hz(500.0)));
     test_response(net3 >> net4);
 
-    let mut net5 = Net::new(1, 1);
+    let mut net5 = BoxedNet::new(1, 1);
     net5.chain(Box::new(highpole_hz(1500.0)));
-    let mut net6 = Net::new(1, 1);
+    let mut net6 = BoxedNet::new(1, 1);
     net6.chain(Box::new(highpole_hz(500.0)));
     test_response(net5 & net6 & pass());
 
-    let mut net7 = Net::new(1, 1);
+    let mut net7 = BoxedNet::new(1, 1);
     let id7 = net7.push(Box::new(highpass_hz(1000.0, 1.0)));
     net7.connect_input(0, id7, 0);
     net7.connect_output(id7, 0, 0);
     test_response(net7);
 
-    let mut net8 = Net::new(1, 1);
+    let mut net8 = BoxedNet::new(1, 1);
     net8.chain(Box::new(highpole_hz(1500.0)));
-    test_response(Net::wrap(Box::new(zero())) + net8);
+    test_response(BoxedNet::wrap(Box::new(zero())) + net8);
 
-    let mut net9 = Net::new(1, 1);
+    let mut net9 = BoxedNet::new(1, 1);
     net9.chain(Box::new(highpole_hz(2000.0)));
-    test_response(Net::wrap(Box::new(dc(1.0))) - net9);
+    test_response(BoxedNet::wrap(Box::new(dc(1.0))) - net9);
 
-    let mut neta = Net::new(1, 1);
+    let mut neta = BoxedNet::new(1, 1);
     neta.chain(Box::new(notch_hz(2500.0, 2.0)));
-    test_response(Net::wrap(Box::new(dc(2.0))) * neta);
+    test_response(BoxedNet::wrap(Box::new(dc(2.0))) * neta);
 
-    let mut netb = Net::new(1, 1);
+    let mut netb = BoxedNet::new(1, 1);
     netb.chain(Box::new(notch_hz(2500.0, 1.0)));
     test_response(netb * 2.0 >> lowpass_hz(1500.0, 1.0));
 
-    let mut netc = Net::new(1, 1);
+    let mut netc = BoxedNet::new(1, 1);
     netc.chain(Box::new(highpass_hz(5500.0, 1.0)));
     test_response(netc >> highpass_hz(2500.0, 1.0) + 1.0);
 
-    let mut netd = Net::new(1, 1);
+    let mut netd = BoxedNet::new(1, 1);
     netd.chain(Box::new(lowpass_hz(5000.0, 1.0)));
     test_response((netd ^ highpass_hz(3000.0, 1.0)) >> (pass() + pass()));
 
-    let mut nete = Net::new(1, 1);
+    let mut nete = BoxedNet::new(1, 1);
     nete.chain(Box::new(notch_hz(5000.0, 1.0)));
-    test_response((nete.clone() ^ peak_hz(3000.0, 1.0)) >> (Net::wrap(Box::new(pass())) + pass()));
+    test_response((nete.clone() ^ peak_hz(3000.0, 1.0)) >> (BoxedNet::wrap(Box::new(pass())) + pass()));
 
-    let mut netf = Net::new(1, 1);
+    let mut netf = BoxedNet::new(1, 1);
     netf.chain(Box::new(notch_hz(2000.0, 1.0)));
     test_response(
         (netf.clone() ^ pass() ^ peak_hz(1000.0, 1.0))
-            >> (Net::wrap(Box::new(pass())) + pass() + pass()),
+            >> (BoxedNet::wrap(Box::new(pass())) + pass() + pass()),
     );
 
-    let mut netg = Net::new(1, 1);
+    let mut netg = BoxedNet::new(1, 1);
     netg.chain(Box::new(notch_hz(2000.0, 1.0)));
     test_response(
         (netg ^ pass() ^ pass())
-            >> (Net::wrap(Box::new(pass())) | pass() | pinkpass())
-            >> (Net::wrap(Box::new(pinkpass())) + pass() + pass()),
+            >> (BoxedNet::wrap(Box::new(pass())) | pass() | pinkpass())
+            >> (BoxedNet::wrap(Box::new(pinkpass())) + pass() + pass()),
     );
 }
 

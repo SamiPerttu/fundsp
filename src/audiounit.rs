@@ -384,6 +384,51 @@ pub trait AudioUnit: DynClone {
 
 dyn_clone::clone_trait_object!(AudioUnit);
 
+impl<T: AudioUnit + ?Sized> AudioUnit for Box<T>
+where
+    Box<T>: Clone,
+{
+    fn reset(&mut self) {
+        (**self).reset()
+    }
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        (**self).set_sample_rate(sample_rate)
+    }
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
+        (**self).tick(input, output)
+    }
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        (**self).process(size, input, output)
+    }
+    fn set(&mut self, setting: Setting) {
+        (**self).set(setting)
+    }
+    fn inputs(&self) -> usize {
+        (**self).inputs()
+    }
+    fn outputs(&self) -> usize {
+        (**self).outputs()
+    }
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        (**self).route(input, frequency)
+    }
+    fn get_id(&self) -> u64 {
+        (**self).get_id()
+    }
+    fn set_hash(&mut self, hash: u64) {
+        (**self).set_hash(hash)
+    }
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
+        (**self).ping(probe, hash)
+    }
+    fn footprint(&self) -> usize {
+        (**self).footprint()
+    }
+    fn allocate(&mut self) {
+        (**self).allocate()
+    }
+}
+
 impl<X: AudioNode> AudioUnit for An<X>
 where
     X::Inputs: Size<f32>,

@@ -190,7 +190,7 @@ fn test_basic() {
         dc((20.0, 40.0)) >> reverse() >> pass() * pass() >> (dsf_saw_r(0.999) ^ square() * 0.1),
     );
     let seq = Sequencer::new(2, 2, ReplayMode::None);
-    check_wave((noise() | noise()) >> Net::wrap(Box::new(seq)));
+    check_wave((noise() | noise()) >> BoxedNet::wrap(Box::new(seq)));
     check_wave(
         dc((880.0, 440.0)) >> pass() - pass() >> branchf::<U2, _, _>(|f| (f - 0.5) * triangle()),
     );
@@ -241,12 +241,12 @@ fn test_basic() {
     check_wave(ring);
 
     let feedback1 = noise()
-        >> Net::wrap(Box::new(FeedbackUnit::new(
+        >> BoxedNet::wrap(Box::new(FeedbackUnit::new(
             0.01,
             Box::new(0.5 * lowpass_hz(1000.0, 1.0)),
         )));
     let feedback2 = noise()
-        >> Net::wrap(Box::new(FeedbackUnit::new(
+        >> BoxedNet::wrap(Box::new(FeedbackUnit::new(
             0.001,
             Box::new(0.5 * highpass_hz(1000.0, 1.0)),
         )));
@@ -273,7 +273,7 @@ fn test_basic() {
     sequencer.push(0.6, 0.7, Fade::Power, 0.02, 0.03, Box::new(noise() | mls()));
     check_wave(sequencer);
 
-    let mut net = Net::new(0, 2);
+    let mut net = BoxedNet::new(0, 2);
     let id = net.push(Box::new(
         noise() >> moog_hz(1500.0, 0.8) | noise() >> moog_hz(500.0, 0.4),
     ));
@@ -282,23 +282,23 @@ fn test_basic() {
     net.check();
     check_wave(net);
 
-    let mut net = Net::new(0, 2);
+    let mut net = BoxedNet::new(0, 2);
     net.chain(Box::new(noise() | noise()));
     net.chain(Box::new(moog_hz(1500.0, 0.5) | moog_hz(1000.0, 0.6)));
     net.chain(Box::new(lowpole_hz(1000.0) | lowpole_hz(500.0)));
     net.check();
     check_wave(net);
 
-    let mut net = Net::new(0, 2);
+    let mut net = BoxedNet::new(0, 2);
     net.chain(Box::new(noise()));
     net.chain(Box::new(lowpole_hz(1000.0) ^ lowpole_hz(500.0)));
     net.chain(Box::new(lowpole_hz(1000.0) | lowpole_hz(500.0)));
     net.check();
     check_wave(net);
 
-    let mut net = Net::wrap(Box::new(sine_hz(42.)));
+    let mut net = BoxedNet::wrap(Box::new(sine_hz(42.)));
     net = net.clone() | net;
-    let verb = Net::wrap(Box::new(reverb_stereo(10., 5., 0.5)));
+    let verb = BoxedNet::wrap(Box::new(reverb_stereo(10., 5., 0.5)));
     net.chain(Box::new(verb));
     net.check();
     check_wave(net);
@@ -316,10 +316,10 @@ fn test_basic() {
     biq.set(Setting::biquad(0.2, 0.2, 0.1, 0.3, 0.5).index(1));
     check_wave((noise() | noise() | zero() | zero()) >> biq >> (pass() | pass() | sink() | sink()));
 
-    let dc42 = Net::wrap(Box::new(dc(42.)));
+    let dc42 = BoxedNet::wrap(Box::new(dc(42.)));
     let dcs = dc42.clone() | dc42;
-    let reverb = Net::wrap(Box::new(reverb_stereo(40., 5., 1.)));
-    let filter = Net::wrap(Box::new(lowpass_hz(1729., 1.)));
+    let reverb = BoxedNet::wrap(Box::new(reverb_stereo(40., 5., 1.)));
+    let filter = BoxedNet::wrap(Box::new(lowpass_hz(1729., 1.)));
     let filters = filter.clone() | filter;
     let net = dcs >> reverb >> filters;
     net.check();
@@ -352,7 +352,7 @@ fn test_basic() {
     check_wave_filter(&input, tap_node.clone() | tap_node.clone());
 
     // Check cycle.
-    let mut cycle = Net::new(2, 1);
+    let mut cycle = BoxedNet::new(2, 1);
     let id1 = cycle.chain(Box::new(join::<U2>()));
     let id2 = cycle.chain(Box::new(pass()));
     assert_eq!(cycle.error(), &None);
@@ -407,7 +407,7 @@ fn test_basic() {
 
     // Nodes vs. networks.
     let mut pass_through = pass() | pass();
-    let mut pass_through_net = Net::new(2, 2);
+    let mut pass_through_net = BoxedNet::new(2, 2);
     pass_through_net.pass_through(0, 0);
     pass_through_net.pass_through(1, 1);
     assert!(is_equal_unit(
@@ -418,7 +418,7 @@ fn test_basic() {
     pass_through_net.check();
 
     let mut swap_through = reverse::<U2>();
-    let mut swap_through_net = Net::new(2, 2);
+    let mut swap_through_net = BoxedNet::new(2, 2);
     swap_through_net.pass_through(0, 1);
     swap_through_net.pass_through(1, 0);
     assert!(is_equal_unit(
@@ -429,7 +429,7 @@ fn test_basic() {
     swap_through_net.check();
 
     let mut multiply_2_3 = mul(2.0) | mul(3.0);
-    let mut multiply_net = Net::new(2, 2);
+    let mut multiply_net = BoxedNet::new(2, 2);
     let id0 = multiply_net.push(Box::new(mul(2.0)));
     let idd = multiply_net.push(Box::new(sink()));
     let ide = multiply_net.push(Box::new(sine()));
@@ -453,7 +453,7 @@ fn test_basic() {
     ));
 
     let mut add_2_3 = add((2.0, 3.0));
-    let mut add_net = Net::new(2, 2);
+    let mut add_net = BoxedNet::new(2, 2);
     let id0 = add_net.push(Box::new(add((2.0, 3.0))));
     let idd = add_net.push(Box::new(zero()));
     let id1 = add_net.push(Box::new(multipass::<U2>()));
@@ -465,7 +465,7 @@ fn test_basic() {
     assert!(is_equal_unit(&mut rnd, &mut add_2_3, &mut add_net));
     add_net.check();
 
-    let mut front_net = Net::new(0, 1);
+    let mut front_net = BoxedNet::new(0, 1);
     let dc_id = front_net.chain(Box::new(dc(1.0)));
     front_net.set_sample_rate(48000.0);
     let mut back_net = front_net.backend();
@@ -604,8 +604,8 @@ fn test_basic() {
     assert!(outputs_diverge(&mut rnd, &mut (square() | square())));
     assert!(outputs_diverge(&mut rnd, &mut (triangle() | triangle())));
     assert!(outputs_diverge(&mut rnd, &mut (pulse() | pulse())));
-    let net1 = Net::wrap(Box::new(noise()));
-    let net2 = Net::wrap(Box::new(noise()));
+    let net1 = BoxedNet::wrap(Box::new(noise()));
+    let net2 = BoxedNet::wrap(Box::new(noise()));
     assert!(outputs_diverge(
         &mut rnd,
         &mut (unit::<U0, U2>(Box::new(net1 | net2)))
