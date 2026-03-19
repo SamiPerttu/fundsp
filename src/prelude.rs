@@ -580,7 +580,7 @@ pub fn moog_hz<F: Real>(frequency: F, q: F) -> An<Moog<F, U1>> {
 pub fn envelope<F, E, R>(f: E) -> An<Envelope<F, E, R>>
 where
     F: Real,
-    E: FnMut(F) -> R + Clone + Send + Sync,
+    E: FnMut(F) -> R + Clone,
     R: ConstantFrame<Sample = F>,
     R::Size: Size<F> + Size<f32>,
 {
