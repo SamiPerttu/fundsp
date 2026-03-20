@@ -315,9 +315,9 @@ where
 
 /// Feedback unit with integrated delay.
 #[derive(Clone)]
-pub struct FeedbackUnit {
+pub struct FeedbackUnit<T: AudioUnit + Clone> {
     /// Contained feedback loop.
-    x: Box<dyn AudioUnit>,
+    x: Box<T>,
     /// Number of input and output channels.
     channels: usize,
     /// Current sample rate of the unit.
@@ -340,12 +340,12 @@ pub struct FeedbackUnit {
     buffer: BufferVec,
 }
 
-impl FeedbackUnit {
+impl<T: AudioUnit + Clone> FeedbackUnit<T> {
     /// Create new feedback unit with integrated feedback `delay` in seconds.
     /// The delay amount is rounded to the nearest sample.
     /// The minimum delay is one sample, which may also be accomplished by setting `delay` to zero.
     /// The feedback unit mixes back delayed output of contained unit `x` to its input.
-    pub fn new(delay: f64, x: Box<dyn AudioUnit>) -> Self {
+    pub fn new(delay: f64, x: Box<T>) -> Self {
         super::denormal::prevent_denormals();
         let channels = x.inputs();
         assert_eq!(channels, x.outputs());
@@ -373,7 +373,7 @@ impl FeedbackUnit {
     }
 }
 
-impl AudioUnit for FeedbackUnit {
+impl<T: AudioUnit + Clone> AudioUnit for FeedbackUnit<T> {
     fn reset(&mut self) {
         for feedback in self.feedback.iter_mut() {
             feedback.fill(0.0);

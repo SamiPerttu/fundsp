@@ -12,7 +12,7 @@ use super::*;
 /// `f(t, dt, x)` where `t` is current time, `dt` is time elapsed since
 /// the previous update, and `x` is the enclosed node.
 #[derive(Clone)]
-pub struct System<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone + Send + Sync> {
+pub struct System<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone> {
     x: X,
     f: F,
     time: f32,
@@ -21,7 +21,7 @@ pub struct System<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone + Send + Sync
     sample_rate: f32,
 }
 
-impl<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone + Send + Sync> System<X, F> {
+impl<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone> System<X, F> {
     /// Create a new dynamical system.
     /// `dt` is the approximate target time between updates.
     pub fn new(x: An<X>, dt: f32, f: F) -> Self {
@@ -39,7 +39,7 @@ impl<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone + Send + Sync> System<X, F
     }
 }
 
-impl<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone + Sync + Send> AudioNode for System<X, F> {
+impl<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone> AudioNode for System<X, F> {
     const ID: u64 = 67;
     type Inputs = X::Inputs;
     type Outputs = X::Outputs;

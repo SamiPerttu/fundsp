@@ -16,9 +16,21 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
 
+/// An AudioUnit that can also be sent and shared between threads.
+///
+/// Implemented automatically for all AudioUnits that are Send + Sync,
+/// and required for types that support backends, like Net and Sequencer.
+///
+/// Use Box<dyn SharedUnit> anywhere you need a dynamically sized audio
+/// processor that can be used across threads.
+pub trait SharedUnit: Send + Sync + AudioUnit + DynClone {}
+
+impl<T: AudioUnit + Send + Sync + Clone> SharedUnit for T {}
+dyn_clone::clone_trait_object!(SharedUnit);
+
 /// An audio processor with an object safe interface.
 /// Once constructed, it has a fixed number of inputs and outputs.
-pub trait AudioUnit: Send + Sync + DynClone {
+pub trait AudioUnit: DynClone {
     /// Reset the input state of the unit to an initial state where it has not processed any data.
     /// In other words, reset time to zero.
     fn reset(&mut self) {
@@ -372,7 +384,52 @@ pub trait AudioUnit: Send + Sync + DynClone {
 
 dyn_clone::clone_trait_object!(AudioUnit);
 
-impl<X: AudioNode + Sync + Send> AudioUnit for An<X>
+impl<T: AudioUnit + ?Sized> AudioUnit for Box<T>
+where
+    Box<T>: Clone,
+{
+    fn reset(&mut self) {
+        (**self).reset()
+    }
+    fn set_sample_rate(&mut self, sample_rate: f64) {
+        (**self).set_sample_rate(sample_rate)
+    }
+    fn tick(&mut self, input: &[f32], output: &mut [f32]) {
+        (**self).tick(input, output)
+    }
+    fn process(&mut self, size: usize, input: &BufferRef, output: &mut BufferMut) {
+        (**self).process(size, input, output)
+    }
+    fn set(&mut self, setting: Setting) {
+        (**self).set(setting)
+    }
+    fn inputs(&self) -> usize {
+        (**self).inputs()
+    }
+    fn outputs(&self) -> usize {
+        (**self).outputs()
+    }
+    fn route(&mut self, input: &SignalFrame, frequency: f64) -> SignalFrame {
+        (**self).route(input, frequency)
+    }
+    fn get_id(&self) -> u64 {
+        (**self).get_id()
+    }
+    fn set_hash(&mut self, hash: u64) {
+        (**self).set_hash(hash)
+    }
+    fn ping(&mut self, probe: bool, hash: AttoHash) -> AttoHash {
+        (**self).ping(probe, hash)
+    }
+    fn footprint(&self) -> usize {
+        (**self).footprint()
+    }
+    fn allocate(&mut self) {
+        (**self).allocate()
+    }
+}
+
+impl<X: AudioNode> AudioUnit for An<X>
 where
     X::Inputs: Size<f32>,
     X::Outputs: Size<f32>,
@@ -572,7 +629,7 @@ impl AudioUnit for BigBlockAdapter {
 /// The unit to be adapted must have no inputs.
 #[derive(Clone)]
 pub struct BlockRateAdapter {
-    unit: Box<dyn AudioUnit>,
+    unit: Box<dyn SharedUnit>,
     channels: usize,
     buffer: BufferVec,
     index: usize,
@@ -580,7 +637,7 @@ pub struct BlockRateAdapter {
 
 impl BlockRateAdapter {
     /// Create new block rate adapter for the unit.
-    pub fn new(unit: Box<dyn AudioUnit>) -> Self {
+    pub fn new(unit: Box<dyn SharedUnit>) -> Self {
         assert_eq!(unit.inputs(), 0);
         let channels = unit.outputs();
         Self {

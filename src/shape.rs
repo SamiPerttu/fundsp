@@ -8,7 +8,7 @@ use super::*;
 use numeric_array::typenum::*;
 
 /// A waveshaper: some kind of nonlinearity. It may have a state.
-pub trait Shape: Clone + Sync + Send {
+pub trait Shape: Clone {
     /// Process a single sample.
     fn shape(&mut self, input: f32) -> f32;
     /// Process multiple samples at once in a SIMD element.
@@ -32,9 +32,9 @@ pub trait Shape: Clone + Sync + Send {
 
 /// Memoryless waveshaper from a closure.
 #[derive(Clone)]
-pub struct ShapeFn<S: Fn(f32) -> f32 + Clone + Sync + Send>(pub S);
+pub struct ShapeFn<S: Fn(f32) -> f32 + Clone>(pub S);
 
-impl<S: Fn(f32) -> f32 + Clone + Sync + Send> Shape for ShapeFn<S> {
+impl<S: Fn(f32) -> f32 + Clone> Shape for ShapeFn<S> {
     #[inline]
     fn shape(&mut self, input: f32) -> f32 {
         self.0(input)

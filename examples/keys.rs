@@ -45,7 +45,7 @@ struct State {
     /// Sequencer frontend.
     sequencer: Sequencer,
     /// Network frontend.
-    net: Net,
+    net: BoxedNet,
     /// Selected waveform.
     waveform: Waveform,
     /// Selected filter.
@@ -130,7 +130,7 @@ fn main() {
     }
 }
 
-fn create_reverb(room_size: f32, time: f32, diffusion: f32) -> Box<dyn AudioUnit> {
+fn create_reverb(room_size: f32, time: f32, diffusion: f32) -> Box<dyn SharedUnit> {
     //Box::new(reverb3_stereo(time, diffusion, highshelf_hz(5000.0, 1.0, db_amp(-1.0))))
     Box::new(reverb2_stereo(
         room_size,
@@ -161,10 +161,11 @@ where
     let reverb_diffusion = 0.5;
     let chorus_amount = shared(1.0);
 
-    let mut net = Net::wrap(Box::new(sequencer_backend));
-    let (reverb, reverb_id) = Net::wrap_id(create_reverb(room_size, reverb_time, reverb_diffusion));
-    let (phaser, phaser_id) = Net::wrap_id(Box::new(multipass::<U2>()));
-    let (flanger, flanger_id) = Net::wrap_id(Box::new(multipass::<U2>()));
+    let mut net = BoxedNet::wrap(Box::new(sequencer_backend));
+    let (reverb, reverb_id) =
+        BoxedNet::wrap_id(create_reverb(room_size, reverb_time, reverb_diffusion));
+    let (phaser, phaser_id) = BoxedNet::wrap_id(Box::new(multipass::<U2>()));
+    let (flanger, flanger_id) = BoxedNet::wrap_id(Box::new(multipass::<U2>()));
     net = net >> pan(0.0);
     // Smooth chorus and reverb amounts to prevent discontinuities.
     net = net
@@ -481,20 +482,20 @@ impl eframe::App for State {
                             )
                     });
                     let waveform = match self.waveform {
-                        Waveform::Sine => Net::wrap(Box::new(pitch * 2.0 >> sine() * 0.1)),
-                        Waveform::Saw => Net::wrap(Box::new(pitch >> saw() * 0.2)),
-                        Waveform::Square => Net::wrap(Box::new(pitch >> square() * 0.2)),
-                        Waveform::Triangle => Net::wrap(Box::new(pitch >> triangle() * 0.2)),
-                        Waveform::Organ => Net::wrap(Box::new(pitch >> organ() * 0.2)),
-                        Waveform::Hammond => Net::wrap(Box::new(pitch >> hammond() * 0.2)),
-                        Waveform::Pulse => Net::wrap(Box::new(
+                        Waveform::Sine => BoxedNet::wrap(Box::new(pitch * 2.0 >> sine() * 0.1)),
+                        Waveform::Saw => BoxedNet::wrap(Box::new(pitch >> saw() * 0.2)),
+                        Waveform::Square => BoxedNet::wrap(Box::new(pitch >> square() * 0.2)),
+                        Waveform::Triangle => BoxedNet::wrap(Box::new(pitch >> triangle() * 0.2)),
+                        Waveform::Organ => BoxedNet::wrap(Box::new(pitch >> organ() * 0.2)),
+                        Waveform::Hammond => BoxedNet::wrap(Box::new(pitch >> hammond() * 0.2)),
+                        Waveform::Pulse => BoxedNet::wrap(Box::new(
                             (pitch | lfo(move |t| lerp11(0.01, 0.99, sin_hz(0.1, t))))
                                 >> pulse() * 0.2,
                         )),
-                        Waveform::Pluck => {
-                            Net::wrap(Box::new(zero() >> pluck(pitch_hz as f32, 0.5, 0.5) * 0.5))
-                        }
-                        Waveform::Noise => Net::wrap(Box::new(
+                        Waveform::Pluck => BoxedNet::wrap(Box::new(
+                            zero() >> pluck(pitch_hz as f32, 0.5, 0.5) * 0.5,
+                        )),
+                        Waveform::Noise => BoxedNet::wrap(Box::new(
                             (noise()
                                 | pitch * 4.0
                                 | lfo(|t| funutd::math::lerp(2.0, 20.0, clamp01(t * 3.0))))
@@ -502,38 +503,40 @@ impl eframe::App for State {
                                 >> resonator()
                                 >> shape(Adaptive::new(0.1, Atan(0.05))) * 0.5,
                         )),
-                        Waveform::PolySaw => Net::wrap(Box::new(pitch >> poly_saw() * 0.2)),
-                        Waveform::PolySquare => Net::wrap(Box::new(pitch >> poly_square() * 0.2)),
-                        Waveform::PolyPulse => Net::wrap(Box::new(
+                        Waveform::PolySaw => BoxedNet::wrap(Box::new(pitch >> poly_saw() * 0.2)),
+                        Waveform::PolySquare => {
+                            BoxedNet::wrap(Box::new(pitch >> poly_square() * 0.2))
+                        }
+                        Waveform::PolyPulse => BoxedNet::wrap(Box::new(
                             (pitch | lfo(move |t| lerp11(0.01, 0.99, sin_hz(0.1, t))))
                                 >> poly_pulse() * 0.2,
                         )),
                     };
                     let filter = match self.filter {
-                        Filter::None => Net::wrap(Box::new(pass())),
-                        Filter::Moog => Net::wrap(Box::new(
+                        Filter::None => BoxedNet::wrap(Box::new(pass())),
+                        Filter::Moog => BoxedNet::wrap(Box::new(
                             (pass() | lfo(move |t| (xerp11(400.0, 10000.0, cos_hz(0.1, t)), 0.6)))
                                 >> moog(),
                         )),
-                        Filter::Butterworth => Net::wrap(Box::new(
+                        Filter::Butterworth => BoxedNet::wrap(Box::new(
                             (pass() | lfo(move |t| max(400.0, 20000.0 * exp(-t * 5.0))))
                                 >> butterpass(),
                         )),
-                        Filter::Bandpass => Net::wrap(Box::new(
+                        Filter::Bandpass => BoxedNet::wrap(Box::new(
                             (pass() | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 2.0)))
                                 >> bandpass(),
                         )),
-                        Filter::Peak => Net::wrap(Box::new(
+                        Filter::Peak => BoxedNet::wrap(Box::new(
                             (pass() | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 2.0)))
                                 >> peak(),
                         )),
-                        Filter::DirtyBiquad => Net::wrap(Box::new(
+                        Filter::DirtyBiquad => BoxedNet::wrap(Box::new(
                             (pass() | lfo(move |t| (max(800.0, 20000.0 * exp(-t * 6.0)), 3.0)))
                                 >> !dlowpass(Tanh(1.02))
                                 >> mul((1.0, 0.666, 1.0))
                                 >> dlowpass(Tanh(1.02)),
                         )),
-                        Filter::FeedbackBiquad => Net::wrap(Box::new(
+                        Filter::FeedbackBiquad => BoxedNet::wrap(Box::new(
                             (mul(2.0)
                                 | lfo(move |t| (xerp11(200.0, 10000.0, sin_hz(0.2, t)), 5.0)))
                                 >> fresonator(Softsign(1.10)),

@@ -238,7 +238,7 @@ pub fn multizero<N: Size<f32>>() -> An<Constant<N>> {
 /// Update enclosed node `x` with approximately `dt` seconds between updates.
 /// The update function is `f(t, dt, x)` where `t` is current time,
 /// `dt` is time from previous update, and `x` is the enclosed node.
-pub fn update<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone + Send + Sync>(
+pub fn update<X: AudioNode, F: FnMut(f32, f32, &mut X) + Clone>(
     x: An<X>,
     dt: f32,
     f: F,
@@ -580,7 +580,7 @@ pub fn moog_hz(frequency: f32, q: f32) -> An<Moog<f32, U1>> {
 /// ```
 pub fn envelope<E, R>(f: E) -> An<Envelope<f32, E, R>>
 where
-    E: FnMut(f32) -> R + Clone + Send + Sync,
+    E: FnMut(f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -603,7 +603,7 @@ where
 /// ```
 pub fn lfo<E, R>(f: E) -> An<Envelope<f32, E, R>>
 where
-    E: FnMut(f32) -> R + Clone + Send + Sync,
+    E: FnMut(f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -626,7 +626,7 @@ pub fn envelope2<E, R>(
     mut f: E,
 ) -> An<EnvelopeIn<f32, impl FnMut(f32, &Frame<f32, U1>) -> R + Clone, U1, R>>
 where
-    E: FnMut(f32, f32) -> R + Clone + Send + Sync,
+    E: FnMut(f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -651,7 +651,7 @@ pub fn lfo2<E, R>(
     mut f: E,
 ) -> An<EnvelopeIn<f32, impl FnMut(f32, &Frame<f32, U1>) -> R + Clone, U1, R>>
 where
-    E: FnMut(f32, f32) -> R + Clone + Send + Sync,
+    E: FnMut(f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -670,7 +670,7 @@ pub fn envelope3<E, R>(
     mut f: E,
 ) -> An<EnvelopeIn<f32, impl FnMut(f32, &Frame<f32, U2>) -> R + Clone, U2, R>>
 where
-    E: FnMut(f32, f32, f32) -> R + Clone + Send + Sync,
+    E: FnMut(f32, f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -698,7 +698,7 @@ pub fn lfo3<E, R>(
     mut f: E,
 ) -> An<EnvelopeIn<f32, impl FnMut(f32, &Frame<f32, U2>) -> R + Clone, U2, R>>
 where
-    E: FnMut(f32, f32, f32) -> R + Clone + Send + Sync,
+    E: FnMut(f32, f32, f32) -> R + Clone,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
 {
@@ -715,7 +715,7 @@ where
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 pub fn envelope_in<E, I, R>(f: E) -> An<EnvelopeIn<f32, E, I, R>>
 where
-    E: FnMut(f32, &Frame<f32, I>) -> R + Clone + Send + Sync,
+    E: FnMut(f32, &Frame<f32, I>) -> R + Clone,
     I: Size<f32>,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
@@ -731,7 +731,7 @@ where
 /// - Output(s): envelope linearly interpolated from samples at 2 ms intervals (average).
 pub fn lfo_in<E, I, R>(f: E) -> An<EnvelopeIn<f32, E, I, R>>
 where
-    E: FnMut(f32, &Frame<f32, I>) -> R + Clone + Send + Sync,
+    E: FnMut(f32, &Frame<f32, I>) -> R + Clone,
     I: Size<f32>,
     R: ConstantFrame<Sample = f32>,
     R::Size: Size<f32>,
@@ -1125,7 +1125,7 @@ where
 /// ```
 pub fn map<M, I, O>(f: M) -> An<Map<M, I, O>>
 where
-    M: Fn(&Frame<f32, I>) -> O + Clone + Send + Sync,
+    M: Fn(&Frame<f32, I>) -> O + Clone,
     I: Size<f32>,
     O: ConstantFrame<Sample = f32>,
     O::Size: Size<f32>,
@@ -1178,7 +1178,7 @@ pub fn declick_s(t: f32) -> An<Declick<f32>> {
 /// Shape signal with a waveshaper function.
 /// - Input 0: input signal
 /// - Output 0: shaped signal
-pub fn shape_fn<S: Fn(f32) -> f32 + Clone + Send + Sync>(f: S) -> An<Shaper<ShapeFn<S>>> {
+pub fn shape_fn<S: Fn(f32) -> f32 + Clone>(f: S) -> An<Shaper<ShapeFn<S>>> {
     An(Shaper::new(ShapeFn(f)))
 }
 
@@ -2282,7 +2282,7 @@ pub fn chorus(
 /// use fundsp::prelude32::*;
 /// saw_hz(110.0) >> flanger(0.5, 0.005, 0.010, |t| lerp11(0.005, 0.010, sin_hz(0.1, t)));
 /// ```
-pub fn flanger<X: Fn(f32) -> f32 + Clone + Send + Sync>(
+pub fn flanger<X: Fn(f32) -> f32 + Clone>(
     feedback_amount: f32,
     minimum_delay: f32,
     maximum_delay: f32,
@@ -2302,7 +2302,7 @@ pub fn flanger<X: Fn(f32) -> f32 + Clone + Send + Sync>(
 /// use fundsp::prelude32::*;
 /// saw_hz(110.0) >> phaser(0.5, |t| sin_hz(0.1, t) * 0.5 + 0.5);
 /// ```
-pub fn phaser<X: Fn(f32) -> f32 + Clone + Send + Sync>(
+pub fn phaser<X: Fn(f32) -> f32 + Clone>(
     feedback_amount: f32,
     phase_f: X,
 ) -> An<impl AudioNode<Inputs = U1, Outputs = U1>> {
@@ -2406,7 +2406,7 @@ pub fn resynth<I, O, F>(window_length: usize, processing: F) -> An<Resynth<I, O,
 where
     I: Size<f32>,
     O: Size<f32>,
-    F: FnMut(&mut FftWindow) + Clone + Send + Sync,
+    F: FnMut(&mut FftWindow) + Clone,
 {
     An(Resynth::new(window_length, processing))
 }

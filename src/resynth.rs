@@ -236,7 +236,7 @@ pub struct Resynth<I, O, F>
 where
     I: Size<f32>,
     O: Size<f32>,
-    F: FnMut(&mut FftWindow) + Clone + Send + Sync,
+    F: FnMut(&mut FftWindow) + Clone,
 {
     _marker: core::marker::PhantomData<(I, O)>,
     /// FFT windows.
@@ -259,7 +259,7 @@ impl<I, O, F> Resynth<I, O, F>
 where
     I: Size<f32>,
     O: Size<f32>,
-    F: FnMut(&mut FftWindow) + Clone + Send + Sync,
+    F: FnMut(&mut FftWindow) + Clone,
 {
     /// Number of FFT bins. Equals the length of each frequency domain vector in FFT windows.
     #[inline]
@@ -316,7 +316,7 @@ impl<I, O, F> AudioNode for Resynth<I, O, F>
 where
     I: Size<f32>,
     O: Size<f32>,
-    F: FnMut(&mut FftWindow) + Clone + Send + Sync,
+    F: FnMut(&mut FftWindow) + Clone,
 {
     const ID: u64 = 80;
     type Inputs = I;

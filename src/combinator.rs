@@ -13,7 +13,7 @@ use core::ops::{Add, BitAnd, BitOr, BitXor, Mul, Neg, Shr, Sub};
 use numeric_array::typenum::*;
 
 /// Trait for multi-channel constants.
-pub trait ConstantFrame: Clone + Sync + Send {
+pub trait ConstantFrame: Clone {
     type Sample: Float;
     type Size: Size<Self::Sample>;
     fn frame(self) -> Frame<Self::Sample, Self::Size>;
@@ -117,7 +117,7 @@ impl<T: Float> ConstantFrame for (T, T, T, T, T, T, T, T, T, T) {
 }
 
 /// Trait for 1-way/2-way distinctions, such as symmetric/asymmetric response times.
-pub trait ScalarOrPair: Clone + Default + Send + Sync {
+pub trait ScalarOrPair: Clone + Default {
     type Sample: Float;
     /// Construct new item from broadcast pair.
     fn construct(x: Self::Sample, y: Self::Sample) -> Self;

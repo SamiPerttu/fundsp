@@ -84,7 +84,7 @@ where
         },
     );
 
-    let mut c = Net::wrap(Box::new(granular));
+    let mut c = BoxedNet::wrap(Box::new(granular));
 
     c = c
         >> (multipass()

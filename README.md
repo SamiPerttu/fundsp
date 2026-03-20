@@ -490,10 +490,10 @@ Dataflow concerns are thus explicated in the graph notation itself.
 ### Net
 
 The graph notation can get cumbersome for complex graphs. Also, sometimes
-the number of inputs and outputs is not known until runtime.
+the shape of the whole audio graph is not known until runtime.
 
 The `Net` component offers an explicit graph interface
-for connecting `AudioUnit` nodes.
+for dynamically connecting `AudioUnit` nodes.
 Arity of the net is specified as constructor arguments.
 
 For example, to build `dc(220.0) >> sine()` dynamically using `Net`:
@@ -501,7 +501,7 @@ For example, to build `dc(220.0) >> sine()` dynamically using `Net`:
 ```rust
 use fundsp::prelude64::*;
 // Instantiate network with 0 inputs and 1 output.
-let mut net = Net::new(0, 1);
+let mut net = BoxedNet::new(0, 1);
 // Add nodes, obtaining their IDs.
 let dc_id = net.push(Box::new(dc(220.0)));
 let sine_id = net.push(Box::new(sine()));
@@ -510,20 +510,34 @@ net.pipe_all(dc_id, sine_id);
 net.pipe_output(sine_id);
 ```
 
-The overhead of `Net` is the overhead of calling into `Box<dyn AudioUnit>`
-objects. Static graphs can get optimized more effectively as well by the compiler.
-Beyond that, the dynamic versions are roughly as efficient
-as the static ones.
+`Net` is generic over the type of contained `AudioUnits`. `BoxedNet` is a convenience
+alias for constructing `Net`s made up of `Box<dyn SharedUnit>`, which is
+the most flexible implementation.
+The overhead of `BoxedNet` is the overhead of calling into `Box<dyn AudioUnit>`
+objects (pointer indirection + dynamic dispatch). Static graphs can get optimized 
+more effectively as well by the compiler. Beyond that, the dynamic versions are roughly 
+as efficient as the static ones. If your `Net` doesn't need to be `Send` and `Sync`, you
+can also use a `Net<Box<dyn AudioUnit>>` to enable the use of faster, single-threaded
+synchronization primitives within your `AudioUnits`.
+
+If you need even better performance, you can also use an enum with variants for each 
+concrete `An<AudioNode>` you want to add to the `Net`, and an `impl AudioUnit` that 
+defers to each variant. This can provide a significant speed-up over the boxed default.
+Crates such as [enum_dispatch](https://docs.rs/enum_dispatch/latest/enum_dispatch/)
+can make this pattern more ergonomic.
 
 The graph syntax is also available for combining `Net` instances.
-Connectivity checks are then deferred to runtime.
-
+Connectivity checks are then deferred to runtime. 
 Networks can also be combined inline with components from the preludes.
 The components are first converted to `Net`.
 
-When we need dynamic processing, we can start it with `Net::wrap`,
+However, some methods and operators require the `Net` to be able to construct and add 
+new units to itself. To enable these operations on a `Net`
+with a custom inner type, you must `impl NetUnit` for your custom type.
+
+When we need dynamic processing, we can start it with `BoxedNet::wrap`,
 which converts any unit into a network. Moreover, we can control when
-to cross from the static realm into the dynamic by the placement of `Net::wrap`.
+to cross from the static realm into the dynamic by the placement of `BoxedNet::wrap`.
 
 ```rust
 use fundsp::prelude64::*;
@@ -542,7 +556,7 @@ while the real-time safe backend renders audio.
 
 ```rust
 use fundsp::prelude64::*;
-let mut net = Net::new(0, 1);
+let mut net = BoxedNet::new(0, 1);
 let noise_id = net.chain(Box::new(pink()));
 // Create the backend.
 let mut backend = net.backend();

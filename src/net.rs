@@ -12,12 +12,20 @@ use super::shared::IdGenerator;
 use super::signal::*;
 use super::vertex::*;
 use super::*;
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashMap;
 
 // Iterator type returned from `Net::ids`.
 pub use hashbrown::hash_map::Keys;
+
+pub use net_unit::*;
+
+/// Type alias for a `Net` backed by boxed trait objects.
+/// This is the most flexible and feature-complete Net implementation
+/// and appropriate for most use cases, but applications which require particularly
+/// high performance may want to use an inner AudioUnit type without pointer
+/// indirection and dynamic dispatch, such as a `Net<MyUnitEnum>`.
+pub type BoxedNet = Net<Box<dyn SharedUnit>>;
 
 /// Network errors. These are accessible via `Net::error`.
 /// The only error so far is a connection cycle.
@@ -60,13 +68,25 @@ impl NodeId {
 }
 
 /// Node introduced with a crossfade.
-#[derive(Clone, Default)]
-pub(crate) struct NodeEdit {
-    pub unit: Option<Box<dyn AudioUnit>>,
+#[derive(Clone)]
+pub(crate) struct NodeEdit<T: AudioUnit> {
+    pub unit: Option<T>,
     pub id: NodeId,
     pub index: NodeIndex,
     pub fade: Fade,
     pub fade_time: f32,
+}
+
+impl<T: AudioUnit> Default for NodeEdit<T> {
+    fn default() -> Self {
+        Self {
+            unit: None,
+            id: NodeId::default(),
+            index: 0,
+            fade: Fade::default(),
+            fade_time: 0.0,
+        }
+    }
 }
 
 // Net type ID for pseudorandom phase.
@@ -115,7 +135,7 @@ pub(crate) fn edge(source: Port, target: Port) -> NetEdge {
 /// Outputs of the network are sourced from user specified unit outputs or
 /// global inputs, or are filled with zeros if not connected.
 #[derive(Default)]
-pub struct Net {
+pub struct Net<T: AudioUnit + Clone> {
     /// Global input buffers.
     input: BufferVec,
     /// Global output buffers.
@@ -123,7 +143,7 @@ pub struct Net {
     /// Sources of global outputs.
     output_edge: Vec<NetEdge>,
     /// Vertices of the graph.
-    vertex: Vec<Vertex>,
+    vertex: Vec<Vertex<T>>,
     /// Ordering of vertex evaluation.
     order: Option<Vec<NodeIndex>>,
     /// Translation map from node ID to vertex index.
@@ -131,13 +151,13 @@ pub struct Net {
     /// Current sample rate.
     sample_rate: f32,
     /// Optional frontend.
-    front: Option<(Arc<Queue<NetMessage>>, Arc<Queue<NetReturn>>)>,
+    front: Option<(Arc<Queue<NetMessage<T>>>, Arc<Queue<NetReturn<T>>>)>,
     /// Number of inputs in the backend. This is for checking consistency during commits.
     backend_inputs: usize,
     /// Number of outputs in the backend. This is for checking consistency during commits.
     backend_outputs: usize,
     /// Queue of smooth edits made to nodes. Applicable to frontends only.
-    edit_queue: Vec<NodeEdit>,
+    edit_queue: Vec<NodeEdit<T>>,
     /// Revision number. This is used by frontends and backends only.
     /// The revision is incremented after each commit.
     revision: u64,
@@ -145,7 +165,7 @@ pub struct Net {
     error: Option<NetError>,
 }
 
-impl Clone for Net {
+impl<T: AudioUnit + Clone> Clone for Net<T> {
     fn clone(&self) -> Self {
         Self {
             input: self.input.clone(),
@@ -167,7 +187,7 @@ impl Clone for Net {
     }
 }
 
-impl Net {
+impl<T: AudioUnit + Clone> Net<T> {
     /// Create a new network with the given number of inputs and outputs.
     /// The number of inputs and outputs is fixed after construction.
     /// Network global outputs are initialized to zero.
@@ -175,7 +195,7 @@ impl Net {
     /// ### Example (Sine Oscillator)
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::new(1, 1);
+    /// let mut net = BoxedNet::new(1, 1);
     /// net.chain(Box::new(sine()));
     /// net.check();
     /// ```
@@ -220,13 +240,13 @@ impl Net {
     /// ### Example (Sine Oscillator)
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::new(1, 1);
+    /// let mut net = BoxedNet::new(1, 1);
     /// let id = net.push(Box::new(sine()));
     /// net.pipe_input(id);
     /// net.pipe_output(id);
     /// net.check();
     /// ```
-    pub fn push(&mut self, mut unit: Box<dyn AudioUnit>) -> NodeId {
+    pub fn push(&mut self, mut unit: T) -> NodeId {
         unit.set_sample_rate(self.sample_rate as f64);
         let index = self.vertex.len();
         let id = NodeId::new();
@@ -239,9 +259,13 @@ impl Net {
 
     /// Add a new unit to the network with a fade-in. Return its ID handle.
     /// Unit inputs are initially set to zero.
-    pub fn fade_in(&mut self, fade: Fade, fade_time: f32, unit: Box<dyn AudioUnit>) -> NodeId {
-        let dummy = DummyUnit::new(unit.inputs(), unit.outputs());
-        let id = self.push(Box::new(dummy));
+    pub fn fade_in(&mut self, fade: Fade, fade_time: f32, unit: T) -> NodeId
+    where
+        T: NetUnit,
+    {
+        let inputs = unit.inputs();
+        let outputs = unit.outputs();
+        let id = self.push(T::dummy(inputs, outputs));
         self.crossfade(id, fade, fade_time, unit);
         id
     }
@@ -339,7 +363,7 @@ impl Net {
     /// ### Example (Sine Oscillator)
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::new(1, 1);
+    /// let mut net = BoxedNet::new(1, 1);
     /// let id1 = net.push(Box::new(sine()));
     /// let id2 = net.push(Box::new(sine()));
     /// net.connect_input(0, id2, 0);
@@ -348,7 +372,7 @@ impl Net {
     /// assert!(net.size() == 1);
     /// net.check();
     /// ```
-    pub fn remove(&mut self, node: NodeId) -> Box<dyn AudioUnit> {
+    pub fn remove(&mut self, node: NodeId) -> T {
         self.remove_2(node, false)
     }
 
@@ -360,7 +384,7 @@ impl Net {
     /// ### Example
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::new(1, 1);
+    /// let mut net = BoxedNet::new(1, 1);
     /// let id1 = net.chain(Box::new(add(1.0)));
     /// let id2 = net.chain(Box::new(add(2.0)));
     /// assert!(net.size() == 2);
@@ -370,14 +394,14 @@ impl Net {
     /// assert!(net.filter_mono(1.0) == 2.0);
     /// net.check();
     /// ```
-    pub fn remove_link(&mut self, node: NodeId) -> Box<dyn AudioUnit> {
+    pub fn remove_link(&mut self, node: NodeId) -> T {
         self.remove_2(node, true)
     }
 
     /// Remove `node` from network. If `link` is false then connections from the unit
     /// are replaced with zeros; if `link` is true then connections are replaced
     /// by matching inputs of the unit, and the number of inputs must be equal to the number of outputs.
-    fn remove_2(&mut self, node: NodeId, link: bool) -> Box<dyn AudioUnit> {
+    fn remove_2(&mut self, node: NodeId, link: bool) -> T {
         let node_index = self.node_index[&node];
         assert!(!link || self.vertex[node_index].inputs() == self.vertex[node_index].outputs());
         // Replace all global ports that use an output of the node.
@@ -451,13 +475,13 @@ impl Net {
     /// ### Example (Replace Saw Wave With Square Wave)
     /// ```
     /// use fundsp::prelude32::*;
-    /// let mut net = Net::new(0, 1);
+    /// let mut net = BoxedNet::new(0, 1);
     /// let id = net.push(Box::new(saw_hz(220.0)));
     /// net.pipe_output(id);
     /// net.replace(id, Box::new(square_hz(220.0)));
     /// net.check();
     /// ```
-    pub fn replace(&mut self, node: NodeId, mut unit: Box<dyn AudioUnit>) -> Box<dyn AudioUnit> {
+    pub fn replace(&mut self, node: NodeId, mut unit: T) -> T {
         let node_index = self.node_index[&node];
         assert_eq!(unit.inputs(), self.vertex[node_index].inputs());
         assert_eq!(unit.outputs(), self.vertex[node_index].outputs());
@@ -476,19 +500,13 @@ impl Net {
     /// ### Example (Replace Saw Wave With Square Wave Via 1 Second Crossfade)
     /// ```
     /// use fundsp::prelude32::*;
-    /// let mut net = Net::new(0, 1);
+    /// let mut net = BoxedNet::new(0, 1);
     /// let id = net.push(Box::new(saw_hz(220.0)));
     /// net.pipe_output(id);
     /// net.crossfade(id, Fade::Smooth, 1.0, Box::new(square_hz(220.0)));
     /// net.check();
     /// ```
-    pub fn crossfade(
-        &mut self,
-        node: NodeId,
-        fade: Fade,
-        fade_time: f32,
-        mut unit: Box<dyn AudioUnit>,
-    ) {
+    pub fn crossfade(&mut self, node: NodeId, fade: Fade, fade_time: f32, mut unit: T) {
         let node_index = self.node_index[&node];
         assert_eq!(unit.inputs(), self.vertex[node_index].inputs());
         assert_eq!(unit.outputs(), self.vertex[node_index].outputs());
@@ -515,7 +533,7 @@ impl Net {
     /// ### Example (Filtered Saw Oscillator)
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::new(1, 1);
+    /// let mut net = BoxedNet::new(1, 1);
     /// let id1 = net.push(Box::new(saw()));
     /// let id2 = net.push(Box::new(lowpass_hz(1000.0, 1.0)));
     /// net.connect(id1, 0, id2, 0);
@@ -541,7 +559,7 @@ impl Net {
     /// ### Example
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::new(1, 1);
+    /// let mut net = BoxedNet::new(1, 1);
     /// let id = net.chain(Box::new(pass()));
     /// assert!(net.filter_mono(1.0) == 1.0);
     /// net.disconnect(id, 0);
@@ -576,7 +594,7 @@ impl Net {
     /// ### Example (Saw Wave)
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::new(1, 1);
+    /// let mut net = BoxedNet::new(1, 1);
     /// let id = net.push(Box::new(saw()));
     /// net.connect_input(0, id, 0);
     /// net.connect_output(id, 0, 0);
@@ -613,7 +631,7 @@ impl Net {
     /// ### Example (Stereo Filter)
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::new(2, 2);
+    /// let mut net = BoxedNet::new(2, 2);
     /// let id = net.push(Box::new(peak_hz(1000.0, 1.0) | peak_hz(1000.0, 1.0)));
     /// net.pipe_input(id);
     /// net.pipe_output(id);
@@ -677,7 +695,7 @@ impl Net {
     /// ### Example (Stereo Reverb)
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::new(2, 2);
+    /// let mut net = BoxedNet::new(2, 2);
     /// let id = net.push(Box::new(multipass() & reverb_stereo(10.0, 1.0, 0.5)));
     /// net.pipe_input(id);
     /// net.pipe_output(id);
@@ -704,7 +722,7 @@ impl Net {
     /// ### Example (Stereo Pass-Through)
     /// ```
     /// use fundsp::prelude32::*;
-    /// let mut net = Net::new(2, 2);
+    /// let mut net = BoxedNet::new(2, 2);
     /// net.pass_through(0, 0);
     /// net.pass_through(1, 1);
     /// net.check();
@@ -724,7 +742,7 @@ impl Net {
     /// ### Example (Panned Sine Wave)
     /// ```
     /// use fundsp::prelude32::*;
-    /// let mut net = Net::new(0, 2);
+    /// let mut net = BoxedNet::new(0, 2);
     /// let id1 = net.push(Box::new(sine_hz(440.0)));
     /// let id2 = net.push(Box::new(pan(0.0)));
     /// net.pipe_all(id1, id2);
@@ -771,12 +789,12 @@ impl Net {
     /// ### Example (Lowpass And Highpass Filters In Series)
     /// ```
     /// use fundsp::prelude32::*;
-    /// let mut net = Net::new(1, 1);
+    /// let mut net = BoxedNet::new(1, 1);
     /// net.chain(Box::new(lowpass_hz(2000.0, 1.0)));
     /// net.chain(Box::new(highpass_hz(1000.0, 1.0)));
     /// net.check();
     /// ```
-    pub fn chain(&mut self, unit: Box<dyn AudioUnit>) -> NodeId {
+    pub fn chain(&mut self, unit: T) -> NodeId {
         let unit_inputs = unit.inputs();
         let id = self.push(unit);
         let index = self.node_index[&id];
@@ -819,15 +837,15 @@ impl Net {
 
     /// Access `node`. Note that if this network is a frontend,
     /// then the nodes accessible here are clones.
-    pub fn node(&self, node: NodeId) -> &dyn AudioUnit {
-        &*self.vertex[self.node_index[&node]].unit
+    pub fn node(&self, node: NodeId) -> &T {
+        &self.vertex[self.node_index[&node]].unit
     }
 
     /// Access mutable `node`. Note that any changes made via this method
     /// are not accounted in the backend. This can be used to, e.g.,
     /// query for frequency responses.
-    pub fn node_mut(&mut self, node: NodeId) -> &mut dyn AudioUnit {
-        &mut *self.vertex[self.node_index[&node]].unit
+    pub fn node_mut(&mut self, node: NodeId) -> &mut T {
+        &mut self.vertex[self.node_index[&node]].unit
     }
 
     /// Compute and store node order for this network.
@@ -874,7 +892,7 @@ impl Net {
             }
         }
 
-        fn propagate(net: &mut Net, i: usize, order: &mut Vec<NodeIndex>) {
+        fn propagate<T: AudioUnit + Clone>(net: &mut Net<T>, i: usize, order: &mut Vec<NodeIndex>) {
             for channel in 0..net.vertex[i].inputs() {
                 if let Port::Local(j, _) = net.vertex[i].source[channel].source {
                     net.vertex[j].unplugged -= 1;
@@ -920,13 +938,13 @@ impl Net {
     /// ### Example (Conditional Processing)
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::wrap(Box::new(square_hz(440.0)));
+    /// let mut net = BoxedNet::wrap(Box::new(square_hz(440.0)));
     /// let add_filter = true;
     /// if add_filter {
     ///     net = net >> lowpass_hz(880.0, 1.0);
     /// }
     /// ```
-    pub fn wrap(unit: Box<dyn AudioUnit>) -> Net {
+    pub fn wrap(unit: T) -> Net<T> {
         let mut net = Net::new(unit.inputs(), unit.outputs());
         let id = net.push(unit);
         if net.inputs() > 0 {
@@ -939,7 +957,7 @@ impl Net {
     }
 
     /// Wrap arbitrary `unit` in a network. Return network and the ID of the unit.
-    pub fn wrap_id(unit: Box<dyn AudioUnit>) -> (Net, NodeId) {
+    pub fn wrap_id(unit: T) -> (Net<T>, NodeId) {
         let mut net = Net::new(unit.inputs(), unit.outputs());
         let id = net.push(unit);
         if net.inputs() > 0 {
@@ -956,12 +974,15 @@ impl Net {
     /// ### Example
     /// ```
     /// use fundsp::prelude32::*;
-    /// let mut net = Net::scalar(2, 1.0);
+    /// let mut net = BoxedNet::scalar(2, 1.0);
     /// assert!(net.get_stereo() == (1.0, 1.0));
     /// ```
-    pub fn scalar(channels: usize, scalar: f32) -> Net {
+    pub fn scalar(channels: usize, scalar: f32) -> Net<T>
+    where
+        T: NetUnit,
+    {
         let mut net = Net::new(0, channels);
-        let id = net.push(Box::new(An(Constant::new([scalar].into()))));
+        let id = net.push(T::scalar(scalar));
         for i in 0..channels {
             net.connect_output(id, 0, i);
         }
@@ -1036,7 +1057,7 @@ impl Net {
 
     /// Disambiguate IDs in this network so they don't conflict with those in `other` network.
     /// Conflict is possible as a result of cloning and recombination.
-    fn disambiguate_ids(&mut self, other: &Net) {
+    fn disambiguate_ids(&mut self, other: &Net<T>) {
         for i in 0..self.size() {
             let id = self.vertex[i].id;
             if other.node_index.contains_key(&id) {
@@ -1049,7 +1070,7 @@ impl Net {
     }
 
     /// Migrate existing units to the new network. This is an internal function.
-    pub(crate) fn migrate(&mut self, new: &mut Net) {
+    pub(crate) fn migrate(&mut self, new: &mut Net<T>) {
         for (id, &index) in self.node_index.iter() {
             if let Some(&new_index) = new.node_index.get(id) {
                 // We may use the existing unit if no changes have been made since our last update.
@@ -1082,7 +1103,7 @@ impl Net {
     /// ### Example
     /// ```
     /// use fundsp::prelude64::*;
-    /// let mut net = Net::new(0, 1);
+    /// let mut net = BoxedNet::new(0, 1);
     /// net.chain(Box::new(dc(1.0)));
     /// let mut backend = net.backend();
     /// net.chain(Box::new(mul(2.0)));
@@ -1090,11 +1111,11 @@ impl Net {
     /// net.commit();
     /// assert!(backend.get_mono() == 2.0);
     /// ```
-    pub fn backend(&mut self) -> NetBackend {
+    pub fn backend(&mut self) -> NetBackend<T> {
         assert!(!self.has_backend());
         // Create huge channel buffers to make sure we don't run out of space easily.
-        let queue_message = Arc::new(Queue::<NetMessage>::new_const());
-        let queue_return = Arc::new(Queue::<NetReturn>::new_const());
+        let queue_message = Arc::new(Queue::<NetMessage<T>>::new_const());
+        let queue_return = Arc::new(Queue::<NetReturn<T>>::new_const());
         self.front = Some((queue_message.clone(), queue_return.clone()));
         self.backend_inputs = self.inputs();
         self.backend_outputs = self.outputs();
@@ -1169,7 +1190,7 @@ impl Net {
     }
 
     /// Resolve new frontend for a binary combination.
-    fn resolve_frontend(&mut self, other: &mut Net) {
+    fn resolve_frontend(&mut self, other: &mut Net<T>) {
         if self.has_backend() && other.has_backend() {
             panic!("Cannot combine two frontends.");
         }
@@ -1188,7 +1209,7 @@ impl Net {
         &mut self,
         input: &[f32],
         output: &mut [f32],
-        sender: &Option<Arc<Queue<NetReturn>>>,
+        sender: &Option<Arc<Queue<NetReturn<T>>>>,
     ) {
         if !self.is_ordered() {
             self.determine_order();
@@ -1226,7 +1247,7 @@ impl Net {
         size: usize,
         input: &BufferRef,
         output: &mut BufferMut,
-        sender: &Option<Arc<Queue<NetReturn>>>,
+        sender: &Option<Arc<Queue<NetReturn<T>>>>,
     ) {
         if !self.is_ordered() {
             self.determine_order();
@@ -1287,7 +1308,7 @@ impl Net {
 
     /// Apply all edits into this network.
     #[inline]
-    pub(crate) fn apply_edits(&mut self, sender: &Option<Arc<Queue<NetReturn>>>) {
+    pub(crate) fn apply_edits(&mut self, sender: &Option<Arc<Queue<NetReturn<T>>>>) {
         for edit in self.edit_queue.iter_mut() {
             self.vertex[edit.index].enqueue(edit, sender);
         }
@@ -1298,8 +1319,8 @@ impl Net {
     #[inline]
     pub(crate) fn apply_foreign_edits(
         &mut self,
-        source: &mut Net,
-        sender: &Option<Arc<Queue<NetReturn>>>,
+        source: &mut Net<T>,
+        sender: &Option<Arc<Queue<NetReturn<T>>>>,
     ) {
         for edit in source.edit_queue.iter_mut() {
             if let Some(index) = self.node_index.get(&edit.id) {
@@ -1309,7 +1330,7 @@ impl Net {
     }
 }
 
-impl AudioUnit for Net {
+impl<T: AudioUnit + Clone> AudioUnit for Net<T> {
     #[inline]
     fn inputs(&self) -> usize {
         self.input.channels()
@@ -1436,15 +1457,15 @@ impl AudioUnit for Net {
     }
 }
 
-impl Net {
+impl<T: AudioUnit + Clone> Net<T> {
     /// Return whether `Net::thru(net)` is valid. This returns true always.
     #[allow(unused_variables)]
-    pub fn can_thru(net: &Net) -> bool {
+    pub fn can_thru(net: &Net<T>) -> bool {
         true
     }
 
     /// Given `net`, create and return network `!net`.
-    pub fn thru(mut net: Net) -> Net {
+    pub fn thru(mut net: Net<T>) -> Net<T> {
         let outputs = net.outputs();
         net.output.resize(net.inputs());
         net.output_edge
@@ -1457,12 +1478,12 @@ impl Net {
     }
 
     /// Return whether `Net::branch(net1, net2)` is valid.
-    pub fn can_branch(net1: &Net, net2: &Net) -> bool {
+    pub fn can_branch(net1: &Net<T>, net2: &Net<T>) -> bool {
         net1.inputs() == net2.inputs()
     }
 
     /// Given nets `net1` and `net2`, create and return net `net1 ^ net2`.
-    pub fn branch(mut net1: Net, mut net2: Net) -> Net {
+    pub fn branch(mut net1: Net<T>, mut net2: Net<T>) -> Net<T> {
         if net1.inputs() != net2.inputs() {
             panic!(
                 "Net::branch: mismatched inputs ({} versus {}).",
@@ -1520,12 +1541,12 @@ impl Net {
 
     /// Return whether `Net::stack(net1, net2)` is valid. This returns true always.
     #[allow(unused_variables)]
-    pub fn can_stack(net1: &Net, net2: &Net) -> bool {
+    pub fn can_stack(net1: &Net<T>, net2: &Net<T>) -> bool {
         true
     }
 
     /// Given nets `net1` and `net2`, create and return net `net1 | net2`.
-    pub fn stack(mut net1: Net, mut net2: Net) -> Net {
+    pub fn stack(mut net1: Net<T>, mut net2: Net<T>) -> Net<T> {
         net2.disambiguate_ids(&net1);
         let offset = net1.vertex.len();
         let output_offset = net1.outputs();
@@ -1581,16 +1602,19 @@ impl Net {
     }
 
     /// Return whether `Net::binary(net1, net2, ...)` is valid.
-    pub fn can_binary(net1: &Net, net2: &Net) -> bool {
+    pub fn can_binary(net1: &Net<T>, net2: &Net<T>) -> bool {
         net1.outputs() == net2.outputs()
     }
 
     /// Given nets `net1` and `net2` and binary operator `op`, create and return network `net1 op net2`.
     pub fn binary<B: FrameBinop<super::typenum::U1> + Sync + Send + 'static>(
-        mut net1: Net,
-        mut net2: Net,
+        mut net1: Net<T>,
+        mut net2: Net<T>,
         op: B,
-    ) -> Net {
+    ) -> Net<T>
+    where
+        T: NetUnit,
+    {
         if net1.outputs() != net2.outputs() {
             panic!(
                 "Net::binary: mismatched outputs ({} versus {}).",
@@ -1630,11 +1654,7 @@ impl Net {
         }
         let add_offset = net1.vertex.len();
         for i in 0..net1.outputs() {
-            net1.push(Box::new(An(Binop::<_, _, _>::new(
-                op.clone(),
-                Pass::new(),
-                Pass::new(),
-            ))));
+            net1.push(T::binop(op.clone()));
             net1.connect_output_index(add_offset + i, 0, i);
         }
         for i in 0..output1.len() {
@@ -1665,32 +1685,41 @@ impl Net {
     }
 
     /// Return whether `Net::sum(net1, net2)` is valid.
-    pub fn can_sum(net1: &Net, net2: &Net) -> bool {
+    pub fn can_sum(net1: &Net<T>, net2: &Net<T>) -> bool {
         Net::can_binary(net1, net2)
     }
 
     /// Given nets `net1` and `net2`, create and return net `net1 + net2`.
-    pub fn sum(net1: Net, net2: Net) -> Net {
+    pub fn sum(net1: Net<T>, net2: Net<T>) -> Net<T>
+    where
+        T: NetUnit,
+    {
         Net::binary(net1, net2, FrameAdd::new())
     }
 
     /// Return whether `Net::sum(net1, net2)` is valid.
-    pub fn can_product(net1: &Net, net2: &Net) -> bool {
+    pub fn can_product(net1: &Net<T>, net2: &Net<T>) -> bool {
         Net::can_binary(net1, net2)
     }
 
     /// Given nets `net1` and `net2`, create and return net `net1 * net2`.
-    pub fn product(net1: Net, net2: Net) -> Net {
+    pub fn product(net1: Net<T>, net2: Net<T>) -> Net<T>
+    where
+        T: NetUnit,
+    {
         Net::binary(net1, net2, FrameMul::new())
     }
 
     /// Return whether `Net::bus(net1, net2)` is valid.
-    pub fn can_bus(net1: &Net, net2: &Net) -> bool {
+    pub fn can_bus(net1: &Net<T>, net2: &Net<T>) -> bool {
         net1.inputs() == net2.inputs() && net1.outputs() == net2.outputs()
     }
 
     /// Given nets `net1` and `net2`, create and return network `net1 & net2`.
-    pub fn bus(mut net1: Net, mut net2: Net) -> Net {
+    pub fn bus(mut net1: Net<T>, mut net2: Net<T>) -> Net<T>
+    where
+        T: NetUnit,
+    {
         if net1.inputs() != net2.inputs() {
             panic!(
                 "Net::bus: mismatched inputs ({} versus {}).",
@@ -1732,11 +1761,7 @@ impl Net {
         }
         let add_offset = net1.vertex.len();
         for i in 0..net1.outputs() {
-            net1.push(Box::new(An(Binop::<_, _, _>::new(
-                FrameAdd::new(),
-                Pass::new(),
-                Pass::new(),
-            ))));
+            net1.push(T::binop(FrameAdd::new()));
             net1.connect_output_index(add_offset + i, 0, i);
         }
         for i in 0..output1.len() {
@@ -1767,12 +1792,12 @@ impl Net {
     }
 
     /// Return whether `Net::pipe(net1, net2)` is valid.
-    pub fn can_pipe(net1: &Net, net2: &Net) -> bool {
+    pub fn can_pipe(net1: &Net<T>, net2: &Net<T>) -> bool {
         net1.outputs() == net2.inputs()
     }
 
     /// Given nets `net1` and `net2`, create and return net `net1 >> net2`.
-    pub fn pipe(mut net1: Net, mut net2: Net) -> Net {
+    pub fn pipe(mut net1: Net<T>, mut net2: Net<T>) -> Net<T> {
         if net1.outputs() != net2.inputs() {
             panic!(
                 "Net::pipe: mismatched connectivity ({} outputs versus {} inputs).",
@@ -1831,284 +1856,322 @@ impl Net {
     }
 }
 
-impl core::ops::Not for Net {
-    type Output = Net;
+impl<T: AudioUnit + Clone> core::ops::Not for Net<T> {
+    type Output = Net<T>;
     #[inline]
     fn not(self) -> Self::Output {
         Net::thru(self)
     }
 }
 
-impl core::ops::Neg for Net {
-    type Output = Net;
+impl<T: AudioUnit + Clone> core::ops::Shr<Net<T>> for Net<T> {
+    type Output = Net<T>;
     #[inline]
-    fn neg(self) -> Self::Output {
-        // TODO. Optimize this.
-        let n = self.outputs();
-        Net::scalar(n, f32::zero()) - self
-    }
-}
-
-impl core::ops::Shr<Net> for Net {
-    type Output = Net;
-    #[inline]
-    fn shr(self, y: Net) -> Self::Output {
+    fn shr(self, y: Net<T>) -> Self::Output {
         Net::pipe(self, y)
     }
 }
 
-impl<X> core::ops::Shr<An<X>> for Net
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
+impl<T: AudioUnit + Clone> core::ops::BitOr<Net<T>> for Net<T> {
+    type Output = Net<T>;
     #[inline]
-    fn shr(self, y: An<X>) -> Self::Output {
-        Net::pipe(self, Net::wrap(Box::new(y)))
-    }
-}
-
-impl<X> core::ops::Shr<Net> for An<X>
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn shr(self, y: Net) -> Self::Output {
-        Net::pipe(Net::wrap(Box::new(self)), y)
-    }
-}
-
-impl core::ops::BitAnd<Net> for Net {
-    type Output = Net;
-    #[inline]
-    fn bitand(self, y: Net) -> Self::Output {
-        Net::bus(self, y)
-    }
-}
-
-impl<X> core::ops::BitAnd<An<X>> for Net
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn bitand(self, y: An<X>) -> Self::Output {
-        Net::bus(self, Net::wrap(Box::new(y)))
-    }
-}
-
-impl<X> core::ops::BitAnd<Net> for An<X>
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn bitand(self, y: Net) -> Self::Output {
-        Net::bus(Net::wrap(Box::new(self)), y)
-    }
-}
-
-impl core::ops::BitOr<Net> for Net {
-    type Output = Net;
-    #[inline]
-    fn bitor(self, y: Net) -> Self::Output {
+    fn bitor(self, y: Net<T>) -> Self::Output {
         Net::stack(self, y)
     }
 }
 
-impl<X> core::ops::BitOr<An<X>> for Net
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
+impl<T: AudioUnit + Clone> core::ops::BitXor<Net<T>> for Net<T> {
+    type Output = Net<T>;
     #[inline]
-    fn bitor(self, y: An<X>) -> Self::Output {
-        Net::stack(self, Net::wrap(Box::new(y)))
-    }
-}
-
-impl<X> core::ops::BitOr<Net> for An<X>
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn bitor(self, y: Net) -> Self::Output {
-        Net::stack(Net::wrap(Box::new(self)), y)
-    }
-}
-
-impl core::ops::BitXor<Net> for Net {
-    type Output = Net;
-    #[inline]
-    fn bitxor(self, y: Net) -> Self::Output {
+    fn bitxor(self, y: Net<T>) -> Self::Output {
         Net::branch(self, y)
     }
 }
 
-impl<X> core::ops::BitXor<An<X>> for Net
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn bitxor(self, y: An<X>) -> Self::Output {
-        Net::branch(self, Net::wrap(Box::new(y)))
-    }
-}
+pub mod net_unit {
+    //! NetUnit trait and utility operator implementations for `Net<T>`.
 
-impl<X> core::ops::BitXor<Net> for An<X>
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn bitxor(self, y: Net) -> Self::Output {
-        Net::branch(Net::wrap(Box::new(self)), y)
-    }
-}
+    use super::*;
+    use alloc::boxed::Box;
 
-impl core::ops::Add<Net> for Net {
-    type Output = Net;
-    #[inline]
-    fn add(self, y: Net) -> Self::Output {
-        Net::binary(self, y, FrameAdd::new())
+    /// Trait for constructing helper audio units inside a `Net`.
+    /// This enables methods like `scalar`, `binary`, `bus`, and `fade_in`
+    /// to work generically. Implemented for `Box<dyn AudioUnit>` by default;
+    /// users with custom wrapper types can implement this trait to opt in.
+    pub trait NetUnit: AudioUnit + Clone {
+        /// Create a dummy (silent) unit with the given number of inputs and outputs.
+        fn dummy(inputs: usize, outputs: usize) -> Self;
+        /// Create a scalar constant unit that outputs `value` on one channel.
+        fn scalar(value: f32) -> Self;
+        /// Create a binary operator unit that combines two mono pass-through inputs.
+        fn binop<B: FrameBinop<super::super::typenum::U1> + Sync + Send + 'static>(op: B) -> Self;
+        /// Wrap any `AudioUnit` into this type.
+        fn from_audio_unit<U: AudioUnit + Clone + Send + Sync + 'static>(unit: U) -> Self;
     }
-}
 
-impl<X> core::ops::Add<An<X>> for Net
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn add(self, y: An<X>) -> Self::Output {
-        Net::binary(self, Net::wrap(Box::new(y)), FrameAdd::new())
+    impl NetUnit for Box<dyn SharedUnit> {
+        fn dummy(inputs: usize, outputs: usize) -> Self {
+            Box::new(DummyUnit::new(inputs, outputs))
+        }
+        fn scalar(value: f32) -> Self {
+            Box::new(An(Constant::new([value].into())))
+        }
+        fn binop<B: FrameBinop<super::super::typenum::U1> + Sync + Send + 'static>(op: B) -> Self {
+            Box::new(An(Binop::<_, _, _>::new(op, Pass::new(), Pass::new())))
+        }
+        fn from_audio_unit<U: AudioUnit + Clone + Send + Sync + 'static>(unit: U) -> Self {
+            Box::new(unit)
+        }
     }
-}
+    // --- Operator impls for Net<T> ---
 
-impl<X> core::ops::Add<Net> for An<X>
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn add(self, y: Net) -> Self::Output {
-        Net::binary(Net::wrap(Box::new(self)), y, FrameAdd::new())
+    impl<T: NetUnit> core::ops::Neg for Net<T> {
+        type Output = Net<T>;
+        #[inline]
+        fn neg(self) -> Self::Output {
+            // TODO. Optimize this.
+            let n = self.outputs();
+            Net::scalar(n, f32::zero()) - self
+        }
     }
-}
 
-impl core::ops::Sub<Net> for Net {
-    type Output = Net;
-    #[inline]
-    fn sub(self, y: Net) -> Self::Output {
-        Net::binary(self, y, FrameSub::new())
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::Shr<An<X>> for Net<T>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn shr(self, y: An<X>) -> Self::Output {
+            Net::pipe(self, Net::wrap(T::from_audio_unit(y)))
+        }
     }
-}
 
-impl<X> core::ops::Sub<An<X>> for Net
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn sub(self, y: An<X>) -> Self::Output {
-        Net::binary(self, Net::wrap(Box::new(y)), FrameSub::new())
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::Shr<Net<T>> for An<X>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn shr(self, y: Net<T>) -> Self::Output {
+            Net::pipe(Net::wrap(T::from_audio_unit(self)), y)
+        }
     }
-}
 
-impl<X> core::ops::Sub<Net> for An<X>
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn sub(self, y: Net) -> Self::Output {
-        Net::binary(Net::wrap(Box::new(self)), y, FrameSub::new())
+    impl<T: NetUnit> core::ops::BitAnd<Net<T>> for Net<T> {
+        type Output = Net<T>;
+        #[inline]
+        fn bitand(self, y: Net<T>) -> Self::Output {
+            Net::bus(self, y)
+        }
     }
-}
 
-impl core::ops::Mul<Net> for Net {
-    type Output = Net;
-    #[inline]
-    fn mul(self, y: Net) -> Self::Output {
-        Net::binary(self, y, FrameMul::new())
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::BitAnd<An<X>> for Net<T>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn bitand(self, y: An<X>) -> Self::Output {
+            Net::bus(self, Net::wrap(T::from_audio_unit(y)))
+        }
     }
-}
 
-impl<X> core::ops::Mul<An<X>> for Net
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn mul(self, y: An<X>) -> Self::Output {
-        Net::binary(self, Net::wrap(Box::new(y)), FrameMul::new())
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::BitAnd<Net<T>> for An<X>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn bitand(self, y: Net<T>) -> Self::Output {
+            Net::bus(Net::wrap(T::from_audio_unit(self)), y)
+        }
     }
-}
 
-impl<X> core::ops::Mul<Net> for An<X>
-where
-    X: AudioNode + core::marker::Send + Sync + 'static,
-{
-    type Output = Net;
-    #[inline]
-    fn mul(self, y: Net) -> Self::Output {
-        Net::binary(Net::wrap(Box::new(self)), y, FrameMul::new())
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::BitOr<An<X>> for Net<T>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn bitor(self, y: An<X>) -> Self::Output {
+            Net::stack(self, Net::wrap(T::from_audio_unit(y)))
+        }
     }
-}
 
-impl core::ops::Add<f32> for Net {
-    type Output = Net;
-    #[inline]
-    fn add(self, y: f32) -> Self::Output {
-        let n = self.outputs();
-        self + Net::scalar(n, y)
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::BitOr<Net<T>> for An<X>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn bitor(self, y: Net<T>) -> Self::Output {
+            Net::stack(Net::wrap(T::from_audio_unit(self)), y)
+        }
     }
-}
 
-impl core::ops::Add<Net> for f32 {
-    type Output = Net;
-    #[inline]
-    fn add(self, y: Net) -> Self::Output {
-        let n = y.outputs();
-        Net::scalar(n, self) + y
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::BitXor<An<X>> for Net<T>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn bitxor(self, y: An<X>) -> Self::Output {
+            Net::branch(self, Net::wrap(T::from_audio_unit(y)))
+        }
     }
-}
 
-impl core::ops::Sub<f32> for Net {
-    type Output = Net;
-    #[inline]
-    fn sub(self, y: f32) -> Self::Output {
-        let n = self.outputs();
-        self - Net::scalar(n, y)
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::BitXor<Net<T>> for An<X>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn bitxor(self, y: Net<T>) -> Self::Output {
+            Net::branch(Net::wrap(T::from_audio_unit(self)), y)
+        }
     }
-}
 
-impl core::ops::Sub<Net> for f32 {
-    type Output = Net;
-    #[inline]
-    fn sub(self, y: Net) -> Self::Output {
-        let n = y.outputs();
-        Net::scalar(n, self) - y
+    impl<T: NetUnit> core::ops::Add<Net<T>> for Net<T> {
+        type Output = Net<T>;
+        #[inline]
+        fn add(self, y: Net<T>) -> Self::Output {
+            Net::binary(self, y, FrameAdd::new())
+        }
     }
-}
 
-impl core::ops::Mul<f32> for Net {
-    type Output = Net;
-    #[inline]
-    fn mul(self, y: f32) -> Self::Output {
-        let n = self.outputs();
-        self * Net::scalar(n, y)
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::Add<An<X>> for Net<T>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn add(self, y: An<X>) -> Self::Output {
+            Net::binary(self, Net::wrap(T::from_audio_unit(y)), FrameAdd::new())
+        }
     }
-}
 
-impl core::ops::Mul<Net> for f32 {
-    type Output = Net;
-    #[inline]
-    fn mul(self, y: Net) -> Self::Output {
-        let n = y.outputs();
-        Net::scalar(n, self) * y
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::Add<Net<T>> for An<X>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn add(self, y: Net<T>) -> Self::Output {
+            Net::binary(Net::wrap(T::from_audio_unit(self)), y, FrameAdd::new())
+        }
+    }
+
+    impl<T: NetUnit> core::ops::Sub<Net<T>> for Net<T> {
+        type Output = Net<T>;
+        #[inline]
+        fn sub(self, y: Net<T>) -> Self::Output {
+            Net::binary(self, y, FrameSub::new())
+        }
+    }
+
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::Sub<An<X>> for Net<T>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn sub(self, y: An<X>) -> Self::Output {
+            Net::binary(self, Net::wrap(T::from_audio_unit(y)), FrameSub::new())
+        }
+    }
+
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::Sub<Net<T>> for An<X>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn sub(self, y: Net<T>) -> Self::Output {
+            Net::binary(Net::wrap(T::from_audio_unit(self)), y, FrameSub::new())
+        }
+    }
+
+    impl<T: NetUnit> core::ops::Mul<Net<T>> for Net<T> {
+        type Output = Net<T>;
+        #[inline]
+        fn mul(self, y: Net<T>) -> Self::Output {
+            Net::binary(self, y, FrameMul::new())
+        }
+    }
+
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::Mul<An<X>> for Net<T>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn mul(self, y: An<X>) -> Self::Output {
+            Net::binary(self, Net::wrap(T::from_audio_unit(y)), FrameMul::new())
+        }
+    }
+
+    impl<X: AudioNode + Send + Sync + 'static, T: NetUnit> core::ops::Mul<Net<T>> for An<X>
+    where
+        An<X>: AudioUnit + Clone,
+    {
+        type Output = Net<T>;
+        #[inline]
+        fn mul(self, y: Net<T>) -> Self::Output {
+            Net::binary(Net::wrap(T::from_audio_unit(self)), y, FrameMul::new())
+        }
+    }
+
+    impl<T: NetUnit> core::ops::Add<f32> for Net<T> {
+        type Output = Net<T>;
+        #[inline]
+        fn add(self, y: f32) -> Self::Output {
+            let n = self.outputs();
+            self + Net::scalar(n, y)
+        }
+    }
+
+    impl<T: NetUnit> core::ops::Add<Net<T>> for f32 {
+        type Output = Net<T>;
+        #[inline]
+        fn add(self, y: Net<T>) -> Self::Output {
+            let n = y.outputs();
+            Net::scalar(n, self) + y
+        }
+    }
+
+    impl<T: NetUnit> core::ops::Sub<f32> for Net<T> {
+        type Output = Net<T>;
+        #[inline]
+        fn sub(self, y: f32) -> Self::Output {
+            let n = self.outputs();
+            self - Net::scalar(n, y)
+        }
+    }
+
+    impl<T: NetUnit> core::ops::Sub<Net<T>> for f32 {
+        type Output = Net<T>;
+        #[inline]
+        fn sub(self, y: Net<T>) -> Self::Output {
+            let n = y.outputs();
+            Net::scalar(n, self) - y
+        }
+    }
+
+    impl<T: NetUnit> core::ops::Mul<f32> for Net<T> {
+        type Output = Net<T>;
+        #[inline]
+        fn mul(self, y: f32) -> Self::Output {
+            let n = self.outputs();
+            self * Net::scalar(n, y)
+        }
+    }
+
+    impl<T: NetUnit> core::ops::Mul<Net<T>> for f32 {
+        type Output = Net<T>;
+        #[inline]
+        fn mul(self, y: Net<T>) -> Self::Output {
+            let n = y.outputs();
+            Net::scalar(n, self) * y
+        }
     }
 }

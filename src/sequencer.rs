@@ -58,7 +58,7 @@ impl Fade {
 
 #[derive(Clone)]
 pub(crate) struct Event {
-    pub unit: Box<dyn AudioUnit>,
+    pub unit: Box<dyn SharedUnit>,
     pub start_time: f64,
     pub end_time: f64,
     pub original_start_time: f64,
@@ -71,7 +71,7 @@ pub(crate) struct Event {
 
 impl Event {
     pub fn new(
-        unit: Box<dyn AudioUnit>,
+        unit: Box<dyn SharedUnit>,
         start_time: f64,
         end_time: f64,
         fade_ease: Fade,
@@ -359,7 +359,7 @@ impl Sequencer {
         fade_ease: Fade,
         fade_in_time: f64,
         fade_out_time: f64,
-        mut unit: Box<dyn AudioUnit>,
+        mut unit: Box<dyn SharedUnit>,
     ) -> EventId {
         assert_eq!(unit.inputs(), self.inputs());
         assert_eq!(unit.outputs(), self.outputs);
@@ -421,7 +421,7 @@ impl Sequencer {
         fade_ease: Fade,
         fade_in_time: f64,
         fade_out_time: f64,
-        mut unit: Box<dyn AudioUnit>,
+        mut unit: Box<dyn SharedUnit>,
     ) -> EventId {
         assert!(unit.inputs() == self.inputs() && unit.outputs() == self.outputs);
         let duration = end_time - start_time;
@@ -471,7 +471,7 @@ impl Sequencer {
         fade_ease: Fade,
         fade_in_time: f64,
         fade_out_time: f64,
-        unit: Box<dyn AudioUnit>,
+        unit: Box<dyn SharedUnit>,
     ) -> EventId {
         self.push(
             start_time,

@@ -26,7 +26,7 @@ Order of type arguments in nodes:
 
 /// Generic audio processor.
 /// `AudioNode` has a static number of inputs (`AudioNode::Inputs`) and outputs (`AudioNode::Outputs`).
-pub trait AudioNode: Clone + Sync + Send {
+pub trait AudioNode: Clone {
     /// Unique ID for hashing.
     const ID: u64;
     /// Input arity.
@@ -1335,7 +1335,7 @@ pub struct Map<M, I, O> {
 
 impl<M, I, O> Map<M, I, O>
 where
-    M: Fn(&Frame<f32, I>) -> O + Clone + Send + Sync,
+    M: Fn(&Frame<f32, I>) -> O + Clone,
     I: Size<f32>,
     O: ConstantFrame<Sample = f32>,
     O::Size: Size<f32>,
@@ -1351,7 +1351,7 @@ where
 
 impl<M, I, O> AudioNode for Map<M, I, O>
 where
-    M: Fn(&Frame<f32, I>) -> O + Clone + Send + Sync,
+    M: Fn(&Frame<f32, I>) -> O + Clone,
     I: Size<f32>,
     O: ConstantFrame<Sample = f32>,
     O::Size: Size<f32>,
