@@ -23,7 +23,7 @@ use anyhow::bail;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, Device, FromSample, SampleFormat, SizedSample, StreamConfig};
 use fundsp::prelude::SharedUnit;
-use fundsp::prelude64::{adsr_live, midi_hz, shared, triangle, var, Shared};
+use fundsp::prelude64::{Shared, adsr_live, midi_hz, shared, triangle, var};
 use midi_msg::{ChannelVoiceMsg, MidiMsg};
 use midir::{Ignore, MidiInput, MidiInputPort};
 use read_input::prelude::*;

@@ -162,7 +162,8 @@ where
     let chorus_amount = shared(1.0);
 
     let mut net = BoxedNet::wrap(Box::new(sequencer_backend));
-    let (reverb, reverb_id) = BoxedNet::wrap_id(create_reverb(room_size, reverb_time, reverb_diffusion));
+    let (reverb, reverb_id) =
+        BoxedNet::wrap_id(create_reverb(room_size, reverb_time, reverb_diffusion));
     let (phaser, phaser_id) = BoxedNet::wrap_id(Box::new(multipass::<U2>()));
     let (flanger, flanger_id) = BoxedNet::wrap_id(Box::new(multipass::<U2>()));
     net = net >> pan(0.0);
@@ -491,9 +492,9 @@ impl eframe::App for State {
                             (pitch | lfo(move |t| lerp11(0.01, 0.99, sin_hz(0.1, t))))
                                 >> pulse() * 0.2,
                         )),
-                        Waveform::Pluck => {
-                            BoxedNet::wrap(Box::new(zero() >> pluck(pitch_hz as f32, 0.5, 0.5) * 0.5))
-                        }
+                        Waveform::Pluck => BoxedNet::wrap(Box::new(
+                            zero() >> pluck(pitch_hz as f32, 0.5, 0.5) * 0.5,
+                        )),
                         Waveform::Noise => BoxedNet::wrap(Box::new(
                             (noise()
                                 | pitch * 4.0
@@ -503,7 +504,9 @@ impl eframe::App for State {
                                 >> shape(Adaptive::new(0.1, Atan(0.05))) * 0.5,
                         )),
                         Waveform::PolySaw => BoxedNet::wrap(Box::new(pitch >> poly_saw() * 0.2)),
-                        Waveform::PolySquare => BoxedNet::wrap(Box::new(pitch >> poly_square() * 0.2)),
+                        Waveform::PolySquare => {
+                            BoxedNet::wrap(Box::new(pitch >> poly_square() * 0.2))
+                        }
                         Waveform::PolyPulse => BoxedNet::wrap(Box::new(
                             (pitch | lfo(move |t| lerp11(0.01, 0.99, sin_hz(0.1, t))))
                                 >> poly_pulse() * 0.2,

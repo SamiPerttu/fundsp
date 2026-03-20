@@ -229,7 +229,9 @@ fn test_responses() {
 
     let mut nete = BoxedNet::new(1, 1);
     nete.chain(Box::new(notch_hz(5000.0, 1.0)));
-    test_response((nete.clone() ^ peak_hz(3000.0, 1.0)) >> (BoxedNet::wrap(Box::new(pass())) + pass()));
+    test_response(
+        (nete.clone() ^ peak_hz(3000.0, 1.0)) >> (BoxedNet::wrap(Box::new(pass())) + pass()),
+    );
 
     let mut netf = BoxedNet::new(1, 1);
     netf.chain(Box::new(notch_hz(2000.0, 1.0)));
