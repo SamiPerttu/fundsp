@@ -122,6 +122,40 @@ impl Wavetable {
         Wavetable { table }
     }
 
+    /// Create new wavetable with per-table normalization.
+    /// Each table is independently normalized to ensure
+    /// consistent output level across all pitches.
+    ///
+    /// Arguments are the same as [`Wavetable::new`].
+    pub fn new_normalized<P, A>(
+        min_pitch: f64,
+        max_pitch: f64,
+        tables_per_octave: f64,
+        phase: &P,
+        amplitude: &A,
+    ) -> Wavetable
+    where
+        P: Fn(u32) -> f64,
+        A: Fn(f64, u32) -> f64,
+    {
+        let mut table: Vec<(f32, Vec<f32>)> = vec![];
+        let mut pitch = min_pitch;
+        let p_factor = pow(2.0, 1.0 / tables_per_octave);
+        while pitch <= max_pitch {
+            let wave = make_wave(pitch, phase, amplitude);
+            table.push((pitch as f32, wave));
+            pitch *= p_factor;
+        }
+        for t in table.iter_mut() {
+            let max_amplitude = t.1.iter().fold(0.0f32, |acc, &x| max(acc, abs(x)));
+            if max_amplitude > 0.0 {
+                let z = 1.0 / max_amplitude;
+                t.1.iter_mut().for_each(|x| *x *= z);
+            }
+        }
+        Wavetable { table }
+    }
+
     /// Create new wavetable from a single cycle wave.
     /// The length of `wave` must be a power of two between 2 and 32768.
     /// `min_pitch` and `max_pitch` are the minimum
