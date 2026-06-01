@@ -21,6 +21,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
+      - run: cargo check
+      - run: cargo check --no-default-features
 
   lint:
     runs-on: ubuntu-latest

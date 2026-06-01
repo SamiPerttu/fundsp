@@ -6,6 +6,8 @@ use super::math::*;
 use super::sequencer::*;
 use super::signal::*;
 use super::*;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use tinyvec::TinyVec;
 
 #[derive(Default, Clone)]
