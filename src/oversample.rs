@@ -6,6 +6,7 @@ use super::graph::*;
 use super::math::*;
 use super::signal::*;
 use super::*;
+use alloc::vec::Vec;
 use numeric_array::typenum::*;
 
 #[inline]
